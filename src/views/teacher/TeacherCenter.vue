@@ -4,6 +4,7 @@ import { useUserStore } from '../../stores/user'
 import TeacherStudents from './components/TeacherStudents.vue'
 import TeacherMaterials from './components/TeacherMaterials.vue'
 import TeacherMessages from './components/TeacherMessages.vue'
+import TeacherSchedule from './components/TeacherSchedule.vue'
 
 const userStore = useUserStore()
 const activeMenu = ref('dashboard')
@@ -36,7 +37,7 @@ const activeMenu = ref('dashboard')
               <el-icon><Tickets /></el-icon>
               <span>订单管理</span>
             </el-menu-item>
-            <el-menu-item index="schedule" @click="$router.push('/teacher-center/schedule')">
+            <el-menu-item index="schedule">
               <el-icon><Calendar /></el-icon>
               <span>课表管理</span>
             </el-menu-item>
@@ -51,6 +52,10 @@ const activeMenu = ref('dashboard')
             <el-menu-item index="messages">
               <el-icon><ChatLineRound /></el-icon>
               <span>消息中心</span>
+            </el-menu-item>
+            <el-menu-item index="income">
+              <el-icon><Money /></el-icon>
+              <span>收入管理</span>
             </el-menu-item>
             <el-menu-item index="profile" @click="$router.push('/teacher-center/profile')">
               <el-icon><Setting /></el-icon>
@@ -169,7 +174,7 @@ const activeMenu = ref('dashboard')
           <router-view></router-view>
         </div>
         <div v-else-if="activeMenu === 'schedule'">
-          <router-view></router-view>
+          <TeacherSchedule />
         </div>
         <div v-else-if="activeMenu === 'students'">
           <TeacherStudents />
@@ -179,6 +184,10 @@ const activeMenu = ref('dashboard')
         </div>
         <div v-else-if="activeMenu === 'messages'">
           <TeacherMessages />
+        </div>
+        <div v-else-if="activeMenu === 'income'">
+          <h2>收入管理</h2>
+          <p>此功能正在开发中...</p>
         </div>
         <div v-else-if="activeMenu === 'profile'">
           <router-view></router-view>

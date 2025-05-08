@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { CalendarCellType } from 'element-plus'
+import type { CalendarDateType } from 'element-plus'
 
 interface ScheduleClass {
   id: number;
@@ -139,7 +139,7 @@ const getDateClasses = (date: Date) => {
 }
 
 // 日历单元格的自定义渲染
-const cellRender = (cell: CalendarCellType) => {
+const cellRender = (cell: CalendarDateType) => {
   const date = new Date(cell.date.toISOString())
   const hasClass = isDateHasClass(date)
   const count = getDateClassCount(date)
@@ -198,7 +198,7 @@ export default {
 
     <!-- 日历视图 -->
     <div v-if="viewMode === 'calendar'" class="calendar-view">
-      <el-calendar v-model="currentDate" :cell-render="cellRender">
+      <el-calendar v-model="currentDate">
         <template #dateCell="{ data }">
           <div class="calendar-cell">
             <p :class="{ 'is-today': data.isToday, 'not-current-month': data.type !== 'current' }">
@@ -210,6 +210,7 @@ export default {
                 :key="index"
                 class="class-indicator"
                 :class="[`subject-${scheduleClass.subject}`, `status-${scheduleClass.status}`]"
+                :style="{ top: `${index * 26 + 30}px` }"
                 @click.stop="showClassDetail(scheduleClass)"
               >
                 <span class="indicator-time">{{ scheduleClass.time.split('-')[0] }}</span>
@@ -405,14 +406,26 @@ h2 {
 .calendar-view {
   background-color: #fff;
   border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   padding: 15px;
+  margin-bottom: 30px;
+}
+
+.calendar-view :deep(.el-calendar-table) {
+  table-layout: fixed;
+}
+
+.calendar-view :deep(.el-calendar-day) {
+  height: 150px;
+  padding: 0;
+  position: relative;
 }
 
 .calendar-cell {
   height: 100%;
   position: relative;
   padding: 8px;
+  overflow: visible;
 }
 
 .calendar-cell p {
@@ -422,6 +435,8 @@ h2 {
   width: 24px;
   line-height: 24px;
   margin: 0 auto;
+  position: relative;
+  z-index: 2;
 }
 
 .calendar-cell .is-today {
@@ -435,13 +450,18 @@ h2 {
 }
 
 .class-indicators {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  position: absolute;
+  width: 100%;
+  left: 0;
+  top: 0;
+  height: 100%;
+  padding: 0 5px;
 }
 
 .class-indicator {
+  position: absolute;
+  left: 5px;
+  right: 5px;
   padding: 4px 6px;
   border-radius: 4px;
   cursor: pointer;
@@ -451,22 +471,29 @@ h2 {
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
-  transition: transform 0.2s;
+  transition: all 0.2s;
+  z-index: 1;
+  height: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .class-indicator:hover {
-  transform: scale(1.02);
+  transform: translateY(-2px) scale(1.02);
+  z-index: 10;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .indicator-time {
   margin-right: 4px;
   font-weight: bold;
+  font-size: 11px;
 }
 
 .indicator-title {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 11px;
 }
 
 /* 科目颜色 */
@@ -496,7 +523,7 @@ h2 {
 
 /* 课程状态 */
 .status-completed {
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 /* 列表视图样式 */

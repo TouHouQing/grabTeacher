@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import Home from '../views/Home.vue'
+import HomeView from '../views/Home.vue'
 import FamousTeachers from '../views/FamousTeachers.vue'
 import PremiumCourses from '../views/PremiumCourses.vue'
 import LatestCourses from '../views/LatestCourses.vue'
@@ -26,7 +26,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: Home
+      component: HomeView
     },
     {
       path: '/famous-teachers',
@@ -130,6 +130,11 @@ const router = createRouter({
       name: 'admin-center',
       component: AdminCenter,
       meta: { requiresAuth: true, role: 'admin' }
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: () => import('../views/Register.vue')
     }
   ]
 })
