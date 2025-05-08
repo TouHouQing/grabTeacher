@@ -7,23 +7,36 @@ const userStore = useUserStore()
 <template>
   <div class="app">
     <header class="header">
-      <el-menu mode="horizontal" router>
+      <div class="logo">GrabTeacher</div>
+      <el-menu mode="horizontal" router class="nav-menu">
         <el-menu-item index="/">首页</el-menu-item>
-        <el-menu-item index="/videos">视频课程</el-menu-item>
+        <el-menu-item index="/latest-courses">最新课程</el-menu-item>
+        <el-menu-item index="/famous-teachers">天下名师</el-menu-item>
+        <el-menu-item index="/premium-courses">金牌课程</el-menu-item>
+        <el-menu-item index="/about">关于我们</el-menu-item>
+        <el-menu-item index="/campus">校区查询</el-menu-item>
+        <el-menu-item index="/platform">教师招聘</el-menu-item>
+        <el-menu-item index="/contact">联系我们</el-menu-item>
         <div class="flex-grow" />
         <template v-if="!userStore.isLoggedIn">
-          <el-menu-item index="/login">登录</el-menu-item>
-          <el-menu-item index="/register">注册</el-menu-item>
+          <el-button type="primary" @click="$router.push('/login')" class="login-btn">学生登录</el-button>
+          <el-button type="info" @click="$router.push('/teacher-login')" class="login-btn">教师登录</el-button>
         </template>
         <template v-else>
-          <el-menu-item v-if="userStore.isTeacher" index="/admin">后台管理</el-menu-item>
-          <el-menu-item @click="userStore.logout">退出登录</el-menu-item>
+          <el-button v-if="userStore.isTeacher" @click="$router.push('/teacher-center')" type="success">教师中心</el-button>
+          <el-button v-if="userStore.isStudent" @click="$router.push('/student-center')" type="success">学生中心</el-button>
+          <el-button @click="userStore.logout" type="info">退出登录</el-button>
         </template>
       </el-menu>
     </header>
     <main class="main">
       <router-view></router-view>
     </main>
+    <footer class="footer">
+      <div class="footer-content">
+        <p>© 2023 GrabTeacher 个性化教学平台 版权所有</p>
+      </div>
+    </footer>
   </div>
 </template>
 
@@ -38,6 +51,7 @@ html,
 body {
   width: 100%;
   height: 100%;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 #app {
@@ -49,6 +63,8 @@ body {
   width: 100%;
   min-height: 100vh;
   background-color: #f5f7fa;
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
@@ -59,25 +75,51 @@ body {
   z-index: 100;
   background-color: #fff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
 }
 
-.header .el-menu {
+.logo {
+  font-size: 24px;
+  font-weight: bold;
+  color: #409EFF;
+  margin-right: 20px;
+}
+
+.nav-menu {
   border: none;
-  padding: 0 20px;
+  flex: 1;
 }
 
 .main {
   padding-top: 60px;
+  flex: 1;
   width: 100%;
+}
+
+.footer {
+  background-color: #2c3e50;
+  color: #fff;
+  padding: 20px 0;
+  text-align: center;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .flex-grow {
   flex: 1;
 }
 
+.login-btn {
+  margin-left: 10px;
+}
+
 /* 重置Element Plus的一些默认样式 */
 .el-menu--horizontal {
-  justify-content: center;
   border-bottom: none !important;
 }
 

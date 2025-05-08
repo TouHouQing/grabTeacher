@@ -1,0 +1,447 @@
+<script setup lang="ts">
+
+</script>
+
+<template>
+  <div class="famous-teachers">
+    <div class="banner">
+      <div class="banner-content">
+        <h1>天下名师</h1>
+        <p>专业优质的教师团队，助您学习成长</p>
+      </div>
+    </div>
+
+    <div class="container">
+      <!-- 教师筛选 -->
+      <div class="filter-section">
+        <el-form :inline="true" class="filter-form">
+          <el-form-item label="科目">
+            <el-select v-model="filter.subject" placeholder="选择科目" clearable>
+              <el-option label="数学" value="数学" />
+              <el-option label="英语" value="英语" />
+              <el-option label="物理" value="物理" />
+              <el-option label="化学" value="化学" />
+              <el-option label="生物" value="生物" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="年级">
+            <el-select v-model="filter.grade" placeholder="选择年级" clearable>
+              <el-option label="小学" value="小学" />
+              <el-option label="初中" value="初中" />
+              <el-option label="高中" value="高中" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="教龄">
+            <el-select v-model="filter.experience" placeholder="教学经验" clearable>
+              <el-option label="5年以下" value="0-5" />
+              <el-option label="5-10年" value="5-10" />
+              <el-option label="10年以上" value="10+" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="handleFilter">筛选</el-button>
+            <el-button @click="resetFilter">重置</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- 教师列表 -->
+      <div class="teachers-section">
+        <div class="teachers-grid">
+          <div class="teacher-card" v-for="(teacher, index) in displayTeachers" :key="index">
+            <div class="teacher-avatar">
+              <img :src="teacher.avatar" :alt="teacher.name">
+              <div class="teacher-rating">
+                <el-rate v-model="teacher.rating" disabled text-color="#ff9900"></el-rate>
+              </div>
+            </div>
+            <div class="teacher-info">
+              <h3>{{ teacher.name }}</h3>
+              <p>{{ teacher.subject }} | {{ teacher.grade }} | {{ teacher.experience }}年教龄</p>
+              <p class="teacher-description">{{ teacher.description }}</p>
+              <div class="teacher-tags">
+                <el-tag v-for="(tag, i) in teacher.tags" :key="i" size="small" class="teacher-tag">{{ tag }}</el-tag>
+              </div>
+              <div class="teacher-schedule">
+                <div class="schedule-title">可授课时间：</div>
+                <div class="schedule-times">
+                  <span v-for="(time, i) in teacher.schedule" :key="i" class="schedule-tag">{{ time }}</span>
+                </div>
+              </div>
+              <div class="teacher-actions">
+                <el-button type="primary" size="small">预约课程</el-button>
+                <el-button type="info" size="small">查看详情</el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 分页 -->
+        <div class="pagination">
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :page-sizes="[6, 12, 24]"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="filteredTeachers.length"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+export default {
+  name: 'FamousTeachersView',
+  data() {
+    return {
+      currentPage: 1,
+      pageSize: 6,
+      filter: {
+        subject: '',
+        grade: '',
+        experience: ''
+      },
+      teachers: [
+        {
+          name: '张老师',
+          subject: '数学',
+          grade: '高中',
+          experience: 10,
+          rating: 4.8,
+          description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣，使用多种教学方法帮助学生理解数学概念。',
+          avatar: 'https://img.syt5.com/2021/0908/20210908055012420.jpg.420.580.jpg',
+          tags: ['趣味教学', '重点突破', '思维导图'],
+          schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00']
+        },
+        {
+          name: '李老师',
+          subject: '英语',
+          grade: '初中',
+          experience: 8,
+          rating: 4.9,
+          description: '毕业于英国剑桥大学，拥有TESOL证书，擅长英语口语教学，注重学生的语言应用能力培养。',
+          avatar: 'https://img.syt5.com/2021/0908/20210908055031962.jpg.420.580.jpg',
+          tags: ['发音纠正', '口语强化', '语法精通'],
+          schedule: ['周二 18:00-20:00', '周四 18:00-20:00', '周日 14:00-16:00']
+        },
+        {
+          name: '王老师',
+          subject: '物理',
+          grade: '高中',
+          experience: 12,
+          rating: 4.7,
+          description: '物理学博士，有丰富的教学经验，能将复杂概念简单化，善于通过实验和演示帮助学生理解物理原理。',
+          avatar: 'https://img.syt5.com/2021/0908/20210908055050886.jpg.420.580.jpg',
+          tags: ['概念解析', '解题技巧', '高考冲刺'],
+          schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00']
+        },
+        {
+          name: '刘老师',
+          subject: '化学',
+          grade: '高中',
+          experience: 15,
+          rating: 4.9,
+          description: '化学教育硕士，从事一线教学工作15年，教学方法灵活多样，注重培养学生的实验能力和科学思维。',
+          avatar: 'https://img.syt5.com/2021/0908/20210908055111952.jpg.420.580.jpg',
+          tags: ['实验教学', '概念讲解', '解题方法'],
+          schedule: ['周二 16:00-18:00', '周五 18:00-20:00', '周日 10:00-12:00']
+        },
+        {
+          name: '陈老师',
+          subject: '数学',
+          grade: '初中',
+          experience: 7,
+          rating: 4.6,
+          description: '数学教育专业毕业，擅长启发式教学，能够根据学生的特点制定个性化的学习计划。',
+          avatar: 'https://img.syt5.com/2021/0908/20210908055133962.jpg.420.580.jpg',
+          tags: ['基础夯实', '思维训练', '难题攻克'],
+          schedule: ['周一 15:00-17:00', '周四 16:00-18:00', '周六 16:00-18:00']
+        },
+        {
+          name: '赵老师',
+          subject: '生物',
+          grade: '高中',
+          experience: 9,
+          rating: 4.8,
+          description: '生物学硕士，有丰富的教学经验，擅长将生物学知识与日常生活相结合，让学习更加生动有趣。',
+          avatar: 'https://img.syt5.com/2021/0908/20210908055153944.jpg.420.580.jpg',
+          tags: ['实验演示', '概念讲解', '考点梳理'],
+          schedule: ['周二 19:00-21:00', '周五 16:00-18:00', '周日 16:00-18:00']
+        },
+        {
+          name: '杨老师',
+          subject: '英语',
+          grade: '小学',
+          experience: 5,
+          rating: 4.9,
+          description: '英语专业毕业，有海外留学经验，擅长通过游戏、歌曲等形式激发孩子学习英语的兴趣。',
+          avatar: 'https://img.syt5.com/2021/0908/20210908055212407.jpg.420.580.jpg',
+          tags: ['趣味教学', '语音纠正', '词汇积累'],
+          schedule: ['周三 15:00-17:00', '周五 15:00-17:00', '周六 10:00-12:00']
+        },
+        {
+          name: '周老师',
+          subject: '物理',
+          grade: '初中',
+          experience: 8,
+          rating: 4.7,
+          description: '物理教育专业毕业，擅长实验教学，能够通过实验激发学生的学习兴趣，培养学生的动手能力。',
+          avatar: 'https://img.syt5.com/2021/0908/20210908055233151.jpg.420.580.jpg',
+          tags: ['实验教学', '概念讲解', '题型分析'],
+          schedule: ['周一 17:00-19:00', '周四 17:00-19:00', '周日 14:00-16:00']
+        }
+      ]
+    }
+  },
+  computed: {
+    filteredTeachers() {
+      return this.teachers.filter(teacher => {
+        let match = true;
+        if (this.filter.subject && teacher.subject !== this.filter.subject) {
+          match = false;
+        }
+        if (this.filter.grade && teacher.grade !== this.filter.grade) {
+          match = false;
+        }
+        if (this.filter.experience) {
+          const exp = parseInt(teacher.experience.toString());
+          if (this.filter.experience === '0-5' && exp >= 5) {
+            match = false;
+          } else if (this.filter.experience === '5-10' && (exp < 5 || exp > 10)) {
+            match = false;
+          } else if (this.filter.experience === '10+' && exp < 10) {
+            match = false;
+          }
+        }
+        return match;
+      });
+    },
+    displayTeachers() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      const end = start + this.pageSize;
+      return this.filteredTeachers.slice(start, end);
+    }
+  },
+  methods: {
+    handleFilter() {
+      this.currentPage = 1;
+    },
+    resetFilter() {
+      this.filter = {
+        subject: '',
+        grade: '',
+        experience: ''
+      };
+      this.currentPage = 1;
+    }
+  }
+}
+</script>
+
+<style scoped>
+.famous-teachers {
+  width: 100%;
+}
+
+.banner {
+  height: 300px;
+  background-image: url('https://img1.baidu.com/it/u=775667129,3752307124&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500');
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+  position: relative;
+}
+
+.banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.banner-content {
+  position: relative;
+  z-index: 10;
+}
+
+.banner h1 {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.banner p {
+  font-size: 20px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.filter-section {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.teachers-section {
+  margin-bottom: 40px;
+}
+
+.teachers-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.teacher-card {
+  display: flex;
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease;
+}
+
+.teacher-card:hover {
+  transform: translateY(-5px);
+}
+
+.teacher-avatar {
+  width: 200px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.teacher-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.teacher-rating {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  padding: 4px 10px;
+}
+
+.teacher-info {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.teacher-info h3 {
+  font-size: 20px;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.teacher-info > p {
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.teacher-description {
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 15px;
+  flex: 1;
+}
+
+.teacher-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.teacher-tag {
+  font-size: 12px;
+}
+
+.teacher-schedule {
+  margin-bottom: 15px;
+}
+
+.schedule-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.schedule-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.schedule-tag {
+  font-size: 12px;
+  color: #409EFF;
+  background-color: #ecf5ff;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.teacher-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+}
+
+@media (max-width: 1200px) {
+  .teachers-grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .teacher-card {
+    flex-direction: column;
+  }
+
+  .teacher-avatar {
+    width: 100%;
+    height: 250px;
+  }
+
+  .filter-form {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filter-form .el-form-item {
+    margin-right: 0;
+    width: 100%;
+  }
+}
+</style>

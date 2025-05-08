@@ -36,11 +36,11 @@ const handleLogin = async () => {
     // 在实际应用中，这里应该调用API进行登录验证
     // 这里使用预设的账户进行模拟登录
     try {
-      const isValid = userStore.validateLogin(loginForm.username, loginForm.password, 'student')
+      const isValid = userStore.validateLogin(loginForm.username, loginForm.password, 'teacher')
       if (isValid) {
-        userStore.login(loginForm.username, 'student')
+        userStore.login(loginForm.username, 'teacher')
         ElMessage.success('登录成功')
-        router.push('/student-center')
+        router.push('/teacher-center')
       } else {
         ElMessage.error('用户名或密码错误')
       }
@@ -60,7 +60,7 @@ const handleLogin = async () => {
   <div class="login-container">
     <div class="login-box">
       <div class="login-header">
-        <h2>学生登录</h2>
+        <h2>教师登录</h2>
         <p>欢迎回来，请登录您的账号</p>
       </div>
       <div class="login-form">
@@ -81,11 +81,11 @@ const handleLogin = async () => {
             </el-button>
           </el-form-item>
           <div class="login-tips">
-            <p>测试账号: student / 密码: 123456</p>
+            <p>测试账号: teacher / 密码: 123456</p>
           </div>
         </el-form>
         <div class="login-footer">
-          还没有账号？<a href="#" @click.prevent="router.push('/register')">立即注册</a>
+          还没有账号？<a href="#" @click.prevent="router.push('/teacher-register')">立即注册</a>
         </div>
       </div>
     </div>
@@ -99,7 +99,7 @@ const handleLogin = async () => {
   justify-content: center;
   align-items: center;
   background-color: #f5f7fa;
-  background-image: url('https://img1.baidu.com/it/u=1296117362,3406577664&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333');
+  background-image: url('https://img1.baidu.com/it/u=2603467610,1006089236&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=281');
   background-size: cover;
   background-position: center;
   position: relative;

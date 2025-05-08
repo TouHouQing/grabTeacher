@@ -41,65 +41,214 @@ const courses = ref([
 
 <template>
     <div class="home">
-        <section class="banner">
+        <!-- 主横幅 -->
+        <div class="banner">
             <div class="banner-content">
-                <h1>开启你的在线学习之旅</h1>
-                <p>优质的在线教育平台，为每一位学习者提供专业的课程资源</p>
-                <el-button type="primary" size="large" @click="$router.push('/videos')">
-                    立即开始学习
-                </el-button>
+                <h1 class="banner-title">GrabTeacher</h1>
+                <div class="banner-subtitle">个性化教学</div>
+                <div class="banner-desc">根据学生需求定制专属学习方案</div>
             </div>
-        </section>
+        </div>
 
-        <section class="features">
-            <div class="container">
-                <h2>平台特色</h2>
-                <el-row :gutter="30">
-                    <el-col v-for="(feature, index) in features" :key="index" :span="8">
-                        <div class="feature-card">
-                            <el-icon size="40" color="#409EFF">
-                                <component :is="feature.icon" />
-                            </el-icon>
-                            <h3>{{ feature.title }}</h3>
-                            <p>{{ feature.description }}</p>
-                        </div>
-                    </el-col>
-                </el-row>
+        <!-- 主要内容区 -->
+        <div class="container">
+            <!-- 智能匹配系统介绍 -->
+            <div class="section">
+                <h2 class="section-title">寻找最适合您的老师</h2>
+                <div class="section-subtitle">智能匹配系统为您服务</div>
+                <div class="feature-grid">
+                    <div class="feature-item">
+                        <el-icon class="feature-icon"><Medal /></el-icon>
+                        <h3>优质师资</h3>
+                        <p>经过严格筛选的专业教师，教学经验丰富</p>
+                    </div>
+                    <div class="feature-item">
+                        <el-icon class="feature-icon"><Aim /></el-icon>
+                        <h3>精准匹配</h3>
+                        <p>根据学习需求和学习风格智能匹配最适合的老师</p>
+                    </div>
+                    <div class="feature-item">
+                        <el-icon class="feature-icon"><Opportunity /></el-icon>
+                        <h3>个性化教学</h3>
+                        <p>量身定制学习计划，针对薄弱环节进行强化</p>
+                    </div>
+                    <div class="feature-item">
+                        <el-icon class="feature-icon"><Clock /></el-icon>
+                        <h3>灵活时间</h3>
+                        <p>自由安排学习时间，提高学习效率</p>
+                    </div>
+                </div>
             </div>
-        </section>
 
-        <section class="courses">
-            <div class="container">
-                <el-row :gutter="30">
-                    <el-col v-for="(section, index) in courses" :key="index" :span="12">
-                        <div class="course-section">
-                            <h2>{{ section.title }}</h2>
-                            <div class="course-list">
-                                <el-card v-for="course in section.list" :key="course.name" class="course-card">
-                                    <div class="course-info">
-                                        <h4>{{ course.name }}</h4>
-                                        <p>
-                                            <el-icon>
-                                                <User />
-                                            </el-icon>
-                                            {{ course.teacher }}
-                                            <span class="student-count">
-                                                <el-icon>
-                                                    <User />
-                                                </el-icon>
-                                                {{ course.students }}
-                                            </span>
-                                        </p>
-                                    </div>
-                                </el-card>
+            <!-- 推荐教师 -->
+            <div class="section">
+                <h2 class="section-title">推荐教师</h2>
+                <div class="section-subtitle">受学生欢迎的优质教师</div>
+                <div class="teachers-grid">
+                    <div class="teacher-card" v-for="(teacher, index) in recommendedTeachers" :key="index">
+                        <div class="teacher-avatar">
+                            <img :src="teacher.avatar" :alt="teacher.name">
+                            <div class="teacher-rating">
+                                <el-rate v-model="teacher.rating" disabled text-color="#ff9900"></el-rate>
                             </div>
                         </div>
-                    </el-col>
-                </el-row>
+                        <div class="teacher-info">
+                            <h3>{{ teacher.name }}</h3>
+                            <p>{{ teacher.subject }} | {{ teacher.experience }}年教龄</p>
+                            <p class="teacher-description">{{ teacher.description }}</p>
+                            <div class="teacher-schedule">
+                                <span v-for="(time, i) in teacher.schedule" :key="i" class="schedule-tag">{{ time }}</span>
+                            </div>
+                            <el-button type="primary" size="small" class="booking-btn">预约课程</el-button>
+                        </div>
+                    </div>
+                </div>
+                <div class="view-more">
+                    <el-button type="primary" plain @click="$router.push('/famous-teachers')">查看更多教师</el-button>
+                </div>
             </div>
-        </section>
+
+            <!-- 热门课程 -->
+            <div class="section">
+                <h2 class="section-title">热门课程</h2>
+                <div class="section-subtitle">精选优质课程内容</div>
+                <div class="courses-grid">
+                    <div class="course-card" v-for="(course, index) in hotCourses" :key="index">
+                        <div class="course-image">
+                            <img :src="course.image" :alt="course.title">
+                        </div>
+                        <div class="course-info">
+                            <h3>{{ course.title }}</h3>
+                            <p class="course-teacher">{{ course.teacher }}</p>
+                            <p class="course-description">{{ course.description }}</p>
+                            <div class="course-meta">
+                                <span><el-icon><Timer /></el-icon> {{ course.duration }}</span>
+                                <span><el-icon><User /></el-icon> {{ course.students }}人学习</span>
+                            </div>
+                            <el-button type="primary" size="small" class="course-btn">了解详情</el-button>
+                        </div>
+                    </div>
+                </div>
+                <div class="view-more">
+                    <el-button type="primary" plain @click="$router.push('/latest-courses')">浏览更多课程</el-button>
+                </div>
+            </div>
+
+            <!-- 用户评价 -->
+            <div class="section testimonials">
+                <h2 class="section-title">学员评价</h2>
+                <div class="section-subtitle">听听他们怎么说</div>
+                <el-carousel :interval="4000" type="card" height="300px">
+                    <el-carousel-item v-for="(testimonial, index) in testimonials" :key="index">
+                        <div class="testimonial-card">
+                            <div class="testimonial-avatar">
+                                <img :src="testimonial.avatar" :alt="testimonial.name">
+                            </div>
+                            <div class="testimonial-content">
+                                <p class="testimonial-text">"{{ testimonial.content }}"</p>
+                                <div class="testimonial-author">
+                                    <h4>{{ testimonial.name }}</h4>
+                                    <p>{{ testimonial.role }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </el-carousel-item>
+                </el-carousel>
+            </div>
+
+            <!-- 开始学习引导 -->
+            <div class="section cta">
+                <h2 class="cta-title">准备好开始您的学习之旅了吗？</h2>
+                <p class="cta-subtitle">立即注册并找到最适合您的老师</p>
+                <el-button type="primary" size="large" @click="$router.push('/login')">立即开始</el-button>
+            </div>
+        </div>
     </div>
 </template>
+
+<script lang="ts">
+export default {
+    data() {
+        return {
+            recommendedTeachers: [
+                {
+                    name: '张老师',
+                    subject: '数学',
+                    experience: 10,
+                    rating: 4.8,
+                    description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣。',
+                    avatar: 'https://img.syt5.com/2021/0908/20210908055012420.jpg.420.580.jpg',
+                    schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00']
+                },
+                {
+                    name: '李老师',
+                    subject: '英语',
+                    experience: 8,
+                    rating: 4.9,
+                    description: '毕业于英国剑桥大学，拥有TESOL证书，擅长英语口语教学。',
+                    avatar: 'https://img.syt5.com/2021/0908/20210908055031962.jpg.420.580.jpg',
+                    schedule: ['周二 18:00-20:00', '周四 18:00-20:00', '周日 14:00-16:00']
+                },
+                {
+                    name: '王老师',
+                    subject: '物理',
+                    experience: 12,
+                    rating: 4.7,
+                    description: '物理学博士，有丰富的教学经验，能将复杂概念简单化。',
+                    avatar: 'https://img.syt5.com/2021/0908/20210908055050886.jpg.420.580.jpg',
+                    schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00']
+                }
+            ],
+            hotCourses: [
+                {
+                    title: '高中数学 - 函数与导数',
+                    teacher: '张老师',
+                    description: '本课程深入浅出地讲解高中数学中的函数与导数知识点，适合高二、高三学生。',
+                    image: 'https://img1.baidu.com/it/u=3709586903,2893555147&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=281',
+                    duration: '30课时',
+                    students: 1280
+                },
+                {
+                    title: '初中英语 - 语法精讲',
+                    teacher: '李老师',
+                    description: '系统梳理初中英语语法知识，打牢语法基础，提高英语成绩。',
+                    image: 'https://img0.baidu.com/it/u=2184866169,2565074814&fm=253&fmt=auto&app=138&f=JPEG?w=750&h=500',
+                    duration: '25课时',
+                    students: 958
+                },
+                {
+                    title: '高中物理 - 力学与电学',
+                    teacher: '王老师',
+                    description: '从基础概念到难点突破，全面讲解高中物理力学与电学知识。',
+                    image: 'https://img2.baidu.com/it/u=4077875581,1641262421&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333',
+                    duration: '28课时',
+                    students: 876
+                }
+            ],
+            testimonials: [
+                {
+                    name: '张明',
+                    role: '高三学生',
+                    content: '通过平台找到了非常适合我的数学老师，半年时间数学成绩从80分提高到了120分，非常感谢！',
+                    avatar: 'https://img1.baidu.com/it/u=1817951587,699502146&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500'
+                },
+                {
+                    name: '李华',
+                    role: '初中生家长',
+                    content: '孩子在这里学习了三个月，英语成绩有了明显提高，老师很负责任，教学方法也很适合孩子。',
+                    avatar: 'https://img1.baidu.com/it/u=2496571732,442429293&fm=253&fmt=auto&app=138&f=JPEG?w=400&h=400'
+                },
+                {
+                    name: '王芳',
+                    role: '高二学生',
+                    content: '老师教学很有耐心，会根据我的弱点定制学习计划，学习效率比自己学习提高了很多。',
+                    avatar: 'https://img0.baidu.com/it/u=1944204113,1917062272&fm=253&fmt=auto&app=138&f=JPEG?w=400&h=400'
+                }
+            ]
+        }
+    }
+}
+</script>
 
 <style>
 /* 重置一些基础样式 */
@@ -125,140 +274,332 @@ body {
 }
 
 .banner {
-    width: 100%;
-    height: 500px;
-    background: linear-gradient(135deg, #1890ff 0%, #36cfc9 100%);
-    color: white;
+    height: 600px;
+    background-image: url('https://img1.baidu.com/it/u=2061616601,3636987051&fm=253&fmt=auto&app=138&f=JPEG?w=1180&h=472');
+    background-size: cover;
+    background-position: center;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: white;
     text-align: center;
+    position: relative;
+}
+
+.banner::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
 }
 
 .banner-content {
-    padding: 0 20px;
+    position: relative;
+    z-index: 10;
 }
 
-.banner h1 {
-    font-size: 3.5em;
+.banner-title {
+    font-size: 64px;
+    font-weight: bold;
     margin-bottom: 20px;
 }
 
-.banner p {
-    font-size: 1.4em;
-    margin-bottom: 30px;
-    opacity: 0.9;
+.banner-subtitle {
+    font-size: 36px;
+    margin-bottom: 20px;
+}
+
+.banner-desc {
+    font-size: 20px;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
 .container {
-    width: 100%;
-    padding: 0 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
 }
 
-section {
-    padding: 60px 0;
-    width: 100%;
+.section {
+    margin-bottom: 80px;
 }
 
-section h2 {
-    font-size: 2.2em;
-    margin-bottom: 40px;
+.section-title {
+    font-size: 36px;
+    font-weight: bold;
     text-align: center;
-    color: #2c3e50;
+    margin-bottom: 10px;
+    color: #333;
 }
 
-.features {
-    background-color: #fff;
+.section-subtitle {
+    font-size: 18px;
+    text-align: center;
+    margin-bottom: 40px;
+    color: #666;
 }
 
-.feature-card {
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 30px;
+}
+
+.feature-item {
     text-align: center;
     padding: 30px;
-    height: 100%;
-    background: #fff;
+    background-color: #fff;
     border-radius: 8px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease;
 }
 
-.feature-card:hover {
-    transform: translateY(-5px);
+.feature-item:hover {
+    transform: translateY(-10px);
 }
 
-.feature-card h3 {
-    margin: 20px 0;
-    color: #2c3e50;
-    font-size: 1.4em;
+.feature-icon {
+    font-size: 48px;
+    color: #409EFF;
+    margin-bottom: 20px;
 }
 
-.feature-card p {
+.feature-item h3 {
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.feature-item p {
     color: #666;
     line-height: 1.6;
 }
 
-.courses {
-    background-color: #f8f9fa;
+.teachers-grid,
+.courses-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    margin-bottom: 30px;
 }
 
-.course-section {
-    margin-bottom: 40px;
-}
-
+.teacher-card,
 .course-card {
-    margin-bottom: 15px;
-    cursor: pointer;
-    transition: transform 0.3s;
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease;
 }
 
+.teacher-card:hover,
 .course-card:hover {
-    transform: translateX(5px);
+    transform: translateY(-10px);
 }
 
+.teacher-avatar {
+    position: relative;
+}
+
+.teacher-avatar img {
+    width: 100%;
+    height: 260px;
+    object-fit: cover;
+}
+
+.teacher-rating {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 20px;
+    padding: 4px 10px;
+}
+
+.teacher-info,
 .course-info {
+    padding: 20px;
+}
+
+.teacher-info h3,
+.course-info h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.teacher-description,
+.course-description {
+    color: #666;
+    font-size: 14px;
+    margin: 10px 0;
+    line-height: 1.6;
+    height: 70px;
+    overflow: hidden;
+}
+
+.teacher-schedule {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.schedule-tag {
+    font-size: 12px;
+    color: #409EFF;
+    background-color: #ecf5ff;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.booking-btn,
+.course-btn {
+    width: 100%;
+}
+
+.course-image img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+}
+
+.course-teacher {
+    color: #409EFF;
+    font-size: 14px;
+}
+
+.course-meta {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-}
-
-.course-info h4 {
-    margin: 0;
-    color: #2c3e50;
-    font-size: 1.2em;
-}
-
-.course-info p {
-    margin: 0;
+    margin: 15px 0;
     color: #666;
+    font-size: 14px;
+}
+
+.course-meta span {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
 }
 
-.student-count {
-    margin-left: 20px;
+.view-more {
+    text-align: center;
 }
 
-:deep(.el-row) {
-    margin: 0 !important;
+.testimonials .el-carousel__container {
+    height: 300px;
 }
 
-:deep(.el-col) {
-    padding: 15px;
+.testimonial-card {
+    display: flex;
+    height: 100%;
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.testimonial-avatar {
+    width: 150px;
+    flex-shrink: 0;
+}
+
+.testimonial-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.testimonial-content {
+    flex: 1;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.testimonial-text {
+    font-size: 16px;
+    font-style: italic;
+    color: #333;
+    line-height: 1.8;
+    margin-bottom: 20px;
+}
+
+.testimonial-author h4 {
+    font-size: 18px;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.testimonial-author p {
+    color: #666;
+}
+
+.cta {
+    text-align: center;
+    background-color: #f0f7ff;
+    padding: 60px;
+    border-radius: 8px;
+}
+
+.cta-title {
+    font-size: 32px;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.cta-subtitle {
+    font-size: 18px;
+    color: #666;
+    margin-bottom: 30px;
+}
+
+@media (max-width: 1200px) {
+    .feature-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .teachers-grid,
+    .courses-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 @media (max-width: 768px) {
-    .banner h1 {
-        font-size: 2.5em;
+    .banner {
+        height: 450px;
     }
 
-    .banner p {
-        font-size: 1.2em;
+    .banner-title {
+        font-size: 48px;
     }
 
-    :deep(.el-col) {
-        width: 100% !important;
-        flex: 0 0 100% !important;
-        max-width: 100% !important;
+    .banner-subtitle {
+        font-size: 28px;
+    }
+
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .teachers-grid,
+    .courses-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .testimonial-card {
+        flex-direction: column;
+    }
+
+    .testimonial-avatar {
+        width: 100%;
+        height: 100px;
     }
 }
 </style>
