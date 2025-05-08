@@ -5,6 +5,7 @@ import TeacherStudents from './components/TeacherStudents.vue'
 import TeacherMaterials from './components/TeacherMaterials.vue'
 import TeacherMessages from './components/TeacherMessages.vue'
 import TeacherSchedule from './components/TeacherSchedule.vue'
+import TeacherIncome from './components/TeacherIncome.vue'
 
 const userStore = useUserStore()
 const activeMenu = ref('dashboard')
@@ -186,8 +187,7 @@ const activeMenu = ref('dashboard')
           <TeacherMessages />
         </div>
         <div v-else-if="activeMenu === 'income'">
-          <h2>收入管理</h2>
-          <p>此功能正在开发中...</p>
+          <TeacherIncome />
         </div>
         <div v-else-if="activeMenu === 'profile'">
           <router-view></router-view>
@@ -205,13 +205,18 @@ export default {
       todayCourses: [
         {
           time: '14:00-16:00',
-          course: '高中数学 - 函数与导数',
-          student: '张明'
+          course: '高中英语 - 阅读理解技巧',
+          student: '赵同学'
         },
         {
           time: '16:30-18:30',
-          course: '高中数学 - 三角函数',
-          student: '李华'
+          course: '高中化学 - 有机化学',
+          student: '钱同学'
+        },
+        {
+          time: '10:00-12:00',
+          course: '初中数学 - 几何证明',
+          student: '孙同学'
         }
       ],
       newOrders: [
@@ -366,31 +371,52 @@ export default {
   gap: 15px;
 }
 
-@media (max-width: 768px) {
+/* 响应式布局 */
+@media (max-width: 992px) {
   .el-aside {
-    width: 60px !important;
+    width: 200px !important;
   }
 
-  .user-info {
+  .stat-card {
+    width: calc(50% - 20px);
+  }
+}
+
+@media (max-width: 768px) {
+  .el-container {
     flex-direction: column;
+  }
+
+  .el-aside {
+    width: 100% !important;
+    height: auto;
+  }
+
+  .el-main {
     padding: 10px;
-  }
-
-  .avatar {
-    margin-right: 0;
-    margin-bottom: 10px;
-  }
-
-  .info h3, .info p {
-    display: none;
   }
 
   .dashboard-stats {
     grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
   .action-buttons {
     flex-direction: column;
+  }
+
+  .action-buttons .el-button {
+    margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    width: 100%;
   }
 }
 </style>

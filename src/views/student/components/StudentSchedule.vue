@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { CalendarDateType } from 'element-plus'
 
 interface ScheduleClass {
   id: number;
@@ -87,6 +86,33 @@ const classes = ref<ScheduleClass[]>([
     location: '线上课堂',
     content: '基因的概念与DNA结构',
     status: 'upcoming'
+  },
+  {
+    id: 6,
+    title: '高中英语 - 阅读理解技巧',
+    date: new Date().toISOString().split('T')[0],
+    time: '14:00-16:00',
+    duration: 120,
+    teacher: '刘老师',
+    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055111952.jpg.420.580.jpg',
+    subject: '英语',
+    location: '线上课堂',
+    content: '高考英语阅读理解答题技巧与实战演练',
+    status: 'upcoming',
+    homework: '完成模拟试题两篇'
+  },
+  {
+    id: 7,
+    title: '高中化学 - 有机化学',
+    date: new Date().toISOString().split('T')[0],
+    time: '16:30-18:30',
+    duration: 120,
+    teacher: '钱老师',
+    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055050886.jpg.420.580.jpg',
+    subject: '化学',
+    location: '线上课堂',
+    content: '有机化合物的结构与性质',
+    status: 'upcoming'
   }
 ])
 
@@ -125,29 +151,11 @@ const isDateHasClass = (date: Date) => {
   return classes.value.some(c => c.date === dateStr)
 }
 
-// 获取某天的课程数量
-const getDateClassCount = (date: Date) => {
-  const dateStr = date.toISOString().split('T')[0]
-  return classes.value.filter(c => c.date === dateStr).length
-}
-
 // 获取某天的所有课程
 const getDateClasses = (date: Date) => {
   const dateStr = date.toISOString().split('T')[0]
   return classes.value.filter(c => c.date === dateStr)
       .sort((a, b) => a.time.split('-')[0].localeCompare(b.time.split('-')[0]))
-}
-
-// 日历单元格的自定义渲染
-const cellRender = (cell: CalendarDateType) => {
-  const date = new Date(cell.date.toISOString())
-  const hasClass = isDateHasClass(date)
-  const count = getDateClassCount(date)
-
-  return hasClass ? {
-    type: 'success',
-    badge: count > 0
-  } : null
 }
 
 // 进入课堂
@@ -733,30 +741,42 @@ h2 {
   margin-top: 30px;
 }
 
+/* 响应式布局 */
 @media (max-width: 768px) {
+  .calendar-view :deep(.el-calendar-day) {
+    height: 120px;
+  }
+
+  .class-indicator {
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+
   .class-card-content {
     flex-direction: column;
   }
 
   .class-time-info {
-    border-right: none;
-    border-bottom: 1px solid #eee;
-    padding-right: 0;
-    padding-bottom: 10px;
-    margin-right: 0;
     margin-bottom: 10px;
-    flex-direction: row;
-    gap: 15px;
-    justify-content: flex-start;
+    width: 100%;
   }
 
-  .class-date, .class-time {
-    margin-bottom: 0;
+  .view-toggle {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-view :deep(.el-calendar-day) {
+    height: 100px;
+  }
+
+  .detail-header {
+    flex-direction: column;
   }
 
   .detail-meta {
-    flex-direction: column;
-    gap: 10px;
+    flex-wrap: wrap;
   }
 }
 </style>

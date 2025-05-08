@@ -86,6 +86,48 @@ const classes = ref<ScheduleClass[]>([
     location: '线上课堂',
     content: '基因的概念与DNA结构',
     status: 'upcoming'
+  },
+  {
+    id: 6,
+    title: '高中英语 - 阅读理解技巧',
+    date: new Date().toISOString().split('T')[0],
+    time: '14:00-16:00',
+    duration: 120,
+    studentName: '赵同学',
+    studentAvatar: 'https://img1.baidu.com/it/u=1217766922,1859475323&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500',
+    subject: '英语',
+    location: '线上课堂',
+    content: '高考英语阅读理解答题技巧与实战演练',
+    status: 'upcoming',
+    notes: '准备4篇阅读理解范文'
+  },
+  {
+    id: 7,
+    title: '高中化学 - 有机化学',
+    date: new Date().toISOString().split('T')[0],
+    time: '16:30-18:30',
+    duration: 120,
+    studentName: '钱同学',
+    studentAvatar: 'https://img2.baidu.com/it/u=3674408763,1350578850&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500',
+    subject: '化学',
+    location: '线上课堂',
+    content: '有机化合物的结构与性质',
+    status: 'upcoming',
+    notes: '准备实验演示视频和分子模型'
+  },
+  {
+    id: 8,
+    title: '初中数学 - 几何证明',
+    date: new Date().toISOString().split('T')[0],
+    time: '10:00-12:00',
+    duration: 120,
+    studentName: '孙同学',
+    studentAvatar: 'https://img0.baidu.com/it/u=825057118,3516601553&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500',
+    subject: '数学',
+    location: '线上课堂',
+    content: '平行四边形的性质与证明',
+    status: 'completed',
+    notes: '学生理解良好，下次可以进行难度提升'
   }
 ])
 
