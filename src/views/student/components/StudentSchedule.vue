@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, List, Timer, VideoCamera, ChatDotRound,
-         Download, Upload, Location, Document, Edit,
-         ArrowLeft, ArrowRight, InfoFilled, Checked } from '@element-plus/icons-vue'
+import type { CalendarCellType } from 'element-plus'
 
 interface ScheduleClass {
   id: number;
@@ -18,7 +16,6 @@ interface ScheduleClass {
   content: string;
   status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
   homework?: string;
-  position?: number; // 用于防止重叠
 }
 
 // 模拟课程数据
@@ -128,6 +125,12 @@ const isDateHasClass = (date: Date) => {
   return classes.value.some(c => c.date === dateStr)
 }
 
+// 获取某天的课程数量
+const getDateClassCount = (date: Date) => {
+  const dateStr = date.toISOString().split('T')[0]
+  return classes.value.filter(c => c.date === dateStr).length
+}
+
 // 获取某天的所有课程
 const getDateClasses = (date: Date) => {
   const dateStr = date.toISOString().split('T')[0]
@@ -135,61 +138,16 @@ const getDateClasses = (date: Date) => {
       .sort((a, b) => a.time.split('-')[0].localeCompare(b.time.split('-')[0]))
 }
 
-// 日历导航函数
-const prevMonth = () => {
-  const date = new Date(currentDate.value)
-  date.setMonth(date.getMonth() - 1)
-  currentDate.value = date
-}
+// 日历单元格的自定义渲染
+const cellRender = (cell: CalendarCellType) => {
+  const date = new Date(cell.date.toISOString())
+  const hasClass = isDateHasClass(date)
+  const count = getDateClassCount(date)
 
-const nextMonth = () => {
-  const date = new Date(currentDate.value)
-  date.setMonth(date.getMonth() + 1)
-  currentDate.value = date
-}
-
-const today = () => {
-  currentDate.value = new Date()
-}
-
-// 格式化日历标题
-const formatCalendarTitle = (date: Date) => {
-  const year = date.getFullYear()
-  const month = date.getMonth() + 1
-  return `${year}年${month}月`
-}
-
-// 获取某天的所有课程并计算位置防止重叠
-const getDateClassesWithPosition = (date: Date) => {
-  const classes = getDateClasses(date)
-
-  // 按时间排序
-  const sortedClasses = [...classes].sort((a, b) =>
-    a.time.split('-')[0].localeCompare(b.time.split('-')[0])
-  )
-
-  // 计算位置以防止重叠
-  let lastEndTime = ''
-  let lastPosition = 0
-
-  return sortedClasses.map((scheduleClass, index) => {
-    const startTime = scheduleClass.time.split('-')[0]
-
-    // 如果当前课程的开始时间晚于上一个课程的结束时间，可以使用相同位置
-    if (lastEndTime && startTime >= lastEndTime) {
-      lastPosition = 0
-    }
-
-    // 如果时间重叠，使用不同位置
-    const position = lastPosition
-    lastPosition = (lastPosition + 1) % 2 // 交替使用0和1两个位置
-    lastEndTime = scheduleClass.time.split('-')[1]
-
-    return {
-      ...scheduleClass,
-      position
-    }
-  })
+  return hasClass ? {
+    type: 'success',
+    badge: count > 0
+  } : null
 }
 
 // 进入课堂
@@ -240,21 +198,7 @@ export default {
 
     <!-- 日历视图 -->
     <div v-if="viewMode === 'calendar'" class="calendar-view">
-      <el-calendar v-model="currentDate">
-        <template #header="{ date }">
-          <div class="calendar-header">
-            <el-button-group>
-              <el-button type="primary" size="small" @click="prevMonth">
-                <el-icon><ArrowLeft /></el-icon>
-              </el-button>
-              <el-button type="primary" size="small" @click="today">今天</el-button>
-              <el-button type="primary" size="small" @click="nextMonth">
-                <el-icon><ArrowRight /></el-icon>
-              </el-button>
-            </el-button-group>
-            <span class="calendar-title">{{ formatCalendarTitle(date) }}</span>
-          </div>
-        </template>
+      <el-calendar v-model="currentDate" :cell-render="cellRender">
         <template #dateCell="{ data }">
           <div class="calendar-cell">
             <p :class="{ 'is-today': data.isToday, 'not-current-month': data.type !== 'current' }">
@@ -262,20 +206,14 @@ export default {
             </p>
             <div v-if="isDateHasClass(data.date)" class="class-indicators">
               <div
-                v-for="(scheduleClass, index) in getDateClassesWithPosition(data.date)"
+                v-for="(scheduleClass, index) in getDateClasses(data.date)"
                 :key="index"
                 class="class-indicator"
-                :class="[
-                  `subject-${scheduleClass.subject}`,
-                  `status-${scheduleClass.status}`,
-                  `position-${scheduleClass.position || 0}`
-                ]"
+                :class="[`subject-${scheduleClass.subject}`, `status-${scheduleClass.status}`]"
                 @click.stop="showClassDetail(scheduleClass)"
               >
-                <div class="indicator-content">
-                  <span class="indicator-time">{{ scheduleClass.time.split('-')[0] }}</span>
-                  <span class="indicator-title">{{ scheduleClass.title }}</span>
-                </div>
+                <span class="indicator-time">{{ scheduleClass.time.split('-')[0] }}</span>
+                <span class="indicator-title">{{ scheduleClass.title }}</span>
               </div>
             </div>
           </div>
@@ -380,66 +318,65 @@ export default {
     <!-- 课程详情对话框 -->
     <el-dialog
       v-model="detailDialogVisible"
-      :title="selectedClass?.title || '课程详情'"
-      width="500px"
-      destroy-on-close
-      align-center
+      title="课程详情"
+      width="50%"
     >
       <div v-if="selectedClass" class="class-detail">
-        <div class="detail-header" :class="`subject-bg-${selectedClass.subject}`">
-          <el-avatar :size="64" :src="selectedClass.teacherAvatar" class="teacher-avatar"></el-avatar>
-          <div class="header-info">
-            <h3>{{ selectedClass.title }}</h3>
-            <div class="teacher-name">{{ selectedClass.teacher }}</div>
+        <div class="detail-header">
+          <div class="detail-status">
+            <el-tag :type="selectedClass.status === 'upcoming' ? 'warning' : selectedClass.status === 'ongoing' ? 'success' : 'info'">
+              {{ selectedClass.status === 'upcoming' ? '即将开始' : selectedClass.status === 'ongoing' ? '进行中' : '已结束' }}
+            </el-tag>
           </div>
-          <el-tag :type="selectedClass.status === 'upcoming' ? 'success' : 'info'" effect="dark" class="status-tag">
-            {{ selectedClass.status === 'upcoming' ? '即将开始' : '已结束' }}
-          </el-tag>
+          <h3 class="detail-title">{{ selectedClass.title }}</h3>
+          <div class="detail-meta">
+            <div class="meta-item">
+              <el-icon><Calendar /></el-icon>
+              <span>{{ selectedClass.date }}</span>
+            </div>
+            <div class="meta-item">
+              <el-icon><Timer /></el-icon>
+              <span>{{ selectedClass.time }} ({{ selectedClass.duration }}分钟)</span>
+            </div>
+            <div class="meta-item">
+              <el-icon><Location /></el-icon>
+              <span>{{ selectedClass.location }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-teacher">
+          <div class="teacher-avatar">
+            <el-avatar :size="60" :src="selectedClass.teacherAvatar"></el-avatar>
+          </div>
+          <div class="teacher-info">
+            <h4>{{ selectedClass.teacher }}</h4>
+            <p>{{ selectedClass.subject }} 教师</p>
+          </div>
         </div>
 
         <div class="detail-content">
-          <div class="detail-item">
-            <div class="item-label"><el-icon><Calendar /></el-icon> 上课时间</div>
-            <div class="item-value">{{ selectedClass.date }} {{ selectedClass.time }}</div>
-          </div>
-          <div class="detail-item">
-            <div class="item-label"><el-icon><Timer /></el-icon> 课时</div>
-            <div class="item-value">{{ selectedClass.duration }}分钟</div>
-          </div>
-          <div class="detail-item">
-            <div class="item-label"><el-icon><Location /></el-icon> 地点</div>
-            <div class="item-value">{{ selectedClass.location }}</div>
-          </div>
-          <div class="detail-item">
-            <div class="item-label"><el-icon><Document /></el-icon> 内容</div>
-            <div class="item-value">{{ selectedClass.content }}</div>
-          </div>
-          <div v-if="selectedClass.homework" class="detail-item">
-            <div class="item-label"><el-icon><Edit /></el-icon> 作业</div>
-            <div class="item-value">{{ selectedClass.homework }}</div>
-          </div>
+          <h4>课程内容</h4>
+          <p>{{ selectedClass.content }}</p>
+        </div>
+
+        <div class="detail-homework" v-if="selectedClass.homework">
+          <h4>课后作业</h4>
+          <p>{{ selectedClass.homework }}</p>
         </div>
 
         <div class="detail-actions">
-          <el-button
-            v-if="selectedClass.status === 'upcoming'"
-            type="primary"
-            @click="enterClassroom(selectedClass)"
-          >
+          <el-button type="primary" @click="enterClassroom(selectedClass)" v-if="selectedClass.status !== 'completed'">
             <el-icon><VideoCamera /></el-icon> 进入课堂
           </el-button>
-          <el-button @click="contactTeacher(selectedClass.teacher)">
-            <el-icon><ChatDotRound /></el-icon> 联系老师
+          <el-button type="success" @click="contactTeacher(selectedClass.teacher)">
+            <el-icon><ChatDotRound /></el-icon> 联系教师
           </el-button>
-          <el-button @click="downloadMaterials(selectedClass.id)">
-            <el-icon><Download /></el-icon> 下载资料
-          </el-button>
-          <el-button
-            v-if="selectedClass.homework"
-            type="success"
-            @click="submitHomework(selectedClass.id)"
-          >
+          <el-button type="warning" @click="submitHomework(selectedClass.id)" v-if="selectedClass.homework && selectedClass.status === 'completed'">
             <el-icon><Upload /></el-icon> 提交作业
+          </el-button>
+          <el-button type="info" @click="downloadMaterials(selectedClass.id)" v-if="selectedClass.status === 'completed'">
+            <el-icon><Download /></el-icon> 下载资料
           </el-button>
         </div>
       </div>
@@ -450,19 +387,12 @@ export default {
 <style scoped>
 .student-schedule {
   padding: 20px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  height: 100%;
 }
 
 h2 {
   margin-bottom: 20px;
   font-size: 24px;
   color: #333;
-  font-weight: 600;
-  border-left: 4px solid var(--el-color-primary);
-  padding-left: 10px;
 }
 
 .view-toggle {
@@ -475,30 +405,14 @@ h2 {
 .calendar-view {
   background-color: #fff;
   border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid #ebeef5;
-}
-
-.calendar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.calendar-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--el-color-primary);
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  padding: 15px;
 }
 
 .calendar-cell {
   height: 100%;
   position: relative;
   padding: 8px;
-  min-height: 120px;
 }
 
 .calendar-cell p {
@@ -508,14 +422,12 @@ h2 {
   width: 24px;
   line-height: 24px;
   margin: 0 auto;
-  font-weight: 500;
 }
 
 .calendar-cell .is-today {
   background-color: #409eff;
   color: #fff;
   border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.3);
 }
 
 .calendar-cell .not-current-month {
@@ -523,45 +435,32 @@ h2 {
 }
 
 .class-indicators {
-  margin-top: 4px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .class-indicator {
-  border-radius: 4px;
-  margin-bottom: 4px;
   padding: 4px 6px;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
-  color: #fff;
-  transition: all 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
   overflow: hidden;
-  position: relative;
-}
-
-/* 根据位置调整样式，防止重叠 */
-.class-indicator.position-0 {
-  margin-right: 50%;
-}
-
-.class-indicator.position-1 {
-  margin-left: 50%;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s;
 }
 
 .class-indicator:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  transform: translateY(-1px);
-}
-
-.indicator-content {
-  display: flex;
-  flex-direction: column;
+  transform: scale(1.02);
 }
 
 .indicator-time {
-  font-weight: 600;
-  display: block;
-  margin-bottom: 2px;
+  margin-right: 4px;
+  font-weight: bold;
 }
 
 .indicator-title {
@@ -570,196 +469,81 @@ h2 {
   text-overflow: ellipsis;
 }
 
-/* 不同科目的颜色 */
+/* 科目颜色 */
 .subject-数学 {
-  background-color: #409eff;
+  background-color: #ecf5ff;
+  color: #409eff;
+  border-left: 3px solid #409eff;
 }
 
 .subject-物理 {
-  background-color: #67c23a;
-}
-
-.subject-化学 {
-  background-color: #ff9900;
+  background-color: #f0f9eb;
+  color: #67c23a;
+  border-left: 3px solid #67c23a;
 }
 
 .subject-生物 {
-  background-color: #f56c6c;
+  background-color: #fdf6ec;
+  color: #e6a23c;
+  border-left: 3px solid #e6a23c;
 }
 
 .subject-英语 {
-  background-color: #9254de;
+  background-color: #f5f7fa;
+  color: #909399;
+  border-left: 3px solid #909399;
 }
 
-.subject-语文 {
-  background-color: #e6a23c;
-}
-
-.subject-历史 {
-  background-color: #8e44ad;
-}
-
-.subject-地理 {
-  background-color: #16a085;
-}
-
-.subject-政治 {
-  background-color: #95a5a6;
-}
-
-/* 不同状态的透明度 */
+/* 课程状态 */
 .status-completed {
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
-/* 课程详情对话框样式 */
-.class-detail {
+/* 列表视图样式 */
+.list-view {
   display: flex;
   flex-direction: column;
+  gap: 30px;
 }
 
-.detail-header {
-  display: flex;
-  align-items: center;
-  padding: 15px;
-  margin: -20px -20px 20px -20px;
-  position: relative;
-  color: white;
-  border-radius: 8px 8px 0 0;
-  overflow: hidden;
-}
-
-.header-info {
-  margin-left: 15px;
-  flex: 1;
-}
-
-.teacher-avatar {
-  border: 3px solid rgba(255, 255, 255, 0.5);
-}
-
-.teacher-name {
-  font-size: 14px;
-  opacity: 0.9;
-  margin-top: 4px;
-}
-
-.status-tag {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-}
-
-.detail-content {
-  padding: 0 10px;
-}
-
-.detail-item {
-  margin-bottom: 15px;
-  display: flex;
-  align-items: flex-start;
-}
-
-.item-label {
-  width: 100px;
-  color: #606266;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-}
-
-.item-label .el-icon {
-  margin-right: 6px;
-}
-
-.item-value {
-  flex: 1;
-  color: #303133;
-}
-
-.detail-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 20px;
-  justify-content: center;
-}
-
-/* 不同科目的详情背景色 */
-.subject-bg-数学 {
-  background: linear-gradient(135deg, #409eff, #1890ff);
-}
-
-.subject-bg-物理 {
-  background: linear-gradient(135deg, #67c23a, #52af11);
-}
-
-.subject-bg-化学 {
-  background: linear-gradient(135deg, #ff9900, #ff7700);
-}
-
-.subject-bg-生物 {
-  background: linear-gradient(135deg, #f56c6c, #e24c4c);
-}
-
-.subject-bg-英语 {
-  background: linear-gradient(135deg, #9254de, #722ed1);
-}
-
-.subject-bg-语文 {
-  background: linear-gradient(135deg, #e6a23c, #d48806);
-}
-
-.subject-bg-历史 {
-  background: linear-gradient(135deg, #8e44ad, #6d279e);
-}
-
-.subject-bg-地理 {
-  background: linear-gradient(135deg, #16a085, #006755);
-}
-
-.subject-bg-政治 {
-  background: linear-gradient(135deg, #95a5a6, #7f8c8d);
-}
-
-/* 列表视图样式增强 */
-.list-view {
+.list-section {
   background-color: #fff;
   border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
   padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid #ebeef5;
 }
 
 .section-title {
   display: flex;
   align-items: center;
+  margin-top: 0;
+  margin-bottom: 20px;
   font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 15px;
-  color: var(--el-color-primary);
+  color: #333;
 }
 
 .section-title .el-icon {
   margin-right: 8px;
+  color: #409eff;
 }
 
 .class-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 15px;
-}
-
-.list-section {
-  margin-bottom: 30px;
 }
 
 .class-card {
   border-radius: 8px;
-  transition: all 0.3s;
-  overflow: hidden;
-  margin-bottom: 15px;
+  transition: transform 0.3s;
+}
+
+.class-card:hover {
+  transform: translateY(-5px);
+}
+
+.class-card.completed {
+  opacity: 0.8;
 }
 
 .class-card-content {
@@ -767,12 +551,13 @@ h2 {
 }
 
 .class-time-info {
-  padding: 15px;
+  padding-right: 15px;
   margin-right: 15px;
-  border-right: 1px solid #f0f0f0;
+  border-right: 1px solid #eee;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   min-width: 100px;
 }
 
@@ -785,19 +570,16 @@ h2 {
 .class-time {
   color: #666;
   margin-bottom: 10px;
-  font-size: 14px;
 }
 
 .class-badge {
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 12px;
-  color: white;
 }
 
 .class-main-info {
   flex: 1;
-  padding: 15px 15px 15px 0;
 }
 
 .class-title {
@@ -826,12 +608,102 @@ h2 {
 
 .class-location .el-icon {
   margin-right: 5px;
-  color: var(--el-color-primary);
+  color: #409eff;
 }
 
 .class-actions {
   display: flex;
   gap: 10px;
+}
+
+/* 详情弹窗样式 */
+.class-detail {
+  padding: 10px;
+}
+
+.detail-header {
+  margin-bottom: 20px;
+}
+
+.detail-status {
+  margin-bottom: 10px;
+}
+
+.detail-title {
+  font-size: 22px;
+  margin: 0 0 15px;
+  color: #333;
+}
+
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  color: #666;
+}
+
+.meta-item .el-icon {
+  margin-right: 5px;
+  color: #409eff;
+}
+
+.detail-teacher {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  background-color: #f5f7fa;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.teacher-avatar {
+  margin-right: 15px;
+}
+
+.teacher-info h4 {
+  margin: 0 0 5px;
+  font-size: 18px;
+  color: #333;
+}
+
+.teacher-info p {
+  margin: 0;
+  color: #666;
+}
+
+.detail-content, .detail-homework {
+  margin-bottom: 20px;
+}
+
+.detail-content h4, .detail-homework h4 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  color: #333;
+}
+
+.detail-content p, .detail-homework p {
+  color: #666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.detail-homework {
+  background-color: #fdf6ec;
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid #e6a23c;
+}
+
+.detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 30px;
 }
 
 @media (max-width: 768px) {
@@ -841,7 +713,7 @@ h2 {
 
   .class-time-info {
     border-right: none;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid #eee;
     padding-right: 0;
     padding-bottom: 10px;
     margin-right: 0;
@@ -855,8 +727,9 @@ h2 {
     margin-bottom: 0;
   }
 
-  .class-actions {
-    flex-wrap: wrap;
+  .detail-meta {
+    flex-direction: column;
+    gap: 10px;
   }
 }
 </style>
