@@ -284,6 +284,107 @@ const addNewClass = () => {
   ElMessage.success('新课程已添加')
   newClassDialogVisible.value = false
 }
+
+// 课程表相关函数
+// 时间段
+const timeSlots = [
+  { id: 1, label: '08:00 - 10:00', start: '08:00', end: '10:00' },
+  { id: 2, label: '10:00 - 12:00', start: '10:00', end: '12:00' },
+  { id: 3, label: '14:00 - 16:00', start: '14:00', end: '16:00' },
+  { id: 4, label: '16:00 - 18:00', start: '16:00', end: '18:00' },
+  { id: 5, label: '18:00 - 20:00', start: '18:00', end: '20:00' },
+  { id: 6, label: '20:00 - 22:00', start: '20:00', end: '22:00' }
+]
+
+// 获取周一
+const getStartOfWeek = (date: Date) => {
+  const d = new Date(date)
+  const day = d.getDay() || 7 // 将周日视为7
+  if (day !== 1) d.setHours(-24 * (day - 1))
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+// 获取周日
+const getEndOfWeek = (date: Date) => {
+  const d = new Date(getStartOfWeek(date))
+  d.setDate(d.getDate() + 6)
+  return d
+}
+
+// 获取一周的日期
+const weekDays = computed(() => {
+  const startDay = getStartOfWeek(currentDate.value)
+  const days = []
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(startDay)
+    day.setDate(day.getDate() + i)
+    days.push(day)
+  }
+  return days
+})
+
+// 格式化日期范围
+const formatWeekRange = (start: Date, end: Date) => {
+  return `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日 - ${end.getMonth() + 1}月${end.getDate()}日`
+}
+
+// 格式化日期
+const formatDate = (date: Date) => {
+  return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+// 格式化星期
+const formatDay = (date: Date) => {
+  const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  return days[date.getDay()]
+}
+
+// 判断是否是今天
+const isToday = (date: Date) => {
+  const today = new Date()
+  return date.getDate() === today.getDate() &&
+         date.getMonth() === today.getMonth() &&
+         date.getFullYear() === today.getFullYear()
+}
+
+// 上一周
+const prevWeek = () => {
+  const newDate = new Date(currentDate.value)
+  newDate.setDate(newDate.getDate() - 7)
+  currentDate.value = newDate
+}
+
+// 下一周
+const nextWeek = () => {
+  const newDate = new Date(currentDate.value)
+  newDate.setDate(newDate.getDate() + 7)
+  currentDate.value = newDate
+}
+
+// 判断某个时间段是否有课
+const hasClass = (day: Date, timeSlot: typeof timeSlots[0]) => {
+  const dateStr = day.toISOString().split('T')[0]
+  return classes.value.some(c => {
+    if (c.date !== dateStr) return false
+    const classStartTime = c.time.split('-')[0]
+    const classEndTime = c.time.split('-')[1]
+    return classStartTime === timeSlot.start ||
+           (classStartTime < timeSlot.start && classEndTime > timeSlot.start)
+  })
+}
+
+// 获取某个时间段的课程
+const getClassesByTimeSlot = (day: Date, timeSlot: typeof timeSlots[0]) => {
+  const dateStr = day.toISOString().split('T')[0]
+  return classes.value.filter(c => {
+    if (c.date !== dateStr) return false
+    const classStartTime = c.time.split('-')[0]
+    const classEndTime = c.time.split('-')[1]
+    return classStartTime === timeSlot.start ||
+           (classStartTime < timeSlot.start && classEndTime > timeSlot.start)
+  })
+}
 </script>
 
 <template>
@@ -436,7 +537,76 @@ const addNewClass = () => {
 
         <!-- 课程表视图 -->
         <div v-else-if="viewMode === 'timetable'" class="timetable-view">
-          <el-empty description="课程表视图正在开发中" />
+          <div class="timetable-header">
+            <div class="timetable-nav">
+              <el-button-group>
+                <el-button size="small" @click="prevWeek">
+                  <el-icon><ArrowLeft /></el-icon>
+                </el-button>
+                <el-button size="small" @click="currentDate = new Date()">本周</el-button>
+                <el-button size="small" @click="nextWeek">
+                  <el-icon><ArrowRight /></el-icon>
+                </el-button>
+              </el-button-group>
+              <div class="current-week">
+                {{ formatWeekRange(getStartOfWeek(currentDate), getEndOfWeek(currentDate)) }}
+              </div>
+            </div>
+          </div>
+
+          <div class="timetable-container">
+            <div class="timetable-sidebar">
+              <div class="time-slot-header">时间段</div>
+              <div
+                v-for="timeSlot in timeSlots"
+                :key="timeSlot.id"
+                class="time-slot"
+              >
+                {{ timeSlot.label }}
+              </div>
+            </div>
+
+            <div class="timetable-content">
+              <div class="timetable-days">
+                <div
+                  v-for="(day, index) in weekDays"
+                  :key="index"
+                  class="day-header"
+                  :class="{ 'today': isToday(day) }"
+                >
+                  <div class="day-name">{{ formatDay(day) }}</div>
+                  <div class="day-date">{{ formatDate(day) }}</div>
+                </div>
+              </div>
+
+              <div class="timetable-grid">
+                <div
+                  v-for="(day, dayIndex) in weekDays"
+                  :key="dayIndex"
+                  class="timetable-day"
+                >
+                  <div
+                    v-for="timeSlot in timeSlots"
+                    :key="`${dayIndex}-${timeSlot.id}`"
+                    class="timetable-cell"
+                    :class="{ 'has-class': hasClass(day, timeSlot) }"
+                  >
+                    <div
+                      v-for="scheduleClass in getClassesByTimeSlot(day, timeSlot)"
+                      :key="scheduleClass.id"
+                      class="timetable-class"
+                      :class="[`subject-${scheduleClass.subject}`, `status-${scheduleClass.status}`]"
+                      @click="showClassDetail(scheduleClass)"
+                    >
+                      <div class="class-title">{{ scheduleClass.title }}</div>
+                      <div class="class-time">{{ scheduleClass.time }}</div>
+                      <div class="class-student">{{ scheduleClass.studentName }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1161,6 +1331,181 @@ h2 {
   text-decoration: line-through;
 }
 
+/* 课程表视图样式 */
+.timetable-view {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.timetable-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.timetable-nav {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.current-week {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+}
+
+.timetable-container {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.timetable-sidebar {
+  width: 120px;
+  min-width: 120px;
+  border-right: 1px solid #ebeef5;
+  background-color: #f5f7fa;
+}
+
+.time-slot-header {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  border-bottom: 1px solid #ebeef5;
+  background-color: #f0f2f5;
+}
+
+.time-slot {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  text-align: center;
+  font-size: 13px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.timetable-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.timetable-days {
+  display: flex;
+  height: 60px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.day-header {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #ebeef5;
+  background-color: #f0f2f5;
+}
+
+.day-header:last-child {
+  border-right: none;
+}
+
+.day-header.today {
+  background-color: #ecf5ff;
+  color: #409eff;
+}
+
+.day-name {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.day-date {
+  font-size: 12px;
+  color: #606266;
+}
+
+.timetable-grid {
+  display: flex;
+  flex: 1;
+}
+
+.timetable-day {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #ebeef5;
+}
+
+.timetable-day:last-child {
+  border-right: none;
+}
+
+.timetable-cell {
+  height: 80px;
+  border-bottom: 1px solid #ebeef5;
+  padding: 5px;
+  position: relative;
+}
+
+.timetable-cell.has-class {
+  background-color: rgba(64, 158, 255, 0.05);
+}
+
+.timetable-class {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  right: 5px;
+  bottom: 5px;
+  padding: 8px;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.timetable-class:hover {
+  transform: scale(1.02);
+  z-index: 10;
+}
+
+.class-title {
+  font-weight: bold;
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+}
+
+.class-time {
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+
+.class-student {
+  font-size: 11px;
+  color: #606266;
+}
+
 @media (max-width: 992px) {
   .schedule-container {
     flex-direction: column;
@@ -1195,6 +1540,50 @@ h2 {
   .detail-meta {
     flex-direction: column;
     gap: 10px;
+  }
+
+  .timetable-container {
+    flex-direction: column;
+  }
+
+  .timetable-sidebar {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    border-right: none;
+    border-bottom: 1px solid #ebeef5;
+  }
+
+  .time-slot-header {
+    width: 120px;
+    height: 50px;
+    border-bottom: none;
+    border-right: 1px solid #ebeef5;
+  }
+
+  .time-slot {
+    flex: 1;
+    height: 50px;
+    border-bottom: none;
+    border-right: 1px solid #ebeef5;
+  }
+
+  .time-slot:last-child {
+    border-right: none;
+  }
+
+  .timetable-cell {
+    height: 60px;
+  }
+
+  .class-title {
+    font-size: 11px;
+    margin-bottom: 2px;
+  }
+
+  .class-time, .class-student {
+    font-size: 10px;
+    margin-bottom: 2px;
   }
 }
 </style>
