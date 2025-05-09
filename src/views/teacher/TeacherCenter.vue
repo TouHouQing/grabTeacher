@@ -18,7 +18,7 @@ const activeMenu = ref('dashboard')
         <div class="sidebar">
           <div class="user-info">
             <div class="avatar">
-              <img src="https://img.syt5.com/2021/0908/20210908055012420.jpg.420.580.jpg" alt="用户头像">
+              <img src="/src/assets/pictures/teacherBoy2.jpeg" alt="用户头像">
             </div>
             <div class="info">
               <h3>{{ userStore.username }}</h3>

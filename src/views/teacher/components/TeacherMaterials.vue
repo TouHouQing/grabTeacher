@@ -27,7 +27,7 @@ const materials = ref<Material[]>([
     uploadDate: '2023-05-10',
     downloads: 56,
     path: '/materials/math-functions.pdf',
-    preview: 'https://img1.baidu.com/it/u=3709586903,2893555147&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=281'
+    preview: '/src/assets/pictures/math1.jpeg'
   },
   {
     id: 2,
@@ -39,7 +39,7 @@ const materials = ref<Material[]>([
     uploadDate: '2023-06-05',
     downloads: 32,
     path: '/materials/english-grammar.docx',
-    preview: 'https://img0.baidu.com/it/u=2184866169,2565074814&fm=253&fmt=auto&app=138&f=JPEG?w=750&h=500'
+    preview: '/src/assets/pictures/english1.jpeg'
   },
   {
     id: 3,
@@ -51,7 +51,7 @@ const materials = ref<Material[]>([
     uploadDate: '2023-06-15',
     downloads: 28,
     path: '/materials/physics-mechanics.pptx',
-    preview: 'https://img2.baidu.com/it/u=4077875581,1641262421&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333'
+    preview: '/src/assets/pictures/physics1.jpeg'
   },
   {
     id: 4,
@@ -63,7 +63,7 @@ const materials = ref<Material[]>([
     uploadDate: '2023-06-20',
     downloads: 45,
     path: '/materials/math-thinking.pdf',
-    preview: 'https://img0.baidu.com/it/u=3733743175,1824767969&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333'
+    preview: '/src/assets/pictures/math1.jpeg'
   }
 ])
 

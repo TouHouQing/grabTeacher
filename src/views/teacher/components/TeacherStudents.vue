@@ -21,7 +21,7 @@ const students = ref<Student[]>([
   {
     id: 1,
     name: '张明',
-    avatar: 'https://img1.baidu.com/it/u=1817951587,699502146&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500',
+    avatar: '/src/assets/pictures/studentBoy1.jpeg',
     grade: 'Secondary 3',
     subject: 'Mathematics',
     progress: 60,
@@ -34,7 +34,7 @@ const students = ref<Student[]>([
   {
     id: 2,
     name: '李华',
-    avatar: 'https://img1.baidu.com/it/u=2496571732,442429293&fm=253&fmt=auto&app=138&f=JPEG?w=400&h=400',
+    avatar: '/src/assets/pictures/studentBoy2.jpeg',
     grade: 'Secondary 2',
     subject: 'Mathematics',
     progress: 45,
@@ -47,7 +47,7 @@ const students = ref<Student[]>([
   {
     id: 3,
     name: '王芳',
-    avatar: 'https://img0.baidu.com/it/u=1944204113,1917062272&fm=253&fmt=auto&app=138&f=JPEG?w=400&h=400',
+    avatar: '/src/assets/pictures/studentGirl1.jpeg',
     grade: 'Primary 6',
     subject: 'English',
     progress: 30,

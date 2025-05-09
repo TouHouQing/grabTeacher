@@ -17,7 +17,7 @@ const profileForm = reactive({
   major: '数学',
   teachingExperience: 10,
   introduction: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣，使用多种教学方法帮助学生理解数学概念。',
-  avatar: 'https://img.syt5.com/2021/0908/20210908055012420.jpg.420.580.jpg'
+  avatar: '/src/assets/pictures/teacherBoy2.jpeg'
 })
 
 // 教学信息设置
