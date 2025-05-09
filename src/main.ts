@@ -15,7 +15,7 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 }
 
 // 禁用开发工具按钮
-app.config.devtools = false
+// app.config.devtools = false
 
 app.use(createPinia())
 app.use(router)
