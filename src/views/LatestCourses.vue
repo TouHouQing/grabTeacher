@@ -383,6 +383,11 @@ export default {
   align-items: center;
 }
 
+.filter-form .el-select {
+  min-width: 140px;
+  width: 180px;
+}
+
 .latest-highlight {
   background-color: #f0f9eb;
   border-radius: 8px;
