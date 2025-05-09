@@ -196,7 +196,7 @@ export default {
       <div v-else class="materials-grid">
         <el-card v-for="material in filteredMaterials" :key="material.id" class="material-card">
           <div class="material-preview" v-if="material.preview">
-            <img :src="material.preview" :alt="material.title">
+            <img :src="$getImageUrl(material.preview)" :alt="material.title">
           </div>
           <div class="material-preview" v-else>
             <div class="file-icon">

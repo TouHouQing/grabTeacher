@@ -179,7 +179,7 @@ export default {
       <el-card v-for="student in filteredStudents" :key="student.id" class="student-card">
         <div class="student-info">
           <div class="student-avatar">
-            <img :src="student.avatar" :alt="student.name">
+            <img :src="$getImageUrl(student.avatar)" :alt="student.name">
           </div>
           <div class="student-details">
             <h3>{{ student.name }}</h3>
@@ -220,7 +220,7 @@ export default {
       <div v-if="studentDetail" class="student-detail-dialog">
         <div class="detail-header">
           <div class="detail-avatar">
-            <img :src="studentDetail.avatar" :alt="studentDetail.name">
+            <img :src="$getImageUrl(studentDetail.avatar)" :alt="studentDetail.name">
           </div>
           <div class="detail-basic-info">
             <h3>{{ studentDetail.name }}</h3>

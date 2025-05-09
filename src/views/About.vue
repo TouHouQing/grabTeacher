@@ -1,5 +1,8 @@
 <script setup lang="ts">
-
+// 定义组件名称
+defineOptions({
+  name: 'AboutView'
+})
 </script>
 
 <template>
@@ -16,7 +19,7 @@
         <h2>公司简介</h2>
         <div class="intro-content">
           <div class="intro-image">
-            <img src="/src/assets/pictures/aboutFirm.jpeg" alt="公司图片">
+            <img :src="$getImageUrl('@/assets/pictures/aboutFirm.jpeg')" alt="公司图片">
           </div>
           <div class="intro-text">
             <p>GrabTeacher成立于2018年，是一家专注于个性化教育的科技公司。我们利用先进的智能匹配技术，为学生提供最适合其学习需求和学习风格的优质教师，打造真正个性化的学习体验。</p>
@@ -58,7 +61,7 @@
         <div class="team-members">
           <div class="team-member">
             <div class="member-avatar">
-              <img src="/src/assets/pictures/aboutBoss1.jpeg" alt="团队成员">
+              <img :src="$getImageUrl('@/assets/pictures/aboutBoss1.jpeg')" alt="团队成员">
             </div>
             <h3>张明</h3>
             <p class="member-title">创始人 & CEO</p>
@@ -66,7 +69,7 @@
           </div>
           <div class="team-member">
             <div class="member-avatar">
-              <img src="/src/assets/pictures/aboutBoss2.jpeg" alt="团队成员">
+              <img :src="$getImageUrl('@/assets/pictures/aboutBoss2.jpeg')" alt="团队成员">
             </div>
             <h3>李华</h3>
             <p class="member-title">联合创始人 & CTO</p>
@@ -74,7 +77,7 @@
           </div>
           <div class="team-member">
             <div class="member-avatar">
-              <img src="/src/assets/pictures/aboutBoss3.jpeg" alt="团队成员">
+              <img :src="$getImageUrl('@/assets/pictures/aboutBoss3.jpeg')" alt="团队成员">
             </div>
             <h3>王芳</h3>
             <p class="member-title">教学总监</p>
@@ -161,7 +164,7 @@
 
 .banner {
   height: 300px;
-  background-image: url('/src/assets/pictures/aboutBackground.jpeg');
+  background-image: url('@/assets/pictures/aboutBackground.jpeg');
   background-size: cover;
   background-position: center;
   display: flex;

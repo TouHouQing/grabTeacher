@@ -1,47 +1,87 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import type { FormInstance } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 
+// 组件名称
+defineOptions({
+    name: 'RegisterView'
+})
+
+// 路由
 const router = useRouter()
-const formRef = ref<FormInstance>()
-const form = ref({
+
+// 表单引用
+const formRef = ref<FormInstance | null>(null)
+
+// 表单数据
+const form = reactive({
     username: '',
     password: '',
     confirmPassword: '',
-    role: 'student'
+    email: '',
+    phone: '',
+    agreement: false
 })
 
-const rules = {
-    username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-    password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-    confirmPassword: [
-        { required: true, message: '请确认密码', trigger: 'blur' },
-        {
-            validator: (rule: any, value: string, callback: Function) => {
-                if (value !== form.value.password) {
-                    callback(new Error('两次输入的密码不一致'))
-                } else {
-                    callback()
-                }
-            },
-            trigger: 'blur'
-        }
-    ],
-    role: [{ required: true, message: '请选择角色', trigger: 'change' }]
+// 表单校验规则
+const validatePass = (rule: any, value: string, callback: any) => {
+    if (value === '') {
+        callback(new Error('请再次输入密码'))
+    } else if (value !== form.password) {
+        callback(new Error('两次输入密码不一致!'))
+    } else {
+        callback()
+    }
 }
 
-const handleSubmit = async (formEl: FormInstance | undefined) => {
-    if (!formEl) return
+const rules = reactive<FormRules>({
+    username: [
+        { required: true, message: '请输入用户名', trigger: 'blur' },
+        { min: 3, max: 20, message: '用户名长度应为3-20个字符', trigger: 'blur' }
+    ],
+    password: [
+        { required: true, message: '请输入密码', trigger: 'blur' },
+        { min: 6, max: 20, message: '密码长度应为6-20个字符', trigger: 'blur' }
+    ],
+    confirmPassword: [
+        { required: true, message: '请再次输入密码', trigger: 'blur' },
+        { validator: validatePass, trigger: 'blur' }
+    ],
+    email: [
+        { required: true, message: '请输入邮箱地址', trigger: 'blur' },
+        { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
+    ],
+    phone: [
+        { required: true, message: '请输入手机号码', trigger: 'blur' },
+        { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }
+    ],
+    agreement: [
+        { type: 'boolean', required: true, message: '请阅读并同意用户协议', trigger: 'change' }
+    ]
+})
 
-    await formEl.validate((valid) => {
+// 表单提交
+const submitForm = async (formEl: FormInstance | null) => {
+    if (!formEl) return
+    await formEl.validate((valid, fields) => {
         if (valid) {
-            // 演示用，实际调用后端API
-            ElMessage.success('注册成功')
-            router.push('/login')
+            console.log('注册成功', form)
+            ElMessage.success('注册成功，即将跳转到登录页')
+            setTimeout(() => {
+                router.push('/login')
+            }, 1500)
+        } else {
+            console.log('表单验证失败', fields)
         }
     })
+}
+
+// 重置表单
+const resetForm = (formEl: FormInstance | null) => {
+    if (!formEl) return
+    formEl.resetFields()
 }
 </script>
 
@@ -65,15 +105,20 @@ const handleSubmit = async (formEl: FormInstance | undefined) => {
                     <el-input v-model="form.confirmPassword" type="password" />
                 </el-form-item>
 
-                <el-form-item label="角色" prop="role">
-                    <el-radio-group v-model="form.role">
-                        <el-radio label="student">学生</el-radio>
-                        <el-radio label="teacher">教师</el-radio>
-                    </el-radio-group>
+                <el-form-item label="邮箱" prop="email">
+                    <el-input v-model="form.email" />
+                </el-form-item>
+
+                <el-form-item label="手机号码" prop="phone">
+                    <el-input v-model="form.phone" />
+                </el-form-item>
+
+                <el-form-item label="用户协议" prop="agreement">
+                    <el-checkbox v-model="form.agreement" />
                 </el-form-item>
 
                 <el-form-item>
-                    <el-button type="primary" @click="handleSubmit(formRef)">
+                    <el-button type="primary" @click="submitForm(formRef)">
                         注册
                     </el-button>
                 </el-form-item>

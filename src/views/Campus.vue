@@ -25,7 +25,7 @@ const campuses = reactive<CampusData>({
       address: '北京市海淀区中关村大街11号',
       phone: '010-88886666',
       hours: '周一至周日 8:00-22:00',
-      image: '/src/assets/pictures/campusZGC.jpg'
+      image: '@/assets/pictures/campusZGC.jpg'
     },
     {
       id: 2,
@@ -33,7 +33,7 @@ const campuses = reactive<CampusData>({
       address: '北京市海淀区五道口华清嘉园12号楼',
       phone: '010-88887777',
       hours: '周一至周日 9:00-21:00',
-      image: '/src/assets/pictures/campusWDK.jpeg'
+      image: '@/assets/pictures/campusWDK.jpeg'
     },
     {
       id: 3,
@@ -41,7 +41,7 @@ const campuses = reactive<CampusData>({
       address: '北京市西城区金融街22号',
       phone: '010-88888888',
       hours: '周一至周日 9:00-21:00',
-      image: '/src/assets/pictures/campusJRJ.jpeg'
+      image: '@/assets/pictures/campusJRJ.jpeg'
     }
   ],
   shanghai: [
@@ -51,7 +51,7 @@ const campuses = reactive<CampusData>({
       address: '上海市浦东新区陆家嘴环路88号',
       phone: '021-66665555',
       hours: '周一至周日 8:00-22:00',
-      image: '/src/assets/pictures/campusLJZ.jpeg'
+      image: '@/assets/pictures/campusLJZ.jpeg'
     },
     {
       id: 5,
@@ -59,7 +59,7 @@ const campuses = reactive<CampusData>({
       address: '上海市徐汇区肇嘉浜路8号',
       phone: '021-66667777',
       hours: '周一至周日 9:00-21:00',
-      image: '/src/assets/pictures/campusXJH.jpeg'
+      image: '@/assets/pictures/campusXJH.jpeg'
     }
   ],
   guangzhou: [
@@ -69,7 +69,7 @@ const campuses = reactive<CampusData>({
       address: '广州市天河区天河路228号',
       phone: '020-55556666',
       hours: '周一至周日 9:00-22:00',
-      image: '/src/assets/pictures/campusTHC.jpg'
+      image: '@/assets/pictures/campusTHC.jpg'
     }
   ],
   shenzhen: [
@@ -79,7 +79,7 @@ const campuses = reactive<CampusData>({
       address: '深圳市南山区科技园南区12栋',
       phone: '0755-88889999',
       hours: '周一至周日 9:00-22:00',
-      image: '/src/assets/pictures/campusNS.jpeg'
+      image: '@/assets/pictures/campusNS.jpeg'
     }
   ]
 })
@@ -135,7 +135,7 @@ const filteredCampuses = computed(() => {
         <div v-else class="campus-grid">
           <el-card v-for="campus in filteredCampuses" :key="campus.id" class="campus-card">
             <div class="campus-image">
-              <img :src="campus.image" :alt="campus.name">
+              <img :src="$getImageUrl(campus.image)" :alt="campus.name">
             </div>
             <div class="campus-info">
               <h3>{{ campus.name }}</h3>
@@ -164,7 +164,7 @@ const filteredCampuses = computed(() => {
       <div class="campus-map">
         <h2>校区分布地图</h2>
         <div class="map-container">
-          <img src="/src/assets/pictures/campusFB.jpeg" alt="校区地图">
+          <img :src="$getImageUrl('@/assets/pictures/campusFB.jpeg')" alt="校区地图">
         </div>
       </div>
 
@@ -227,7 +227,7 @@ const filteredCampuses = computed(() => {
 
 .banner {
   height: 300px;
-  background-image: url('/src/assets/pictures/campusBackground.jpg');
+  background-image: v-bind('`url(${$getImageUrl("@/assets/pictures/campusBackground.jpg")})`');
   background-size: cover;
   background-position: center;
   display: flex;

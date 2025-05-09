@@ -18,9 +18,9 @@ const courses = [
     id: 1,
     title: '高中物理 - 电磁学深入',
     teacher: '王老师',
-    teacherAvatar: '/src/assets/pictures/teachergirl4.jpeg',
+    teacherAvatar: '@/assets/pictures/teacherGirl4.jpeg',
     description: '本课程深入讲解电磁感应、电磁波等高中物理重点知识，结合最新高考真题，帮助学生系统掌握电磁学知识体系。',
-    image: '/src/assets/pictures/physics1.jpeg',
+    image: '@/assets/pictures/physics1.jpeg',
     duration: '25课时',
     students: 42,
     rating: 5.0,
@@ -37,9 +37,9 @@ const courses = [
     id: 2,
     title: '中学化学 - 有机化合物专题',
     teacher: '刘老师',
-    teacherAvatar: '/src/assets/pictures/teacherGirl3.jpeg',
+    teacherAvatar: '@/assets/pictures/teacherGirl3.jpeg',
     description: '系统讲解有机化学基础，从烷烃、烯烃到醇、酸，深入浅出地介绍有机化合物的性质与反应。',
-    image: '/src/assets/pictures/chemistry1.jpeg',
+    image: '@/assets/pictures/chemistry1.jpeg',
     duration: '20课时',
     students: 35,
     rating: 4.9,
@@ -56,9 +56,9 @@ const courses = [
     id: 3,
     title: '初中数学 - 几何证明入门',
     teacher: '李老师',
-    teacherAvatar: '/src/assets/pictures/teacherGirl2.jpeg',
+    teacherAvatar: '@/assets/pictures/teacherGirl2.jpeg',
     description: '本课程从基础开始，教授初中几何证明的基本方法，包括三角形全等、相似、勾股定理等常用证明技巧。',
-    image: '/src/assets/pictures/math1.jpeg',
+    image: '@/assets/pictures/math1.jpeg',
     duration: '18课时',
     students: 68,
     rating: 4.8,
@@ -75,9 +75,9 @@ const courses = [
     id: 4,
     title: '小学英语 - 情景对话进阶',
     teacher: '杨老师',
-    teacherAvatar: '/src/assets/pictures/teacherGirl1.jpeg',
+    teacherAvatar: '@/assets/pictures/teacherGirl1.jpeg',
     description: '通过日常生活情景对话，提高小学生英语口语表达能力，课程生动有趣，配合多媒体教学资源。',
-    image: '/src/assets/pictures/english1.jpeg',
+    image: '@/assets/pictures/english1.jpeg',
     duration: '15课时',
     students: 82,
     rating: 5.0,
@@ -94,9 +94,9 @@ const courses = [
     id: 5,
     title: '高中生物 - 遗传学前沿',
     teacher: '赵老师',
-    teacherAvatar: '/src/assets/pictures/teacherBoy1.jpeg',
+    teacherAvatar: '@/assets/pictures/teacherBoy1.jpeg',
     description: '结合最新生物技术发展，讲解遗传学知识，从DNA到基因编辑，让学生了解现代生物科技与遗传学前沿。',
-    image: '/src/assets/pictures/biology1.jpeg',
+    image: '@/assets/pictures/biology1.jpeg',
     duration: '22课时',
     students: 48,
     rating: 4.9,
@@ -113,9 +113,9 @@ const courses = [
     id: 6,
     title: '初中历史 - 中国古代文明',
     teacher: '陈老师',
-    teacherAvatar: '/src/assets/pictures/teacherBoy2.jpeg',
+    teacherAvatar: '@/assets/pictures/teacherBoy2.jpeg',
     description: '带领学生领略中国古代文明的辉煌，从夏商周到明清，系统讲解中国历史发展脉络，深入浅出，图文并茂。',
-    image: '/src/assets/pictures/history1.jpeg',
+    image: '@/assets/pictures/history1.jpeg',
     duration: '24课时',
     students: 56,
     rating: 4.8,
@@ -225,14 +225,14 @@ const resetFilter = () => {
         <div class="courses-grid">
           <div class="course-card" v-for="(course, index) in displayCourses" :key="index">
             <div class="course-image">
-              <img :src="course.image" :alt="course.title">
+              <img :src="$getImageUrl(course.image)" :alt="course.title">
               <div class="course-badge new" v-if="course.isNew">最新</div>
               <div class="course-badge hot" v-if="course.isHot">热门</div>
             </div>
             <div class="course-info">
               <h3>{{ course.title }}</h3>
               <div class="course-teacher">
-                <img :src="course.teacherAvatar" :alt="course.teacher">
+                <img :src="$getImageUrl(course.teacherAvatar)" :alt="course.teacher">
                 <span>{{ course.teacher }}</span>
               </div>
               <p class="course-description">{{ course.description }}</p>
@@ -328,7 +328,7 @@ export default {
 
 .banner {
   height: 300px;
-  background-image: url('/src/assets/pictures/courseBackground1.jpeg');
+  background-image: url('@/assets/pictures/courseBackground1.jpeg');
   background-size: cover;
   background-position: center;
   display: flex;

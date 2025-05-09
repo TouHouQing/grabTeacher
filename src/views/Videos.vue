@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+// 定义组件名称
+defineOptions({
+  name: 'VideosView'
+})
+
 interface Video {
     id: number
     title: string
@@ -17,7 +22,7 @@ const videos = ref<Video[]>([
         title: '数学基础课程',
         teacher: '张老师',
         description: '本课程涵盖高等数学基础知识，适合大一新生学习。包括函数、极限、导数、积分等重要概念。',
-        cover: 'https://via.placeholder.com/400x225',
+        cover: '@/assets/pictures/math1.jpeg',
         duration: '12课时',
         students: 328
     },
@@ -26,7 +31,7 @@ const videos = ref<Video[]>([
         title: '物理实验课程',
         teacher: '李老师',
         description: '通过实验讲解物理现象，加深对物理知识的理解。包括力学、电学、光学等经典实验。',
-        cover: 'https://via.placeholder.com/400x225',
+        cover: '@/assets/pictures/physics1.jpeg',
         duration: '15课时',
         students: 256
     },
@@ -35,7 +40,7 @@ const videos = ref<Video[]>([
         title: '编程入门课程',
         teacher: '王老师',
         description: '从零开始学习编程，掌握基本的编程思维和技能。通过实践项目培养编程能力。',
-        cover: 'https://via.placeholder.com/400x225',
+        cover: '@/assets/pictures/chemistry1.jpeg',
         duration: '20课时',
         students: 512
     },
@@ -44,7 +49,7 @@ const videos = ref<Video[]>([
         title: '数据结构与算法',
         teacher: '刘老师',
         description: '系统学习常用数据结构和算法，提高编程能力和问题解决能力。',
-        cover: 'https://via.placeholder.com/400x225',
+        cover: '@/assets/pictures/biology1.jpeg',
         duration: '18课时',
         students: 423
     }

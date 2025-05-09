@@ -1,5 +1,256 @@
 <script setup lang="ts">
+import { ref, reactive, computed } from 'vue'
 
+// 定义组件名称
+defineOptions({
+  name: 'PremiumCoursesView'
+})
+
+// 导入图片资源
+import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
+import teacherBoy2 from '@/assets/pictures/teacherBoy2.jpeg'
+import teacherBoy3 from '@/assets/pictures/teacherBoy3.jpeg'
+import teacherGirl1 from '@/assets/pictures/teacherGirl1.jpeg'
+import teacherGirl2 from '@/assets/pictures/teacherGirl2.jpeg'
+import teacherGirl3 from '@/assets/pictures/teacherGirl3.jpeg'
+import teacherGirl4 from '@/assets/pictures/teacherGirl4.jpeg'
+import studentGirl2 from '@/assets/pictures/studentGirl2.jpeg'
+import math1 from '@/assets/pictures/math1.jpeg'
+import physics1 from '@/assets/pictures/physics1.jpeg'
+import chemistry1 from '@/assets/pictures/chemistry1.jpeg'
+import biology1 from '@/assets/pictures/biology1.jpeg'
+import english1 from '@/assets/pictures/english1.jpeg'
+
+// 分页参数
+const currentPage = ref(1)
+const pageSize = ref(6)
+
+// 过滤条件
+const filter = reactive({
+  subject: '',
+  grade: '',
+  level: ''
+})
+
+// 课程数据
+const courses = ref([
+  {
+    title: '高中数学 - 函数与导数',
+    teacher: '张老师',
+    teacherAvatar: teacherBoy1,
+    description: '本课程深入浅出地讲解高中数学中的函数与导数知识点，适合高二、高三学生。通过大量习题和实例，帮助学生掌握解题技巧。',
+    image: math1,
+    duration: '30课时',
+    students: 1280,
+    rating: 4.8,
+    price: 1980,
+    subject: '数学',
+    grade: '高中',
+    level: '进阶',
+    isHot: true,
+    tags: ['函数', '导数', '高考必考']
+  },
+  {
+    title: '初中英语 - 语法精讲',
+    teacher: '李老师',
+    teacherAvatar: teacherBoy2,
+    description: '系统梳理初中英语语法知识，打牢语法基础，提高英语成绩。课程包含大量例句和练习，帮助学生掌握语法规则。',
+    image: english1,
+    duration: '25课时',
+    students: 958,
+    rating: 4.7,
+    price: 1480,
+    subject: '英语',
+    grade: '初中',
+    level: '入门',
+    isHot: true,
+    tags: ['语法', '中考', '基础入门']
+  },
+  {
+    title: '高中物理 - 力学与电学',
+    teacher: '王老师',
+    teacherAvatar: teacherBoy3,
+    description: '从基础概念到难点突破，全面讲解高中物理力学与电学知识。通过实验演示和习题讲解，帮助学生理解物理原理。',
+    image: physics1,
+    duration: '28课时',
+    students: 876,
+    rating: 4.9,
+    price: 1880,
+    subject: '物理',
+    grade: '高中',
+    level: '进阶',
+    isHot: false,
+    tags: ['力学', '电学', '实验']
+  },
+  {
+    title: '小学数学 - 思维训练',
+    teacher: '陈老师',
+    teacherAvatar: teacherGirl1,
+    description: '培养孩子的数学思维能力，通过趣味数学题和游戏，激发学习兴趣，提高解题能力。适合小学3-6年级学生。',
+    image: math1,
+    duration: '20课时',
+    students: 1056,
+    rating: 4.9,
+    price: 1280,
+    subject: '数学',
+    grade: '小学',
+    level: '入门',
+    isHot: true,
+    tags: ['思维训练', '趣味数学', '奥数基础']
+  },
+  {
+    title: '高中化学 - 有机化学',
+    teacher: '刘老师',
+    teacherAvatar: teacherGirl2,
+    description: '系统讲解高中有机化学知识，从基础概念到重难点突破，配合大量习题和实验演示，帮助学生掌握有机化学知识。',
+    image: chemistry1,
+    duration: '26课时',
+    students: 782,
+    rating: 4.8,
+    price: 1780,
+    subject: '化学',
+    grade: '高中',
+    level: '高级',
+    isHot: false,
+    tags: ['有机化学', '实验', '高考重点']
+  },
+  {
+    title: '初中物理 - 电学入门',
+    teacher: '周老师',
+    teacherAvatar: teacherGirl3,
+    description: '通过实验和动画演示，讲解初中电学知识，帮助学生建立物理概念，掌握基本规律，提高解题能力。',
+    image: physics1,
+    duration: '22课时',
+    students: 685,
+    rating: 4.7,
+    price: 1380,
+    subject: '物理',
+    grade: '初中',
+    level: '入门',
+    isHot: false,
+    tags: ['电学', '实验', '初中物理']
+  },
+  {
+    title: '高中生物 - 分子与细胞',
+    teacher: '赵老师',
+    teacherAvatar: teacherGirl4,
+    description: '深入讲解高中生物分子与细胞部分，通过图解、模型和实验，帮助学生理解抽象概念，掌握重要知识点。',
+    image: biology1,
+    duration: '24课时',
+    students: 592,
+    rating: 4.8,
+    price: 1680,
+    subject: '生物',
+    grade: '高中',
+    level: '进阶',
+    isHot: false,
+    tags: ['分子生物学', '细胞', '高考重点']
+  },
+  {
+    title: '小学英语 - 自然拼读',
+    teacher: '杨老师',
+    teacherAvatar: studentGirl2,
+    description: '通过自然拼读法，帮助孩子掌握英语发音规则，建立拼读能力，提高阅读和拼写能力。适合小学1-3年级学生。',
+    image: english1,
+    duration: '18课时',
+    students: 1123,
+    rating: 4.9,
+    price: 1180,
+    subject: '英语',
+    grade: '小学',
+    level: '入门',
+    isHot: true,
+    tags: ['自然拼读', '英语启蒙', '趣味英语']
+  }
+])
+
+// 课程套餐数据
+const coursePackages = ref([
+  {
+    title: '初中英语+数学套餐',
+    originalPrice: 2960,
+    currentPrice: 2480,
+    courses: [
+      { title: '初中英语 - 语法精讲', teacher: '李老师', duration: '25课时' },
+      { title: '初中数学 - 代数与几何', teacher: '陈老师', duration: '28课时' }
+    ],
+    features: [
+      '双科联报优惠价',
+      '赠送中考模拟题',
+      '1年有效期',
+      '定期学习规划指导'
+    ]
+  },
+  {
+    title: '小学全科启蒙套餐',
+    originalPrice: 3760,
+    currentPrice: 2980,
+    courses: [
+      { title: '小学数学 - 思维训练', teacher: '陈老师', duration: '20课时' },
+      { title: '小学英语 - 自然拼读', teacher: '杨老师', duration: '18课时' },
+      { title: '小学科学 - 趣味实验', teacher: '林老师', duration: '16课时' }
+    ],
+    features: [
+      '三科联报优惠价',
+      '赠送学习工具包',
+      '2年有效期',
+      '家长辅导指南'
+    ]
+  },
+  {
+    title: '高中数理化套餐',
+    originalPrice: 5640,
+    currentPrice: 4580,
+    courses: [
+      { title: '高中数学 - 函数与导数', teacher: '张老师', duration: '30课时' },
+      { title: '高中物理 - 力学与电学', teacher: '王老师', duration: '28课时' },
+      { title: '高中化学 - 有机化学', teacher: '刘老师', duration: '26课时' }
+    ],
+    features: [
+      '三科联报优惠价',
+      '赠送高考真题解析',
+      '1年有效期',
+      '免费答疑服务'
+    ]
+  }
+])
+
+// 筛选课程
+const filteredCourses = computed(() => {
+  return courses.value.filter(course => {
+    let match = true
+    if (filter.subject && course.subject !== filter.subject) {
+      match = false
+    }
+    if (filter.grade && course.grade !== filter.grade) {
+      match = false
+    }
+    if (filter.level && course.level !== filter.level) {
+      match = false
+    }
+    return match
+  })
+})
+
+// 分页显示
+const displayCourses = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredCourses.value.slice(start, end)
+})
+
+// 筛选方法
+const handleFilter = () => {
+  currentPage.value = 1
+}
+
+// 重置筛选
+const resetFilter = () => {
+  filter.subject = ''
+  filter.grade = ''
+  filter.level = ''
+  currentPage.value = 1
+}
 </script>
 
 <template>
@@ -52,6 +303,7 @@
             <div class="course-image">
               <img :src="course.image" :alt="course.title">
               <div class="course-badge" v-if="course.isHot">热门</div>
+              <div class="price-tag">¥{{ course.price }}</div>
             </div>
             <div class="course-info">
               <h3>{{ course.title }}</h3>
@@ -138,238 +390,6 @@
   </div>
 </template>
 
-<script lang="ts">
-export default {
-  name: 'PremiumCoursesView',
-  data() {
-    return {
-      currentPage: 1,
-      pageSize: 6,
-      filter: {
-        subject: '',
-        grade: '',
-        level: ''
-      },
-      courses: [
-        {
-          title: '高中数学 - 函数与导数',
-          teacher: '张老师',
-          teacherAvatar: '/src/assets/pictures/teacherBoy1.jpeg',
-          description: '本课程深入浅出地讲解高中数学中的函数与导数知识点，适合高二、高三学生。通过大量习题和实例，帮助学生掌握解题技巧。',
-          image: '/src/assets/pictures/math1.jpeg',
-          duration: '30课时',
-          students: 1280,
-          rating: 4.8,
-          price: 1980,
-          subject: '数学',
-          grade: '高中',
-          level: '进阶',
-          isHot: true,
-          tags: ['函数', '导数', '高考必考']
-        },
-        {
-          title: '初中英语 - 语法精讲',
-          teacher: '李老师',
-          teacherAvatar: '/src/assets/pictures/teacherBoy2.jpeg',
-          description: '系统梳理初中英语语法知识，打牢语法基础，提高英语成绩。课程包含大量例句和练习，帮助学生掌握语法规则。',
-          image: '/src/assets/pictures/english1.jpeg',
-          duration: '25课时',
-          students: 958,
-          rating: 4.7,
-          price: 1480,
-          subject: '英语',
-          grade: '初中',
-          level: '入门',
-          isHot: true,
-          tags: ['语法', '中考', '基础入门']
-        },
-        {
-          title: '高中物理 - 力学与电学',
-          teacher: '王老师',
-          teacherAvatar: '/src/assets/pictures/teacherBoy3.jpeg',
-          description: '从基础概念到难点突破，全面讲解高中物理力学与电学知识。通过实验演示和习题讲解，帮助学生理解物理原理。',
-          image: '/src/assets/pictures/physics1.jpeg',
-          duration: '28课时',
-          students: 876,
-          rating: 4.9,
-          price: 1880,
-          subject: '物理',
-          grade: '高中',
-          level: '进阶',
-          isHot: false,
-          tags: ['力学', '电学', '实验']
-        },
-        {
-          title: '小学数学 - 思维训练',
-          teacher: '陈老师',
-          teacherAvatar: '/src/assets/pictures/teacherGirl1.jpeg',
-          description: '培养孩子的数学思维能力，通过趣味数学题和游戏，激发学习兴趣，提高解题能力。适合小学3-6年级学生。',
-          image: '/src/assets/pictures/math1.jpeg',
-          duration: '20课时',
-          students: 1056,
-          rating: 4.9,
-          price: 1280,
-          subject: '数学',
-          grade: '小学',
-          level: '入门',
-          isHot: true,
-          tags: ['思维训练', '趣味数学', '奥数基础']
-        },
-        {
-          title: '高中化学 - 有机化学',
-          teacher: '刘老师',
-          teacherAvatar: '/src/assets/pictures/teacherGirl2.jpeg',
-          description: '系统讲解高中有机化学知识，从基础概念到重难点突破，配合大量习题和实验演示，帮助学生掌握有机化学知识。',
-          image: '/src/assets/pictures/chemistry1.jpeg',
-          duration: '26课时',
-          students: 782,
-          rating: 4.8,
-          price: 1780,
-          subject: '化学',
-          grade: '高中',
-          level: '高级',
-          isHot: false,
-          tags: ['有机化学', '实验', '高考重点']
-        },
-        {
-          title: '初中物理 - 电学入门',
-          teacher: '周老师',
-          teacherAvatar: '/src/assets/pictures/teacherGirl3.jpeg',
-          description: '通过实验和动画演示，讲解初中电学知识，帮助学生建立物理概念，掌握基本规律，提高解题能力。',
-          image: '/src/assets/pictures/physics1.jpeg',
-          duration: '22课时',
-          students: 685,
-          rating: 4.7,
-          price: 1380,
-          subject: '物理',
-          grade: '初中',
-          level: '入门',
-          isHot: false,
-          tags: ['电学', '实验', '初中物理']
-        },
-        {
-          title: '高中生物 - 分子与细胞',
-          teacher: '赵老师',
-          teacherAvatar: '/src/assets/pictures/teacherGirl4.jpeg',
-          description: '深入讲解高中生物分子与细胞部分，通过图解、模型和实验，帮助学生理解抽象概念，掌握重要知识点。',
-          image: '/src/assets/pictures/biology1.jpeg',
-          duration: '24课时',
-          students: 592,
-          rating: 4.8,
-          price: 1680,
-          subject: '生物',
-          grade: '高中',
-          level: '进阶',
-          isHot: false,
-          tags: ['分子生物学', '细胞', '高考重点']
-        },
-        {
-          title: '小学英语 - 自然拼读',
-          teacher: '杨老师',
-          teacherAvatar: '/src/assets/pictures/studentGirl2.jpeg',
-          description: '通过自然拼读法，帮助孩子掌握英语发音规则，建立拼读能力，提高阅读和拼写能力。适合小学1-3年级学生。',
-          image: '/src/assets/pictures/english1.jpeg',
-          duration: '18课时',
-          students: 1123,
-          rating: 4.9,
-          price: 1180,
-          subject: '英语',
-          grade: '小学',
-          level: '入门',
-          isHot: true,
-          tags: ['自然拼读', '英语启蒙', '趣味英语']
-        }
-      ],
-      coursePackages: [
-      {
-          title: '初中英语+数学套餐',
-          originalPrice: 2960,
-          currentPrice: 2480,
-          courses: [
-            { title: '初中英语 - 语法精讲', teacher: '李老师', duration: '25课时' },
-            { title: '初中数学 - 代数与几何', teacher: '陈老师', duration: '28课时' }
-          ],
-          features: [
-            '双科联报优惠价',
-            '赠送中考模拟题',
-            '1年有效期',
-            '定期学习规划指导'
-          ]
-        },
-
-        {
-          title: '小学全科启蒙套餐',
-          originalPrice: 3760,
-          currentPrice: 2980,
-          courses: [
-            { title: '小学数学 - 思维训练', teacher: '陈老师', duration: '20课时' },
-            { title: '小学英语 - 自然拼读', teacher: '杨老师', duration: '18课时' },
-            { title: '小学科学 - 趣味实验', teacher: '林老师', duration: '16课时' }
-          ],
-          features: [
-            '三科联报优惠价',
-            '赠送学习工具包',
-            '2年有效期',
-            '家长辅导指南'
-          ]
-        },
-        {
-          title: '高中数理化套餐',
-          originalPrice: 5640,
-          currentPrice: 4580,
-          courses: [
-            { title: '高中数学 - 函数与导数', teacher: '张老师', duration: '30课时' },
-            { title: '高中物理 - 力学与电学', teacher: '王老师', duration: '28课时' },
-            { title: '高中化学 - 有机化学', teacher: '刘老师', duration: '26课时' }
-          ],
-          features: [
-            '三科联报优惠价',
-            '赠送高考真题解析',
-            '1年有效期',
-            '免费答疑服务'
-          ]
-        },
-      ]
-    }
-  },
-  computed: {
-    filteredCourses() {
-      return this.courses.filter(course => {
-        let match = true;
-        if (this.filter.subject && course.subject !== this.filter.subject) {
-          match = false;
-        }
-        if (this.filter.grade && course.grade !== this.filter.grade) {
-          match = false;
-        }
-        if (this.filter.level && course.level !== this.filter.level) {
-          match = false;
-        }
-        return match;
-      });
-    },
-    displayCourses() {
-      const start = (this.currentPage - 1) * this.pageSize;
-      const end = start + this.pageSize;
-      return this.filteredCourses.slice(start, end);
-    }
-  },
-  methods: {
-    handleFilter() {
-      this.currentPage = 1;
-    },
-    resetFilter() {
-      this.filter = {
-        subject: '',
-        grade: '',
-        level: ''
-      };
-      this.currentPage = 1;
-    }
-  }
-}
-</script>
-
 <style scoped>
 .premium-courses {
   width: 100%;
@@ -377,7 +397,7 @@ export default {
 
 .banner {
   height: 300px;
-  background-image: url('https://img2.baidu.com/it/u=1003272215,1878948666&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500');
+  background-image: url('@/assets/pictures/courseBackground1.jpeg');
   background-size: cover;
   background-position: center;
   display: flex;
@@ -479,6 +499,18 @@ export default {
   padding: 4px 10px;
   border-radius: 4px;
   font-size: 12px;
+  font-weight: bold;
+}
+
+.price-tag {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 16px;
   font-weight: bold;
 }
 

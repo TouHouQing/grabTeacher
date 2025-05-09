@@ -1,5 +1,167 @@
 <script setup lang="ts">
+import { ref, reactive, computed } from 'vue'
 
+// 定义组件名称
+defineOptions({
+  name: 'FamousTeachersView'
+})
+
+// 导入图片资源
+import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
+import teacherBoy2 from '@/assets/pictures/teacherBoy2.jpeg'
+import teacherBoy3 from '@/assets/pictures/teacherBoy3.jpeg'
+import teacherGirl1 from '@/assets/pictures/teacherGirl1.jpeg'
+import teacherGirl2 from '@/assets/pictures/teacherGirl2.jpeg'
+import teacherGirl3 from '@/assets/pictures/teacherGirl3.jpeg'
+import teacherGirl4 from '@/assets/pictures/teacherGirl4.jpeg'
+import studentGirl2 from '@/assets/pictures/studentGirl2.jpeg'
+
+// 分页参数
+const currentPage = ref(1)
+const pageSize = ref(6)
+
+// 过滤条件
+const filter = reactive({
+  subject: '',
+  grade: '',
+  experience: ''
+})
+
+// 教师数据
+const teachers = ref([
+  {
+    name: '张老师',
+    subject: '数学',
+    grade: '高中',
+    experience: 10,
+    rating: 4.8,
+    description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣，使用多种教学方法帮助学生理解数学概念。',
+    avatar: teacherBoy1,
+    tags: ['趣味教学', '重点突破', '思维导图'],
+    schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00']
+  },
+  {
+    name: '李老师',
+    subject: '英语',
+    grade: '初中',
+    experience: 8,
+    rating: 4.9,
+    description: '毕业于英国剑桥大学，拥有TESOL证书，擅长英语口语教学，注重学生的语言应用能力培养。',
+    avatar: teacherBoy2,
+    tags: ['发音纠正', '口语强化', '语法精通'],
+    schedule: ['周二 18:00-20:00', '周四 18:00-20:00', '周日 14:00-16:00']
+  },
+  {
+    name: '王老师',
+    subject: '物理',
+    grade: '高中',
+    experience: 12,
+    rating: 4.7,
+    description: '物理学博士，有丰富的教学经验，能将复杂概念简单化，善于通过实验和演示帮助学生理解物理原理。',
+    avatar: teacherBoy3,
+    tags: ['概念解析', '解题技巧', '高考冲刺'],
+    schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00']
+  },
+  {
+    name: '刘老师',
+    subject: '化学',
+    grade: '高中',
+    experience: 15,
+    rating: 4.9,
+    description: '化学教育硕士，从事一线教学工作15年，教学方法灵活多样，注重培养学生的实验能力和科学思维。',
+    avatar: teacherGirl1,
+    tags: ['实验教学', '概念讲解', '解题方法'],
+    schedule: ['周二 16:00-18:00', '周五 18:00-20:00', '周日 10:00-12:00']
+  },
+  {
+    name: '陈老师',
+    subject: '数学',
+    grade: '初中',
+    experience: 7,
+    rating: 4.6,
+    description: '数学教育专业毕业，擅长启发式教学，能够根据学生的特点制定个性化的学习计划。',
+    avatar: teacherGirl2,
+    tags: ['基础夯实', '思维训练', '难题攻克'],
+    schedule: ['周一 15:00-17:00', '周四 16:00-18:00', '周六 16:00-18:00']
+  },
+  {
+    name: '赵老师',
+    subject: '生物',
+    grade: '高中',
+    experience: 9,
+    rating: 4.8,
+    description: '生物学硕士，有丰富的教学经验，擅长将生物学知识与日常生活相结合，让学习更加生动有趣。',
+    avatar: teacherGirl3,
+    tags: ['实验演示', '概念讲解', '考点梳理'],
+    schedule: ['周二 19:00-21:00', '周五 16:00-18:00', '周日 16:00-18:00']
+  },
+  {
+    name: '杨老师',
+    subject: '英语',
+    grade: '小学',
+    experience: 5,
+    rating: 4.9,
+    description: '英语专业毕业，有海外留学经验，擅长通过游戏、歌曲等形式激发孩子学习英语的兴趣。',
+    avatar: teacherGirl4,
+    tags: ['趣味教学', '语音纠正', '词汇积累'],
+    schedule: ['周三 15:00-17:00', '周五 15:00-17:00', '周六 10:00-12:00']
+  },
+  {
+    name: '周老师',
+    subject: '物理',
+    grade: '初中',
+    experience: 8,
+    rating: 4.7,
+    description: '物理教育专业毕业，擅长实验教学，能够通过实验激发学生的学习兴趣，培养学生的动手能力。',
+    avatar: studentGirl2,
+    tags: ['实验教学', '概念讲解', '题型分析'],
+    schedule: ['周一 17:00-19:00', '周四 17:00-19:00', '周日 14:00-16:00']
+  }
+])
+
+// 筛选教师
+const filteredTeachers = computed(() => {
+  return teachers.value.filter(teacher => {
+    let match = true
+    if (filter.subject && teacher.subject !== filter.subject) {
+      match = false
+    }
+    if (filter.grade && teacher.grade !== filter.grade) {
+      match = false
+    }
+    if (filter.experience) {
+      const exp = parseInt(teacher.experience.toString())
+      if (filter.experience === '0-5' && exp >= 5) {
+        match = false
+      } else if (filter.experience === '5-10' && (exp < 5 || exp > 10)) {
+        match = false
+      } else if (filter.experience === '10+' && exp < 10) {
+        match = false
+      }
+    }
+    return match
+  })
+})
+
+// 分页显示
+const displayTeachers = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredTeachers.value.slice(start, end)
+})
+
+// 筛选方法
+const handleFilter = () => {
+  currentPage.value = 1
+}
+
+// 重置筛选
+const resetFilter = () => {
+  filter.subject = ''
+  filter.grade = ''
+  filter.experience = ''
+  currentPage.value = 1
+}
 </script>
 
 <template>
@@ -91,155 +253,6 @@
   </div>
 </template>
 
-<script lang="ts">
-export default {
-  name: 'FamousTeachersView',
-  data() {
-    return {
-      currentPage: 1,
-      pageSize: 6,
-      filter: {
-        subject: '',
-        grade: '',
-        experience: ''
-      },
-      teachers: [
-        {
-          name: '张老师',
-          subject: '数学',
-          grade: '高中',
-          experience: 10,
-          rating: 4.8,
-          description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣，使用多种教学方法帮助学生理解数学概念。',
-          avatar: '/src/assets/pictures/teacherBoy1.jpeg',
-          tags: ['趣味教学', '重点突破', '思维导图'],
-          schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00']
-        },
-        {
-          name: '李老师',
-          subject: '英语',
-          grade: '初中',
-          experience: 8,
-          rating: 4.9,
-          description: '毕业于英国剑桥大学，拥有TESOL证书，擅长英语口语教学，注重学生的语言应用能力培养。',
-          avatar: '/src/assets/pictures/teacherBoy2.jpeg',
-          tags: ['发音纠正', '口语强化', '语法精通'],
-          schedule: ['周二 18:00-20:00', '周四 18:00-20:00', '周日 14:00-16:00']
-        },
-        {
-          name: '王老师',
-          subject: '物理',
-          grade: '高中',
-          experience: 12,
-          rating: 4.7,
-          description: '物理学博士，有丰富的教学经验，能将复杂概念简单化，善于通过实验和演示帮助学生理解物理原理。',
-          avatar: '/src/assets/pictures/teacherBoy3.jpeg',
-          tags: ['概念解析', '解题技巧', '高考冲刺'],
-          schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00']
-        },
-        {
-          name: '刘老师',
-          subject: '化学',
-          grade: '高中',
-          experience: 15,
-          rating: 4.9,
-          description: '化学教育硕士，从事一线教学工作15年，教学方法灵活多样，注重培养学生的实验能力和科学思维。',
-          avatar: '/src/assets/pictures/teacherGirl1.jpeg',
-          tags: ['实验教学', '概念讲解', '解题方法'],
-          schedule: ['周二 16:00-18:00', '周五 18:00-20:00', '周日 10:00-12:00']
-        },
-        {
-          name: '陈老师',
-          subject: '数学',
-          grade: '初中',
-          experience: 7,
-          rating: 4.6,
-          description: '数学教育专业毕业，擅长启发式教学，能够根据学生的特点制定个性化的学习计划。',
-          avatar: '/src/assets/pictures/teacherGirl2.jpeg',
-          tags: ['基础夯实', '思维训练', '难题攻克'],
-          schedule: ['周一 15:00-17:00', '周四 16:00-18:00', '周六 16:00-18:00']
-        },
-        {
-          name: '赵老师',
-          subject: '生物',
-          grade: '高中',
-          experience: 9,
-          rating: 4.8,
-          description: '生物学硕士，有丰富的教学经验，擅长将生物学知识与日常生活相结合，让学习更加生动有趣。',
-          avatar: '/src/assets/pictures/teacherGirl3.jpeg',
-          tags: ['实验演示', '概念讲解', '考点梳理'],
-          schedule: ['周二 19:00-21:00', '周五 16:00-18:00', '周日 16:00-18:00']
-        },
-        {
-          name: '杨老师',
-          subject: '英语',
-          grade: '小学',
-          experience: 5,
-          rating: 4.9,
-          description: '英语专业毕业，有海外留学经验，擅长通过游戏、歌曲等形式激发孩子学习英语的兴趣。',
-          avatar: '/src/assets/pictures/teacherGirl4.jpeg',
-          tags: ['趣味教学', '语音纠正', '词汇积累'],
-          schedule: ['周三 15:00-17:00', '周五 15:00-17:00', '周六 10:00-12:00']
-        },
-        {
-          name: '周老师',
-          subject: '物理',
-          grade: '初中',
-          experience: 8,
-          rating: 4.7,
-          description: '物理教育专业毕业，擅长实验教学，能够通过实验激发学生的学习兴趣，培养学生的动手能力。',
-          avatar: '/src/assets/pictures/studentGirl2.jpeg',
-          tags: ['实验教学', '概念讲解', '题型分析'],
-          schedule: ['周一 17:00-19:00', '周四 17:00-19:00', '周日 14:00-16:00']
-        }
-      ]
-    }
-  },
-  computed: {
-    filteredTeachers() {
-      return this.teachers.filter(teacher => {
-        let match = true;
-        if (this.filter.subject && teacher.subject !== this.filter.subject) {
-          match = false;
-        }
-        if (this.filter.grade && teacher.grade !== this.filter.grade) {
-          match = false;
-        }
-        if (this.filter.experience) {
-          const exp = parseInt(teacher.experience.toString());
-          if (this.filter.experience === '0-5' && exp >= 5) {
-            match = false;
-          } else if (this.filter.experience === '5-10' && (exp < 5 || exp > 10)) {
-            match = false;
-          } else if (this.filter.experience === '10+' && exp < 10) {
-            match = false;
-          }
-        }
-        return match;
-      });
-    },
-    displayTeachers() {
-      const start = (this.currentPage - 1) * this.pageSize;
-      const end = start + this.pageSize;
-      return this.filteredTeachers.slice(start, end);
-    }
-  },
-  methods: {
-    handleFilter() {
-      this.currentPage = 1;
-    },
-    resetFilter() {
-      this.filter = {
-        subject: '',
-        grade: '',
-        experience: ''
-      };
-      this.currentPage = 1;
-    }
-  }
-}
-</script>
-
 <style scoped>
 .famous-teachers {
   width: 100%;
@@ -247,7 +260,7 @@ export default {
 
 .banner {
   height: 300px;
-  background-image: url('/src/assets/pictures/teacherBackground.jpeg');
+  background-image: url('@/assets/pictures/teacherBackground.jpeg');
   background-size: cover;
   background-position: center;
   display: flex;

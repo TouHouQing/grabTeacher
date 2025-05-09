@@ -316,7 +316,7 @@ const createOrder = (teacher: Teacher) => {
         <div class="teachers-list">
           <div v-for="(teacher, index) in matchedTeachers" :key="index" class="teacher-card">
             <div class="teacher-avatar">
-              <img :src="teacher.avatar" :alt="teacher.name">
+              <img :src="$getImageUrl(teacher.avatar)" :alt="teacher.name">
               <div class="match-score">
                 <div class="score">{{ teacher.matchScore }}%</div>
                 <div class="match-text">匹配度</div>

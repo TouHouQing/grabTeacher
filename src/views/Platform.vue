@@ -276,7 +276,7 @@ const resetForm = () => {
 
 .banner {
   height: 300px;
-  background-image: url('/src/assets/pictures/aboutBackground.jpeg');
+  background-image: url('@/assets/pictures/aboutBackground.jpeg');
   background-size: cover;
   background-position: center;
   display: flex;
