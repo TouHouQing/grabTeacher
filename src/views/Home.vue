@@ -177,7 +177,7 @@ export default {
                     experience: 10,
                     rating: 4.8,
                     description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣。',
-                    avatar: 'https://img.syt5.com/2021/0908/20210908055012420.jpg.420.580.jpg',
+                    avatar: '/src/assets/pictures/teacherboy1.jpeg',
                     schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00']
                 },
                 {
@@ -186,7 +186,7 @@ export default {
                     experience: 8,
                     rating: 4.9,
                     description: '毕业于英国剑桥大学，拥有TESOL证书，擅长英语口语教学。',
-                    avatar: 'https://img.syt5.com/2021/0908/20210908055031962.jpg.420.580.jpg',
+                    avatar: '/src/assets/pictures/teacherboy2.jpeg',
                     schedule: ['周二 18:00-20:00', '周四 18:00-20:00', '周日 14:00-16:00']
                 },
                 {
@@ -195,7 +195,7 @@ export default {
                     experience: 12,
                     rating: 4.7,
                     description: '物理学博士，有丰富的教学经验，能将复杂概念简单化。',
-                    avatar: 'https://img.syt5.com/2021/0908/20210908055050886.jpg.420.580.jpg',
+                    avatar: '/src/assets/pictures/teacherboy3.jpeg',
                     schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00']
                 }
             ],
@@ -204,7 +204,7 @@ export default {
                     title: '高中数学 - 函数与导数',
                     teacher: '张老师',
                     description: '本课程深入浅出地讲解高中数学中的函数与导数知识点，适合高二、高三学生。',
-                    image: 'https://img1.baidu.com/it/u=3709586903,2893555147&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=281',
+                    image: '/src/assets/pictures/teachergirl1.jpeg',
                     duration: '30课时',
                     students: 1280
                 },
@@ -212,7 +212,7 @@ export default {
                     title: '初中英语 - 语法精讲',
                     teacher: '李老师',
                     description: '系统梳理初中英语语法知识，打牢语法基础，提高英语成绩。',
-                    image: 'https://img0.baidu.com/it/u=2184866169,2565074814&fm=253&fmt=auto&app=138&f=JPEG?w=750&h=500',
+                    image: '/src/assets/pictures/teachergirl2.jpeg',
                     duration: '25课时',
                     students: 958
                 },
@@ -220,7 +220,7 @@ export default {
                     title: '高中物理 - 力学与电学',
                     teacher: '王老师',
                     description: '从基础概念到难点突破，全面讲解高中物理力学与电学知识。',
-                    image: 'https://img2.baidu.com/it/u=4077875581,1641262421&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333',
+                    image: '/src/assets/pictures/teachergirl3.jpeg',
                     duration: '28课时',
                     students: 876
                 }
@@ -230,19 +230,19 @@ export default {
                     name: '张明',
                     role: '高三学生',
                     content: '通过平台找到了非常适合我的数学老师，半年时间数学成绩从80分提高到了120分，非常感谢！',
-                    avatar: 'https://img1.baidu.com/it/u=1817951587,699502146&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500'
+                    avatar: '/src/assets/pictures/studentboy1.jpeg'
                 },
                 {
                     name: '李华',
                     role: '初中生家长',
                     content: '孩子在这里学习了三个月，英语成绩有了明显提高，老师很负责任，教学方法也很适合孩子。',
-                    avatar: 'https://img1.baidu.com/it/u=2496571732,442429293&fm=253&fmt=auto&app=138&f=JPEG?w=400&h=400'
+                    avatar: '/src/assets/pictures/studentgirl2.jpeg'
                 },
                 {
                     name: '王芳',
                     role: '高二学生',
                     content: '老师教学很有耐心，会根据我的弱点定制学习计划，学习效率比自己学习提高了很多。',
-                    avatar: 'https://img0.baidu.com/it/u=1944204113,1917062272&fm=253&fmt=auto&app=138&f=JPEG?w=400&h=400'
+                    avatar: '/src/assets/pictures/studentgirl1.jpeg'
                 }
             ]
         }
@@ -275,7 +275,7 @@ body {
 
 .banner {
     height: 600px;
-    background-image: url('https://img1.baidu.com/it/u=2061616601,3636987051&fm=253&fmt=auto&app=138&f=JPEG?w=1180&h=472');
+    background-image: url('@/assets/pictures/headbackground1.jpeg');
     background-size: cover;
     background-position: center;
     display: flex;
