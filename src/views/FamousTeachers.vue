@@ -111,7 +111,7 @@ export default {
           experience: 10,
           rating: 4.8,
           description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣，使用多种教学方法帮助学生理解数学概念。',
-          avatar: 'https://img.syt5.com/2021/0908/20210908055012420.jpg.420.580.jpg',
+          avatar: '/src/assets/pictures/teacherBoy1.jpeg',
           tags: ['趣味教学', '重点突破', '思维导图'],
           schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00']
         },
@@ -122,7 +122,7 @@ export default {
           experience: 8,
           rating: 4.9,
           description: '毕业于英国剑桥大学，拥有TESOL证书，擅长英语口语教学，注重学生的语言应用能力培养。',
-          avatar: 'https://img.syt5.com/2021/0908/20210908055031962.jpg.420.580.jpg',
+          avatar: '/src/assets/pictures/teacherBoy2.jpeg',
           tags: ['发音纠正', '口语强化', '语法精通'],
           schedule: ['周二 18:00-20:00', '周四 18:00-20:00', '周日 14:00-16:00']
         },
@@ -133,7 +133,7 @@ export default {
           experience: 12,
           rating: 4.7,
           description: '物理学博士，有丰富的教学经验，能将复杂概念简单化，善于通过实验和演示帮助学生理解物理原理。',
-          avatar: 'https://img.syt5.com/2021/0908/20210908055050886.jpg.420.580.jpg',
+          avatar: '/src/assets/pictures/teacherBoy3.jpeg',
           tags: ['概念解析', '解题技巧', '高考冲刺'],
           schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00']
         },
@@ -144,7 +144,7 @@ export default {
           experience: 15,
           rating: 4.9,
           description: '化学教育硕士，从事一线教学工作15年，教学方法灵活多样，注重培养学生的实验能力和科学思维。',
-          avatar: 'https://img.syt5.com/2021/0908/20210908055111952.jpg.420.580.jpg',
+          avatar: '/src/assets/pictures/teacherGirl1.jpeg',
           tags: ['实验教学', '概念讲解', '解题方法'],
           schedule: ['周二 16:00-18:00', '周五 18:00-20:00', '周日 10:00-12:00']
         },
@@ -155,7 +155,7 @@ export default {
           experience: 7,
           rating: 4.6,
           description: '数学教育专业毕业，擅长启发式教学，能够根据学生的特点制定个性化的学习计划。',
-          avatar: 'https://img.syt5.com/2021/0908/20210908055133962.jpg.420.580.jpg',
+          avatar: '/src/assets/pictures/teacherGirl2.jpeg',
           tags: ['基础夯实', '思维训练', '难题攻克'],
           schedule: ['周一 15:00-17:00', '周四 16:00-18:00', '周六 16:00-18:00']
         },
@@ -166,7 +166,7 @@ export default {
           experience: 9,
           rating: 4.8,
           description: '生物学硕士，有丰富的教学经验，擅长将生物学知识与日常生活相结合，让学习更加生动有趣。',
-          avatar: 'https://img.syt5.com/2021/0908/20210908055153944.jpg.420.580.jpg',
+          avatar: '/src/assets/pictures/teacherGirl3.jpeg',
           tags: ['实验演示', '概念讲解', '考点梳理'],
           schedule: ['周二 19:00-21:00', '周五 16:00-18:00', '周日 16:00-18:00']
         },
@@ -177,7 +177,7 @@ export default {
           experience: 5,
           rating: 4.9,
           description: '英语专业毕业，有海外留学经验，擅长通过游戏、歌曲等形式激发孩子学习英语的兴趣。',
-          avatar: 'https://img.syt5.com/2021/0908/20210908055212407.jpg.420.580.jpg',
+          avatar: '/src/assets/pictures/teacherGirl4.jpeg',
           tags: ['趣味教学', '语音纠正', '词汇积累'],
           schedule: ['周三 15:00-17:00', '周五 15:00-17:00', '周六 10:00-12:00']
         },
@@ -188,7 +188,7 @@ export default {
           experience: 8,
           rating: 4.7,
           description: '物理教育专业毕业，擅长实验教学，能够通过实验激发学生的学习兴趣，培养学生的动手能力。',
-          avatar: 'https://img.syt5.com/2021/0908/20210908055233151.jpg.420.580.jpg',
+          avatar: '/src/assets/pictures/studentGirl2.jpeg',
           tags: ['实验教学', '概念讲解', '题型分析'],
           schedule: ['周一 17:00-19:00', '周四 17:00-19:00', '周日 14:00-16:00']
         }
@@ -247,7 +247,7 @@ export default {
 
 .banner {
   height: 300px;
-  background-image: url('https://img1.baidu.com/it/u=775667129,3752307124&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500');
+  background-image: url('/src/assets/pictures/teacherBackground.jpeg');
   background-size: cover;
   background-position: center;
   display: flex;
@@ -286,6 +286,11 @@ export default {
   max-width: 1200px;
   margin: 0 auto;
   padding: 40px 20px;
+}
+
+.filter-form .el-select {
+  min-width: 140px;
+  width: 180px;
 }
 
 .filter-section {
