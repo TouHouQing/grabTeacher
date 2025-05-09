@@ -154,9 +154,9 @@ export default {
         {
           title: '高中数学 - 函数与导数',
           teacher: '张老师',
-          teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055012420.jpg.420.580.jpg',
+          teacherAvatar: '/src/assets/pictures/teacherBoy1.jpeg',
           description: '本课程深入浅出地讲解高中数学中的函数与导数知识点，适合高二、高三学生。通过大量习题和实例，帮助学生掌握解题技巧。',
-          image: 'https://img1.baidu.com/it/u=3709586903,2893555147&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=281',
+          image: '/src/assets/pictures/math1.jpeg',
           duration: '30课时',
           students: 1280,
           rating: 4.8,
@@ -170,9 +170,9 @@ export default {
         {
           title: '初中英语 - 语法精讲',
           teacher: '李老师',
-          teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055031962.jpg.420.580.jpg',
+          teacherAvatar: '/src/assets/pictures/teacherBoy2.jpeg',
           description: '系统梳理初中英语语法知识，打牢语法基础，提高英语成绩。课程包含大量例句和练习，帮助学生掌握语法规则。',
-          image: 'https://img0.baidu.com/it/u=2184866169,2565074814&fm=253&fmt=auto&app=138&f=JPEG?w=750&h=500',
+          image: '/src/assets/pictures/english1.jpeg',
           duration: '25课时',
           students: 958,
           rating: 4.7,
@@ -186,9 +186,9 @@ export default {
         {
           title: '高中物理 - 力学与电学',
           teacher: '王老师',
-          teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055050886.jpg.420.580.jpg',
+          teacherAvatar: '/src/assets/pictures/teacherBoy3.jpeg',
           description: '从基础概念到难点突破，全面讲解高中物理力学与电学知识。通过实验演示和习题讲解，帮助学生理解物理原理。',
-          image: 'https://img2.baidu.com/it/u=4077875581,1641262421&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333',
+          image: '/src/assets/pictures/physics1.jpeg',
           duration: '28课时',
           students: 876,
           rating: 4.9,
@@ -202,9 +202,9 @@ export default {
         {
           title: '小学数学 - 思维训练',
           teacher: '陈老师',
-          teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055133962.jpg.420.580.jpg',
+          teacherAvatar: '/src/assets/pictures/teacherGirl1.jpeg',
           description: '培养孩子的数学思维能力，通过趣味数学题和游戏，激发学习兴趣，提高解题能力。适合小学3-6年级学生。',
-          image: 'https://img0.baidu.com/it/u=3733743175,1824767969&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333',
+          image: '/src/assets/pictures/math1.jpeg',
           duration: '20课时',
           students: 1056,
           rating: 4.9,
@@ -218,9 +218,9 @@ export default {
         {
           title: '高中化学 - 有机化学',
           teacher: '刘老师',
-          teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055111952.jpg.420.580.jpg',
+          teacherAvatar: '/src/assets/pictures/teacherGirl2.jpeg',
           description: '系统讲解高中有机化学知识，从基础概念到重难点突破，配合大量习题和实验演示，帮助学生掌握有机化学知识。',
-          image: 'https://img2.baidu.com/it/u=3392840616,3322187348&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333',
+          image: '/src/assets/pictures/chemistry1.jpeg',
           duration: '26课时',
           students: 782,
           rating: 4.8,
@@ -234,9 +234,9 @@ export default {
         {
           title: '初中物理 - 电学入门',
           teacher: '周老师',
-          teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055233151.jpg.420.580.jpg',
+          teacherAvatar: '/src/assets/pictures/teacherGirl3.jpeg',
           description: '通过实验和动画演示，讲解初中电学知识，帮助学生建立物理概念，掌握基本规律，提高解题能力。',
-          image: 'https://img1.baidu.com/it/u=1304223867,1482448516&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333',
+          image: '/src/assets/pictures/physics1.jpeg',
           duration: '22课时',
           students: 685,
           rating: 4.7,
@@ -250,9 +250,9 @@ export default {
         {
           title: '高中生物 - 分子与细胞',
           teacher: '赵老师',
-          teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055153944.jpg.420.580.jpg',
+          teacherAvatar: '/src/assets/pictures/teacherGirl4.jpeg',
           description: '深入讲解高中生物分子与细胞部分，通过图解、模型和实验，帮助学生理解抽象概念，掌握重要知识点。',
-          image: 'https://img1.baidu.com/it/u=2816864033,2165969526&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333',
+          image: '/src/assets/pictures/biology1.jpeg',
           duration: '24课时',
           students: 592,
           rating: 4.8,
@@ -266,9 +266,9 @@ export default {
         {
           title: '小学英语 - 自然拼读',
           teacher: '杨老师',
-          teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055212407.jpg.420.580.jpg',
+          teacherAvatar: '/src/assets/pictures/studentGirl2.jpeg',
           description: '通过自然拼读法，帮助孩子掌握英语发音规则，建立拼读能力，提高阅读和拼写能力。适合小学1-3年级学生。',
-          image: 'https://img2.baidu.com/it/u=1797217153,4257537758&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333',
+          image: '/src/assets/pictures/english1.jpeg',
           duration: '18课时',
           students: 1123,
           rating: 4.9,
@@ -281,6 +281,38 @@ export default {
         }
       ],
       coursePackages: [
+      {
+          title: '初中英语+数学套餐',
+          originalPrice: 2960,
+          currentPrice: 2480,
+          courses: [
+            { title: '初中英语 - 语法精讲', teacher: '李老师', duration: '25课时' },
+            { title: '初中数学 - 代数与几何', teacher: '陈老师', duration: '28课时' }
+          ],
+          features: [
+            '双科联报优惠价',
+            '赠送中考模拟题',
+            '1年有效期',
+            '定期学习规划指导'
+          ]
+        },
+
+        {
+          title: '小学全科启蒙套餐',
+          originalPrice: 3760,
+          currentPrice: 2980,
+          courses: [
+            { title: '小学数学 - 思维训练', teacher: '陈老师', duration: '20课时' },
+            { title: '小学英语 - 自然拼读', teacher: '杨老师', duration: '18课时' },
+            { title: '小学科学 - 趣味实验', teacher: '林老师', duration: '16课时' }
+          ],
+          features: [
+            '三科联报优惠价',
+            '赠送学习工具包',
+            '2年有效期',
+            '家长辅导指南'
+          ]
+        },
         {
           title: '高中数理化套餐',
           originalPrice: 5640,
@@ -297,37 +329,6 @@ export default {
             '免费答疑服务'
           ]
         },
-        {
-          title: '初中英语+数学套餐',
-          originalPrice: 2960,
-          currentPrice: 2480,
-          courses: [
-            { title: '初中英语 - 语法精讲', teacher: '李老师', duration: '25课时' },
-            { title: '初中数学 - 代数与几何', teacher: '陈老师', duration: '28课时' }
-          ],
-          features: [
-            '双科联报优惠价',
-            '赠送中考模拟题',
-            '1年有效期',
-            '定期学习规划指导'
-          ]
-        },
-        {
-          title: '小学全科启蒙套餐',
-          originalPrice: 3760,
-          currentPrice: 2980,
-          courses: [
-            { title: '小学数学 - 思维训练', teacher: '陈老师', duration: '20课时' },
-            { title: '小学英语 - 自然拼读', teacher: '杨老师', duration: '18课时' },
-            { title: '小学科学 - 趣味实验', teacher: '林老师', duration: '16课时' }
-          ],
-          features: [
-            '三科联报优惠价',
-            '赠送学习工具包',
-            '2年有效期',
-            '家长辅导指南'
-          ]
-        }
       ]
     }
   },
@@ -415,6 +416,11 @@ export default {
   max-width: 1200px;
   margin: 0 auto;
   padding: 40px 20px;
+}
+
+.filter-form .el-select {
+  min-width: 140px;
+  width: 180px;
 }
 
 .filter-section {
