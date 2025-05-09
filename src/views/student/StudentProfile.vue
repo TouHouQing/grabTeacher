@@ -15,7 +15,7 @@ const userForm = reactive({
   school: '实验中学',
   phone: '13800138000',
   email: 'student@example.com',
-  avatar: '/src/assets/pictures/studentBoy2.jpeg'
+  avatar: '@/assets/pictures/studentBoy2.jpeg'
 })
 
 // 学习偏好设置
@@ -56,7 +56,7 @@ const savePreferences = () => {
         <div class="profile-container">
           <div class="avatar-container">
             <div class="avatar">
-              <img :src="userForm.avatar" alt="头像">
+              <img :src="$getImageUrl(userForm.avatar)" alt="头像">
             </div>
             <el-button size="small" type="primary">更换头像</el-button>
           </div>

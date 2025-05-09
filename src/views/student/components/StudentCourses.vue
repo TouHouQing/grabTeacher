@@ -26,7 +26,7 @@ const courses = ref<Course[]>([
     id: 1,
     title: '高中数学 - 函数与导数',
     teacher: '张老师',
-    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055012420.jpg.420.580.jpg',
+    teacherAvatar: '@/assets/pictures/teacherBoy1.jpeg',
     subject: '数学',
     schedule: '每周一、三 18:00-20:00',
     progress: 60,
@@ -35,7 +35,7 @@ const courses = ref<Course[]>([
     endDate: '2023-08-15',
     totalLessons: 24,
     completedLessons: 14,
-    image: 'https://img1.baidu.com/it/u=3709586903,2893555147&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=281',
+    image: '@/assets/pictures/math1.jpeg',
     description: '本课程深入浅出地讲解高中数学中的函数与导数知识点，适合高二、高三学生。通过系统讲解和大量练习，帮助学生掌握函数与导数的核心概念和解题技巧。',
     status: 'active'
   },
@@ -43,7 +43,7 @@ const courses = ref<Course[]>([
     id: 2,
     title: '高中物理 - 力学与电学',
     teacher: '王老师',
-    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055050886.jpg.420.580.jpg',
+    teacherAvatar: '@/assets/pictures/teacherBoy2.jpeg',
     subject: '物理',
     schedule: '每周二、四 16:00-18:00',
     progress: 45,
@@ -52,7 +52,7 @@ const courses = ref<Course[]>([
     endDate: '2023-09-01',
     totalLessons: 20,
     completedLessons: 9,
-    image: 'https://img2.baidu.com/it/u=4077875581,1641262421&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333',
+    image: '@/assets/pictures/physics1.jpeg',
     description: '从基础概念到难点突破，全面讲解高中物理力学与电学知识。通过实验演示和题型分析，帮助学生理解物理概念和解题思路。',
     status: 'active'
   },
@@ -60,7 +60,7 @@ const courses = ref<Course[]>([
     id: 3,
     title: '初中英语 - 语法精讲',
     teacher: '李老师',
-    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055111952.jpg.420.580.jpg',
+    teacherAvatar: '@/assets/pictures/teacherBoy3.jpeg',
     subject: '英语',
     schedule: '每周六 10:00-12:00',
     progress: 100,
@@ -69,7 +69,7 @@ const courses = ref<Course[]>([
     endDate: '2023-06-24',
     totalLessons: 12,
     completedLessons: 12,
-    image: 'https://img0.baidu.com/it/u=2184866169,2565074814&fm=253&fmt=auto&app=138&f=JPEG?w=750&h=500',
+    image: '@/assets/pictures/english1.jpeg',
     description: '系统梳理初中英语语法知识，打牢语法基础，提高英语成绩。通过大量例句和练习，帮助学生掌握语法规则和写作技巧。',
     status: 'completed'
   },
@@ -77,7 +77,7 @@ const courses = ref<Course[]>([
     id: 4,
     title: '高中生物 - 基因与遗传',
     teacher: '陈老师',
-    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055031962.jpg.420.580.jpg',
+    teacherAvatar: '@/assets/pictures/teacherGirl1.jpeg',
     subject: '生物',
     schedule: '每周五 18:00-20:00',
     progress: 0,
@@ -86,7 +86,7 @@ const courses = ref<Course[]>([
     endDate: '2023-10-20',
     totalLessons: 16,
     completedLessons: 0,
-    image: 'https://img2.baidu.com/it/u=3097597567,373936156&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333',
+    image: '@/assets/pictures/biology1.jpeg',
     description: '本课程将深入讲解基因与遗传的相关知识，包括DNA结构、基因表达、遗传规律等内容，帮助学生理解生物学中的重要概念。',
     status: 'upcoming'
   }
@@ -154,7 +154,7 @@ export default {
             <div v-else class="courses-grid">
               <el-card v-for="course in filteredCourses" :key="course.id" class="course-card" :body-style="{ padding: '0px' }">
                 <div class="course-image">
-                  <img :src="course.image" :alt="course.title">
+                  <img :src="$getImageUrl(course.image)" :alt="course.title">
                   <div class="course-status">
                     <el-tag size="small" :type="course.status === 'active' ? 'success' : course.status === 'upcoming' ? 'warning' : 'info'">
                       {{ course.status === 'active' ? '进行中' : course.status === 'upcoming' ? '即将开始' : '已完成' }}
@@ -164,7 +164,7 @@ export default {
                 <div class="course-content">
                   <h3 class="course-title">{{ course.title }}</h3>
                   <div class="course-teacher">
-                    <el-avatar :size="30" :src="course.teacherAvatar"></el-avatar>
+                    <el-avatar :size="30" :src="$getImageUrl(course.teacherAvatar)"></el-avatar>
                     <span>{{ course.teacher }}</span>
                   </div>
                   <div class="course-progress">
@@ -203,7 +203,7 @@ export default {
             <div v-else class="courses-grid">
               <el-card v-for="course in filteredCourses" :key="course.id" class="course-card" :body-style="{ padding: '0px' }">
                 <div class="course-image">
-                  <img :src="course.image" :alt="course.title">
+                  <img :src="$getImageUrl(course.image)" :alt="course.title">
                   <div class="course-status">
                     <el-tag size="small" type="success">进行中</el-tag>
                   </div>
@@ -211,7 +211,7 @@ export default {
                 <div class="course-content">
                   <h3 class="course-title">{{ course.title }}</h3>
                   <div class="course-teacher">
-                    <el-avatar :size="30" :src="course.teacherAvatar"></el-avatar>
+                    <el-avatar :size="30" :src="$getImageUrl(course.teacherAvatar)"></el-avatar>
                     <span>{{ course.teacher }}</span>
                   </div>
                   <div class="course-progress">
@@ -250,7 +250,7 @@ export default {
             <div v-else class="courses-grid">
               <el-card v-for="course in filteredCourses" :key="course.id" class="course-card" :body-style="{ padding: '0px' }">
                 <div class="course-image">
-                  <img :src="course.image" :alt="course.title">
+                  <img :src="$getImageUrl(course.image)" :alt="course.title">
                   <div class="course-status">
                     <el-tag size="small" type="info">已完成</el-tag>
                   </div>
@@ -258,7 +258,7 @@ export default {
                 <div class="course-content">
                   <h3 class="course-title">{{ course.title }}</h3>
                   <div class="course-teacher">
-                    <el-avatar :size="30" :src="course.teacherAvatar"></el-avatar>
+                    <el-avatar :size="30" :src="$getImageUrl(course.teacherAvatar)"></el-avatar>
                     <span>{{ course.teacher }}</span>
                   </div>
                   <div class="course-progress">
@@ -297,7 +297,7 @@ export default {
             <div v-else class="courses-grid">
               <el-card v-for="course in filteredCourses" :key="course.id" class="course-card" :body-style="{ padding: '0px' }">
                 <div class="course-image">
-                  <img :src="course.image" :alt="course.title">
+                  <img :src="$getImageUrl(course.image)" :alt="course.title">
                   <div class="course-status">
                     <el-tag size="small" type="warning">即将开始</el-tag>
                   </div>
@@ -305,7 +305,7 @@ export default {
                 <div class="course-content">
                   <h3 class="course-title">{{ course.title }}</h3>
                   <div class="course-teacher">
-                    <el-avatar :size="30" :src="course.teacherAvatar"></el-avatar>
+                    <el-avatar :size="30" :src="$getImageUrl(course.teacherAvatar)"></el-avatar>
                     <span>{{ course.teacher }}</span>
                   </div>
                   <div class="course-progress">
@@ -350,12 +350,12 @@ export default {
       <div v-if="currentCourse" class="course-detail">
         <div class="detail-header">
           <div class="detail-image">
-            <img :src="currentCourse.image" :alt="currentCourse.title">
+            <img :src="$getImageUrl(currentCourse.image)" :alt="currentCourse.title">
           </div>
           <div class="detail-info">
             <h3>{{ currentCourse.title }}</h3>
             <div class="detail-teacher">
-              <el-avatar :size="40" :src="currentCourse.teacherAvatar"></el-avatar>
+              <el-avatar :size="40" :src="$getImageUrl(currentCourse.teacherAvatar)"></el-avatar>
               <span>{{ currentCourse.teacher }}</span>
             </div>
             <div class="detail-meta">

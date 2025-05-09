@@ -3,6 +3,11 @@ import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Calendar, Connection, Timer, Male, Female, Message, Loading } from '@element-plus/icons-vue'
 import { markRaw } from 'vue'
+import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
+import teacherBoy2 from '@/assets/pictures/teacherBoy2.jpeg'
+import teacherBoy3 from '@/assets/pictures/teacherBoy3.jpeg'
+import teacherGirl1 from '@/assets/pictures/teacherGirl1.jpeg'
+import teacherGirl4 from '@/assets/pictures/teacherGirl4.jpeg'
 
 interface Teacher {
   name: string
@@ -53,7 +58,7 @@ const handleMatch = () => {
         experience: 10,
         rating: 4.8,
         description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣，使用多种教学方法帮助学生理解数学概念。',
-        avatar: '/src/assets/pictures/teacherBoy1.jpeg',
+        avatar: teacherBoy1,
         tags: ['趣味教学', '重点突破', '思维导图'],
         schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'],
         matchScore: 98,
@@ -67,7 +72,7 @@ const handleMatch = () => {
         experience: 12,
         rating: 4.7,
         description: '物理学博士，有丰富的教学经验，能将复杂概念简单化，善于通过实验和演示帮助学生理解物理原理。',
-        avatar: '/src/assets/pictures/teacherBoy2.jpeg',
+        avatar: teacherBoy2,
         tags: ['概念解析', '解题技巧', '实验教学'],
         schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00'],
         matchScore: 92,
@@ -81,7 +86,7 @@ const handleMatch = () => {
         experience: 8,
         rating: 4.9,
         description: '英语教育专家，拥有海外留学背景，擅长英语口语教学和写作指导，教学方法生动有趣。',
-        avatar: '/src/assets/pictures/teacherGirl1.jpeg',
+        avatar: teacherGirl1,
         tags: ['口语练习', '阅读指导', '写作提升'],
         schedule: ['周二 16:00-18:00', '周五 18:00-20:00', '周日 10:00-12:00'],
         matchScore: 95,
@@ -95,7 +100,7 @@ const handleMatch = () => {
         experience: 15,
         rating: 4.6,
         description: '资深数学教师，擅长应付考试，指导学生掌握解题技巧和考试策略，帮助学生提高考试成绩。',
-        avatar: '/src/assets/pictures/teacherBoy3.jpeg',
+        avatar: teacherBoy3,
         tags: ['考试技巧', '题型分析', '快速提分'],
         schedule: ['周一 19:00-21:00', '周四 19:00-21:00', '周六 16:00-18:00'],
         matchScore: 90,
@@ -109,7 +114,7 @@ const handleMatch = () => {
         experience: 7,
         rating: 4.5,
         description: '理科综合教师，擅长自然科学启蒙教育，通过趣味实验和互动方式让孩子爱上科学。',
-        avatar: '/src/assets/pictures/teacherGirl4.jpeg',
+        avatar: teacherGirl4,
         tags: ['趣味实验', '科学启蒙', '思维培养'],
         schedule: ['周二 14:00-16:00', '周四 14:00-16:00', '周日 10:00-12:00'],
         matchScore: 88,

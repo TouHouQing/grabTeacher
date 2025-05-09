@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
+import studentBoy1 from '@/assets/pictures/studentBoy1.jpeg'
+import studentBoy2 from '@/assets/pictures/studentBoy2.jpeg'
+import studentGirl1 from '@/assets/pictures/studentGirl1.jpeg'
+import studentGirl2 from '@/assets/pictures/studentGirl2.jpeg'
 
 interface ScheduleClass {
   id: number;
@@ -26,7 +30,7 @@ const classes = ref<ScheduleClass[]>([
     time: '18:00-20:00',
     duration: 120,
     studentName: '张同学',
-    studentAvatar: '/src/assets/pictures/studentBoy1.jpeg',
+    studentAvatar: studentBoy1,
     subject: '数学',
     location: '线上课堂',
     content: '函数与导数的应用题解题技巧',
@@ -40,7 +44,7 @@ const classes = ref<ScheduleClass[]>([
     time: '16:00-18:00',
     duration: 120,
     studentName: '李同学',
-    studentAvatar: '/src/assets/pictures/studentBoy2.jpeg',
+    studentAvatar: studentBoy2,
     subject: '物理',
     location: '线上课堂',
     content: '电磁感应现象及应用',
@@ -53,7 +57,7 @@ const classes = ref<ScheduleClass[]>([
     time: '18:00-20:00',
     duration: 120,
     studentName: '张同学',
-    studentAvatar: '/src/assets/pictures/studentGirl1.jpeg',
+    studentAvatar: studentGirl1,
     subject: '数学',
     location: '线上课堂',
     content: '导数的几何意义与物理意义',
@@ -67,7 +71,7 @@ const classes = ref<ScheduleClass[]>([
     time: '16:00-18:00',
     duration: 120,
     studentName: '李同学',
-    studentAvatar: '/src/assets/pictures/studentBoy1.jpeg',
+    studentAvatar: studentBoy1,
     subject: '物理',
     location: '线上课堂',
     content: '电场与磁场的关系',
@@ -81,7 +85,7 @@ const classes = ref<ScheduleClass[]>([
     time: '18:00-20:00',
     duration: 120,
     studentName: '王同学',
-    studentAvatar: '/src/assets/pictures/studentGirl2.jpeg',
+    studentAvatar: studentGirl2,
     subject: '生物',
     location: '线上课堂',
     content: '基因的概念与DNA结构',
@@ -94,7 +98,7 @@ const classes = ref<ScheduleClass[]>([
     time: '14:00-16:00',
     duration: 120,
     studentName: '赵同学',
-    studentAvatar: '/src/assets/pictures/studentGirl1.jpeg',
+    studentAvatar: studentGirl1,
     subject: '英语',
     location: '线上课堂',
     content: '高考英语阅读理解答题技巧与实战演练',
@@ -108,7 +112,7 @@ const classes = ref<ScheduleClass[]>([
     time: '16:30-18:30',
     duration: 120,
     studentName: '钱同学',
-    studentAvatar: '/src/assets/pictures/studentBoy1.jpeg',
+    studentAvatar: studentBoy1,
     subject: '化学',
     location: '线上课堂',
     content: '有机化合物的结构与性质',
@@ -122,7 +126,7 @@ const classes = ref<ScheduleClass[]>([
     time: '10:00-12:00',
     duration: 120,
     studentName: '孙同学',
-    studentAvatar: '/src/assets/pictures/studentGirl1.jpeg',
+    studentAvatar: studentGirl1,
     subject: '数学',
     location: '线上课堂',
     content: '平行四边形的性质与证明',

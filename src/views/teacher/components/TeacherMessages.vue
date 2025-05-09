@@ -2,6 +2,10 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 
+import studentBoy2 from '@/assets/pictures/studentBoy2.jpeg'
+import studentBoy1 from '@/assets/pictures/studentBoy1.jpeg'
+import studentGirl1 from '@/assets/pictures/studentGirl1.jpeg'
+
 interface Message {
   id: number;
   sender: string;
@@ -26,7 +30,7 @@ const messages = ref<Message[]>([
   {
     id: 2,
     sender: '张明',
-    senderAvatar: '/src/assets/pictures/studentBoy1.jpeg',
+    senderAvatar: studentBoy1,
     senderType: 'student',
     content: '老师您好，我想请问下周三的课程是否可以调整时间？我有个学校活动需要参加。',
     time: '2023-07-08 15:45',
@@ -35,7 +39,7 @@ const messages = ref<Message[]>([
   {
     id: 3,
     sender: '李华',
-    senderAvatar: '/src/assets/pictures/studentBoy2.jpeg',
+    senderAvatar: studentBoy2,
     senderType: 'student',
     content: '老师，我已经完成了您布置的所有作业，请查收。',
     time: '2023-07-07 20:12',
@@ -44,7 +48,7 @@ const messages = ref<Message[]>([
   {
     id: 4,
     sender: '王芳',
-    senderAvatar: '/src/assets/pictures/studentGirl1.jpeg',
+    senderAvatar: studentGirl1,
     senderType: 'student',
     content: '老师，我遇到了一个关于函数的问题，可以请您帮忙解答一下吗？',
     time: '2023-07-09 10:05',

@@ -2,6 +2,10 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 
+import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
+import teacherBoy2 from '@/assets/pictures/teacherBoy2.jpeg'
+
+
 interface Message {
   id: number;
   title: string;
@@ -31,7 +35,7 @@ const messages = ref<Message[]>([
     title: '作业已批改',
     content: '您的数学作业已经批改完成，得分90分。总体完成得不错，但在第三题的导数应用上有一些小错误，建议您再复习一下导数的几何意义。',
     sender: '张老师',
-    senderAvatar: 'https://img.syt5.com/2021/0908/20210908055012420.jpg.420.580.jpg',
+    senderAvatar: teacherBoy1,
     type: 'teacher',
     time: '2023-07-08 20:15',
     isRead: false,
@@ -62,7 +66,7 @@ const messages = ref<Message[]>([
     title: '关于物理实验的问题',
     content: '同学你好，关于上节课讲的电磁感应实验，你还有疑问可以再问我，也推荐你看一下课本P78-80的内容，对理解这部分知识很有帮助。',
     sender: '王老师',
-    senderAvatar: 'https://img.syt5.com/2021/0908/20210908055050886.jpg.420.580.jpg',
+    senderAvatar: teacherBoy2,
     type: 'teacher',
     time: '2023-07-06 18:40',
     isRead: true,

@@ -17,7 +17,7 @@ const profileForm = reactive({
   major: '数学',
   teachingExperience: 10,
   introduction: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣，使用多种教学方法帮助学生理解数学概念。',
-  avatar: '/src/assets/pictures/teacherBoy2.jpeg'
+  avatar: '@/assets/pictures/teacherBoy2.jpeg'
 })
 
 // 教学信息设置
@@ -104,7 +104,7 @@ const changePassword = () => {
         <div class="profile-container">
           <div class="avatar-section">
             <div class="avatar">
-              <img :src="avatarUrl" alt="头像">
+              <img :src="$getImageUrl(avatarUrl)" alt="头像">
             </div>
             <el-upload
               class="avatar-uploader"

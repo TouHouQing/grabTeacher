@@ -21,7 +21,7 @@ const students = ref<Student[]>([
   {
     id: 1,
     name: '张明',
-    avatar: '/src/assets/pictures/studentBoy1.jpeg',
+    avatar: '@/assets/pictures/studentBoy1.jpeg',
     grade: 'Secondary 3',
     subject: 'Mathematics',
     progress: 60,
@@ -34,7 +34,7 @@ const students = ref<Student[]>([
   {
     id: 2,
     name: '李华',
-    avatar: '/src/assets/pictures/studentBoy2.jpeg',
+    avatar: '@/assets/pictures/studentBoy2.jpeg',
     grade: 'Secondary 2',
     subject: 'Mathematics',
     progress: 45,
@@ -47,7 +47,7 @@ const students = ref<Student[]>([
   {
     id: 3,
     name: '王芳',
-    avatar: '/src/assets/pictures/studentGirl1.jpeg',
+    avatar: '@/assets/pictures/studentGirl1.jpeg',
     grade: 'Primary 6',
     subject: 'English',
     progress: 30,
@@ -212,15 +212,11 @@ export default {
     </div>
 
     <!-- 学生详情对话框 -->
-    <el-dialog
-      v-model="detailDialogVisible"
-      title="学生详情"
-      width="50%"
-    >
-      <div v-if="studentDetail" class="student-detail-dialog">
+    <el-dialog v-model="detailDialogVisible" title="学生详情" width="600px">
+      <div v-if="studentDetail" class="student-detail">
         <div class="detail-header">
           <div class="detail-avatar">
-            <img :src="$getImageUrl(studentDetail.avatar)" :alt="studentDetail.name">
+            <img :src="studentDetail.avatar" :alt="studentDetail.name">
           </div>
           <div class="detail-basic-info">
             <h3>{{ studentDetail.name }}</h3>
@@ -431,7 +427,7 @@ h2 {
 }
 
 /* 详情对话框样式 */
-.student-detail-dialog {
+.student-detail {
   padding: 10px;
 }
 

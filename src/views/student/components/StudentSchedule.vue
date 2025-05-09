@@ -2,6 +2,20 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 
+import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
+import teacherBoy2 from '@/assets/pictures/teacherBoy2.jpeg'
+import teacherBoy3 from '@/assets/pictures/teacherBoy3.jpeg'
+import teacherGirl1 from '@/assets/pictures/teacherGirl1.jpeg'
+import teacherGirl2 from '@/assets/pictures/teacherGirl2.jpeg'
+import teacherGirl3 from '@/assets/pictures/teacherGirl3.jpeg'
+import teacherGirl4 from '@/assets/pictures/teacherGirl4.jpeg'
+import studentGirl2 from '@/assets/pictures/studentGirl2.jpeg'
+import math1 from '@/assets/pictures/math1.jpeg'
+import physics1 from '@/assets/pictures/physics1.jpeg'
+import chemistry1 from '@/assets/pictures/chemistry1.jpeg'
+import biology1 from '@/assets/pictures/biology1.jpeg'
+import english1 from '@/assets/pictures/english1.jpeg'
+
 interface ScheduleClass {
   id: number;
   title: string;
@@ -26,7 +40,7 @@ const classes = ref<ScheduleClass[]>([
     time: '18:00-20:00',
     duration: 120,
     teacher: '张老师',
-    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055012420.jpg.420.580.jpg',
+    teacherAvatar: teacherBoy1,
     subject: '数学',
     location: '线上课堂',
     content: '函数与导数的应用题解题技巧',
@@ -40,7 +54,7 @@ const classes = ref<ScheduleClass[]>([
     time: '16:00-18:00',
     duration: 120,
     teacher: '王老师',
-    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055050886.jpg.420.580.jpg',
+    teacherAvatar: teacherBoy2,
     subject: '物理',
     location: '线上课堂',
     content: '电磁感应现象及应用',
@@ -53,7 +67,7 @@ const classes = ref<ScheduleClass[]>([
     time: '18:00-20:00',
     duration: 120,
     teacher: '张老师',
-    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055012420.jpg.420.580.jpg',
+    teacherAvatar: teacherBoy3,
     subject: '数学',
     location: '线上课堂',
     content: '导数的几何意义与物理意义',
@@ -67,7 +81,7 @@ const classes = ref<ScheduleClass[]>([
     time: '16:00-18:00',
     duration: 120,
     teacher: '王老师',
-    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055050886.jpg.420.580.jpg',
+    teacherAvatar: teacherGirl1,
     subject: '物理',
     location: '线上课堂',
     content: '电场与磁场的关系',
@@ -81,7 +95,7 @@ const classes = ref<ScheduleClass[]>([
     time: '18:00-20:00',
     duration: 120,
     teacher: '陈老师',
-    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055031962.jpg.420.580.jpg',
+    teacherAvatar: teacherGirl2,
     subject: '生物',
     location: '线上课堂',
     content: '基因的概念与DNA结构',
@@ -94,7 +108,7 @@ const classes = ref<ScheduleClass[]>([
     time: '14:00-16:00',
     duration: 120,
     teacher: '刘老师',
-    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055111952.jpg.420.580.jpg',
+    teacherAvatar: teacherGirl3,
     subject: '英语',
     location: '线上课堂',
     content: '高考英语阅读理解答题技巧与实战演练',
@@ -108,7 +122,7 @@ const classes = ref<ScheduleClass[]>([
     time: '16:30-18:30',
     duration: 120,
     teacher: '钱老师',
-    teacherAvatar: 'https://img.syt5.com/2021/0908/20210908055050886.jpg.420.580.jpg',
+    teacherAvatar: teacherGirl4,
     subject: '化学',
     location: '线上课堂',
     content: '有机化合物的结构与性质',

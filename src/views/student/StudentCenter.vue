@@ -16,7 +16,7 @@ const activeMenu = ref('dashboard')
         <div class="sidebar">
           <div class="user-info">
             <div class="avatar">
-              <img src="@/assets/pictures/studentBoy2.jpeg" alt="用户头像">
+              <img :src="$getImageUrl('@/assets/pictures/studentBoy2.jpeg')" alt="用户头像">
             </div>
             <div class="info">
               <h3>{{ userStore.username }}</h3>

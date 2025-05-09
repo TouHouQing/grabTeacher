@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import math1 from '@/assets/pictures/math1.jpeg'
+import english1 from '@/assets/pictures/english1.jpeg'
+import physics1 from '@/assets/pictures/physics1.jpeg'
 
 interface Material {
   id: number;
@@ -27,7 +30,7 @@ const materials = ref<Material[]>([
     uploadDate: '2023-05-10',
     downloads: 56,
     path: '/materials/math-functions.pdf',
-    preview: '/src/assets/pictures/math1.jpeg'
+    preview: math1
   },
   {
     id: 2,
@@ -39,7 +42,7 @@ const materials = ref<Material[]>([
     uploadDate: '2023-06-05',
     downloads: 32,
     path: '/materials/english-grammar.docx',
-    preview: '/src/assets/pictures/english1.jpeg'
+    preview: english1
   },
   {
     id: 3,
@@ -51,7 +54,7 @@ const materials = ref<Material[]>([
     uploadDate: '2023-06-15',
     downloads: 28,
     path: '/materials/physics-mechanics.pptx',
-    preview: '/src/assets/pictures/physics1.jpeg'
+    preview: physics1
   },
   {
     id: 4,
@@ -63,7 +66,7 @@ const materials = ref<Material[]>([
     uploadDate: '2023-06-20',
     downloads: 45,
     path: '/materials/math-thinking.pdf',
-    preview: '/src/assets/pictures/math1.jpeg'
+    preview: math1
   }
 ])
 
