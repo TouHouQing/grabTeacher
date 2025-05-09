@@ -183,7 +183,7 @@ const faqs = ref([
       <div class="map-section">
         <h2>位置地图</h2>
         <div class="map-container">
-          <img src="https://img1.baidu.com/it/u=1304223867,1482448516&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333" alt="地图">
+          <img src="/src/assets/pictures/campusFB.jpeg" alt="地图">
         </div>
       </div>
 
@@ -203,7 +203,7 @@ const faqs = ref([
 
 .banner {
   height: 300px;
-  background-image: url('https://img0.baidu.com/it/u=2103679980,1766749303&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333');
+  background-image: url('/src/assets/pictures/aboutBackground.jpeg');
   background-size: cover;
   background-position: center;
   display: flex;

@@ -276,7 +276,7 @@ const resetForm = () => {
 
 .banner {
   height: 300px;
-  background-image: url('https://img0.baidu.com/it/u=1797217153,4257537758&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=333');
+  background-image: url('/src/assets/pictures/aboutBackground.jpeg');
   background-size: cover;
   background-position: center;
   display: flex;
