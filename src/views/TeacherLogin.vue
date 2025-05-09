@@ -124,7 +124,7 @@ const resetForm = (formEl: FormInstance | null) => {
   justify-content: center;
   align-items: center;
   background-color: #f5f7fa;
-  background-image: url('https://img1.baidu.com/it/u=2603467610,1006089236&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=281');
+  background-image: url('@/assets/pictures/headBackground1.jpeg');
   background-size: cover;
   background-position: center;
   position: relative;
