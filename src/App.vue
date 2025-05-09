@@ -19,8 +19,10 @@ const userStore = useUserStore()
         <el-menu-item index="/contact">联系我们</el-menu-item>
         <div class="flex-grow" />
         <template v-if="!userStore.isLoggedIn">
-          <el-button type="primary" @click="$router.push('/login')" class="login-btn">学生登录</el-button>
-          <el-button type="info" @click="$router.push('/teacher-login')" class="login-btn">教师登录</el-button>
+          <div class="button-group">
+            <el-button type="primary" @click="$router.push('/login')">学生登录</el-button>
+            <el-button type="info" @click="$router.push('/teacher-login')">教师登录</el-button>
+          </div>
         </template>
         <template v-else>
           <el-button v-if="userStore.isTeacher" @click="$router.push('/teacher-center')" type="success">教师中心</el-button>
@@ -34,7 +36,7 @@ const userStore = useUserStore()
     </main>
     <footer class="footer">
       <div class="footer-content">
-        <p>© 2023 GrabTeacher 个性化教学平台 版权所有</p>
+        <p>© 2023 GrabTeacher 个性化教学平台 版权所有者：青浩洋 联系方式：19114846550微信同号</p>
       </div>
     </footer>
   </div>
@@ -114,8 +116,10 @@ body {
   flex: 1;
 }
 
-.login-btn {
-  margin-left: 10px;
+.button-group {
+  display: flex;
+  gap: 10px;
+  margin-left: 20px;
 }
 
 /* 重置Element Plus的一些默认样式 */
