@@ -16,7 +16,7 @@ const activeMenu = ref('dashboard')
         <div class="sidebar">
           <div class="user-info">
             <div class="avatar">
-              <img src="https://img1.baidu.com/it/u=1817951587,699502146&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500" alt="用户头像">
+              <img src="/src/assets/pictures/studentBoy2.jpeg" alt="用户头像">
             </div>
             <div class="info">
               <h3>{{ userStore.username }}</h3>

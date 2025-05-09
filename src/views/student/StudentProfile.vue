@@ -15,7 +15,7 @@ const userForm = reactive({
   school: '实验中学',
   phone: '13800138000',
   email: 'student@example.com',
-  avatar: 'https://img1.baidu.com/it/u=1817951587,699502146&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500'
+  avatar: '/src/assets/pictures/studentBoy2.jpeg'
 })
 
 // 学习偏好设置
