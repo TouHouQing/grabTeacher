@@ -3,11 +3,15 @@ import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Calendar, Connection, Timer, Male, Female, Message, Loading } from '@element-plus/icons-vue'
 import { markRaw } from 'vue'
-import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
-import teacherBoy2 from '@/assets/pictures/teacherBoy2.jpeg'
-import teacherBoy3 from '@/assets/pictures/teacherBoy3.jpeg'
-import teacherGirl1 from '@/assets/pictures/teacherGirl1.jpeg'
-import teacherGirl4 from '@/assets/pictures/teacherGirl4.jpeg'
+
+// 声明图片相对路径，使用getImageUrl方法加载
+const teacherImages = {
+  teacherBoy1: '@/assets/pictures/teacherBoy1.jpeg',
+  teacherBoy2: '@/assets/pictures/teacherBoy2.jpeg',
+  teacherBoy3: '@/assets/pictures/teacherBoy3.jpeg',
+  teacherGirl1: '@/assets/pictures/teacherGirl1.jpeg',
+  teacherGirl4: '@/assets/pictures/teacherGirl4.jpeg'
+}
 
 interface Teacher {
   name: string
@@ -28,6 +32,7 @@ const matchForm = reactive({
   subject: '',
   grade: '',
   preferredTime: '',
+  preferredDateRange: [], // 修改为日期范围
   gender: '',
   teachingStyle: ''
 })
@@ -35,6 +40,9 @@ const matchForm = reactive({
 const loading = ref(false)
 const showResults = ref(false)
 const matchedTeachers = ref<Teacher[]>([])
+
+// 当前日期作为默认值，可在日期选择器中使用
+const currentDate = new Date()
 
 const handleMatch = () => {
   // 验证必填项
@@ -58,7 +66,7 @@ const handleMatch = () => {
         experience: 10,
         rating: 4.8,
         description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣，使用多种教学方法帮助学生理解数学概念。',
-        avatar: teacherBoy1,
+        avatar: teacherImages.teacherBoy1,
         tags: ['趣味教学', '重点突破', '思维导图'],
         schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'],
         matchScore: 98,
@@ -72,7 +80,7 @@ const handleMatch = () => {
         experience: 12,
         rating: 4.7,
         description: '物理学博士，有丰富的教学经验，能将复杂概念简单化，善于通过实验和演示帮助学生理解物理原理。',
-        avatar: teacherBoy2,
+        avatar: teacherImages.teacherBoy2,
         tags: ['概念解析', '解题技巧', '实验教学'],
         schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00'],
         matchScore: 92,
@@ -86,7 +94,7 @@ const handleMatch = () => {
         experience: 8,
         rating: 4.9,
         description: '英语教育专家，拥有海外留学背景，擅长英语口语教学和写作指导，教学方法生动有趣。',
-        avatar: teacherGirl1,
+        avatar: teacherImages.teacherGirl1,
         tags: ['口语练习', '阅读指导', '写作提升'],
         schedule: ['周二 16:00-18:00', '周五 18:00-20:00', '周日 10:00-12:00'],
         matchScore: 95,
@@ -100,7 +108,7 @@ const handleMatch = () => {
         experience: 15,
         rating: 4.6,
         description: '资深数学教师，擅长应付考试，指导学生掌握解题技巧和考试策略，帮助学生提高考试成绩。',
-        avatar: teacherBoy3,
+        avatar: teacherImages.teacherBoy3,
         tags: ['考试技巧', '题型分析', '快速提分'],
         schedule: ['周一 19:00-21:00', '周四 19:00-21:00', '周六 16:00-18:00'],
         matchScore: 90,
@@ -114,7 +122,7 @@ const handleMatch = () => {
         experience: 7,
         rating: 4.5,
         description: '理科综合教师，擅长自然科学启蒙教育，通过趣味实验和互动方式让孩子爱上科学。',
-        avatar: teacherGirl4,
+        avatar: teacherImages.teacherGirl4,
         tags: ['趣味实验', '科学启蒙', '思维培养'],
         schedule: ['周二 14:00-16:00', '周四 14:00-16:00', '周日 10:00-12:00'],
         matchScore: 88,
@@ -148,8 +156,11 @@ const handleMatch = () => {
       let score = 85 + Math.floor(Math.random() * 15);
 
       // 根据偏好微调分数
-      if (matchForm.preferredTime) {
-        // 假设时间匹配会提高分数
+      if (matchForm.preferredTime && matchForm.preferredDateRange && matchForm.preferredDateRange.length === 2) {
+        // 日期和时间都选择了，提高分数
+        score += 8;
+      } else if (matchForm.preferredTime || (matchForm.preferredDateRange && matchForm.preferredDateRange.length === 2)) {
+        // 只选择了一项，小幅提高分数
         score += 5;
       }
 
@@ -168,37 +179,60 @@ const handleMatch = () => {
     // 排序结果，匹配分数高的排在前面
     filtered.sort((a, b) => b.matchScore - a.matchScore);
 
-    // 更新匹配结果
-    matchedTeachers.value = filtered;
+    // 如果筛选结果少于3个，添加更多教师以确保至少有3个结果
+    if (filtered.length < 3) {
+      // 找出不在筛选结果中的教师
+      const remainingTeachers = allTeachers.filter(
+        teacher => !filtered.some(t => t.name === teacher.name)
+      );
+
+      // 按匹配分数排序
+      remainingTeachers.sort((a, b) => b.matchScore - a.matchScore);
+
+      // 添加足够的教师，确保总数为3
+      while (filtered.length < 3 && remainingTeachers.length > 0) {
+        const nextTeacher = remainingTeachers.shift();
+        if (nextTeacher) {
+          // 降低匹配分数，表示这是额外推荐的
+          nextTeacher.matchScore = Math.max(70, nextTeacher.matchScore - 15);
+          filtered.push(nextTeacher);
+        }
+      }
+    }
+
+    // 更新匹配结果，最多显示3个教师
+    matchedTeachers.value = filtered.slice(0, 3);
 
     loading.value = false;
-    showResults.value = filtered.length > 0;
+    showResults.value = true;
 
-    // 如果没有找到匹配的教师，显示提示
-    if (filtered.length === 0) {
-      ElMessage.info('未找到符合条件的教师，请尝试调整筛选条件');
-    } else {
-      // 显示找到了多少个匹配的教师
-      ElMessage.success(`找到 ${filtered.length} 位匹配的教师`);
-    }
+    ElMessage.success(`为您匹配到了 3 位适合的教师`);
   }, 1500)
 }
 
 const resetForm = () => {
-  Object.keys(matchForm).forEach(key => {
-    if (key in matchForm) {
-      (matchForm as Record<string, string>)[key] = ''
-    }
-  })
-  showResults.value = false
+  // 分别处理不同类型的字段
+  matchForm.subject = '';
+  matchForm.grade = '';
+  matchForm.preferredTime = '';
+  matchForm.preferredDateRange = []; // 数组类型单独重置
+  matchForm.gender = '';
+  matchForm.teachingStyle = '';
+
+  showResults.value = false;
 }
 
 const createOrder = (teacher: Teacher) => {
+  // 拼接预约时间信息
+  let appointmentInfo = '';
+  if (matchForm.preferredDateRange && matchForm.preferredDateRange.length === 2 && matchForm.preferredTime) {
+    appointmentInfo = `${matchForm.preferredDateRange[0]} 至 ${matchForm.preferredDateRange[1]} ${matchForm.preferredTime}`;
+  }
+
   // 在真实环境中，这里应该是向后端发送创建订单的请求
   ElMessage.success({
-    message: `预约成功！${teacher.name}将很快与您联系`,
-    duration: 3000,
-    icon: markRaw(Calendar)
+    message: `预约成功！${teacher.name}将在${appointmentInfo ? appointmentInfo : '您选择的时间'}与您联系`,
+    duration: 3000
   });
 
   // 模拟跳转到订单页面
@@ -262,13 +296,28 @@ const createOrder = (teacher: Teacher) => {
             </el-select>
           </el-form-item>
 
-          <el-form-item label="期望授课时间 Preferred Learning Time">
+          <el-form-item label="期望授课日期 Preferred Date">
+            <el-date-picker
+              v-model="matchForm.preferredDateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              :disabled-date="(date) => date < new Date()"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              style="width: 100%"
+            />
+          </el-form-item>
+
+          <el-form-item label="期望授课时间 Preferred Time">
             <el-time-select
               v-model="matchForm.preferredTime"
               start="08:00"
               step="00:30"
               end="22:00"
               placeholder="选择期望授课时间"
+              style="width: 100%"
             />
           </el-form-item>
 
@@ -307,7 +356,7 @@ const createOrder = (teacher: Teacher) => {
           <el-alert
             title="匹配小提示"
             type="info"
-            description="精确填写您的偏好信息，可以获得更精准的教师匹配结果(例数学-O-level)"
+            description="精确填写您的偏好信息，可以获得更精准的教师匹配结果。选择具体日期和时间会提高匹配精度。"
             show-icon
             :closable="false"
           />
@@ -355,6 +404,15 @@ const createOrder = (teacher: Teacher) => {
                   <span v-for="(time, i) in teacher.schedule" :key="i" class="schedule-tag">
                     <el-icon><Timer /></el-icon> {{ time }}
                   </span>
+                </div>
+              </div>
+              <div class="selected-time" v-if="matchForm.preferredDateRange && matchForm.preferredDateRange.length === 2 && matchForm.preferredTime">
+                <div class="selected-time-title">您的预约时间：</div>
+                <div class="selected-time-value">
+                  <el-tag type="success">
+                    <el-icon><Calendar /></el-icon>
+                    {{ matchForm.preferredDateRange[0] }} 至 {{ matchForm.preferredDateRange[1] }} {{ matchForm.preferredTime }}
+                  </el-tag>
                 </div>
               </div>
               <div class="teacher-actions">
@@ -574,7 +632,7 @@ h2 {
 }
 
 .teacher-schedule {
-  margin-bottom: 25px;
+  margin-bottom: 15px;
 }
 
 .schedule-title {
@@ -598,9 +656,59 @@ h2 {
   font-size: 13px;
 }
 
+.selected-time {
+  margin-bottom: 20px;
+  background-color: #f0f9eb;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.selected-time-title {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
 .teacher-actions {
   display: flex;
   gap: 15px;
+}
+
+.match-loading-section {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.loading-content {
+  text-align: center;
+}
+
+.loading-icon {
+  font-size: 48px;
+  color: #409eff;
+  animation: rotate 2s linear infinite;
+}
+
+.loading-text {
+  margin-top: 20px;
+  font-size: 16px;
+  color: #666;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 1200px) {

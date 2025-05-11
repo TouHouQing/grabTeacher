@@ -19,6 +19,7 @@ import TeacherProfile from '../views/teacher/TeacherProfile.vue'
 import Platform from '../views/Platform.vue'
 import Contact from '../views/Contact.vue'
 import AdminCenter from '../views/admin/AdminCenter.vue'
+import TeacherRegister from '../views/TeacherRegister.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -135,6 +136,11 @@ const router = createRouter({
       path: '/register',
       name: 'register',
       component: () => import('../views/Register.vue')
+    },
+    {
+      path: '/teacher-register',
+      name: 'teacher-register',
+      component: TeacherRegister
     }
   ]
 })
