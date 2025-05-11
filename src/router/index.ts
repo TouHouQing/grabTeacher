@@ -141,6 +141,36 @@ const router = createRouter({
       path: '/teacher-register',
       name: 'teacher-register',
       component: TeacherRegister
+    },
+    {
+      path: '/student/center',
+      name: 'StudentCenter',
+      component: () => import('@/views/student/StudentCenter.vue'),
+      meta: { requiresAuth: true, role: 'student' }
+    },
+    {
+      path: '/student/profile',
+      name: 'StudentProfile',
+      component: () => import('@/views/student/StudentProfile.vue'),
+      meta: { requiresAuth: true, role: 'student' }
+    },
+    {
+      path: '/student/orders',
+      name: 'StudentOrders',
+      component: () => import('@/views/student/StudentOrders.vue'),
+      meta: { requiresAuth: true, role: 'student' }
+    },
+    {
+      path: '/student/teacher-match',
+      name: 'TeacherMatch',
+      component: () => import('@/views/student/TeacherMatch.vue'),
+      meta: { requiresAuth: true, role: 'student' }
+    },
+    {
+      path: '/student/teacher-detail/:id',
+      name: 'TeacherDetail',
+      component: () => import('@/views/student/TeacherDetail.vue'),
+      meta: { requiresAuth: true, role: 'student' }
     }
   ]
 })

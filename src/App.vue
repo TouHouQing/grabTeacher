@@ -39,7 +39,7 @@ const userStore = useUserStore()
     </main>
     <footer class="footer">
       <div class="footer-content">
-        <p>© 2023 GrabTeacher 个性化教学平台 版权所有者：青浩洋 联系方式：19114846550微信同号</p>
+        <p>© 2023 GrabTeacher 个性化教学平台</p>
       </div>
     </footer>
   </div>

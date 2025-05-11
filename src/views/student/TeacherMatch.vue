@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, Connection, Timer, Male, Female, Message, Loading } from '@element-plus/icons-vue'
-import { markRaw } from 'vue'
+import { Calendar, Connection, Timer, Male, Female, Message, Loading, View } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 
 // 声明图片相对路径，使用getImageUrl方法加载
 const teacherImages = {
@@ -41,8 +41,7 @@ const loading = ref(false)
 const showResults = ref(false)
 const matchedTeachers = ref<Teacher[]>([])
 
-// 当前日期作为默认值，可在日期选择器中使用
-const currentDate = new Date()
+const router = useRouter()
 
 const handleMatch = () => {
   // 验证必填项
@@ -421,6 +420,9 @@ const createOrder = (teacher: Teacher) => {
                 </el-button>
                 <el-button type="info" plain size="large">
                   <el-icon><Message /></el-icon> 联系教师
+                </el-button>
+                <el-button type="success" plain size="large" @click="router.push(`/student/teacher-detail/${teacher.name}`)">
+                  <el-icon><View /></el-icon> 查看详情
                 </el-button>
               </div>
             </div>
