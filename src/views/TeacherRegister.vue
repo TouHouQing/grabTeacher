@@ -206,6 +206,18 @@ const weekendTimeOptions = [
     { label: '周日 16:00-18:00', value: 'Sun 16:00-18:00' },
     { label: '周日 18:00-20:00', value: 'Sun 18:00-20:00' }
 ]
+
+// 时间选项分组
+const timeOptions = [
+    {
+        label: '工作日',
+        options: weekdayTimeOptions
+    },
+    {
+        label: '周末',
+        options: weekendTimeOptions
+    }
+]
 </script>
 
 <template>
@@ -340,32 +352,28 @@ const weekendTimeOptions = [
                 <h3 class="section-title">可授课时间</h3>
                 <p class="section-desc">请选择您可以进行授课的时间段</p>
 
-                <el-form-item label="工作日时间" prop="availableTimes">
-                    <el-checkbox-group v-model="form.availableTimes">
-                        <div class="time-checkboxes">
-                            <el-checkbox
-                                v-for="option in weekdayTimeOptions"
-                                :key="option.value"
-                                :label="option.value"
-                            >
-                                {{ option.label }}
-                            </el-checkbox>
-                        </div>
-                    </el-checkbox-group>
-                </el-form-item>
-
-                <el-form-item label="周末时间">
-                    <el-checkbox-group v-model="form.availableTimes">
-                        <div class="time-checkboxes">
-                            <el-checkbox
-                                v-for="option in weekendTimeOptions"
-                                :key="option.value"
-                                :label="option.value"
-                            >
-                                {{ option.label }}
-                            </el-checkbox>
-                        </div>
-                    </el-checkbox-group>
+                <el-form-item label="可授课时间" prop="availableTimes">
+                    <el-select
+                        v-model="form.availableTimes"
+                        multiple
+                        collapse-tags
+                        collapse-tags-tooltip
+                        placeholder="请选择可授课时间"
+                        style="width: 100%"
+                    >
+                        <el-option-group
+                            v-for="group in timeOptions"
+                            :key="group.label"
+                            :label="group.label"
+                        >
+                            <el-option
+                                v-for="item in group.options"
+                                :key="item.value"
+                                :label="item.label"
+                                :value="item.value"
+                            />
+                        </el-option-group>
+                    </el-select>
                 </el-form-item>
 
                 <el-form-item prop="agreement">
@@ -440,12 +448,6 @@ h2 {
     gap: 20px;
 }
 
-.time-checkboxes {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 10px;
-}
-
 .form-actions {
     display: flex;
     gap: 15px;
@@ -465,10 +467,6 @@ h2 {
     .form-grid {
         grid-template-columns: 1fr;
         gap: 10px;
-    }
-
-    .time-checkboxes {
-        grid-template-columns: 1fr;
     }
 
     .register-card {

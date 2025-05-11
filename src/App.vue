@@ -17,17 +17,20 @@ const userStore = useUserStore()
         <el-menu-item index="/campus">校区查询</el-menu-item>
         <el-menu-item index="/platform">教师招聘</el-menu-item>
         <el-menu-item index="/contact">联系我们</el-menu-item>
-        <div class="flex-grow" />
         <template v-if="!userStore.isLoggedIn">
-          <div class="button-group">
-            <el-button type="primary" @click="$router.push('/login')">学生登录</el-button>
-            <el-button type="info" @click="$router.push('/teacher-login')">教师登录</el-button>
+          <div class="auth-buttons">
+            <el-button type="primary" size="small" @click="$router.push('/login')">学生登录</el-button>
+            <el-button type="info" size="small" @click="$router.push('/teacher-login')">教师登录</el-button>
+            <el-button type="success" size="small" @click="$router.push('/register')">学生注册</el-button>
+            <el-button type="success" size="small" @click="$router.push('/teacher-register')">教师注册</el-button>
           </div>
         </template>
         <template v-else>
-          <el-button v-if="userStore.isTeacher" @click="$router.push('/teacher-center')" type="success">教师中心</el-button>
-          <el-button v-if="userStore.isStudent" @click="$router.push('/student-center')" type="success">学生中心</el-button>
-          <el-button @click="userStore.logout" type="info">退出登录</el-button>
+          <div class="auth-buttons">
+            <el-button v-if="userStore.isTeacher" @click="$router.push('/teacher-center')" type="success" size="small">教师中心</el-button>
+            <el-button v-if="userStore.isStudent" @click="$router.push('/student-center')" type="success" size="small">学生中心</el-button>
+            <el-button @click="userStore.logout" type="info" size="small">退出登录</el-button>
+          </div>
         </template>
       </el-menu>
     </header>
@@ -92,6 +95,8 @@ body {
 .nav-menu {
   border: none;
   flex: 1;
+  display: flex;
+  align-items: center;
 }
 
 .main {
@@ -112,13 +117,9 @@ body {
   margin: 0 auto;
 }
 
-.flex-grow {
-  flex: 1;
-}
-
-.button-group {
+.auth-buttons {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   margin-left: 20px;
 }
 
@@ -133,5 +134,17 @@ body {
 
 .el-main {
   padding: 0 !important;
+}
+
+@media (max-width: 992px) {
+  .auth-buttons {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .auth-buttons {
+    margin-top: 10px;
+  }
 }
 </style>
