@@ -3,6 +3,8 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Calendar, Phone, Message, Location, School, Trophy, VideoCamera } from '@element-plus/icons-vue'
+import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
+import teacherBoy1v from '@/assets/video/teacherInfo1.mp4'
 
 const route = useRoute()
 const router = useRouter()
@@ -31,8 +33,8 @@ const teacher = ref({
   - 指导多名学生在数学竞赛中获奖
   - 培养学生考入名校比例高达85%
   - 平均提分率达30%以上`,
-  avatar: '@/assets/pictures/teacherBoy1.jpeg',
-  videoIntro: '@/assets/video/teacherInfo1.mp4',
+  avatar: teacherBoy1,
+  videoIntro: teacherBoy1v,
   tags: ['趣味教学', '重点突破', '思维导图'],
   schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'],
   gender: 'Male',
@@ -97,7 +99,7 @@ const contactTeacher = () => {
       <div class="teacher-profile">
         <div class="profile-header">
           <div class="profile-avatar">
-            <img :src="$getImageUrl(teacher.avatar)" :alt="teacher.name">
+            <img :src="teacher.avatar" :alt="teacher.name">
           </div>
           <div class="profile-basic">
             <h3>{{ teacher.name }}</h3>
@@ -177,7 +179,7 @@ const contactTeacher = () => {
           <div class="video-container">
             <video
               ref="videoRef"
-              :src="$getVideoUrl(teacher.videoIntro)"
+              :src="teacher.videoIntro"
               controls
               @play="isPlaying = true"
               @pause="isPlaying = false"
