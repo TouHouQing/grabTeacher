@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useUserStore } from './stores/user'
 import { useLangStore } from './stores/lang'
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 
 const userStore = useUserStore()
 const langStore = useLangStore()
@@ -9,7 +9,24 @@ const langStore = useLangStore()
 // 初始化语言设置
 onMounted(() => {
   langStore.initLang()
+  updateLangClass()
 })
+
+// 监听语言变化，添加或移除特定语言的类
+watch(() => langStore.currentLang, () => {
+  updateLangClass()
+})
+
+// 根据当前语言更新文档根元素的类名
+function updateLangClass() {
+  if (langStore.currentLang === 'zh') {
+    document.documentElement.classList.add('zh-lang')
+    document.documentElement.classList.remove('en-lang')
+  } else {
+    document.documentElement.classList.add('en-lang')
+    document.documentElement.classList.remove('zh-lang')
+  }
+}
 </script>
 
 <template>
@@ -144,6 +161,31 @@ body {
   flex-shrink: 0;
   align-items: center;
   white-space: nowrap;
+}
+
+/* 中文模式下的特殊样式 */
+.zh-lang .header {
+  padding: 0;
+}
+
+.zh-lang .logo {
+  font-size: 20px;
+  margin-right: 5px;
+}
+
+.zh-lang .nav-menu .el-menu-item {
+  padding: 10px 15px;
+  font-size: 15px;
+}
+
+.zh-lang .auth-buttons {
+  gap: 5px;
+  margin-left: 10px;
+}
+
+.zh-lang .el-button.el-button--small {
+  padding: 10px 10px;
+  font-size: 10px;
 }
 
 /* 重置Element Plus的一些默认样式 */
