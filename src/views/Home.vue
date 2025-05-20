@@ -1,52 +1,195 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed } from 'vue'
+import { useLangStore } from '../stores/lang'
 
-const features = ref([
-    {
-        title: '在线课程',
-        description: '丰富的教学视频资源，随时随地学习',
-        icon: 'VideoCamera'
-    },
-    {
-        title: '名师授课',
-        description: '优秀教师在线授课，提供专业指导',
-        icon: 'User'
-    },
-    {
-        title: '个性化学习',
-        description: '根据学生需求定制学习计划',
-        icon: 'Reading'
-    }
-])
+// 使用语言store
+const langStore = useLangStore()
 
-const courses = ref([
-    {
-        title: '最新课程',
-        list: [
-            { name: '初等数学基础', teacher: '张老师', students: 128 },
-            { name: '大学物理实验', teacher: '李老师', students: 89 },
-            { name: 'Python编程入门', teacher: '王老师', students: 256 }
-        ]
-    },
-    {
-        title: '热门课程',
-        list: [
-            { name: '数据结构与算法', teacher: '刘老师', students: 432 },
-            { name: '计算机网络基础', teacher: '陈老师', students: 367 },
-            { name: 'Web前端开发', teacher: '赵老师', students: 521 }
-        ]
-    }
-])
+// 根据当前语言获取教师数据
+const recommendedTeachers = computed(() => {
+  if (langStore.currentLang === 'zh') {
+    return [
+      {
+        name: '张老师',
+        subject: '数学',
+        experience: 10,
+        rating: 4.8,
+        description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣。',
+        avatar: '@/assets/pictures/teacherBoy1.jpeg',
+        schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00']
+      },
+      {
+        name: '李老师',
+        subject: '英语',
+        experience: 8,
+        rating: 4.9,
+        description: '毕业于英国剑桥大学，拥有TESOL证书，擅长英语口语教学。',
+        avatar: '@/assets/pictures/teacherBoy2.jpeg',
+        schedule: ['周二 18:00-20:00', '周四 18:00-20:00', '周日 14:00-16:00']
+      },
+      {
+        name: '王老师',
+        subject: '物理',
+        experience: 12,
+        rating: 4.7,
+        description: '物理学博士，有丰富的教学经验，能将复杂概念简单化。',
+        avatar: '@/assets/pictures/teacherBoy3.jpeg',
+        schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00']
+      }
+    ]
+  } else {
+    return [
+      {
+        name: 'Mr. Zhang',
+        subject: 'Mathematics',
+        experience: 10,
+        rating: 4.8,
+        description: 'Math education expert, focusing on primary and secondary school mathematics teaching, good at stimulating students\' interest in learning.',
+        avatar: '@/assets/pictures/teacherBoy1.jpeg',
+        schedule: ['Mon 18:00-20:00', 'Wed 18:00-20:00', 'Sat 10:00-12:00']
+      },
+      {
+        name: 'Mr. Li',
+        subject: 'English',
+        experience: 8,
+        rating: 4.9,
+        description: 'Graduated from Cambridge University, UK, with a TESOL certificate, specializing in English speaking teaching.',
+        avatar: '@/assets/pictures/teacherBoy2.jpeg',
+        schedule: ['Tue 18:00-20:00', 'Thu 18:00-20:00', 'Sun 14:00-16:00']
+      },
+      {
+        name: 'Mr. Wang',
+        subject: 'Physics',
+        experience: 12,
+        rating: 4.7,
+        description: 'PhD in Physics, with rich teaching experience, able to simplify complex concepts.',
+        avatar: '@/assets/pictures/teacherBoy3.jpeg',
+        schedule: ['Mon 16:00-18:00', 'Wed 16:00-18:00', 'Sat 14:00-16:00']
+      }
+    ]
+  }
+})
+
+// 根据当前语言获取课程数据
+const hotCourses = computed(() => {
+  if (langStore.currentLang === 'zh') {
+    return [
+      {
+        title: '初中数学 - 函数与导数',
+        teacher: '张老师',
+        description: '本课程深入浅出地讲解初中数学中的函数与导数知识点，适合初二、初三学生。',
+        image: '@/assets/pictures/teacherGirl1.jpeg',
+        duration: '30课时',
+        students: 1280
+      },
+      {
+        title: '小学英语 - 语法精讲',
+        teacher: '李老师',
+        description: '系统梳理小学英语语法知识，打牢语法基础，提高英语成绩。',
+        image: '@/assets/pictures/teacherGirl2.jpeg',
+        duration: '25课时',
+        students: 958
+      },
+      {
+        title: '初中物理 - 力学与电学',
+        teacher: '王老师',
+        description: '从基础概念到难点突破，全面讲解初中物理力学与电学知识。',
+        image: '@/assets/pictures/teacherGirl3.jpeg',
+        duration: '28课时',
+        students: 876
+      }
+    ]
+  } else {
+    return [
+      {
+        title: 'Middle School Math - Functions and Derivatives',
+        teacher: 'Mr. Zhang',
+        description: 'This course explains the knowledge points of functions and derivatives in middle school mathematics in a simple way, suitable for students in grades 8-9.',
+        image: '@/assets/pictures/teacherGirl1.jpeg',
+        duration: '30 lessons',
+        students: 1280
+      },
+      {
+        title: 'Primary School English - Grammar Intensive',
+        teacher: 'Mr. Li',
+        description: 'Systematically combs through primary school English grammar knowledge, lays a solid foundation in grammar, and improves English scores.',
+        image: '@/assets/pictures/teacherGirl2.jpeg',
+        duration: '25 lessons',
+        students: 958
+      },
+      {
+        title: 'Middle School Physics - Mechanics and Electricity',
+        teacher: 'Mr. Wang',
+        description: 'From basic concepts to difficult breakthroughs, comprehensive explanation of middle school physics mechanics and electricity knowledge.',
+        image: '@/assets/pictures/teacherGirl3.jpeg',
+        duration: '28 lessons',
+        students: 876
+      }
+    ]
+  }
+})
+
+// 根据当前语言获取评价数据
+const testimonials = computed(() => {
+  if (langStore.currentLang === 'zh') {
+    return [
+      {
+        name: '张明',
+        role: '初三学生',
+        content: '通过平台找到了非常适合我的数学老师，半年时间数学成绩从80分提高到了120分，非常感谢！',
+        avatar: '@/assets/pictures/studentBoy1.jpeg'
+      },
+      {
+        name: '李华',
+        role: '初中生家长',
+        content: '孩子在这里学习了三个月，英语成绩有了明显提高，老师很负责任，教学方法也很适合孩子。',
+        avatar: '@/assets/pictures/studentGirl2.jpeg'
+      },
+      {
+        name: '王芳',
+        role: '小学二年级学生',
+        content: '老师教学很有耐心，会根据我的弱点定制学习计划，学习效率比自己学习提高了很多。',
+        avatar: '@/assets/pictures/studentGirl1.jpeg'
+      }
+    ]
+  } else {
+    return [
+      {
+        name: 'Zhang Ming',
+        role: 'Grade 9 Student',
+        content: 'Through the platform, I found a math teacher who is very suitable for me. In half a year, my math score increased from 80 to 120 points. Thank you very much!',
+        avatar: '@/assets/pictures/studentBoy1.jpeg'
+      },
+      {
+        name: 'Li Hua',
+        role: 'Middle School Parent',
+        content: 'My child has been studying here for three months, and his English scores have improved significantly. The teacher is very responsible, and the teaching method is also suitable for children.',
+        avatar: '@/assets/pictures/studentGirl2.jpeg'
+      },
+      {
+        name: 'Wang Fang',
+        role: 'Grade 2 Student',
+        content: 'The teacher is very patient in teaching and will customize a learning plan according to my weaknesses. The learning efficiency is much higher than self-study.',
+        avatar: '@/assets/pictures/studentGirl1.jpeg'
+      }
+    ]
+  }
+})
+
+// 定义组件名称
+defineOptions({
+  name: 'HomePage'
+})
 </script>
 
 <template>
-    <div class="home">
+    <div class="home-page">
         <!-- 主横幅 -->
         <div class="banner">
             <div class="banner-content">
                 <h1 class="banner-title">GrabTeacher</h1>
-                <div class="banner-subtitle">个性化教学</div>
-                <div class="banner-desc">像打车一样选老师,像接单一样找学生</div>
+                <div class="banner-subtitle">{{ $t('home.banner.subtitle') }}</div>
+                <div class="banner-desc">{{ $t('home.banner.desc') }}</div>
             </div>
         </div>
 
@@ -54,36 +197,36 @@ const courses = ref([
         <div class="container">
             <!-- 智能匹配系统介绍 -->
             <div class="section">
-                <h2 class="section-title">寻找最适合您的老师</h2>
-                <div class="section-subtitle">智能匹配系统为您服务</div>
+                <h2 class="section-title">{{ $t('home.sections.findTeacher.title') }}</h2>
+                <div class="section-subtitle">{{ $t('home.sections.findTeacher.subtitle') }}</div>
                 <div class="feature-grid">
                     <div class="feature-item">
                         <el-icon class="feature-icon"><Medal /></el-icon>
-                        <h3>优质师资</h3>
-                        <p>经过严格筛选的专业教师，教学经验丰富</p>
+                        <h3>{{ $t('home.sections.findTeacher.features.quality.title') }}</h3>
+                        <p>{{ $t('home.sections.findTeacher.features.quality.desc') }}</p>
                     </div>
                     <div class="feature-item">
                         <el-icon class="feature-icon"><Aim /></el-icon>
-                        <h3>精准匹配</h3>
-                        <p>根据学习需求和学习风格智能匹配最适合的老师</p>
+                        <h3>{{ $t('home.sections.findTeacher.features.matching.title') }}</h3>
+                        <p>{{ $t('home.sections.findTeacher.features.matching.desc') }}</p>
                     </div>
                     <div class="feature-item">
                         <el-icon class="feature-icon"><Opportunity /></el-icon>
-                        <h3>个性化教学</h3>
-                        <p>量身定制学习计划，针对薄弱环节进行强化</p>
+                        <h3>{{ $t('home.sections.findTeacher.features.personalized.title') }}</h3>
+                        <p>{{ $t('home.sections.findTeacher.features.personalized.desc') }}</p>
                     </div>
                     <div class="feature-item">
                         <el-icon class="feature-icon"><Clock /></el-icon>
-                        <h3>灵活时间</h3>
-                        <p>自由安排学习时间，提高学习效率</p>
+                        <h3>{{ $t('home.sections.findTeacher.features.flexible.title') }}</h3>
+                        <p>{{ $t('home.sections.findTeacher.features.flexible.desc') }}</p>
                     </div>
                 </div>
             </div>
 
             <!-- 推荐教师 -->
             <div class="section">
-                <h2 class="section-title">推荐教师</h2>
-                <div class="section-subtitle">受学生欢迎的优质教师</div>
+                <h2 class="section-title">{{ $t('home.sections.recommendedTeachers.title') }}</h2>
+                <div class="section-subtitle">{{ $t('home.sections.recommendedTeachers.subtitle') }}</div>
                 <div class="teachers-grid">
                     <div class="teacher-card" v-for="(teacher, index) in recommendedTeachers" :key="index">
                         <div class="teacher-avatar">
@@ -94,24 +237,24 @@ const courses = ref([
                         </div>
                         <div class="teacher-info">
                             <h3>{{ teacher.name }}</h3>
-                            <p>{{ teacher.subject }} | {{ teacher.experience }}年教龄</p>
+                            <p>{{ teacher.subject }} | {{ teacher.experience }}{{ $t('home.sections.recommendedTeachers.experience') }}</p>
                             <p class="teacher-description">{{ teacher.description }}</p>
                             <div class="teacher-schedule">
                                 <span v-for="(time, i) in teacher.schedule" :key="i" class="schedule-tag">{{ time }}</span>
                             </div>
-                            <el-button type="primary" size="small" class="booking-btn">预约课程</el-button>
+                            <el-button type="primary" size="small" class="booking-btn">{{ $t('home.sections.recommendedTeachers.bookingBtn') }}</el-button>
                         </div>
                     </div>
                 </div>
                 <div class="view-more">
-                    <el-button type="primary" plain @click="$router.push('/famous-teachers')">查看更多教师</el-button>
+                    <el-button type="primary" plain @click="$router.push('/famous-teachers')">{{ $t('home.sections.hotCourses.viewMore') }}</el-button>
                 </div>
             </div>
 
             <!-- 热门课程 -->
             <div class="section">
-                <h2 class="section-title">热门课程</h2>
-                <div class="section-subtitle">精选优质课程内容</div>
+                <h2 class="section-title">{{ $t('home.sections.hotCourses.title') }}</h2>
+                <div class="section-subtitle">{{ $t('home.sections.hotCourses.subtitle') }}</div>
                 <div class="courses-grid">
                     <div class="course-card" v-for="(course, index) in hotCourses" :key="index">
                         <div class="course-image">
@@ -123,21 +266,21 @@ const courses = ref([
                             <p class="course-description">{{ course.description }}</p>
                             <div class="course-meta">
                                 <span><el-icon><Timer /></el-icon> {{ course.duration }}</span>
-                                <span><el-icon><User /></el-icon> {{ course.students }}人学习</span>
+                                <span><el-icon><User /></el-icon> {{ course.students }}{{ $t('home.sections.hotCourses.students') }}</span>
                             </div>
-                            <el-button type="primary" size="small" class="course-btn">了解详情</el-button>
+                            <el-button type="primary" size="small" class="course-btn">{{ $t('home.sections.hotCourses.detailBtn') }}</el-button>
                         </div>
                     </div>
                 </div>
                 <div class="view-more">
-                    <el-button type="primary" plain @click="$router.push('/latest-courses')">浏览更多课程</el-button>
+                    <el-button type="primary" plain @click="$router.push('/latest-courses')">{{ $t('home.sections.hotCourses.viewMore') }}</el-button>
                 </div>
             </div>
 
             <!-- 用户评价 -->
             <div class="section testimonials">
-                <h2 class="section-title">学员评价</h2>
-                <div class="section-subtitle">听听他们怎么说</div>
+                <h2 class="section-title">{{ $t('home.sections.testimonials.title') }}</h2>
+                <div class="section-subtitle">{{ $t('home.sections.testimonials.subtitle') }}</div>
                 <el-carousel :interval="4000" type="card" height="300px">
                     <el-carousel-item v-for="(testimonial, index) in testimonials" :key="index">
                         <div class="testimonial-card">
@@ -158,97 +301,13 @@ const courses = ref([
 
             <!-- 开始学习引导 -->
             <div class="section cta">
-                <h2 class="cta-title">准备好开始您的学习之旅了吗？</h2>
-                <p class="cta-subtitle">立即注册并找到最适合您的老师</p>
-                <el-button type="primary" size="large" @click="$router.push('/login')">立即开始</el-button>
+                <h2 class="cta-title">{{ $t('home.sections.cta.title') }}</h2>
+                <p class="cta-subtitle">{{ $t('home.sections.cta.subtitle') }}</p>
+                <el-button type="primary" size="large" @click="$router.push('/login')">{{ $t('home.sections.cta.button') }}</el-button>
             </div>
         </div>
     </div>
 </template>
-
-<script lang="ts">
-export default {
-    data() {
-        return {
-            recommendedTeachers: [
-                {
-                    name: '张老师',
-                    subject: '数学',
-                    experience: 10,
-                    rating: 4.8,
-                    description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣。',
-                    avatar: '@/assets/pictures/teacherBoy1.jpeg',
-                    schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00']
-                },
-                {
-                    name: '李老师',
-                    subject: '英语',
-                    experience: 8,
-                    rating: 4.9,
-                    description: '毕业于英国剑桥大学，拥有TESOL证书，擅长英语口语教学。',
-                    avatar: '@/assets/pictures/teacherBoy2.jpeg',
-                    schedule: ['周二 18:00-20:00', '周四 18:00-20:00', '周日 14:00-16:00']
-                },
-                {
-                    name: '王老师',
-                    subject: '物理',
-                    experience: 12,
-                    rating: 4.7,
-                    description: '物理学博士，有丰富的教学经验，能将复杂概念简单化。',
-                    avatar: '@/assets/pictures/teacherBoy3.jpeg',
-                    schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00']
-                }
-            ],
-            hotCourses: [
-                {
-                    title: '初中数学 - 函数与导数',
-                    teacher: '张老师',
-                    description: '本课程深入浅出地讲解初中数学中的函数与导数知识点，适合初二、初三学生。',
-                    image: '@/assets/pictures/teacherGirl1.jpeg',
-                    duration: '30课时',
-                    students: 1280
-                },
-                {
-                    title: '小学英语 - 语法精讲',
-                    teacher: '李老师',
-                    description: '系统梳理小学英语语法知识，打牢语法基础，提高英语成绩。',
-                    image: '@/assets/pictures/teacherGirl2.jpeg',
-                    duration: '25课时',
-                    students: 958
-                },
-                {
-                    title: '初中物理 - 力学与电学',
-                    teacher: '王老师',
-                    description: '从基础概念到难点突破，全面讲解初中物理力学与电学知识。',
-                    image: '@/assets/pictures/teacherGirl3.jpeg',
-                    duration: '28课时',
-                    students: 876
-                }
-            ],
-            testimonials: [
-                {
-                    name: '张明',
-                    role: '初三学生',
-                    content: '通过平台找到了非常适合我的数学老师，半年时间数学成绩从80分提高到了120分，非常感谢！',
-                    avatar: '@/assets/pictures/studentBoy1.jpeg'
-                },
-                {
-                    name: '李华',
-                    role: '初中生家长',
-                    content: '孩子在这里学习了三个月，英语成绩有了明显提高，老师很负责任，教学方法也很适合孩子。',
-                    avatar: '@/assets/pictures/studentGirl2.jpeg'
-                },
-                {
-                    name: '王芳',
-                    role: '小学二年级学生',
-                    content: '老师教学很有耐心，会根据我的弱点定制学习计划，学习效率比自己学习提高了很多。',
-                    avatar: '@/assets/pictures/studentGirl1.jpeg'
-                }
-            ]
-        }
-    }
-}
-</script>
 
 <style>
 /* 重置一些基础样式 */
@@ -269,7 +328,7 @@ body {
 </style>
 
 <style scoped>
-.home {
+.home-page {
     width: 100%;
 }
 
