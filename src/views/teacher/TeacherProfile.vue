@@ -22,8 +22,8 @@ const profileForm = reactive({
 
 // 教学信息设置
 const teachingForm = reactive({
-  subjects: ['高中数学'],
-  grades: ['高一', '高二', '高三'],
+  subjects: ['初中数学'],
+  grades: ['初一', '初二', '初三'],
   teachingStyle: '启发式教学',
   specialties: ['函数', '解析几何', '概率统计'],
   hourlyRate: 200,
@@ -176,12 +176,12 @@ const changePassword = () => {
               <el-select v-model="teachingForm.subjects" multiple style="width: 100%">
                 <el-option label="小学数学" value="小学数学"></el-option>
                 <el-option label="初中数学" value="初中数学"></el-option>
-                <el-option label="高中数学" value="高中数学"></el-option>
+                <el-option label="初中数学" value="初中数学"></el-option>
                 <el-option label="小学英语" value="小学英语"></el-option>
                 <el-option label="初中英语" value="初中英语"></el-option>
-                <el-option label="高中英语" value="高中英语"></el-option>
-                <el-option label="高中物理" value="高中物理"></el-option>
-                <el-option label="高中化学" value="高中化学"></el-option>
+                <el-option label="初中英语" value="初中英语"></el-option>
+                <el-option label="初中物理" value="初中物理"></el-option>
+                <el-option label="初中化学" value="初中化学"></el-option>
               </el-select>
             </el-form-item>
             <el-form-item label="教授年级">
@@ -195,9 +195,6 @@ const changePassword = () => {
                 <el-option label="初一" value="初一"></el-option>
                 <el-option label="初二" value="初二"></el-option>
                 <el-option label="初三" value="初三"></el-option>
-                <el-option label="高一" value="高一"></el-option>
-                <el-option label="高二" value="高二"></el-option>
-                <el-option label="高三" value="高三"></el-option>
               </el-select>
             </el-form-item>
             <el-form-item label="教学风格">

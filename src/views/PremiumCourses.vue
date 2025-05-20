@@ -35,20 +35,20 @@ const filter = reactive({
 // 课程数据
 const courses = ref([
   {
-    title: '高中数学 - 函数与导数',
+    title: '初中数学 - 函数',
     teacher: '张老师',
     teacherAvatar: teacherBoy1,
-    description: '本课程深入浅出地讲解高中数学中的函数与导数知识点，适合高二、高三学生。通过大量习题和实例，帮助学生掌握解题技巧。',
+    description: '本课程深入浅出地讲解初中数学中的函数知识点，适合初二、初三学生。通过大量习题和实例，帮助学生掌握解题技巧。',
     image: math1,
     duration: '30课时',
     students: 1280,
     rating: 4.8,
     price: 1980,
     subject: '数学',
-    grade: '高中',
+    grade: '初中',
     level: '进阶',
     isHot: true,
-    tags: ['函数', '导数', '高考必考']
+    tags: ['函数', '数学', '中考必考']
   },
   {
     title: '初中英语 - 语法精讲',
@@ -67,17 +67,17 @@ const courses = ref([
     tags: ['语法', '中考', '基础入门']
   },
   {
-    title: '高中物理 - 力学与电学',
+    title: '初中物理 - 力学与电学',
     teacher: '王老师',
     teacherAvatar: teacherBoy3,
-    description: '从基础概念到难点突破，全面讲解高中物理力学与电学知识。通过实验演示和习题讲解，帮助学生理解物理原理。',
+    description: '从基础概念到难点突破，全面讲解初中物理力学与电学知识。通过实验演示和习题讲解，帮助学生理解物理原理。',
     image: physics1,
     duration: '28课时',
     students: 876,
     rating: 4.9,
     price: 1880,
     subject: '物理',
-    grade: '高中',
+    grade: '初中',
     level: '进阶',
     isHot: false,
     tags: ['力学', '电学', '实验']
@@ -99,20 +99,20 @@ const courses = ref([
     tags: ['思维训练', '趣味数学', '奥数基础']
   },
   {
-    title: '高中化学 - 有机化学',
+    title: '初中化学 - 无机化学',
     teacher: '刘老师',
     teacherAvatar: teacherGirl2,
-    description: '系统讲解高中有机化学知识，从基础概念到重难点突破，配合大量习题和实验演示，帮助学生掌握有机化学知识。',
+    description: '系统讲解初中无机化学知识，从基础概念到重难点突破，配合大量习题和实验演示，帮助学生掌握无机化学知识。',
     image: chemistry1,
     duration: '26课时',
     students: 782,
     rating: 4.8,
     price: 1780,
     subject: '化学',
-    grade: '高中',
+    grade: '初中',
     level: '高级',
     isHot: false,
-    tags: ['有机化学', '实验', '高考重点']
+    tags: ['无机化学', '实验', '高考重点']
   },
   {
     title: '初中物理 - 电学入门',
@@ -131,20 +131,20 @@ const courses = ref([
     tags: ['电学', '实验', '初中物理']
   },
   {
-    title: '高中生物 - 分子与细胞',
+    title: '初中生物 - 分子与细胞',
     teacher: '赵老师',
     teacherAvatar: teacherGirl4,
-    description: '深入讲解高中生物分子与细胞部分，通过图解、模型和实验，帮助学生理解抽象概念，掌握重要知识点。',
+    description: '深入讲解初中生物分子与细胞部分，通过图解、模型和实验，帮助学生理解抽象概念，掌握重要知识点。',
     image: biology1,
     duration: '24课时',
     students: 592,
     rating: 4.8,
     price: 1680,
     subject: '生物',
-    grade: '高中',
+    grade: '初中',
     level: '进阶',
     isHot: false,
-    tags: ['分子生物学', '细胞', '高考重点']
+    tags: ['分子生物学', '细胞', '中考重点']
   },
   {
     title: '小学英语 - 自然拼读',
@@ -198,13 +198,13 @@ const coursePackages = ref([
     ]
   },
   {
-    title: '高中数理化套餐',
+    title: '初中数理化套餐',
     originalPrice: 5640,
     currentPrice: 4580,
     courses: [
-      { title: '高中数学 - 函数与导数', teacher: '张老师', duration: '30课时' },
-      { title: '高中物理 - 力学与电学', teacher: '王老师', duration: '28课时' },
-      { title: '高中化学 - 有机化学', teacher: '刘老师', duration: '26课时' }
+      { title: '初中数学 - 函数', teacher: '张老师', duration: '30课时' },
+      { title: '初中物理 - 力学与电学', teacher: '王老师', duration: '28课时' },
+      { title: '初中化学 - 无机化学', teacher: '刘老师', duration: '26课时' }
     ],
     features: [
       '三科联报优惠价',
@@ -279,7 +279,6 @@ const resetFilter = () => {
             <el-select v-model="filter.grade" placeholder="选择年级" clearable>
               <el-option label="小学" value="小学" />
               <el-option label="初中" value="初中" />
-              <el-option label="高中" value="高中" />
             </el-select>
           </el-form-item>
           <el-form-item label="难度">

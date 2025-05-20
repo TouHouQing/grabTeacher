@@ -23,7 +23,7 @@ const courses = ref([
     {
         title: '最新课程',
         list: [
-            { name: '高等数学基础', teacher: '张老师', students: 128 },
+            { name: '初等数学基础', teacher: '张老师', students: 128 },
             { name: '大学物理实验', teacher: '李老师', students: 89 },
             { name: 'Python编程入门', teacher: '王老师', students: 256 }
         ]
@@ -46,7 +46,7 @@ const courses = ref([
             <div class="banner-content">
                 <h1 class="banner-title">GrabTeacher</h1>
                 <div class="banner-subtitle">个性化教学</div>
-                <div class="banner-desc">根据学生需求定制专属学习方案</div>
+                <div class="banner-desc">像打车一样选老师,像接单一样找学生</div>
             </div>
         </div>
 
@@ -201,25 +201,25 @@ export default {
             ],
             hotCourses: [
                 {
-                    title: '高中数学 - 函数与导数',
+                    title: '初中数学 - 函数与导数',
                     teacher: '张老师',
-                    description: '本课程深入浅出地讲解高中数学中的函数与导数知识点，适合高二、高三学生。',
+                    description: '本课程深入浅出地讲解初中数学中的函数与导数知识点，适合初二、初三学生。',
                     image: '@/assets/pictures/teacherGirl1.jpeg',
                     duration: '30课时',
                     students: 1280
                 },
                 {
-                    title: '初中英语 - 语法精讲',
+                    title: '小学英语 - 语法精讲',
                     teacher: '李老师',
-                    description: '系统梳理初中英语语法知识，打牢语法基础，提高英语成绩。',
+                    description: '系统梳理小学英语语法知识，打牢语法基础，提高英语成绩。',
                     image: '@/assets/pictures/teacherGirl2.jpeg',
                     duration: '25课时',
                     students: 958
                 },
                 {
-                    title: '高中物理 - 力学与电学',
+                    title: '初中物理 - 力学与电学',
                     teacher: '王老师',
-                    description: '从基础概念到难点突破，全面讲解高中物理力学与电学知识。',
+                    description: '从基础概念到难点突破，全面讲解初中物理力学与电学知识。',
                     image: '@/assets/pictures/teacherGirl3.jpeg',
                     duration: '28课时',
                     students: 876
@@ -228,7 +228,7 @@ export default {
             testimonials: [
                 {
                     name: '张明',
-                    role: '高三学生',
+                    role: '初三学生',
                     content: '通过平台找到了非常适合我的数学老师，半年时间数学成绩从80分提高到了120分，非常感谢！',
                     avatar: '@/assets/pictures/studentBoy1.jpeg'
                 },
@@ -240,7 +240,7 @@ export default {
                 },
                 {
                     name: '王芳',
-                    role: '高二学生',
+                    role: '小学二年级学生',
                     content: '老师教学很有耐心，会根据我的弱点定制学习计划，学习效率比自己学习提高了很多。',
                     avatar: '@/assets/pictures/studentGirl1.jpeg'
                 }

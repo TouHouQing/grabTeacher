@@ -18,7 +18,7 @@ const orders = ref<Order[]>([
   {
     id: '20230001',
     date: '2023-07-01',
-    course: '高中数学 - 函数与导数',
+    course: '初中数学 - 函数与导数',
     teacher: '张老师',
     amount: 500,
     lessons: 10,
@@ -27,7 +27,7 @@ const orders = ref<Order[]>([
   {
     id: '20230002',
     date: '2023-07-05',
-    course: '高中物理 - 力学与电学',
+    course: '初中物理 - 力学与电学',
     teacher: '王老师',
     amount: 600,
     lessons: 12,
@@ -36,7 +36,7 @@ const orders = ref<Order[]>([
   {
     id: '20230003',
     date: '2023-07-10',
-    course: '高中英语 - 阅读理解',
+    course: '初中英语 - 阅读理解',
     teacher: '李老师',
     amount: 450,
     lessons: 8,

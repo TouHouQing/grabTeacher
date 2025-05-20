@@ -16,41 +16,41 @@ const pageSize = ref(6)
 const courses = [
   {
     id: 1,
-    title: '高中物理 - 电磁学深入',
+    title: '初中物理 - 电磁学深入',
     teacher: '王老师',
     teacherAvatar: '@/assets/pictures/teacherGirl4.jpeg',
-    description: '本课程深入讲解电磁感应、电磁波等高中物理重点知识，结合最新高考真题，帮助学生系统掌握电磁学知识体系。',
+    description: '本课程深入讲解电磁感应、电磁波等初中物理重点知识，结合最新高考真题，帮助学生系统掌握电磁学知识体系。',
     image: '@/assets/pictures/physics1.jpeg',
     duration: '25课时',
     students: 42,
     rating: 5.0,
     price: 2100,
     subject: '物理',
-    grade: '高中',
+    grade: '初中',
     level: '进阶',
     isHot: true,
     isNew: true,
     releaseDate: '2023-07-01',
-    tags: ['电磁学', '高考重点', '最新']
+    tags: ['电磁学', '中考重点', '最新']
   },
   {
     id: 2,
-    title: '中学化学 - 有机化合物专题',
+    title: '初中化学 - 无机化合物专题',
     teacher: '刘老师',
     teacherAvatar: '@/assets/pictures/teacherGirl3.jpeg',
-    description: '系统讲解有机化学基础，从烷烃、烯烃到醇、酸，深入浅出地介绍有机化合物的性质与反应。',
+    description: '系统讲解无机化学基础，深入浅出地介绍无机化合物的性质与反应。',
     image: '@/assets/pictures/chemistry1.jpeg',
     duration: '20课时',
     students: 35,
     rating: 4.9,
     price: 1800,
     subject: '化学',
-    grade: '高中',
+    grade: '初中',
     level: '入门',
     isHot: false,
     isNew: true,
     releaseDate: '2023-06-28',
-    tags: ['有机化学', '化学反应', '最新']
+    tags: ['无机化学', '化学反应', '最新']
   },
   {
     id: 3,
@@ -92,17 +92,17 @@ const courses = [
   },
   {
     id: 5,
-    title: '高中生物 - 遗传学前沿',
+    title: '初中生物 - 生物学前沿',
     teacher: '赵老师',
     teacherAvatar: '@/assets/pictures/teacherBoy1.jpeg',
-    description: '结合最新生物技术发展，讲解遗传学知识，从DNA到基因编辑，让学生了解现代生物科技与遗传学前沿。',
+    description: '结合最新生物技术发展，讲解遗传学知识，从DNA到基因编辑，让学生了解现代生物科技与生物学前沿。',
     image: '@/assets/pictures/biology1.jpeg',
     duration: '22课时',
     students: 48,
     rating: 4.9,
     price: 1950,
     subject: '生物',
-    grade: '高中',
+    grade: '初中',
     level: '高级',
     isHot: true,
     isNew: true,
@@ -195,7 +195,6 @@ const resetFilter = () => {
             <el-select v-model="filter.grade" placeholder="选择年级" clearable>
               <el-option label="小学" value="小学" />
               <el-option label="初中" value="初中" />
-              <el-option label="高中" value="高中" />
             </el-select>
           </el-form-item>
           <el-form-item label="难度">

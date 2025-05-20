@@ -11,7 +11,7 @@ const userForm = reactive({
   realName: '张三',
   gender: '男',
   age: 16,
-  grade: '高一',
+  grade: '初一',
   school: '实验中学',
   phone: '13800138000',
   email: 'student@example.com',
@@ -83,9 +83,6 @@ const savePreferences = () => {
                   <el-option label="初一" value="初一"></el-option>
                   <el-option label="初二" value="初二"></el-option>
                   <el-option label="初三" value="初三"></el-option>
-                  <el-option label="高一" value="高一"></el-option>
-                  <el-option label="高二" value="高二"></el-option>
-                  <el-option label="高三" value="高三"></el-option>
                 </el-select>
               </el-form-item>
               <el-form-item label="学校">

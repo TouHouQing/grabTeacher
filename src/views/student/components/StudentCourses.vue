@@ -24,7 +24,7 @@ interface Course {
 const courses = ref<Course[]>([
   {
     id: 1,
-    title: '高中数学 - 函数与导数',
+    title: '初中数学 - 函数与导数',
     teacher: '张老师',
     teacherAvatar: '@/assets/pictures/teacherBoy1.jpeg',
     subject: '数学',
@@ -36,12 +36,12 @@ const courses = ref<Course[]>([
     totalLessons: 24,
     completedLessons: 14,
     image: '@/assets/pictures/math1.jpeg',
-    description: '本课程深入浅出地讲解高中数学中的函数与导数知识点，适合高二、高三学生。通过系统讲解和大量练习，帮助学生掌握函数与导数的核心概念和解题技巧。',
+    description: '本课程深入浅出地讲解初中数学中的函数与导数知识点，适合初二、初三学生。通过系统讲解和大量练习，帮助学生掌握函数与导数的核心概念和解题技巧。',
     status: 'active'
   },
   {
     id: 2,
-    title: '高中物理 - 力学与电学',
+    title: '初中物理 - 力学与电学',
     teacher: '王老师',
     teacherAvatar: '@/assets/pictures/teacherBoy2.jpeg',
     subject: '物理',
@@ -53,7 +53,7 @@ const courses = ref<Course[]>([
     totalLessons: 20,
     completedLessons: 9,
     image: '@/assets/pictures/physics1.jpeg',
-    description: '从基础概念到难点突破，全面讲解高中物理力学与电学知识。通过实验演示和题型分析，帮助学生理解物理概念和解题思路。',
+    description: '从基础概念到难点突破，全面讲解初中物理力学与电学知识。通过实验演示和题型分析，帮助学生理解物理概念和解题思路。',
     status: 'active'
   },
   {
@@ -75,7 +75,7 @@ const courses = ref<Course[]>([
   },
   {
     id: 4,
-    title: '高中生物 - 基因与遗传',
+    title: '初中生物 - 基因与遗传',
     teacher: '陈老师',
     teacherAvatar: '@/assets/pictures/teacherGirl1.jpeg',
     subject: '生物',

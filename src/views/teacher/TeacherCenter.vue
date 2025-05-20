@@ -207,12 +207,12 @@ export default {
       todayCourses: [
         {
           time: '14:00-16:00',
-          course: '高中英语 - 阅读理解技巧',
+          course: '初中英语 - 阅读理解技巧',
           student: '赵同学'
         },
         {
           time: '16:30-18:30',
-          course: '高中化学 - 有机化学',
+          course: '初中化学 - 有机化学',
           student: '钱同学'
         },
         {
@@ -225,13 +225,13 @@ export default {
         {
           date: '2023-07-10',
           student: '王芳',
-          course: '高中数学 - 概率统计',
+          course: '初中数学 - 概率统计',
           status: '待接单'
         },
         {
           date: '2023-07-09',
           student: '张明',
-          course: '高中数学 - 立体几何',
+          course: '初中数学 - 立体几何',
           status: '已接单'
         }
       ]

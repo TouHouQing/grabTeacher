@@ -16,20 +16,20 @@ interface ScheduleEvent {
 const scheduleEvents = ref<ScheduleEvent[]>([
   {
     id: 1,
-    title: '高中数学 - 函数与导数',
+    title: '初中数学 - 函数与导数',
     start: '2023-07-10T14:00:00',
     end: '2023-07-10T16:00:00',
     student: '张明',
-    course: '高中数学 - 函数与导数',
+    course: '初中数学 - 函数与导数',
     type: 'class'
   },
   {
     id: 2,
-    title: '高中数学 - 三角函数',
+    title: '初中数学 - 三角函数',
     start: '2023-07-12T16:00:00',
     end: '2023-07-12T18:00:00',
     student: '李华',
-    course: '高中数学 - 三角函数',
+    course: '初中数学 - 三角函数',
     type: 'class'
   },
   {

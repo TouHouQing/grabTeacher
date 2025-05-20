@@ -102,7 +102,7 @@ const filteredCampuses = computed(() => {
     <div class="banner">
       <div class="banner-content">
         <h1>校区查询</h1>
-        <p>目前已在全国15个城市开设分校，欢迎前来咨询</p>
+        <p>已在中国北京,上海,天津,江苏,广州,以及新加坡开设100+线下教学点</p>
       </div>
     </div>
 

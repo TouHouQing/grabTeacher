@@ -32,7 +32,7 @@ const teachers = ref([
   {
     name: '张老师',
     subject: '数学',
-    grade: '高中',
+    grade: '初中',
     experience: 10,
     rating: 4.8,
     description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣，使用多种教学方法帮助学生理解数学概念。',
@@ -54,7 +54,7 @@ const teachers = ref([
   {
     name: '王老师',
     subject: '物理',
-    grade: '高中',
+    grade: '初中',
     experience: 12,
     rating: 4.7,
     description: '物理学博士，有丰富的教学经验，能将复杂概念简单化，善于通过实验和演示帮助学生理解物理原理。',
@@ -65,7 +65,7 @@ const teachers = ref([
   {
     name: '刘老师',
     subject: '化学',
-    grade: '高中',
+    grade: '初中',
     experience: 15,
     rating: 4.9,
     description: '化学教育硕士，从事一线教学工作15年，教学方法灵活多样，注重培养学生的实验能力和科学思维。',
@@ -87,7 +87,7 @@ const teachers = ref([
   {
     name: '赵老师',
     subject: '生物',
-    grade: '高中',
+    grade: '初中',
     experience: 9,
     rating: 4.8,
     description: '生物学硕士，有丰富的教学经验，擅长将生物学知识与日常生活相结合，让学习更加生动有趣。',
@@ -190,7 +190,6 @@ const resetFilter = () => {
             <el-select v-model="filter.grade" placeholder="选择年级" clearable>
               <el-option label="小学" value="小学" />
               <el-option label="初中" value="初中" />
-              <el-option label="高中" value="高中" />
             </el-select>
           </el-form-item>
           <el-form-item label="教龄">
