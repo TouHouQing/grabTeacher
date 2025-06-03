@@ -18,6 +18,32 @@ interface CampusData {
 }
 
 const campuses = reactive<CampusData>({
+  xinjiapo: [
+    {
+      id: 8,
+      name: '勿洛校区(东部)',
+      address: '新加坡新樟宜路上段311',
+      phone: '029-88886666',
+      hours: '周一至周日 8:00-22:00',
+      image: '@/assets/pictures/campusWL.jpeg'
+    },
+    {
+      id: 9,
+      name: '政府大厦校区(中部)',
+      address: '新加坡圣安德烈路3号政府大厦10楼',
+      phone: '029-88887777',
+      hours: '周一至周日 9:00-21:00',
+      image: '@/assets/pictures/campusZFDS.jpeg'
+    },
+    {
+      id: 10,
+      name: '裕廊东校区(西部)',
+      address: '新加坡陶清路113号',
+      phone: '029-88888888',
+      hours: '周一至周日 9:00-21:00',
+      image: '@/assets/pictures/campusYLD.jpeg'
+    }
+  ],
   beijing: [
     {
       id: 1,
@@ -119,6 +145,7 @@ const filteredCampuses = computed(() => {
         </div>
         <div class="city-tabs">
           <el-tabs v-model="activeCity">
+            <el-tab-pane label="新加坡" name="xinjiapo"></el-tab-pane>
             <el-tab-pane label="北京" name="beijing"></el-tab-pane>
             <el-tab-pane label="上海" name="shanghai"></el-tab-pane>
             <el-tab-pane label="广州" name="guangzhou"></el-tab-pane>
