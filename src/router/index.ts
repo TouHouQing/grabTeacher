@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import HomeView from '../views/Home.vue'
 import FamousTeachers from '../views/FamousTeachers.vue'
-import PremiumCourses from '../views/PremiumCourses.vue'
+import StudyAbroad from '../views/StudyAbroad.vue'
 import LatestCourses from '../views/LatestCourses.vue'
 import About from '../views/About.vue'
 import Campus from '../views/Campus.vue'
@@ -35,9 +35,9 @@ const router = createRouter({
       component: FamousTeachers
     },
     {
-      path: '/premium-courses',
-      name: 'premium-courses',
-      component: PremiumCourses
+      path: '/study-abroad',
+      name: 'study-abroad',
+      component: StudyAbroad
     },
     {
       path: '/latest-courses',
