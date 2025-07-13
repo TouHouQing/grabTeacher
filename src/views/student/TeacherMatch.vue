@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, Connection, Timer, Male, Female, Message, Loading, View } from '@element-plus/icons-vue'
+import { Calendar, Connection, Timer, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 
 // 声明图片相对路径，使用getImageUrl方法加载
@@ -98,6 +98,38 @@ const scheduleForm = reactive({
   endDate: '',
   sessionCount: 12 // 默认12次课
 })
+
+// 月度课表查看相关数据
+const showMonthlyModal = ref(false)
+const currentMonthTeacher = ref<Teacher | null>(null)
+const currentMonth = ref(new Date().getMonth())
+const currentYear = ref(new Date().getFullYear())
+const monthlyScheduleData = ref<Array<Array<{
+  day: number
+  date: string
+  isCurrentMonth: boolean
+  timeSlots: Array<{
+    time: string
+    available: boolean
+    booked: boolean
+    student: string | null
+  }>
+  availableCount: number
+  bookedCount: number
+}>>>([])
+
+// 日期详情查看相关数据
+const showDayDetailModal = ref(false)
+const selectedDayData = ref<{
+  date: string
+  day: number
+  timeSlots: Array<{
+    time: string
+    available: boolean
+    booked: boolean
+    student: string | null
+  }>
+} | null>(null)
 
 const router = useRouter()
 
@@ -672,24 +704,146 @@ const getTimeSlotConflictSummary = (time: string): string => {
   return ''
 }
 
-const createOrder = (teacher: Teacher) => {
-  // 拼接预约时间信息
-  let appointmentInfo = ''
-  if (matchForm.preferredDateRange && matchForm.preferredDateRange.length === 2 && matchForm.preferredTime) {
-    appointmentInfo = `${matchForm.preferredDateRange[0]} 至 ${matchForm.preferredDateRange[1]} ${matchForm.preferredTime}`
-  }
 
-  // 在真实环境中，这里应该是向后端发送创建订单的请求
-  ElMessage.success({
-    message: `预约成功！${teacher.name}将在${appointmentInfo ? appointmentInfo : '您选择的时间'}与您联系`,
-    duration: 3000
-  })
 
-  // 模拟跳转到订单页面
-  setTimeout(() => {
-    ElMessage.info('即将跳转到订单页面...')
-  }, 2000)
+// 显示月度课表
+const showMonthlySchedule = (teacher: Teacher) => {
+  currentMonthTeacher.value = teacher
+  currentMonth.value = new Date().getMonth()
+  currentYear.value = new Date().getFullYear()
+  generateMonthlyScheduleData()
+  showMonthlyModal.value = true
 }
+
+// 生成月度课表数据
+const generateMonthlyScheduleData = () => {
+  const year = currentYear.value
+  const month = currentMonth.value
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const firstDay = new Date(year, month, 1).getDay()
+
+  monthlyScheduleData.value = []
+
+  // 生成日历数据
+  for (let week = 0; week < 6; week++) {
+    const weekData = []
+    for (let day = 0; day < 7; day++) {
+      const dayNumber = week * 7 + day - firstDay + 1
+
+      if (dayNumber > 0 && dayNumber <= daysInMonth) {
+        const date = new Date(year, month, dayNumber)
+        const dateStr = date.toISOString().split('T')[0]
+
+        // 生成该日的时间段数据
+        const timeSlots = generateDayTimeSlots()
+
+        weekData.push({
+          day: dayNumber,
+          date: dateStr,
+          isCurrentMonth: true,
+          timeSlots: timeSlots,
+          availableCount: timeSlots.filter(slot => slot.available).length,
+          bookedCount: timeSlots.filter(slot => slot.booked).length
+        })
+      } else {
+        weekData.push({
+          day: dayNumber > 0 ? dayNumber : dayNumber + daysInMonth,
+          date: '',
+          isCurrentMonth: false,
+          timeSlots: [],
+          availableCount: 0,
+          bookedCount: 0
+        })
+      }
+    }
+    monthlyScheduleData.value.push(weekData)
+  }
+}
+
+// 生成某一天的时间段数据
+const generateDayTimeSlots = () => {
+  const timeSlots = [
+    '09:00-10:00', '10:00-11:00', '11:00-12:00',
+    '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00',
+    '18:00-19:00', '19:00-20:00', '20:00-21:00'
+  ]
+
+  return timeSlots.map(time => ({
+    time,
+    available: Math.random() > 0.3, // 70%概率可用
+    booked: Math.random() < 0.2,    // 20%概率已预订
+    student: Math.random() < 0.2 ? `学生${Math.floor(Math.random() * 10) + 1}` : null
+  }))
+}
+
+// 切换到上个月
+const previousMonth = () => {
+  if (currentMonth.value === 0) {
+    currentMonth.value = 11
+    currentYear.value--
+  } else {
+    currentMonth.value--
+  }
+  generateMonthlyScheduleData()
+}
+
+// 切换到下个月
+const nextMonth = () => {
+  if (currentMonth.value === 11) {
+    currentMonth.value = 0
+    currentYear.value++
+  } else {
+    currentMonth.value++
+  }
+  generateMonthlyScheduleData()
+}
+
+// 获取月份名称
+const getMonthName = (month: number): string => {
+  const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+  return months[month]
+}
+
+// 获取星期名称
+const getDayName = (dayIndex: number): string => {
+  const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  return days[dayIndex]
+}
+
+// 点击日期查看详情
+const showDayDetail = (dayData: {
+  day: number
+  date: string
+  isCurrentMonth: boolean
+  timeSlots: Array<{
+    time: string
+    available: boolean
+    booked: boolean
+    student: string | null
+  }>
+  availableCount: number
+  bookedCount: number
+}) => {
+  if (!dayData.isCurrentMonth || !dayData.date) return
+
+  selectedDayData.value = {
+    date: dayData.date,
+    day: dayData.day,
+    timeSlots: dayData.timeSlots
+  }
+  showDayDetailModal.value = true
+}
+
+// 格式化完整日期显示
+const formatFullDate = (dateStr: string): string => {
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const weekday = getDayName(date.getDay())
+  return `${year}年${month}月${day}日 ${weekday}`
+}
+
 </script>
 
 <template>
@@ -866,10 +1020,10 @@ const createOrder = (teacher: Teacher) => {
                 </div>
               </div>
               <div class="teacher-actions">
-                <el-button type="primary" @click="createOrder(teacher)" size="large">
+                <el-button type="primary" @click="showTeacherSchedule(teacher)" size="large">
                   <el-icon><Calendar /></el-icon> 预约课程
                 </el-button>
-                <el-button type="warning" @click="showTeacherSchedule(teacher)" size="large">
+                <el-button type="warning" @click="showMonthlySchedule(teacher)" size="large">
                   <el-icon><Calendar /></el-icon> 查看课表
                 </el-button>
                 <el-button type="info" plain size="large">
@@ -1055,6 +1209,123 @@ const createOrder = (teacher: Teacher) => {
           >
             确认排课
           </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 月度课表弹窗 -->
+    <el-dialog
+      v-model="showMonthlyModal"
+      :title="`${currentMonthTeacher?.name} - ${getMonthName(currentMonth)} ${currentYear}年课表`"
+      width="900px"
+      :close-on-click-modal="false"
+      destroy-on-close
+    >
+      <div class="monthly-schedule-content">
+        <div class="monthly-header">
+          <el-button-group>
+            <el-button @click="previousMonth">
+              <el-icon><ArrowLeft /></el-icon>
+            </el-button>
+            <el-button>{{ getMonthName(currentMonth) }} {{ currentYear }}年</el-button>
+            <el-button @click="nextMonth">
+              <el-icon><ArrowRight /></el-icon>
+            </el-button>
+          </el-button-group>
+        </div>
+
+        <div class="monthly-calendar">
+          <div class="week-header">
+            <div v-for="day in [0, 1, 2, 3, 4, 5, 6]" :key="day" class="week-header-day">
+              {{ getDayName(day) }}
+            </div>
+          </div>
+
+          <div class="calendar-grid">
+            <div v-for="(week, weekIndex) in monthlyScheduleData" :key="weekIndex" class="week-row">
+              <div v-for="(day, dayIndex) in week" :key="dayIndex"
+                   :class="['day-cell', { 'other-month': !day.isCurrentMonth, 'clickable': day.isCurrentMonth }]"
+                   @click="showDayDetail(day)">
+                <div class="day-header">
+                  <span class="day-number">{{ day.day }}</span>
+                </div>
+                <div class="day-content" v-if="day.isCurrentMonth">
+                  <div class="day-summary">
+                    <span class="available-count">{{ day.availableCount }}可用</span>
+                    <span class="booked-count">{{ day.bookedCount }}已订</span>
+                  </div>
+                  <div class="time-slots-preview">
+                    <div
+                      v-for="slot in day.timeSlots.slice(0, 3)"
+                      :key="slot.time"
+                      :class="['mini-slot', { 'available': slot.available, 'booked': slot.booked }]"
+                      :title="`${slot.time} - ${slot.booked ? '已预订' : '可用'}`"
+                    >
+                      {{ slot.time.split('-')[0] }}
+                    </div>
+                    <div v-if="day.timeSlots.length > 3" class="more-slots">
+                      +{{ day.timeSlots.length - 3 }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showMonthlyModal = false">关闭</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 日期详情弹窗 -->
+    <el-dialog
+      v-model="showDayDetailModal"
+      :title="selectedDayData ? `${selectedDayData.day}日 - ${formatFullDate(selectedDayData.date)}` : '日期详情'"
+      width="700px"
+      :close-on-click-modal="false"
+      destroy-on-close
+    >
+      <div class="day-detail-content" v-if="selectedDayData">
+        <div class="day-stats">
+          <div class="stat-item">
+            <span class="stat-label">可用时段：</span>
+            <span class="stat-value available">{{ selectedDayData.timeSlots.filter(slot => slot.available).length }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">已预订：</span>
+            <span class="stat-value booked">{{ selectedDayData.timeSlots.filter(slot => slot.booked).length }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">总时段：</span>
+            <span class="stat-value total">{{ selectedDayData.timeSlots.length }}</span>
+          </div>
+        </div>
+
+        <div class="time-slots-detail">
+          <h4>详细时段安排</h4>
+          <div class="slots-grid">
+            <div
+              v-for="slot in selectedDayData.timeSlots"
+              :key="slot.time"
+              :class="['time-slot-detail', { 'available': slot.available, 'booked': slot.booked }]"
+            >
+              <div class="slot-time">{{ slot.time }}</div>
+              <div class="slot-status">
+                <span v-if="slot.booked" class="status-booked">已预订</span>
+                <span v-else-if="slot.available" class="status-available">可预约</span>
+                <span v-else class="status-unavailable">不可用</span>
+              </div>
+              <div v-if="slot.student" class="slot-student">{{ slot.student }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showDayDetailModal = false">关闭</el-button>
         </span>
       </template>
     </el-dialog>
@@ -1909,6 +2180,291 @@ h2 {
   .schedule-modal-content {
     padding: 15px;
   }
+}
+
+/* 月度课表弹窗样式 */
+.monthly-schedule-content {
+  padding: 20px;
+}
+
+.monthly-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.monthly-header .el-button-group {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.monthly-calendar {
+  width: 100%;
+}
+
+.week-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 10px 0;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.week-header-day {
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+  font-size: 14px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+}
+
+.week-row {
+  display: contents;
+}
+
+.day-cell {
+  background-color: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.day-cell:hover {
+  border-color: #409eff;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
+}
+
+.day-cell.other-month {
+  background-color: #f8f8f8;
+  color: #ccc;
+  opacity: 0.5;
+}
+
+.day-cell.clickable {
+  cursor: pointer;
+}
+
+.day-cell.clickable:hover {
+  border-color: #409eff;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.day-header {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+}
+
+.day-number {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.day-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  margin-top: 25px;
+}
+
+.day-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
+
+.available-count {
+  font-size: 11px;
+  color: #67c23a;
+  font-weight: 500;
+}
+
+.booked-count {
+  font-size: 11px;
+  color: #faad14;
+  font-weight: 500;
+}
+
+.time-slots-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.mini-slot {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background-color: #f0f0f0;
+  color: #666;
+  font-weight: 500;
+  min-width: 20px;
+  text-align: center;
+}
+
+.mini-slot.available {
+  background-color: #e1f3d8;
+  color: #67c23a;
+}
+
+.mini-slot.booked {
+  background-color: #fffbe6;
+  color: #faad14;
+}
+
+.more-slots {
+  font-size: 10px;
+  color: #999;
+  font-weight: 500;
+  padding: 2px 4px;
+  background-color: #f0f0f0;
+  border-radius: 3px;
+}
+
+.day-detail-content {
+  padding: 20px;
+}
+
+.day-stats {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.stat-item {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.stat-value.available {
+  color: #67c23a;
+}
+
+.stat-value.booked {
+  color: #faad14;
+}
+
+.stat-value.total {
+  color: #409eff;
+}
+
+.time-slots-detail h4 {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.time-slot-detail {
+  background-color: #fff;
+  border: 2px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.time-slot-detail:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.time-slot-detail.available {
+  border-color: #67c23a;
+  background-color: #f6ffed;
+}
+
+.time-slot-detail.booked {
+  border-color: #faad14;
+  background-color: #fffbe6;
+}
+
+.slot-time {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.slot-status {
+  margin-bottom: 8px;
+}
+
+.status-available {
+  color: #67c23a;
+  font-weight: 500;
+  background-color: #e1f3d8;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.status-booked {
+  color: #faad14;
+  font-weight: 500;
+  background-color: #ffe58f;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.status-unavailable {
+  color: #999;
+  font-weight: 500;
+  background-color: #f0f0f0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.slot-student {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
 }
 </style>
 
