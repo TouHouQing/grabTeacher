@@ -28,6 +28,47 @@ interface Teacher {
   teachingStyle: string
 }
 
+// 新增课表相关接口
+interface TimeSlot {
+  date: string
+  time: string
+  available: boolean
+  booked?: boolean
+  selected?: boolean
+}
+
+interface WeekSchedule {
+  weekStart: string
+  weekEnd: string
+  slots: TimeSlot[]
+}
+
+interface TeacherSchedule {
+  teacherName: string
+  yearSchedule: WeekSchedule[]
+}
+
+// 新增周期性课程选择接口
+interface RecurringSchedule {
+  id: string
+  weekdays: number[] // 0=周日, 1=周一, ..., 6=周六
+  timeSlot: string // 如 "14:00-15:00"
+  startDate: string
+  endDate: string
+  totalSessions: number
+  description: string
+}
+
+interface AvailableTimeSlot {
+  weekday: number
+  time: string
+  available: boolean
+  conflictDates?: string[] // 冲突的具体日期
+  availableFromDate?: string // 从什么时候开始可用
+  conflictEndDate?: string // 冲突结束日期
+  conflictReason?: string // 冲突原因
+}
+
 const matchForm = reactive({
   subject: '',
   grade: '',
@@ -40,6 +81,23 @@ const matchForm = reactive({
 const loading = ref(false)
 const showResults = ref(false)
 const matchedTeachers = ref<Teacher[]>([])
+
+// 新增课表相关数据
+const showScheduleModal = ref(false)
+const currentTeacher = ref<Teacher | null>(null)
+const currentTeacherSchedule = ref<TeacherSchedule | null>(null)
+
+// 新增周期性选课数据
+const recurringSchedules = ref<RecurringSchedule[]>([])
+const availableTimeSlots = ref<AvailableTimeSlot[]>([])
+const selectedRecurringSchedule = ref<RecurringSchedule | null>(null)
+const scheduleForm = reactive({
+  selectedWeekdays: [] as number[],
+  selectedTimeSlots: [] as string[], // 改为数组支持多选
+  startDate: '',
+  endDate: '',
+  sessionCount: 12 // 默认12次课
+})
 
 const router = useRouter()
 
@@ -221,23 +279,416 @@ const resetForm = () => {
   showResults.value = false;
 }
 
+// 生成未来一年的课表数据
+const generateYearSchedule = (teacherName: string): TeacherSchedule => {
+  const yearSchedule: WeekSchedule[] = []
+  const currentDate = new Date()
+
+  // 生成52周的课表
+  for (let week = 0; week < 52; week++) {
+    const weekStart = new Date(currentDate)
+    weekStart.setDate(currentDate.getDate() + week * 7 - currentDate.getDay())
+
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 6)
+
+    const slots: TimeSlot[] = []
+
+    // 每周生成时间段
+    for (let day = 0; day < 7; day++) {
+      const slotDate = new Date(weekStart)
+      slotDate.setDate(weekStart.getDate() + day)
+
+      // 根据星期几生成不同的时间段
+      const timeSlots = getTimeSlotsForDay(slotDate.getDay())
+
+      timeSlots.forEach(time => {
+        // 随机设置一些时间段为已预订
+        const isBooked = Math.random() < 0.3
+        slots.push({
+          date: slotDate.toISOString().split('T')[0],
+          time: time,
+          available: !isBooked,
+          booked: isBooked,
+          selected: false
+        })
+      })
+    }
+
+    yearSchedule.push({
+      weekStart: weekStart.toISOString().split('T')[0],
+      weekEnd: weekEnd.toISOString().split('T')[0],
+      slots: slots
+    })
+  }
+
+  return {
+    teacherName: teacherName,
+    yearSchedule: yearSchedule
+  }
+}
+
+// 根据星期几返回可用的时间段
+const getTimeSlotsForDay = (dayOfWeek: number): string[] => {
+  // 0 = 周日, 1 = 周一, ..., 6 = 周六
+  const weekdaySlots = ['16:00-17:00', '17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00']
+  const weekendSlots = ['09:00-10:00', '10:00-11:00', '11:00-12:00', '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00']
+
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    return weekendSlots
+  } else {
+    return weekdaySlots
+  }
+}
+
+// 显示教师课表
+const showTeacherSchedule = (teacher: Teacher) => {
+  currentTeacher.value = teacher
+  currentTeacherSchedule.value = generateYearSchedule(teacher.name)
+
+  // 生成可用的周期性时间段
+  generateAvailableTimeSlots()
+
+  // 重置选课表单
+  scheduleForm.selectedWeekdays = []
+  scheduleForm.selectedTimeSlots = []
+  scheduleForm.startDate = new Date().toISOString().split('T')[0]
+  scheduleForm.endDate = ''
+  scheduleForm.sessionCount = 12
+
+  showScheduleModal.value = true
+}
+
+// 生成可用的周期性时间段
+const generateAvailableTimeSlots = () => {
+  availableTimeSlots.value = []
+
+  const weekdays = [1, 2, 3, 4, 5, 6, 0] // 周一到周日
+  const timeSlots = [
+    '09:00-10:00', '10:00-11:00', '11:00-12:00',
+    '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00',
+    '18:00-19:00', '19:00-20:00', '20:00-21:00'
+  ]
+
+  weekdays.forEach(weekday => {
+    timeSlots.forEach(time => {
+      // 检查该时间段在未来3个月内的可用性
+      const { conflicts, availableFromDate, conflictEndDate, conflictReason } = checkTimeSlotConflicts(weekday, time)
+      const availabilityRate = 1 - (conflicts.length / 12) // 假设检查12周
+
+      availableTimeSlots.value.push({
+        weekday,
+        time,
+        available: availabilityRate > 0.7, // 70%以上可用才显示为可选
+        conflictDates: conflicts,
+        availableFromDate,
+        conflictEndDate,
+        conflictReason
+      })
+    })
+  })
+}
+
+// 检查时间段冲突
+const checkTimeSlotConflicts = (weekday: number, time: string): { conflicts: string[], availableFromDate?: string, conflictEndDate?: string, conflictReason?: string } => {
+  const conflicts: string[] = []
+  const currentDate = new Date()
+  let availableFromDate: string | undefined
+  let conflictEndDate: string | undefined
+  let conflictReason: string | undefined
+
+  // 检查未来12周的该时间段
+  for (let week = 0; week < 12; week++) {
+    const checkDate = new Date(currentDate)
+    checkDate.setDate(currentDate.getDate() + week * 7 + (weekday - currentDate.getDay()))
+
+    const dateStr = checkDate.toISOString().split('T')[0]
+
+    // 检查该日期该时间段是否已被预订
+    if (currentTeacherSchedule.value) {
+      for (const weekSchedule of currentTeacherSchedule.value.yearSchedule) {
+        const slot = weekSchedule.slots.find(s => s.date === dateStr && s.time === time)
+        if (slot && slot.booked) {
+          conflicts.push(dateStr)
+
+          // 模拟结课逻辑：假设有些课程会在特定日期结束
+          if (Math.random() < 0.3) { // 30%的概率是结课
+            const endDate = new Date(checkDate)
+            endDate.setDate(checkDate.getDate() + Math.floor(Math.random() * 28) + 7) // 1-4周后结课
+            conflictEndDate = endDate.toISOString().split('T')[0]
+            conflictReason = '学生课程结束'
+
+            // 结课后的下一周就可以选择
+            const nextAvailableDate = new Date(endDate)
+            nextAvailableDate.setDate(endDate.getDate() + 7)
+            if (!availableFromDate || nextAvailableDate < new Date(availableFromDate)) {
+              availableFromDate = nextAvailableDate.toISOString().split('T')[0]
+            }
+          } else {
+            conflictReason = '已有其他学生预约'
+          }
+          break
+        }
+      }
+    }
+  }
+
+  return { conflicts, availableFromDate, conflictEndDate, conflictReason }
+}
+
+// 创建周期性课程
+const createRecurringSchedule = () => {
+  if (scheduleForm.selectedWeekdays.length === 0 || scheduleForm.selectedTimeSlots.length === 0) {
+    ElMessage.warning('请选择上课时间')
+    return
+  }
+
+  if (!scheduleForm.startDate || !scheduleForm.endDate) {
+    ElMessage.warning('请选择开始和结束日期')
+    return
+  }
+
+  const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  const selectedDays = scheduleForm.selectedWeekdays.map(day => weekdayNames[day]).join('、')
+  const selectedTimes = scheduleForm.selectedTimeSlots.map(time => time).join('、')
+
+  const newSchedule: RecurringSchedule = {
+    id: Date.now().toString(),
+    weekdays: scheduleForm.selectedWeekdays,
+    timeSlot: selectedTimes,
+    startDate: scheduleForm.startDate,
+    endDate: scheduleForm.endDate,
+    totalSessions: scheduleForm.sessionCount,
+    description: `每周${selectedDays} ${selectedTimes}`
+  }
+
+  recurringSchedules.value.push(newSchedule)
+  selectedRecurringSchedule.value = newSchedule
+
+  ElMessage.success({
+    message: `课程安排成功！${currentTeacher.value?.name} - ${newSchedule.description}，共${newSchedule.totalSessions}次课`,
+    duration: 5000
+  })
+
+  showScheduleModal.value = false
+
+  // 模拟跳转到订单页面
+  setTimeout(() => {
+    ElMessage.info('即将跳转到订单页面...')
+  }, 2000)
+}
+
+// 计算课程结束日期
+const calculateEndDate = () => {
+  if (!scheduleForm.startDate || scheduleForm.selectedWeekdays.length === 0) return
+
+  const startDate = new Date(scheduleForm.startDate)
+  const sessionsPerWeek = scheduleForm.selectedWeekdays.length
+  const totalWeeks = Math.ceil(scheduleForm.sessionCount / sessionsPerWeek)
+
+  const endDate = new Date(startDate)
+  endDate.setDate(startDate.getDate() + (totalWeeks - 1) * 7)
+
+  scheduleForm.endDate = endDate.toISOString().split('T')[0]
+}
+
+// 获取星期几的中文名称
+const getWeekdayName = (weekday: number): string => {
+  const names = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  return names[weekday]
+}
+
+// 获取唯一的时间段列表
+const getUniqueTimeSlots = (): string[] => {
+  const timeSlots = [
+    '09:00-10:00', '10:00-11:00', '11:00-12:00',
+    '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00',
+    '18:00-19:00', '19:00-20:00', '20:00-21:00'
+  ]
+  return timeSlots
+}
+
+// 选择时间段
+const selectTimeSlot = (time: string) => {
+  if (scheduleForm.selectedTimeSlots.includes(time)) {
+    scheduleForm.selectedTimeSlots = scheduleForm.selectedTimeSlots.filter(t => t !== time)
+  } else {
+    scheduleForm.selectedTimeSlots.push(time)
+  }
+  // 清空之前选择的星期，让用户重新选择
+  scheduleForm.selectedWeekdays = []
+  // 重新计算结束日期
+  calculateEndDate()
+}
+
+// 获取星期几的短名称
+const getWeekdayShort = (weekday: number): string => {
+  const names = ['日', '一', '二', '三', '四', '五', '六']
+  return names[weekday]
+}
+
+// 判断某个星期几是否可用（检查所有选中的时间段）
+const isTimeSlotAvailable = (weekday: number, time: string): boolean => {
+  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && s.time === time)
+  return slot ? slot.available : true // 默认可用，除非有冲突
+}
+
+// 判断某个时间段是否有可用的开始日期
+const hasAvailableFromDate = (weekday: number, time: string): boolean => {
+  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && s.time === time)
+  return slot ? !!slot.availableFromDate : false
+}
+
+// 判断某个星期几对所有选中时间段是否可用
+const isWeekdayAvailableForAllSlots = (weekday: number): boolean => {
+  if (scheduleForm.selectedTimeSlots.length === 0) return true
+
+  return scheduleForm.selectedTimeSlots.every(time =>
+    isTimeSlotAvailable(weekday, time)
+  )
+}
+
+// 获取星期几的综合禁用原因
+const getWeekdayDisabledReasonForAllSlots = (weekday: number): string => {
+  if (scheduleForm.selectedTimeSlots.length === 0) return ''
+
+  const unavailableSlots = scheduleForm.selectedTimeSlots.filter(time =>
+    !isTimeSlotAvailable(weekday, time)
+  )
+
+  if (unavailableSlots.length === 0) return ''
+
+  if (unavailableSlots.length === 1) {
+    return getWeekdayDisabledReason(weekday, unavailableSlots[0])
+  }
+
+  return `(${unavailableSlots.length}个时间段冲突)`
+}
+
+// 判断某个星期几是否有未来可用的时间段
+const hasAvailableFromDateForAllSlots = (weekday: number): boolean => {
+  if (scheduleForm.selectedTimeSlots.length === 0) return false
+
+  return scheduleForm.selectedTimeSlots.some(time =>
+    hasAvailableFromDate(weekday, time)
+  )
+}
+
+// 获取星期几的综合可用开始时间
+const getWeekdayAvailableFromDateForAllSlots = (weekday: number): string => {
+  if (scheduleForm.selectedTimeSlots.length === 0) return ''
+
+  const availableFromDates = scheduleForm.selectedTimeSlots
+    .map(time => {
+      const slot = availableTimeSlots.value.find(s => s.weekday === weekday && s.time === time)
+      return slot?.availableFromDate
+    })
+    .filter(date => date)
+    .sort()
+
+  if (availableFromDates.length === 0) return ''
+
+  return `(${formatDate(availableFromDates[0]!)}起部分可用)`
+}
+
+// 获取星期几的提示信息
+const getWeekdayTooltip = (weekday: number, time: string): string => {
+  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && s.time === time)
+  if (!slot) return ''
+
+  if (slot.available) {
+    return '可用'
+  }
+
+  if (slot.availableFromDate) {
+    return `从 ${formatDate(slot.availableFromDate)} 开始可用`
+  }
+
+  if (slot.conflictReason) {
+    return `冲突原因: ${slot.conflictReason}`
+  }
+
+  if (slot.conflictDates && slot.conflictDates.length > 0) {
+    return `冲突日期: ${slot.conflictDates.slice(0, 3).map(d => formatDate(d)).join(', ')}${slot.conflictDates.length > 3 ? '...' : ''}`
+  }
+
+  return '暂不可用'
+}
+
+// 获取星期几禁用原因
+const getWeekdayDisabledReason = (weekday: number, time: string): string => {
+  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && s.time === time)
+  if (!slot) return '(暂不可用)'
+
+  if (slot.conflictReason === '学生课程结束') {
+    return '(学生即将结课)'
+  }
+
+  return '(该时间段冲突较多)'
+}
+
+
+
+// 格式化日期显示
+const formatDate = (dateStr: string): string => {
+  const date = new Date(dateStr)
+  return `${date.getMonth() + 1}月${date.getDate()}日`
+}
+
+// 判断某个时间段是否有冲突
+const hasTimeSlotConflicts = (time: string): boolean => {
+  return availableTimeSlots.value.some(slot =>
+    slot.time === time &&
+    ((slot.conflictDates && slot.conflictDates.length > 0) || slot.availableFromDate)
+  )
+}
+
+// 获取冲突摘要
+const getTimeSlotConflictSummary = (time: string): string => {
+  const conflictSlots = availableTimeSlots.value.filter(slot =>
+    slot.time === time &&
+    ((slot.conflictDates && slot.conflictDates.length > 0) || slot.availableFromDate)
+  )
+
+  if (conflictSlots.length === 0) return ''
+
+  const availableFromSlots = conflictSlots.filter(slot => slot.availableFromDate)
+  const conflictSlots2 = conflictSlots.filter(slot => slot.conflictDates && slot.conflictDates.length > 0)
+
+  if (availableFromSlots.length > 0) {
+    const earliestDate = availableFromSlots.reduce((earliest, slot) => {
+      return !earliest || (slot.availableFromDate && slot.availableFromDate < earliest)
+        ? slot.availableFromDate
+        : earliest
+    }, '')
+    return `部分时段从 ${earliestDate} 开始可用`
+  }
+
+  if (conflictSlots2.length > 0) {
+    const totalConflicts = conflictSlots2.reduce((sum, slot) => sum + (slot.conflictDates?.length || 0), 0)
+    return `${totalConflicts} 个时段有冲突`
+  }
+
+  return ''
+}
+
 const createOrder = (teacher: Teacher) => {
   // 拼接预约时间信息
-  let appointmentInfo = '';
+  let appointmentInfo = ''
   if (matchForm.preferredDateRange && matchForm.preferredDateRange.length === 2 && matchForm.preferredTime) {
-    appointmentInfo = `${matchForm.preferredDateRange[0]} 至 ${matchForm.preferredDateRange[1]} ${matchForm.preferredTime}`;
+    appointmentInfo = `${matchForm.preferredDateRange[0]} 至 ${matchForm.preferredDateRange[1]} ${matchForm.preferredTime}`
   }
 
   // 在真实环境中，这里应该是向后端发送创建订单的请求
   ElMessage.success({
     message: `预约成功！${teacher.name}将在${appointmentInfo ? appointmentInfo : '您选择的时间'}与您联系`,
     duration: 3000
-  });
+  })
 
   // 模拟跳转到订单页面
   setTimeout(() => {
-    ElMessage.info('即将跳转到订单页面...');
-  }, 2000);
+    ElMessage.info('即将跳转到订单页面...')
+  }, 2000)
 }
 </script>
 
@@ -418,6 +869,9 @@ const createOrder = (teacher: Teacher) => {
                 <el-button type="primary" @click="createOrder(teacher)" size="large">
                   <el-icon><Calendar /></el-icon> 预约课程
                 </el-button>
+                <el-button type="warning" @click="showTeacherSchedule(teacher)" size="large">
+                  <el-icon><Calendar /></el-icon> 查看课表
+                </el-button>
                 <el-button type="info" plain size="large">
                   <el-icon><Message /></el-icon> 联系教师
                 </el-button>
@@ -437,6 +891,173 @@ const createOrder = (teacher: Teacher) => {
         </div>
       </div>
     </div>
+
+    <!-- 教师课表弹窗 -->
+    <el-dialog
+      v-model="showScheduleModal"
+      :title="`${currentTeacher?.name} - 课程安排`"
+      width="900px"
+      :close-on-click-modal="false"
+      destroy-on-close
+    >
+      <div class="schedule-modal-content">
+        <div class="schedule-tip">
+          <el-alert
+            title="选课说明"
+            description="选择固定的上课时间段，系统会自动安排周期性课程"
+            type="info"
+            show-icon
+            :closable="false"
+          />
+        </div>
+
+        <el-form :model="scheduleForm" label-width="120px" class="schedule-form">
+          <el-form-item label="选择时间段">
+            <div class="form-item-tip">点击选择您偏好的上课时间段 (可多选)</div>
+            <div class="time-slot-selection">
+              <div
+                v-for="time in getUniqueTimeSlots()"
+                :key="time"
+                :class="[
+                  'time-slot-card',
+                  {
+                    'selected': scheduleForm.selectedTimeSlots.includes(time),
+                    'has-conflicts': hasTimeSlotConflicts(time)
+                  }
+                ]"
+                @click="selectTimeSlot(time)"
+              >
+                <div class="slot-time">{{ time }}</div>
+                <div class="slot-weekdays">
+                  <span
+                    v-for="weekday in [1, 2, 3, 4, 5, 6, 0]"
+                    :key="weekday"
+                    :class="[
+                      'weekday-indicator',
+                      {
+                        'available': isTimeSlotAvailable(weekday, time),
+                        'unavailable': !isTimeSlotAvailable(weekday, time),
+                        'future-available': hasAvailableFromDate(weekday, time)
+                      }
+                    ]"
+                    :title="getWeekdayTooltip(weekday, time)"
+                  >
+                    {{ getWeekdayShort(weekday) }}
+                  </span>
+                </div>
+                <div class="slot-availability-info" v-if="hasTimeSlotConflicts(time)">
+                  <div class="conflict-summary">
+                    {{ getTimeSlotConflictSummary(time) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </el-form-item>
+
+          <el-form-item label="选择星期" v-if="scheduleForm.selectedTimeSlots.length > 0">
+            <div class="form-item-tip">选择每周的哪几天上课 (可横向滑动查看所有选项)</div>
+            <div class="weekday-selection">
+              <el-checkbox-group v-model="scheduleForm.selectedWeekdays">
+                <el-checkbox
+                  v-for="weekday in [1, 2, 3, 4, 5, 6, 0]"
+                  :key="weekday"
+                  :label="weekday"
+                  :disabled="!isWeekdayAvailableForAllSlots(weekday)"
+                >
+                  <span class="weekday-label">{{ getWeekdayName(weekday) }}</span>
+                  <span v-if="!isWeekdayAvailableForAllSlots(weekday)" class="disabled-reason">
+                    {{ getWeekdayDisabledReasonForAllSlots(weekday) }}
+                  </span>
+                  <span v-else-if="hasAvailableFromDateForAllSlots(weekday)" class="available-from-date">
+                    {{ getWeekdayAvailableFromDateForAllSlots(weekday) }}
+                  </span>
+                </el-checkbox>
+              </el-checkbox-group>
+            </div>
+          </el-form-item>
+
+          <el-form-item label="开始日期">
+            <el-date-picker
+              v-model="scheduleForm.startDate"
+              type="date"
+              placeholder="选择开始日期"
+              :disabled-date="(date) => date < new Date()"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              @change="calculateEndDate"
+              style="width: 200px"
+            />
+          </el-form-item>
+
+          <el-form-item label="课程次数">
+            <el-input-number
+              v-model="scheduleForm.sessionCount"
+              :min="1"
+              :max="50"
+              @change="calculateEndDate"
+              style="width: 200px"
+            />
+            <span class="session-info">次课</span>
+          </el-form-item>
+
+          <el-form-item label="结束日期">
+            <el-input
+              v-model="scheduleForm.endDate"
+              placeholder="自动计算"
+              readonly
+              style="width: 200px"
+            />
+          </el-form-item>
+
+          <el-form-item label="课程预览" v-if="scheduleForm.selectedWeekdays.length > 0 && scheduleForm.selectedTimeSlots.length > 0">
+            <div class="schedule-preview">
+              <div class="preview-title">课程安排：</div>
+              <div class="preview-content">
+                <div class="preview-weekdays">
+                  <span class="preview-label">上课时间：</span>
+                  <el-tag type="success" size="large" class="schedule-tag">
+                    每周{{ scheduleForm.selectedWeekdays.map(day => getWeekdayName(day)).join('、') }}
+                  </el-tag>
+                </div>
+                <div class="preview-timeslots">
+                  <span class="preview-label">时间段：</span>
+                  <div class="timeslots-container">
+                    <el-tag
+                      v-for="timeSlot in scheduleForm.selectedTimeSlots"
+                      :key="timeSlot"
+                      type="primary"
+                      size="large"
+                      class="timeslot-tag"
+                    >
+                      {{ timeSlot }}
+                    </el-tag>
+                  </div>
+                </div>
+              </div>
+              <div class="preview-details">
+                <span>共 {{ scheduleForm.sessionCount }} 次课</span>
+                <span>每周 {{ scheduleForm.selectedWeekdays.length }} 天</span>
+                <span>每天 {{ scheduleForm.selectedTimeSlots.length }} 个时间段</span>
+                <span>约 {{ Math.ceil(scheduleForm.sessionCount / (scheduleForm.selectedWeekdays.length * scheduleForm.selectedTimeSlots.length)) }} 周完成</span>
+              </div>
+            </div>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showScheduleModal = false">取消</el-button>
+          <el-button
+            type="primary"
+            @click="createRecurringSchedule"
+            :disabled="scheduleForm.selectedTimeSlots.length === 0 || scheduleForm.selectedWeekdays.length === 0"
+          >
+            确认排课
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -725,29 +1346,570 @@ h2 {
 }
 
 @media (max-width: 768px) {
-  .teacher-card {
+  .time-slot-selection {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .time-slot-card {
+    padding: 12px;
+    min-height: 50px;
+  }
+
+  .slot-time {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .weekday-indicator {
+    font-size: 9px;
+    padding: 1px 4px;
+    min-width: 14px;
+  }
+
+  .weekday-selection {
+    padding: 15px;
+  }
+
+  .el-checkbox-group {
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+  }
+
+  .el-checkbox-group .el-checkbox {
+    padding: 8px 4px;
+    min-height: 36px;
+  }
+
+  .weekday-label {
+    font-size: 12px;
+  }
+
+  .disabled-reason {
+    font-size: 9px;
+  }
+
+  .preview-details {
     flex-direction: column;
+    gap: 10px;
   }
 
-  .teacher-avatar {
-    width: 100%;
-    height: 200px;
+  .schedule-form .el-form-item {
+    margin-bottom: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .time-slot-selection {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
-  .match-score {
-    top: 10px;
-    right: 10px;
-    width: 50px;
-    height: 50px;
+  .time-slot-card {
+    padding: 12px;
+    min-height: 50px;
   }
 
-  .score {
-    font-size: 16px;
+  .slot-time {
+    font-size: 12px;
   }
 
-  .match-text {
-    font-size: 10px;
+  .weekday-indicator {
+    font-size: 8px;
+    padding: 1px 3px;
+    min-width: 12px;
+  }
+
+  .weekday-selection {
+    padding: 12px;
+  }
+
+  .el-checkbox-group {
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+  }
+
+  .el-checkbox-group .el-checkbox {
+    padding: 8px 4px;
+    min-height: 34px;
+  }
+
+  .weekday-label {
+    font-size: 11px;
+  }
+
+  .disabled-reason {
+    font-size: 8px;
+    margin-top: 1px;
+  }
+
+  .schedule-modal-content {
+    padding: 15px;
+  }
+}
+
+/* 优化表单项间距 */
+.schedule-form .el-form-item {
+  margin-bottom: 25px;
+}
+
+/* 图标对齐 */
+.el-icon + span {
+  margin-left: 5px;
+}
+
+/* 优化按钮组样式 */
+.el-button-group {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 课表弹窗样式 */
+.schedule-modal-content {
+  padding: 25px;
+}
+
+.schedule-tip {
+  margin-bottom: 30px;
+}
+
+.schedule-form {
+  margin-top: 20px;
+}
+
+.form-item-tip {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 10px;
+}
+
+.time-slot-selection {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 15px;
+}
+
+.time-slot-card {
+  background-color: #f8f8f8;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 18px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 85px;
+  justify-content: center;
+}
+
+.time-slot-card:hover {
+  background-color: #e0e0e0;
+  border-color: #ccc;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.time-slot-card.selected {
+  background-color: #f6ffed;
+  border-color: #52c41a;
+  box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.2);
+  position: relative;
+}
+
+.time-slot-card.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: #52c41a;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.time-slot-card.has-conflicts {
+  border-color: #ffd666;
+  background-color: #fffbe6;
+}
+
+.slot-time {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.slot-weekdays {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+
+.weekday-indicator {
+  padding: 2px 6px;
+  border-radius: 3px;
+  background-color: #f0f0f0;
+  color: #666;
+  font-size: 10px;
+  font-weight: 500;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.weekday-indicator.available {
+  background-color: #e6f7ff;
+  color: #1890ff;
+}
+
+.weekday-indicator.unavailable {
+  background-color: #f5f5f5;
+  color: #bbb;
+  text-decoration: line-through;
+}
+
+.weekday-indicator.future-available {
+  background-color: #e1f3d8; /* 浅绿色背景 */
+  color: #67c23a; /* 深绿色文字 */
+}
+
+.slot-availability-info {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #999;
+  text-align: center;
+  max-width: 100%;
+  word-wrap: break-word;
+}
+
+.conflict-summary {
+  color: #e6a23c;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.weekday-selection {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 10px;
+  border: 1px solid #e8e8e8;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* 自定义滚动条样式 */
+.weekday-selection::-webkit-scrollbar {
+  height: 6px;
+}
+
+.weekday-selection::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.weekday-selection::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.weekday-selection::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.session-info {
+  margin-left: 10px;
+  color: #666;
+}
+
+/* 优化复选框组样式 */
+.el-checkbox-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  min-width: 700px;
+  padding-bottom: 5px;
+}
+
+.el-checkbox-group .el-checkbox {
+  margin-right: 0;
+  white-space: nowrap;
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 12px 16px;
+  transition: all 0.3s;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  flex: 0 0 auto;
+  min-width: 90px;
+}
+
+.el-checkbox-group .el-checkbox:hover {
+  border-color: #409eff;
+  background-color: #f0f9ff;
+}
+
+.el-checkbox-group .el-checkbox.is-checked {
+  border-color: #52c41a;
+  background-color: #f6ffed;
+}
+
+.el-checkbox-group .el-checkbox.is-disabled {
+  background-color: #f5f5f5;
+  border-color: #d9d9d9;
+  opacity: 0.6;
+}
+
+.el-checkbox-group .el-checkbox .el-checkbox__label {
+  padding-left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.weekday-label {
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.disabled-reason {
+  color: #999;
+  font-size: 10px;
+  font-weight: normal;
+  margin-top: 2px;
+  text-align: center;
+}
+
+.available-from-date {
+  font-size: 10px;
+  color: #67c23a;
+  margin-top: 2px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.schedule-preview {
+  background-color: #f0f9ff;
+  border: 1px solid #b3d8ff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 10px;
+}
+
+.preview-title {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.preview-content {
+  margin-bottom: 15px;
+}
+
+.preview-weekdays {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.preview-timeslots {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.preview-label {
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.timeslots-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.schedule-tag {
+  font-size: 16px;
+  padding: 8px 16px;
+}
+
+.timeslot-tag {
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background-color: #e1f3d8;
+  color: #67c23a;
+  border: 1px solid #d9f7be;
+}
+
+.preview-details {
+  display: flex;
+  gap: 20px;
+  font-size: 14px;
+  color: #666;
+}
+
+.preview-details span {
+  background-color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+/* 对话框底部 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+  .time-slot-selection {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+  }
+
+  .el-checkbox-group {
+    gap: 10px;
+    min-width: 600px;
+  }
+
+  .el-checkbox-group .el-checkbox {
+    min-width: 80px;
+    padding: 10px 14px;
+  }
+
+  .weekday-selection {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .time-slot-selection {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .time-slot-card {
+    padding: 15px;
+    min-height: 55px;
+  }
+
+  .slot-time {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .weekday-indicator {
+    font-size: 9px;
+    padding: 1px 4px;
+    min-width: 14px;
+  }
+
+  .weekday-selection {
+    padding: 15px;
+  }
+
+  .el-checkbox-group {
+    gap: 8px;
+    min-width: 500px;
+  }
+
+  .el-checkbox-group .el-checkbox {
+    padding: 8px 12px;
+    min-height: 38px;
+    min-width: 70px;
+  }
+
+  .weekday-label {
+    font-size: 12px;
+  }
+
+  .disabled-reason {
+    font-size: 9px;
+  }
+
+  .preview-details {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .schedule-form .el-form-item {
+    margin-bottom: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .time-slot-selection {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .time-slot-card {
+    padding: 12px;
+    min-height: 50px;
+  }
+
+  .slot-time {
+    font-size: 12px;
+  }
+
+  .weekday-indicator {
+    font-size: 8px;
+    padding: 1px 3px;
+    min-width: 12px;
+  }
+
+  .weekday-selection {
+    padding: 12px;
+  }
+
+  .el-checkbox-group {
+    gap: 6px;
+    min-width: 420px;
+  }
+
+  .el-checkbox-group .el-checkbox {
+    padding: 6px 10px;
+    min-height: 34px;
+    min-width: 60px;
+  }
+
+  .weekday-label {
+    font-size: 11px;
+  }
+
+  .disabled-reason {
+    font-size: 8px;
+    margin-top: 1px;
+  }
+
+  .schedule-modal-content {
+    padding: 15px;
   }
 }
 </style>
+
 
