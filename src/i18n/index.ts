@@ -22,7 +22,7 @@ const en = {
     logout: 'Logout'
   },
   footer: {
-    copyright: '© 2023 GrabTeacher Personalized Teaching Platform 津ICP备2025035841'
+    copyright: '© 2023 GrabTeacher Personalized Teaching Platform'
   },
   lang: {
     zh: '中文',
@@ -104,7 +104,7 @@ const zh = {
     logout: '退出登录'
   },
   footer: {
-    copyright: '© 2023 GrabTeacher 个性化教学平台 津ICP备2025035841'
+    copyright: '© 2023 GrabTeacher 个性化教学平台'
   },
   lang: {
     zh: '中文',

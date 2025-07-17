@@ -66,7 +66,12 @@ function updateLangClass() {
     </main>
     <footer class="footer">
       <div class="footer-content">
-        <p>{{ $t('footer.copyright') }}</p>
+        <p>
+          © 2023 GrabTeacher 个性化教学平台
+          <a href="https://beian.miit.gov.cn" target="_blank" class="icp-link">
+            {{ langStore.currentLang === 'zh' ? '津ICP备2025035841' : 'ICP License: 津ICP备2025035841' }}
+          </a>
+        </p>
       </div>
     </footer>
   </div>
@@ -152,6 +157,18 @@ body {
 .footer-content {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.icp-link {
+  color: #bdc3c7;
+  text-decoration: none;
+  margin-left: 10px;
+  transition: color 0.3s ease;
+}
+
+.icp-link:hover {
+  color: #ecf0f1;
+  text-decoration: underline;
 }
 
 .auth-buttons {
