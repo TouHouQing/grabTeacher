@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 
 // 定义组件名称
 defineOptions({
   name: 'FamousTeachersView'
 })
+
+// 路由实例
+const router = useRouter()
 
 // 导入图片资源
 import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
@@ -30,6 +34,7 @@ const filter = reactive({
 // 教师数据
 const teachers = ref([
   {
+    id: 1, // 添加唯一ID
     name: '张老师',
     subject: '数学',
     grade: '初中',
@@ -41,6 +46,7 @@ const teachers = ref([
     schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00']
   },
   {
+    id: 2, // 添加唯一ID
     name: '李老师',
     subject: '英语',
     grade: '初中',
@@ -52,6 +58,7 @@ const teachers = ref([
     schedule: ['周二 18:00-20:00', '周四 18:00-20:00', '周日 14:00-16:00']
   },
   {
+    id: 3, // 添加唯一ID
     name: '王老师',
     subject: '物理',
     grade: '初中',
@@ -63,6 +70,7 @@ const teachers = ref([
     schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00']
   },
   {
+    id: 4, // 添加唯一ID
     name: '刘老师',
     subject: '化学',
     grade: '初中',
@@ -74,6 +82,7 @@ const teachers = ref([
     schedule: ['周二 16:00-18:00', '周五 18:00-20:00', '周日 10:00-12:00']
   },
   {
+    id: 5, // 添加唯一ID
     name: '陈老师',
     subject: '数学',
     grade: '初中',
@@ -85,6 +94,7 @@ const teachers = ref([
     schedule: ['周一 15:00-17:00', '周四 16:00-18:00', '周六 16:00-18:00']
   },
   {
+    id: 6, // 添加唯一ID
     name: '赵老师',
     subject: '生物',
     grade: '初中',
@@ -96,6 +106,7 @@ const teachers = ref([
     schedule: ['周二 19:00-21:00', '周五 16:00-18:00', '周日 16:00-18:00']
   },
   {
+    id: 7, // 添加唯一ID
     name: '杨老师',
     subject: '英语',
     grade: '小学',
@@ -107,6 +118,7 @@ const teachers = ref([
     schedule: ['周三 15:00-17:00', '周五 15:00-17:00', '周六 10:00-12:00']
   },
   {
+    id: 8, // 添加唯一ID
     name: '周老师',
     subject: '物理',
     grade: '初中',
@@ -161,6 +173,11 @@ const resetFilter = () => {
   filter.grade = ''
   filter.experience = ''
   currentPage.value = 1
+}
+
+// 查看教师详情
+const viewTeacherDetail = (teacherId: number) => {
+  router.push(`/student/teacher-detail/${teacherId}`)
 }
 </script>
 
@@ -231,7 +248,7 @@ const resetFilter = () => {
               </div>
               <div class="teacher-actions">
                 <el-button type="primary" size="small">预约课程</el-button>
-                <el-button type="info" size="small">查看详情</el-button>
+                <el-button type="info" size="small" @click="viewTeacherDetail(teacher.id)">查看详情</el-button>
               </div>
             </div>
           </div>
