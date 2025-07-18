@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Calendar, Timer, Refresh, Check } from '@element-plus/icons-vue'
 
 interface Course {
   id: number;
@@ -15,9 +16,25 @@ interface Course {
   endDate: string;
   totalLessons: number;
   completedLessons: number;
+  remainingLessons?: number; // 剩余课时
+  weeklySchedule?: string[]; // 每周固定时间
   image: string;
   description: string;
   status: 'active' | 'completed' | 'upcoming';
+}
+
+// 调课相关接口
+interface RescheduleRequest {
+  courseId: number;
+  type: 'single' | 'recurring'; // 单次调课或周期性调课
+  originalDate?: string; // 原定日期（单次调课）
+  originalTime?: string; // 原定时间（单次调课）
+  newDate?: string; // 新日期（单次调课）
+  newTime?: string; // 新时间（单次调课）
+  newWeeklySchedule?: string[]; // 新的每周时间安排（周期性调课）
+  reason: string; // 调课原因
+  applyDate: string; // 申请日期
+  status: 'pending' | 'approved' | 'rejected'; // 待确认、已同意、已拒绝
 }
 
 // 模拟课程数据
@@ -35,6 +52,8 @@ const courses = ref<Course[]>([
     endDate: '2023-08-15',
     totalLessons: 24,
     completedLessons: 14,
+    remainingLessons: 10,
+    weeklySchedule: ['周一 18:00-20:00', '周三 18:00-20:00'],
     image: '@/assets/pictures/math1.jpeg',
     description: '本课程深入浅出地讲解初中数学中的函数与导数知识点，适合初二、初三学生。通过系统讲解和大量练习，帮助学生掌握函数与导数的核心概念和解题技巧。',
     status: 'active'
@@ -52,6 +71,8 @@ const courses = ref<Course[]>([
     endDate: '2023-09-01',
     totalLessons: 20,
     completedLessons: 9,
+    remainingLessons: 11,
+    weeklySchedule: ['周二 16:00-18:00', '周四 16:00-18:00'],
     image: '@/assets/pictures/physics1.jpeg',
     description: '从基础概念到难点突破，全面讲解初中物理力学与电学知识。通过实验演示和题型分析，帮助学生理解物理概念和解题思路。',
     status: 'active'
@@ -69,6 +90,7 @@ const courses = ref<Course[]>([
     endDate: '2023-06-24',
     totalLessons: 12,
     completedLessons: 12,
+    remainingLessons: 0,
     image: '@/assets/pictures/english1.jpeg',
     description: '系统梳理初中英语语法知识，打牢语法基础，提高英语成绩。通过大量例句和练习，帮助学生掌握语法规则和写作技巧。',
     status: 'completed'
@@ -86,6 +108,8 @@ const courses = ref<Course[]>([
     endDate: '2023-10-20',
     totalLessons: 16,
     completedLessons: 0,
+    remainingLessons: 16,
+    weeklySchedule: ['周五 18:00-20:00'],
     image: '@/assets/pictures/biology1.jpeg',
     description: '本课程将深入讲解基因与遗传的相关知识，包括DNA结构、基因表达、遗传规律等内容，帮助学生理解生物学中的重要概念。',
     status: 'upcoming'
@@ -108,9 +132,180 @@ const filteredCourses = computed(() => {
 const currentCourse = ref<Course | null>(null)
 const detailDialogVisible = ref(false)
 
+// 调课相关数据
+const showRescheduleModal = ref(false)
+const currentRescheduleCourse = ref<Course | null>(null)
+const rescheduleType = ref<'single' | 'recurring'>('single')
+const rescheduleForm = ref({
+  originalDate: '',
+  originalTime: '',
+  newDate: '',
+  newTime: '',
+  selectedWeekdays: [] as number[],
+  selectedTimeSlots: [] as string[],
+  reason: '',
+  type: 'single' as 'single' | 'recurring'
+})
+
+// 可用时间段
+const availableTimeSlots = ref<string[]>([
+  '09:00-10:00', '10:00-11:00', '11:00-12:00',
+  '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00',
+  '18:00-19:00', '19:00-20:00', '20:00-21:00'
+])
+
+// 调课申请记录
+const rescheduleRequests = ref<RescheduleRequest[]>([])
+
 const showCourseDetail = (course: Course) => {
   currentCourse.value = course
   detailDialogVisible.value = true
+}
+
+// 显示调课弹窗
+const showReschedule = (course: Course) => {
+  currentRescheduleCourse.value = course
+  rescheduleType.value = 'single'
+
+  // 重置表单
+  rescheduleForm.value = {
+    originalDate: '',
+    originalTime: '',
+    newDate: '',
+    newTime: '',
+    selectedWeekdays: [],
+    selectedTimeSlots: [],
+    reason: '',
+    type: 'single'
+  }
+
+  showRescheduleModal.value = true
+}
+
+// 切换调课类型
+const switchRescheduleType = (type: 'single' | 'recurring') => {
+  rescheduleType.value = type
+  rescheduleForm.value.type = type
+
+  // 清空表单
+  if (type === 'single') {
+    rescheduleForm.value.selectedWeekdays = []
+    rescheduleForm.value.selectedTimeSlots = []
+  } else {
+    rescheduleForm.value.originalDate = ''
+    rescheduleForm.value.originalTime = ''
+    rescheduleForm.value.newDate = ''
+    rescheduleForm.value.newTime = ''
+  }
+}
+
+// 检查日期是否可以调课（需要提前一天申请）
+const canReschedule = (dateStr: string): boolean => {
+  const targetDate = new Date(dateStr)
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  tomorrow.setHours(0, 0, 0, 0)
+
+  return targetDate >= tomorrow
+}
+
+// 获取星期几的中文名称
+const getWeekdayName = (weekday: number): string => {
+  const names = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  return names[weekday]
+}
+
+// 提交调课申请
+const submitReschedule = () => {
+  if (!currentRescheduleCourse.value) return
+
+  // 验证表单
+  if (rescheduleType.value === 'single') {
+    if (!rescheduleForm.value.originalDate || !rescheduleForm.value.originalTime ||
+        !rescheduleForm.value.newDate || !rescheduleForm.value.newTime) {
+      ElMessage.warning('请填写完整的调课信息')
+      return
+    }
+
+    // 检查时间限制
+    if (!canReschedule(rescheduleForm.value.originalDate)) {
+      ElMessage.error('调课需要提前一天申请')
+      return
+    }
+
+    if (!canReschedule(rescheduleForm.value.newDate)) {
+      ElMessage.error('新的上课时间需要是明天之后')
+      return
+    }
+  } else {
+    if (rescheduleForm.value.selectedWeekdays.length === 0 ||
+        rescheduleForm.value.selectedTimeSlots.length === 0) {
+      ElMessage.warning('请选择新的每周上课时间')
+      return
+    }
+  }
+
+  if (!rescheduleForm.value.reason.trim()) {
+    ElMessage.warning('请填写调课原因')
+    return
+  }
+
+  // 创建调课申请
+  const newRequest: RescheduleRequest = {
+    courseId: currentRescheduleCourse.value.id,
+    type: rescheduleType.value,
+    reason: rescheduleForm.value.reason,
+    applyDate: new Date().toISOString().split('T')[0],
+    status: 'pending'
+  }
+
+  if (rescheduleType.value === 'single') {
+    newRequest.originalDate = rescheduleForm.value.originalDate
+    newRequest.originalTime = rescheduleForm.value.originalTime
+    newRequest.newDate = rescheduleForm.value.newDate
+    newRequest.newTime = rescheduleForm.value.newTime
+  } else {
+    const weekdayNames = rescheduleForm.value.selectedWeekdays.map(day => getWeekdayName(day))
+    newRequest.newWeeklySchedule = rescheduleForm.value.selectedTimeSlots.map(time =>
+      `${weekdayNames.join('、')} ${time}`
+    )
+  }
+
+  rescheduleRequests.value.push(newRequest)
+
+  ElMessage.success('调课申请已提交，等待老师确认')
+  showRescheduleModal.value = false
+}
+
+// 获取调课申请状态
+const getRescheduleStatus = (courseId: number) => {
+  const request = rescheduleRequests.value.find(r => r.courseId === courseId && r.status === 'pending')
+  return request ? '调课申请中' : null
+}
+
+// 格式化日期显示
+const formatDate = (dateStr: string): string => {
+  const date = new Date(dateStr)
+  return `${date.getMonth() + 1}月${date.getDate()}日`
+}
+
+// 获取下周的日期选项（用于单次调课的原定日期）
+const getUpcomingDates = (): { label: string, value: string }[] => {
+  const dates = []
+  const today = new Date()
+
+  for (let i = 0; i < 14; i++) {
+    const date = new Date(today)
+    date.setDate(today.getDate() + i)
+
+    const dateStr = date.toISOString().split('T')[0]
+    const weekday = getWeekdayName(date.getDay())
+    const label = `${formatDate(dateStr)} ${weekday}`
+
+    dates.push({ label, value: dateStr })
+  }
+
+  return dates
 }
 
 // 下载学习资料
@@ -160,6 +355,10 @@ export default {
                       {{ course.status === 'active' ? '进行中' : course.status === 'upcoming' ? '即将开始' : '已完成' }}
                     </el-tag>
                   </div>
+                  <!-- 调课申请状态标签 -->
+                  <div v-if="getRescheduleStatus(course.id)" class="reschedule-status-tag">
+                    <el-tag type="warning" size="small">{{ getRescheduleStatus(course.id) }}</el-tag>
+                  </div>
                 </div>
                 <div class="course-content">
                   <h3 class="course-title">{{ course.title }}</h3>
@@ -168,7 +367,12 @@ export default {
                     <span>{{ course.teacher }}</span>
                   </div>
                   <div class="course-progress">
-                    <span class="progress-text">进度: {{ course.completedLessons }}/{{ course.totalLessons }} 课时</span>
+                    <div class="progress-info">
+                      <span class="progress-text">进度: {{ course.completedLessons }}/{{ course.totalLessons }} 课时</span>
+                      <span v-if="course.remainingLessons" class="remaining-lessons">
+                        剩余: {{ course.remainingLessons }} 课时
+                      </span>
+                    </div>
                     <el-progress :percentage="course.progress" :status="course.progress === 100 ? 'success' : ''"></el-progress>
                   </div>
                   <div class="course-schedule">
@@ -184,6 +388,15 @@ export default {
                   <div class="course-actions">
                     <el-button size="small" type="primary" @click="enterClassroom(course)">
                       <el-icon><VideoCamera /></el-icon> 进入课堂
+                    </el-button>
+                    <el-button
+                      v-if="course.status === 'active' && course.remainingLessons && course.remainingLessons > 0"
+                      size="small"
+                      type="warning"
+                      @click="showReschedule(course)"
+                      :disabled="!!getRescheduleStatus(course.id)"
+                    >
+                      <el-icon><Refresh /></el-icon> 调课
                     </el-button>
                     <el-button size="small" type="success" @click="contactTeacher(course.teacher)">
                       <el-icon><ChatDotRound /></el-icon> 联系教师
@@ -404,6 +617,204 @@ export default {
           </el-button>
         </div>
       </div>
+    </el-dialog>
+
+    <!-- 调课申请弹窗 -->
+    <el-dialog
+      v-model="showRescheduleModal"
+      :title="`调课申请 - ${currentRescheduleCourse?.title}`"
+      width="800px"
+      :close-on-click-modal="false"
+      destroy-on-close
+    >
+      <div class="reschedule-modal-content">
+        <div class="reschedule-info">
+          <el-alert
+            title="调课须知"
+            description="调课需要提前一天申请，老师确认后生效。剩余课时不变。"
+            type="info"
+            show-icon
+            :closable="false"
+          />
+        </div>
+
+        <div class="course-info">
+          <div class="info-item">
+            <span class="label">课程：</span>
+            <span>{{ currentRescheduleCourse?.title }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">教师：</span>
+            <span>{{ currentRescheduleCourse?.teacher }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">剩余课时：</span>
+            <span class="remaining-highlight">{{ currentRescheduleCourse?.remainingLessons }}课时</span>
+          </div>
+          <div class="info-item" v-if="currentRescheduleCourse?.weeklySchedule">
+            <span class="label">当前安排：</span>
+            <div class="current-schedule">
+              <el-tag v-for="schedule in currentRescheduleCourse.weeklySchedule" :key="schedule" size="small">
+                {{ schedule }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
+
+        <div class="reschedule-type-selection">
+          <el-radio-group v-model="rescheduleType" @change="switchRescheduleType">
+            <el-radio-button label="single">
+              <el-icon><Calendar /></el-icon>
+              单次调课
+            </el-radio-button>
+            <el-radio-button label="recurring">
+              <el-icon><Timer /></el-icon>
+              周期性调课
+            </el-radio-button>
+          </el-radio-group>
+        </div>
+
+        <!-- 单次调课表单 -->
+        <div v-if="rescheduleType === 'single'" class="single-reschedule-form">
+          <el-form :model="rescheduleForm" label-width="120px">
+            <el-form-item label="原定课程">
+              <div class="original-schedule-group">
+                <el-select v-model="rescheduleForm.originalDate" placeholder="选择原定日期" style="width: 200px;">
+                  <el-option
+                    v-for="date in getUpcomingDates()"
+                    :key="date.value"
+                    :label="date.label"
+                    :value="date.value"
+                  />
+                </el-select>
+                <el-select v-model="rescheduleForm.originalTime" placeholder="选择原定时间" style="width: 150px;">
+                  <el-option
+                    v-for="time in availableTimeSlots"
+                    :key="time"
+                    :label="time"
+                    :value="time"
+                  />
+                </el-select>
+              </div>
+            </el-form-item>
+
+            <el-form-item label="调整到">
+              <div class="new-schedule-group">
+                <el-date-picker
+                  v-model="rescheduleForm.newDate"
+                  type="date"
+                  placeholder="选择新日期"
+                  :disabled-date="(date) => !canReschedule(date.toISOString().split('T')[0])"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
+                  style="width: 200px;"
+                />
+                <el-select v-model="rescheduleForm.newTime" placeholder="选择新时间" style="width: 150px;">
+                  <el-option
+                    v-for="time in availableTimeSlots"
+                    :key="time"
+                    :label="time"
+                    :value="time"
+                  />
+                </el-select>
+              </div>
+            </el-form-item>
+          </el-form>
+        </div>
+
+        <!-- 周期性调课表单 -->
+        <div v-if="rescheduleType === 'recurring'" class="recurring-reschedule-form">
+          <el-form :model="rescheduleForm" label-width="120px">
+            <el-form-item label="选择时间段">
+              <div class="time-slot-selection">
+                <div
+                  v-for="time in availableTimeSlots"
+                  :key="time"
+                  :class="[
+                    'time-slot-card',
+                    { 'selected': rescheduleForm.selectedTimeSlots.includes(time) }
+                  ]"
+                  @click="() => {
+                    if (rescheduleForm.selectedTimeSlots.includes(time)) {
+                      rescheduleForm.selectedTimeSlots = rescheduleForm.selectedTimeSlots.filter(t => t !== time)
+                    } else {
+                      rescheduleForm.selectedTimeSlots.push(time)
+                    }
+                  }"
+                >
+                  <div class="slot-time">{{ time }}</div>
+                </div>
+              </div>
+            </el-form-item>
+
+            <el-form-item label="选择星期" v-if="rescheduleForm.selectedTimeSlots.length > 0">
+              <div class="weekday-selection">
+                <el-checkbox-group v-model="rescheduleForm.selectedWeekdays">
+                  <el-checkbox
+                    v-for="weekday in [1, 2, 3, 4, 5, 6, 0]"
+                    :key="weekday"
+                    :label="weekday"
+                  >
+                    <span class="weekday-label">{{ getWeekdayName(weekday) }}</span>
+                  </el-checkbox>
+                </el-checkbox-group>
+              </div>
+            </el-form-item>
+
+            <el-form-item label="新的安排" v-if="rescheduleForm.selectedWeekdays.length > 0 && rescheduleForm.selectedTimeSlots.length > 0">
+              <div class="schedule-preview">
+                <div class="preview-content">
+                  <span class="preview-label">每周：</span>
+                  <div class="preview-tags">
+                    <el-tag type="success" size="large">
+                      {{ rescheduleForm.selectedWeekdays.map(day => getWeekdayName(day)).join('、') }}
+                    </el-tag>
+                    <div class="time-tags">
+                      <el-tag
+                        v-for="timeSlot in rescheduleForm.selectedTimeSlots"
+                        :key="timeSlot"
+                        type="primary"
+                        size="large"
+                      >
+                        {{ timeSlot }}
+                      </el-tag>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </el-form-item>
+          </el-form>
+        </div>
+
+        <el-form :model="rescheduleForm" label-width="120px">
+          <el-form-item label="调课原因" required>
+            <el-input
+              v-model="rescheduleForm.reason"
+              type="textarea"
+              :rows="3"
+              placeholder="请填写调课原因，以便老师了解情况"
+              maxlength="200"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showRescheduleModal = false">取消</el-button>
+          <el-button
+            type="primary"
+            @click="submitReschedule"
+            :disabled="rescheduleType === 'single' ?
+              (!rescheduleForm.originalDate || !rescheduleForm.originalTime || !rescheduleForm.newDate || !rescheduleForm.newTime) :
+              (rescheduleForm.selectedWeekdays.length === 0 || rescheduleForm.selectedTimeSlots.length === 0)"
+          >
+            <el-icon><Check /></el-icon>
+            提交申请
+          </el-button>
+        </span>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -629,9 +1040,212 @@ h2 {
   gap: 10px;
 }
 
+.reschedule-status-tag {
+  position: absolute;
+  top: 45px;
+  right: 15px;
+  z-index: 2;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.remaining-lessons {
+  color: #e6a23c;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.reschedule-modal-content {
+  padding: 20px;
+}
+
+.reschedule-info {
+  margin-bottom: 20px;
+}
+
+.course-info {
+  background-color: #f9f9f9;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.info-item .label {
+  width: 80px;
+  font-weight: 500;
+  color: #333;
+}
+
+.remaining-highlight {
+  color: #e6a23c;
+  font-weight: 600;
+}
+
+.current-schedule {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.reschedule-type-selection {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.original-schedule-group,
+.new-schedule-group {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.time-slot-selection {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.time-slot-card {
+  background-color: #f8f8f8;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.time-slot-card:hover {
+  background-color: #e0e0e0;
+  border-color: #ccc;
+}
+
+.time-slot-card.selected {
+  background-color: #f6ffed;
+  border-color: #52c41a;
+  box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.2);
+}
+
+.slot-time {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.weekday-selection {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 10px;
+}
+
+.weekday-selection .el-checkbox-group {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.weekday-selection .el-checkbox {
+  margin-right: 0;
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  transition: all 0.3s;
+}
+
+.weekday-selection .el-checkbox:hover {
+  border-color: #409eff;
+  background-color: #f0f9ff;
+}
+
+.weekday-selection .el-checkbox.is-checked {
+  border-color: #52c41a;
+  background-color: #f6ffed;
+}
+
+.weekday-label {
+  font-weight: 500;
+  color: #333;
+}
+
+.schedule-preview {
+  background-color: #f0f9ff;
+  border: 1px solid #b3d8ff;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.preview-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.preview-label {
+  font-weight: 500;
+  color: #333;
+}
+
+.preview-tags {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.time-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 768px) {
   .courses-grid {
     grid-template-columns: 1fr;
+  }
+
+  .time-slot-selection {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .original-schedule-group,
+  .new-schedule-group {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .original-schedule-group > *,
+  .new-schedule-group > * {
+    width: 100%;
+  }
+
+  .weekday-selection .el-checkbox-group {
+    gap: 10px;
+  }
+
+  .preview-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
   }
 
   .detail-header {
