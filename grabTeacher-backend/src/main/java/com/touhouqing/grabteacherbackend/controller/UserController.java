@@ -5,6 +5,9 @@ import com.touhouqing.grabteacherbackend.dto.PasswordChangeRequest;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/user")
 @CrossOrigin(origins = "*", maxAge = 3600)
+@Tag(name = "用户信息", description = "用户个人信息管理接口")
+@SecurityRequirement(name = "Bearer Authentication")
 public class UserController {
 
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
@@ -27,6 +32,7 @@ public class UserController {
     /**
      * 获取用户基本信息
      */
+    @Operation(summary = "获取用户信息", description = "获取当前登录用户的基本信息")
     @GetMapping("/info")
     public ResponseEntity<ApiResponse<User>> getUserInfo(Authentication authentication) {
         try {

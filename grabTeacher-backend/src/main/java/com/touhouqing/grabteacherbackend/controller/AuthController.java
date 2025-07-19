@@ -7,6 +7,8 @@ import com.touhouqing.grabteacherbackend.dto.RegisterRequest;
 import com.touhouqing.grabteacherbackend.dto.PasswordChangeRequest;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +25,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "*", maxAge = 3600)
+@Tag(name = "用户认证", description = "用户注册、登录、登出等认证相关接口")
 public class AuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
@@ -33,6 +36,7 @@ public class AuthController {
     /**
      * 用户注册
      */
+    @Operation(summary = "用户注册", description = "注册新用户（学生或教师）")
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
         try {
@@ -58,6 +62,7 @@ public class AuthController {
     /**
      * 用户登录
      */
+    @Operation(summary = "用户登录", description = "用户登录验证")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         try {

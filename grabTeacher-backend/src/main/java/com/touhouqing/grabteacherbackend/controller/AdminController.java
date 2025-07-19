@@ -3,6 +3,9 @@ package com.touhouqing.grabteacherbackend.controller;
 import com.touhouqing.grabteacherbackend.dto.ApiResponse;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.service.AdminService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +21,8 @@ import java.util.Map;
 @RequestMapping("/api/admin")
 @CrossOrigin(origins = "*", maxAge = 3600)
 @PreAuthorize("hasRole('ADMIN')")
+@Tag(name = "管理员功能", description = "管理员专用功能接口")
+@SecurityRequirement(name = "Bearer Authentication")
 public class AdminController {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
@@ -28,6 +33,7 @@ public class AdminController {
     /**
      * 获取系统统计信息
      */
+    @Operation(summary = "获取系统统计信息", description = "获取用户数量、教师数量等统计数据")
     @GetMapping("/statistics")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics() {
         try {
