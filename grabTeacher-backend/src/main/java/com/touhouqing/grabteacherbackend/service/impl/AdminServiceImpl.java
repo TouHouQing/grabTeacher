@@ -127,6 +127,8 @@ public class AdminServiceImpl implements AdminService {
     public Page<Student> getStudentList(int page, int size, String keyword, String gradeLevel) {
         Page<Student> pageParam = new Page<>(page, size);
         QueryWrapper<Student> queryWrapper = new QueryWrapper<>();
+
+        queryWrapper.eq("is_deleted", false); // 添加软删除条件
         
         // 搜索条件
         if (StringUtils.hasText(keyword)) {
@@ -144,7 +146,10 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public Student getStudentById(Long studentId) {
-        return studentMapper.selectById(studentId);
+        QueryWrapper<Student> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("id", studentId);
+        queryWrapper.eq("is_deleted", false);
+        return studentMapper.selectOne(queryWrapper);
     }
 
     @Override
@@ -215,6 +220,8 @@ public class AdminServiceImpl implements AdminService {
     public Page<Teacher> getTeacherList(int page, int size, String keyword, String subject, Boolean isVerified) {
         Page<Teacher> pageParam = new Page<>(page, size);
         QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
+
+        queryWrapper.eq("is_deleted", false); // 添加软删除条件
         
         // 搜索条件
         if (StringUtils.hasText(keyword)) {

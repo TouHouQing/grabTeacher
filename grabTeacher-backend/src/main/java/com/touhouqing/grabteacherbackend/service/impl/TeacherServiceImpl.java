@@ -37,7 +37,10 @@ public class TeacherServiceImpl implements TeacherService {
      */
     @Override
     public Teacher getTeacherById(Long teacherId) {
-        return teacherMapper.selectById(teacherId);
+        QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("id", teacherId);
+        queryWrapper.eq("is_deleted", false);
+        return teacherMapper.selectOne(queryWrapper);
     }
 
     /**

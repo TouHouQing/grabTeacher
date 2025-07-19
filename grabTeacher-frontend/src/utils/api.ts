@@ -191,10 +191,14 @@ export const teacherAPI = {
     method: 'DELETE'
   }),
 
-  // 审核教师 - 使用查询参数
+  // 审核教师 - 使用请求体
   verify: (id: number, isVerified: boolean) =>
-    apiRequest(`/api/admin/teachers/${id}/verify?isVerified=${isVerified}`, {
-      method: 'PUT'
+    apiRequest(`/api/admin/teachers/${id}/verify`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ isVerified: isVerified })
     })
 }
 
