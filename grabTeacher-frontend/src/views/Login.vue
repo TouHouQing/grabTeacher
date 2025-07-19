@@ -30,11 +30,11 @@ const handleLogin = async () => {
       // 登录成功，根据用户类型跳转
       const userType = userStore.user?.userType
       if (userType === 'student') {
-        router.push('/student')
+        router.push('/student-center')
       } else if (userType === 'teacher') {
-        router.push('/teacher')
+        router.push('/teacher-center')
       } else if (userType === 'admin') {
-        router.push('/admin')
+        router.push('/admin-center')
       } else {
         router.push('/')
       }

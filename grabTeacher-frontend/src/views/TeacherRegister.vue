@@ -113,7 +113,8 @@ const handleRegister = async () => {
       successMessage.value = '教师注册成功！正在跳转...'
 
       setTimeout(() => {
-        router.push('/teacher')
+        // 教师注册成功后跳转到教师中心
+        router.push('/teacher-center')
       }, 1500)
     } else {
       errorMessage.value = result.message || '注册失败'

@@ -45,7 +45,7 @@ function updateLangClass() {
       </el-menu>
       <div class="auth-buttons" v-if="!userStore.isLoggedIn">
         <el-button type="primary" size="small" @click="$router.push('/login')">{{ $t('auth.studentLogin') }}</el-button>
-        <el-button type="info" size="small" @click="$router.push('/teacher-login')">{{ $t('auth.teacherLogin') }}</el-button>
+        <el-button type="primary" size="small" @click="$router.push('/teacher-login')">{{ $t('auth.teacherLogin') }}</el-button>
         <el-button type="success" size="small" @click="$router.push('/register')">{{ $t('auth.studentRegister') }}</el-button>
         <el-button type="success" size="small" @click="$router.push('/teacher-register')">{{ $t('auth.teacherRegister') }}</el-button>
         <el-button type="warning" size="small" @click="langStore.toggleLang()">

@@ -1,73 +1,23 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useUserStore } from '../stores/user'
-import HomeView from '../views/Home.vue'
-import FamousTeachers from '../views/FamousTeachers.vue'
-import StudyAbroad from '../views/StudyAbroad.vue'
-import LatestCourses from '../views/LatestCourses.vue'
-import About from '../views/About.vue'
-import Campus from '../views/Campus.vue'
-import Login from '../views/Login.vue'
-import TeacherLogin from '../views/TeacherLogin.vue'
-import StudentCenter from '../views/student/StudentCenter.vue'
-import TeacherMatch from '../views/student/TeacherMatch.vue'
-import TeacherCenter from '../views/teacher/TeacherCenter.vue'
-import StudentOrders from '../views/student/StudentOrders.vue'
-import StudentProfile from '../views/student/StudentProfile.vue'
-import TeacherOrders from '../views/teacher/TeacherOrders.vue'
-import TeacherSchedule from '../views/teacher/TeacherSchedule.vue'
-import TeacherProfile from '../views/teacher/TeacherProfile.vue'
-import Platform from '../views/Platform.vue'
-import Contact from '../views/Contact.vue'
-import AdminCenter from '../views/admin/AdminCenter.vue'
-import TeacherRegister from '../views/TeacherRegister.vue'
+import { useUserStore } from '@/stores/user'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: HomeView
-    },
-    {
-      path: '/famous-teachers',
-      name: 'famous-teachers',
-      component: FamousTeachers
-    },
-    {
-      path: '/study-abroad',
-      name: 'study-abroad',
-      component: StudyAbroad
-    },
-    {
-      path: '/latest-courses',
-      name: 'latest-courses',
-      component: LatestCourses
-    },
-    {
-      path: '/about',
-      name: 'about',
-      component: About
-    },
-    {
-      path: '/campus',
-      name: 'campus',
-      component: Campus
-    },
-    {
-      path: '/platform',
-      name: 'platform',
-      component: Platform
-    },
-    {
-      path: '/contact',
-      name: 'contact',
-      component: Contact
+      name: 'Home',
+      component: () => import('../views/Home.vue')
     },
     {
       path: '/login',
-      name: 'login',
-      component: Login
+      name: 'Login',
+      component: () => import('../views/Login.vue')
+    },
+    {
+      path: '/register',
+      name: 'Register',
+      component: () => import('../views/Register.vue')
     },
     {
       path: '/teacher-login',
@@ -79,118 +29,161 @@ const router = createRouter({
       name: 'TeacherRegister',
       component: () => import('../views/TeacherRegister.vue')
     },
+    // 学生中心
     {
       path: '/student-center',
-      name: 'student-center',
-      component: StudentCenter,
-      meta: { requiresAuth: true, role: 'student' },
-      children: [
-        {
-          path: 'match',
-          name: 'student-match',
-          component: TeacherMatch,
-          meta: { requiresAuth: true, role: 'student' }
-        },
-        {
-          path: 'orders',
-          name: 'student-orders',
-          component: StudentOrders,
-          meta: { requiresAuth: true, role: 'student' }
-        },
-        {
-          path: 'profile',
-          name: 'student-profile',
-          component: StudentProfile,
-          meta: { requiresAuth: true, role: 'student' }
-        }
-      ]
+      name: 'StudentCenter',
+      component: () => import('../views/student/StudentCenter.vue'),
+      meta: { requiresAuth: true, role: 'student' }
     },
+    // 教师中心
     {
       path: '/teacher-center',
-      name: 'teacher-center',
-      component: TeacherCenter,
-      meta: { requiresAuth: true, role: 'teacher' },
-      children: [
-        {
-          path: 'orders',
-          name: 'teacher-orders',
-          component: TeacherOrders,
-          meta: { requiresAuth: true, role: 'teacher' }
-        },
-        {
-          path: 'schedule',
-          name: 'teacher-schedule',
-          component: TeacherSchedule,
-          meta: { requiresAuth: true, role: 'teacher' }
-        },
-        {
-          path: 'profile',
-          name: 'teacher-profile',
-          component: TeacherProfile,
-          meta: { requiresAuth: true, role: 'teacher' }
-        }
-      ]
+      name: 'TeacherCenter',
+      component: () => import('../views/teacher/TeacherCenter.vue'),
+      meta: { requiresAuth: true, role: 'teacher' }
     },
+    // 管理员中心
     {
-      path: '/admin',
-      name: 'admin-center',
-      component: AdminCenter,
+      path: '/admin-center',
+      name: 'AdminCenter',
+      component: () => import('../views/admin/AdminCenter.vue'),
       meta: { requiresAuth: true, role: 'admin' }
     },
+    // 其他现有路由...
     {
-      path: '/register',
-      name: 'register',
-      component: () => import('../views/Register.vue')
+      path: '/about',
+      name: 'About',
+      component: () => import('../views/About.vue')
     },
     {
-      path: '/student/center',
-      name: 'StudentCenter',
-      component: () => import('@/views/student/StudentCenter.vue'),
-      meta: { requiresAuth: true, role: 'student' }
+      path: '/campus',
+      name: 'Campus',
+      component: () => import('../views/Campus.vue')
+    },
+    {
+      path: '/contact',
+      name: 'Contact',
+      component: () => import('../views/Contact.vue')
+    },
+    {
+      path: '/famous-teachers',
+      name: 'FamousTeachers',
+      component: () => import('../views/FamousTeachers.vue')
+    },
+    {
+      path: '/latest-courses',
+      name: 'LatestCourses',
+      component: () => import('../views/LatestCourses.vue')
+    },
+    {
+      path: '/platform',
+      name: 'Platform',
+      component: () => import('../views/Platform.vue')
+    },
+    {
+      path: '/study-abroad',
+      name: 'StudyAbroad',
+      component: () => import('../views/StudyAbroad.vue')
+    },
+    {
+      path: '/videos',
+      name: 'Videos',
+      component: () => import('../views/Videos.vue')
+    },
+    // 学生相关页面
+    {
+      path: '/student',
+      redirect: '/student-center'
     },
     {
       path: '/student/profile',
       name: 'StudentProfile',
-      component: () => import('@/views/student/StudentProfile.vue'),
+      component: () => import('../views/student/StudentProfile.vue'),
       meta: { requiresAuth: true, role: 'student' }
     },
     {
       path: '/student/orders',
       name: 'StudentOrders',
-      component: () => import('@/views/student/StudentOrders.vue'),
+      component: () => import('../views/student/StudentOrders.vue'),
       meta: { requiresAuth: true, role: 'student' }
     },
     {
-      path: '/student/teacher-match',
-      name: 'TeacherMatch',
-      component: () => import('@/views/student/TeacherMatch.vue'),
-      meta: { requiresAuth: true, role: 'student' }
-    },
-    {
-      path: '/student/teacher-detail/:id',
+      path: '/teacher-detail/:id',
       name: 'TeacherDetail',
-      component: () => import('@/views/student/TeacherDetail.vue'),
-      meta: { requiresAuth: true, role: 'student' }
+      component: () => import('../views/student/TeacherDetail.vue')
+    },
+    {
+      path: '/teacher-match',
+      name: 'TeacherMatch',
+      component: () => import('../views/student/TeacherMatch.vue')
+    },
+    // 教师相关页面
+    {
+      path: '/teacher',
+      redirect: '/teacher-center'
+    },
+    {
+      path: '/teacher/profile',
+      name: 'TeacherProfile',
+      component: () => import('../views/teacher/TeacherProfile.vue'),
+      meta: { requiresAuth: true, role: 'teacher' }
+    },
+    {
+      path: '/teacher/orders',
+      name: 'TeacherOrders',
+      component: () => import('../views/teacher/TeacherOrders.vue'),
+      meta: { requiresAuth: true, role: 'teacher' }
+    },
+    {
+      path: '/teacher/schedule',
+      name: 'TeacherSchedule',
+      component: () => import('../views/teacher/TeacherSchedule.vue'),
+      meta: { requiresAuth: true, role: 'teacher' }
+    },
+    // 管理员相关页面
+    {
+      path: '/admin',
+      redirect: '/admin-center'
+    },
+    {
+      path: '/admin/user-management',
+      name: 'UserManagement',
+      component: () => import('../views/admin/UserManagement.vue'),
+      meta: { requiresAuth: true, role: 'admin' }
     }
   ]
 })
 
-// 全局前置守卫
-router.beforeEach((to) => {
+// 路由守卫
+router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
 
-  // 需要认证但未登录
-  if (to.meta.requiresAuth && !userStore.isLoggedIn) {
-    return {
-      path: '/login',
-      query: { redirect: to.fullPath }
+  // 检查是否需要认证
+  if (to.meta.requiresAuth) {
+    if (!userStore.isLoggedIn) {
+      // 未登录，跳转到登录页
+      next('/login')
+      return
+    }
+
+    // 检查角色权限
+    if (to.meta.role && userStore.user?.userType !== to.meta.role) {
+      // 权限不足，跳转到对应的中心页面
+      if (userStore.user?.userType === 'student') {
+        next('/student-center')
+      } else if (userStore.user?.userType === 'teacher') {
+        next('/teacher-center')
+      } else if (userStore.user?.userType === 'admin') {
+        next('/admin-center')
+      } else {
+        next('/')
+      }
+      return
     }
   }
 
-  // 需要特定角色
-  if (to.meta.role && to.meta.role !== userStore.role) {
-    return { path: '/' } // 重定向到首页
-  }
+  next()
 })
 
 export default router

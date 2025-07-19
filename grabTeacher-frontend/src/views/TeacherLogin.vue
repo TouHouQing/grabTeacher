@@ -29,11 +29,11 @@ const handleLogin = async () => {
     if (result.success) {
       const userType = userStore.user?.userType
       if (userType === 'teacher') {
-        router.push('/teacher')
+        router.push('/teacher-center')
       } else if (userType === 'student') {
-        router.push('/student')
+        router.push('/student-center')
       } else if (userType === 'admin') {
-        router.push('/admin')
+        router.push('/admin-center')
       } else {
         router.push('/')
       }

@@ -107,7 +107,8 @@ const handleRegister = async () => {
       successMessage.value = '注册成功！正在跳转...'
 
       setTimeout(() => {
-        router.push('/student')
+        // 学生注册成功后跳转到学生中心
+        router.push('/student-center')
       }, 1500)
     } else {
       errorMessage.value = result.message || '注册失败'

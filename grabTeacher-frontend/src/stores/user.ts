@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 export interface User {
   id: number
@@ -44,6 +44,11 @@ export const useUserStore = defineStore('user', () => {
   const user = ref<User | null>(null)
   const token = ref<string | null>(localStorage.getItem('token'))
   const isLoggedIn = ref<boolean>(!!token.value)
+
+  // 添加计算属性
+  const isTeacher = computed(() => user.value?.userType === 'teacher')
+  const isStudent = computed(() => user.value?.userType === 'student')
+  const isAdmin = computed(() => user.value?.userType === 'admin')
 
   // API 基础配置
   const API_BASE_URL = 'http://localhost:8080/api'
@@ -140,12 +145,39 @@ export const useUserStore = defineStore('user', () => {
   }
 
   // 初始化时检查本地存储的token
-  const initializeAuth = () => {
+  const initializeAuth = async () => {
     const storedToken = localStorage.getItem('token')
     if (storedToken) {
       token.value = storedToken
       isLoggedIn.value = true
-      // 这里可以添加验证token有效性的逻辑
+
+      // 验证token有效性并获取用户信息
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${storedToken}`,
+          },
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success && result.data) {
+            user.value = {
+              id: result.data.id,
+              username: result.data.username,
+              email: result.data.email,
+              userType: result.data.authorities?.[0]?.authority?.replace('ROLE_', '').toLowerCase() || 'student',
+              token: storedToken
+            }
+          }
+        } else {
+          // token无效，清除本地存储
+          clearUser()
+        }
+      } catch (error) {
+        console.error('验证token失败:', error)
+        clearUser()
+      }
     }
   }
 
@@ -153,6 +185,9 @@ export const useUserStore = defineStore('user', () => {
     user,
     token,
     isLoggedIn,
+    isTeacher,
+    isStudent,
+    isAdmin,
     setUser,
     clearUser,
     register,
