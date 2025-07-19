@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TeacherInfoRequest {
+    private String realName;
     private String educationBackground;
     private Integer teachingExperience;
     private String specialties;

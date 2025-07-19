@@ -175,13 +175,13 @@ public class AuthController {
                         .body(ApiResponse.error(401, "未登录"));
             }
 
-            if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("新密码和确认密码不匹配"));
             }
 
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-            authService.updatePassword(userPrincipal.getId(), request.getOldPassword(), request.getNewPassword());
+            authService.updatePassword(userPrincipal.getId(), request.getCurrentPassword(), request.getNewPassword());
             
             return ResponseEntity.ok(ApiResponse.success("密码修改成功", null));
         } catch (RuntimeException e) {

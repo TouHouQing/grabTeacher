@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { useUserStore, type StudentInfo } from '../../stores/user'
+import { useUserStore, type StudentInfo, type PasswordChangeRequest } from '../../stores/user'
 import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
@@ -15,9 +15,17 @@ const studentForm = reactive<StudentInfo>({
   budgetRange: ''
 })
 
+// 密码修改表单
+const passwordForm = reactive<PasswordChangeRequest>({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
 // 加载状态
 const loading = ref(false)
 const formLoading = ref(false)
+const passwordLoading = ref(false)
 
 // 获取学生信息
 const fetchStudentProfile = async () => {
@@ -61,12 +69,44 @@ const saveProfile = async () => {
   }
 }
 
+// 修改密码
+const changePassword = async () => {
+  if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+    ElMessage.warning('请填写完整的密码信息')
+    return
+  }
+
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    ElMessage.error('新密码和确认密码不一致')
+    return
+  }
+
+  if (passwordForm.newPassword.length < 6) {
+    ElMessage.error('新密码长度不能少于6位')
+    return
+  }
+
+  passwordLoading.value = true
+  try {
+    const response = await userStore.changePassword(passwordForm)
+    if (response.success) {
+      ElMessage.success('密码修改成功')
+      // 清空表单
+      passwordForm.currentPassword = ''
+      passwordForm.newPassword = ''
+      passwordForm.confirmPassword = ''
+    } else {
+      ElMessage.error(response.message || '密码修改失败')
+    }
+  } catch (error) {
+    ElMessage.error('密码修改失败')
+  } finally {
+    passwordLoading.value = false
+  }
+}
+
 // 页面加载时获取数据
 onMounted(() => {
-  console.log('StudentProfile mounted')
-  console.log('用户信息:', userStore.user)
-  console.log('是否登录:', userStore.isLoggedIn)
-  console.log('Token:', userStore.token)
   fetchStudentProfile()
 })
 </script>
@@ -152,6 +192,42 @@ onMounted(() => {
           </div>
         </div>
       </el-tab-pane>
+
+      <el-tab-pane label="修改密码">
+        <div class="password-container">
+          <el-form :model="passwordForm" label-width="120px">
+            <el-form-item label="当前密码">
+              <el-input
+                v-model="passwordForm.currentPassword"
+                type="password"
+                placeholder="请输入当前密码"
+                show-password
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="新密码">
+              <el-input
+                v-model="passwordForm.newPassword"
+                type="password"
+                placeholder="请输入新密码(至少6位)"
+                show-password
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="确认新密码">
+              <el-input
+                v-model="passwordForm.confirmPassword"
+                type="password"
+                placeholder="请再次输入新密码"
+                show-password
+              ></el-input>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="changePassword" :loading="passwordLoading">
+                修改密码
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -189,6 +265,11 @@ onMounted(() => {
 
 .form-container {
   flex: 1;
+}
+
+.password-container {
+  margin-top: 20px;
+  max-width: 600px;
 }
 
 @media (max-width: 768px) {

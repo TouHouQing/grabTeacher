@@ -79,14 +79,31 @@ public class TeacherService {
             throw new RuntimeException("教师信息不存在");
         }
 
-        // 更新信息
-        teacher.setEducationBackground(request.getEducationBackground());
-        teacher.setTeachingExperience(request.getTeachingExperience());
-        teacher.setSpecialties(request.getSpecialties());
-        teacher.setSubjects(request.getSubjects());
-        teacher.setHourlyRate(request.getHourlyRate());
-        teacher.setIntroduction(request.getIntroduction());
-        teacher.setVideoIntroUrl(request.getVideoIntroUrl());
+        // 更新教师信息
+        if (request.getRealName() != null) {
+            teacher.setRealName(request.getRealName());
+        }
+        if (request.getEducationBackground() != null) {
+            teacher.setEducationBackground(request.getEducationBackground());
+        }
+        if (request.getTeachingExperience() != null) {
+            teacher.setTeachingExperience(request.getTeachingExperience());
+        }
+        if (request.getSpecialties() != null) {
+            teacher.setSpecialties(request.getSpecialties());
+        }
+        if (request.getSubjects() != null) {
+            teacher.setSubjects(request.getSubjects());
+        }
+        if (request.getHourlyRate() != null) {
+            teacher.setHourlyRate(request.getHourlyRate());
+        }
+        if (request.getIntroduction() != null) {
+            teacher.setIntroduction(request.getIntroduction());
+        }
+        if (request.getVideoIntroUrl() != null) {
+            teacher.setVideoIntroUrl(request.getVideoIntroUrl());
+        }
 
         teacherMapper.updateById(teacher);
         logger.info("更新教师信息成功: userId={}", userId);

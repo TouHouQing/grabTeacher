@@ -233,4 +233,30 @@ public class AuthService {
         
         logger.info("用户密码更新成功: userId={}", userId);
     }
+
+    /**
+     * 修改密码
+     */
+    public boolean changePassword(Long userId, String currentPassword, String newPassword) {
+        try {
+            User user = userMapper.selectById(userId);
+            if (user == null) {
+                return false;
+            }
+            
+            // 验证当前密码
+            if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+                return false;
+            }
+            
+            // 更新密码
+            user.setPassword(passwordEncoder.encode(newPassword));
+            userMapper.updateById(user);
+            
+            return true;
+        } catch (Exception e) {
+            logger.error("修改密码失败: ", e);
+            return false;
+        }
+    }
 } 

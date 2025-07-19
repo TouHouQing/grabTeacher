@@ -38,12 +38,25 @@ public class StudentService {
             throw new RuntimeException("学生信息不存在");
         }
 
-        // 更新信息
-        student.setGradeLevel(request.getGradeLevel());
-        student.setSubjectsInterested(request.getSubjectsInterested());
-        student.setLearningGoals(request.getLearningGoals());
-        student.setPreferredTeachingStyle(request.getPreferredTeachingStyle());
-        student.setBudgetRange(request.getBudgetRange());
+        // 更新学生信息
+        if (request.getRealName() != null) {
+            student.setRealName(request.getRealName());
+        }
+        if (request.getGradeLevel() != null) {
+            student.setGradeLevel(request.getGradeLevel());
+        }
+        if (request.getSubjectsInterested() != null) {
+            student.setSubjectsInterested(request.getSubjectsInterested());
+        }
+        if (request.getLearningGoals() != null) {
+            student.setLearningGoals(request.getLearningGoals());
+        }
+        if (request.getPreferredTeachingStyle() != null) {
+            student.setPreferredTeachingStyle(request.getPreferredTeachingStyle());
+        }
+        if (request.getBudgetRange() != null) {
+            student.setBudgetRange(request.getBudgetRange());
+        }
 
         studentMapper.updateById(student);
         logger.info("更新学生信息成功: userId={}", userId);

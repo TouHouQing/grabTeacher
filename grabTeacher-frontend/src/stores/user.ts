@@ -281,6 +281,27 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // 修改密码
+  const changePassword = async (data: PasswordChangeRequest): Promise<ApiResponse<string>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token.value}`,
+        },
+        body: JSON.stringify(data),
+      })
+      return await response.json()
+    } catch (error) {
+      console.error('修改密码失败:', error)
+      return {
+        success: false,
+        message: '网络错误，请稍后重试',
+      }
+    }
+  }
+
   return {
     user,
     token,
@@ -298,5 +319,6 @@ export const useUserStore = defineStore('user', () => {
     updateStudentProfile,
     getTeacherProfile,
     updateTeacherProfile,
+    changePassword,
   }
 })

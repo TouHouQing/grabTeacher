@@ -10,13 +10,14 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PasswordChangeRequest {
-    @NotBlank(message = "原密码不能为空")
-    private String oldPassword;
-
+    
+    @NotBlank(message = "当前密码不能为空")
+    private String currentPassword;
+    
     @NotBlank(message = "新密码不能为空")
     @Size(min = 6, message = "新密码长度不能少于6位")
     private String newPassword;
-
-    @NotBlank(message = "确认新密码不能为空")
-    private String confirmNewPassword;
+    
+    @NotBlank(message = "确认密码不能为空")
+    private String confirmPassword;
 } 

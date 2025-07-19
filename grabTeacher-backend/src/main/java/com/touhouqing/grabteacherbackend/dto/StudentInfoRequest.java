@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StudentInfoRequest {
+    private String realName;
     private String gradeLevel;
     private String subjectsInterested;
     private String learningGoals;
