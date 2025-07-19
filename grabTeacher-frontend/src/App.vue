@@ -10,6 +10,7 @@ const langStore = useLangStore()
 onMounted(() => {
   langStore.initLang()
   updateLangClass()
+  userStore.initializeAuth() // 添加这行
 })
 
 // 监听语言变化，添加或移除特定语言的类

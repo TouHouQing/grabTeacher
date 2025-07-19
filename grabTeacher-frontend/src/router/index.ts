@@ -29,26 +29,74 @@ const router = createRouter({
       name: 'TeacherRegister',
       component: () => import('../views/TeacherRegister.vue')
     },
-    // 学生中心
+    // 学生中心及其子路由
     {
       path: '/student-center',
       name: 'StudentCenter',
       component: () => import('../views/student/StudentCenter.vue'),
-      meta: { requiresAuth: true, role: 'student' }
+      meta: { requiresAuth: true, role: 'student' },
+      children: [
+        {
+          path: 'profile',
+          name: 'StudentProfile',
+          component: () => import('../views/student/StudentProfile.vue'),
+          meta: { requiresAuth: true, role: 'student' }
+        },
+        {
+          path: 'orders',
+          name: 'StudentOrders',
+          component: () => import('../views/student/StudentOrders.vue'),
+          meta: { requiresAuth: true, role: 'student' }
+        },
+        {
+          path: 'match',
+          name: 'TeacherMatch',
+          component: () => import('../views/student/TeacherMatch.vue'),
+          meta: { requiresAuth: true, role: 'student' }
+        }
+      ]
     },
-    // 教师中心
+    // 教师中心及其子路由
     {
       path: '/teacher-center',
       name: 'TeacherCenter',
       component: () => import('../views/teacher/TeacherCenter.vue'),
-      meta: { requiresAuth: true, role: 'teacher' }
+      meta: { requiresAuth: true, role: 'teacher' },
+      children: [
+        {
+          path: 'profile',
+          name: 'TeacherProfile',
+          component: () => import('../views/teacher/TeacherProfile.vue'),
+          meta: { requiresAuth: true, role: 'teacher' }
+        },
+        {
+          path: 'orders',
+          name: 'TeacherOrders',
+          component: () => import('../views/teacher/TeacherOrders.vue'),
+          meta: { requiresAuth: true, role: 'teacher' }
+        },
+        {
+          path: 'schedule',
+          name: 'TeacherSchedule',
+          component: () => import('../views/teacher/TeacherSchedule.vue'),
+          meta: { requiresAuth: true, role: 'teacher' }
+        }
+      ]
     },
     // 管理员中心
     {
       path: '/admin-center',
       name: 'AdminCenter',
       component: () => import('../views/admin/AdminCenter.vue'),
-      meta: { requiresAuth: true, role: 'admin' }
+      meta: { requiresAuth: true, role: 'admin' },
+      children: [
+        {
+          path: 'user-management',
+          name: 'UserManagement',
+          component: () => import('../views/admin/UserManagement.vue'),
+          meta: { requiresAuth: true, role: 'admin' }
+        }
+      ]
     },
     // 其他现有路由...
     {
@@ -91,66 +139,47 @@ const router = createRouter({
       name: 'Videos',
       component: () => import('../views/Videos.vue')
     },
-    // 学生相关页面
+    {
+      path: '/teacher-detail/:id',
+      name: 'TeacherDetail',
+      component: () => import('../views/student/TeacherDetail.vue')
+    },
+    // 兼容旧路由的重定向
     {
       path: '/student',
       redirect: '/student-center'
     },
     {
       path: '/student/profile',
-      name: 'StudentProfile',
-      component: () => import('../views/student/StudentProfile.vue'),
-      meta: { requiresAuth: true, role: 'student' }
+      redirect: '/student-center/profile'
     },
     {
       path: '/student/orders',
-      name: 'StudentOrders',
-      component: () => import('../views/student/StudentOrders.vue'),
-      meta: { requiresAuth: true, role: 'student' }
+      redirect: '/student-center/orders'
     },
-    {
-      path: '/teacher-detail/:id',
-      name: 'TeacherDetail',
-      component: () => import('../views/student/TeacherDetail.vue')
-    },
-    {
-      path: '/teacher-match',
-      name: 'TeacherMatch',
-      component: () => import('../views/student/TeacherMatch.vue')
-    },
-    // 教师相关页面
     {
       path: '/teacher',
       redirect: '/teacher-center'
     },
     {
       path: '/teacher/profile',
-      name: 'TeacherProfile',
-      component: () => import('../views/teacher/TeacherProfile.vue'),
-      meta: { requiresAuth: true, role: 'teacher' }
+      redirect: '/teacher-center/profile'
     },
     {
       path: '/teacher/orders',
-      name: 'TeacherOrders',
-      component: () => import('../views/teacher/TeacherOrders.vue'),
-      meta: { requiresAuth: true, role: 'teacher' }
+      redirect: '/teacher-center/orders'
     },
     {
       path: '/teacher/schedule',
-      name: 'TeacherSchedule',
-      component: () => import('../views/teacher/TeacherSchedule.vue'),
-      meta: { requiresAuth: true, role: 'teacher' }
+      redirect: '/teacher-center/schedule'
     },
-    // 管理员相关页面
     {
       path: '/admin',
       redirect: '/admin-center'
     },
     {
       path: '/admin/user-management',
-      name: 'UserManagement',
-      component: () => import('../views/admin/UserManagement.vue'),
-      meta: { requiresAuth: true, role: 'admin' }
+      redirect: '/admin-center/user-management'
     }
   ]
 })

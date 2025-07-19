@@ -1,12 +1,27 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import StudentCourses from './components/StudentCourses.vue'
 import StudentSchedule from './components/StudentSchedule.vue'
 import StudentMessages from './components/StudentMessages.vue'
 
 const userStore = useUserStore()
+const route = useRoute()
 const activeMenu = ref('dashboard')
+
+// 根据当前路由设置激活菜单
+watch(() => route.path, (path) => {
+  if (path.includes('/profile')) {
+    activeMenu.value = 'profile'
+  } else if (path.includes('/orders')) {
+    activeMenu.value = 'orders'
+  } else if (path.includes('/match')) {
+    activeMenu.value = 'match'
+  } else {
+    activeMenu.value = 'dashboard'
+  }
+}, { immediate: true })
 </script>
 
 <template>
@@ -19,7 +34,7 @@ const activeMenu = ref('dashboard')
               <img :src="$getImageUrl('@/assets/pictures/studentBoy2.jpeg')" alt="用户头像">
             </div>
             <div class="info">
-              <h3>{{ userStore.username }}</h3>
+              <h3>{{ userStore.user?.username }}</h3>
               <p>学生</p>
             </div>
           </div>
@@ -28,7 +43,7 @@ const activeMenu = ref('dashboard')
             class="el-menu-vertical"
             @select="activeMenu = $event"
           >
-            <el-menu-item index="dashboard">
+            <el-menu-item index="dashboard" @click="$router.push('/student-center')">
               <el-icon><HomeFilled /></el-icon>
               <span>控制台</span>
             </el-menu-item>
@@ -61,7 +76,7 @@ const activeMenu = ref('dashboard')
       </el-aside>
       <el-main>
         <div v-if="activeMenu === 'dashboard'" class="dashboard">
-          <h2>欢迎回来，{{ userStore.username }}!</h2>
+          <h2>欢迎回来，{{ userStore.user?.username }}!</h2>
           <div class="dashboard-stats">
             <div class="stat-card">
               <div class="stat-icon">
@@ -134,12 +149,6 @@ const activeMenu = ref('dashboard')
             </el-table>
           </div>
         </div>
-        <div v-else-if="activeMenu === 'match'">
-          <router-view></router-view>
-        </div>
-        <div v-else-if="activeMenu === 'orders'">
-          <router-view></router-view>
-        </div>
         <div v-else-if="activeMenu === 'courses'">
           <StudentCourses />
         </div>
@@ -149,7 +158,7 @@ const activeMenu = ref('dashboard')
         <div v-else-if="activeMenu === 'messages'">
           <StudentMessages />
         </div>
-        <div v-else-if="activeMenu === 'profile'">
+        <div v-else>
           <router-view></router-view>
         </div>
       </el-main>

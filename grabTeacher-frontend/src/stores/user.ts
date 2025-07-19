@@ -31,13 +31,35 @@ export interface ApiResponse<T> {
   code?: number
 }
 
+export interface StudentInfo {
+  id?: number
+  userId?: number
+  realName?: string
+  gradeLevel?: string
+  subjectsInterested?: string
+  learningGoals?: string
+  preferredTeachingStyle?: string
+  budgetRange?: string
+}
+
 export interface TeacherInfo {
+  id?: number
+  userId?: number
+  realName?: string
   educationBackground?: string
   teachingExperience?: number
-  subjects?: string
   specialties?: string
+  subjects?: string
   hourlyRate?: number
   introduction?: string
+  videoIntroUrl?: string
+  isVerified?: boolean
+}
+
+export interface PasswordChangeRequest {
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
 }
 
 export const useUserStore = defineStore('user', () => {
@@ -181,6 +203,84 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // 获取学生信息
+  const getStudentProfile = async (): Promise<ApiResponse<StudentInfo>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/student/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token.value}`,
+        },
+      })
+      return await response.json()
+    } catch (error) {
+      console.error('获取学生信息失败:', error)
+      return {
+        success: false,
+        message: '网络错误，请稍后重试',
+      }
+    }
+  }
+
+  // 更新学生信息
+  const updateStudentProfile = async (data: Partial<StudentInfo>): Promise<ApiResponse<StudentInfo>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/student/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token.value}`,
+        },
+        body: JSON.stringify(data),
+      })
+      return await response.json()
+    } catch (error) {
+      console.error('更新学生信息失败:', error)
+      return {
+        success: false,
+        message: '网络错误，请稍后重试',
+      }
+    }
+  }
+
+  // 获取教师信息
+  const getTeacherProfile = async (): Promise<ApiResponse<TeacherInfo>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/teacher/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token.value}`,
+        },
+      })
+      return await response.json()
+    } catch (error) {
+      console.error('获取教师信息失败:', error)
+      return {
+        success: false,
+        message: '网络错误，请稍后重试',
+      }
+    }
+  }
+
+  // 更新教师信息
+  const updateTeacherProfile = async (data: Partial<TeacherInfo>): Promise<ApiResponse<TeacherInfo>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/teacher/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token.value}`,
+        },
+        body: JSON.stringify(data),
+      })
+      return await response.json()
+    } catch (error) {
+      console.error('更新教师信息失败:', error)
+      return {
+        success: false,
+        message: '网络错误，请稍后重试',
+      }
+    }
+  }
+
   return {
     user,
     token,
@@ -194,5 +294,9 @@ export const useUserStore = defineStore('user', () => {
     login,
     logout,
     initializeAuth,
+    getStudentProfile,
+    updateStudentProfile,
+    getTeacherProfile,
+    updateTeacherProfile,
   }
 })

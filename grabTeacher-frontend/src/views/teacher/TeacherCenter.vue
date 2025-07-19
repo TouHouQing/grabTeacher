@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import TeacherStudents from './components/TeacherStudents.vue'
 import TeacherMaterials from './components/TeacherMaterials.vue'
@@ -8,7 +9,21 @@ import TeacherSchedule from './components/TeacherSchedule.vue'
 import TeacherIncome from './components/TeacherIncome.vue'
 
 const userStore = useUserStore()
+const route = useRoute()
 const activeMenu = ref('dashboard')
+
+// 根据当前路由设置激活菜单
+watch(() => route.path, (path) => {
+  if (path.includes('/profile')) {
+    activeMenu.value = 'profile'
+  } else if (path.includes('/orders')) {
+    activeMenu.value = 'orders'
+  } else if (path.includes('/schedule')) {
+    activeMenu.value = 'schedule'
+  } else {
+    activeMenu.value = 'dashboard'
+  }
+}, { immediate: true })
 </script>
 
 <template>
@@ -23,7 +38,7 @@ const activeMenu = ref('dashboard')
               </el-avatar>
             </div>
             <div class="info">
-              <h3>{{ userStore.username }}</h3>
+              <h3>{{ userStore.user?.username }}</h3>
               <p>教师</p>
             </div>
           </div>
@@ -32,7 +47,7 @@ const activeMenu = ref('dashboard')
             class="el-menu-vertical"
             @select="activeMenu = $event"
           >
-            <el-menu-item index="dashboard">
+            <el-menu-item index="dashboard" @click="$router.push('/teacher-center')">
               <el-icon><HomeFilled /></el-icon>
               <span>控制台</span>
             </el-menu-item>
@@ -40,7 +55,7 @@ const activeMenu = ref('dashboard')
               <el-icon><Tickets /></el-icon>
               <span>订单管理</span>
             </el-menu-item>
-            <el-menu-item index="schedule">
+            <el-menu-item index="schedule" @click="$router.push('/teacher-center/schedule')">
               <el-icon><Calendar /></el-icon>
               <span>课表管理</span>
             </el-menu-item>
@@ -69,7 +84,7 @@ const activeMenu = ref('dashboard')
       </el-aside>
       <el-main>
         <div v-if="activeMenu === 'dashboard'" class="dashboard">
-          <h2>欢迎回来，{{ userStore.username }}!</h2>
+          <h2>欢迎回来，{{ userStore.user?.username }}!</h2>
           <div class="dashboard-stats">
             <div class="stat-card">
               <div class="stat-icon">
@@ -112,7 +127,7 @@ const activeMenu = ref('dashboard')
           <div class="quick-actions">
             <h3>快捷操作</h3>
             <div class="action-buttons">
-              <el-button type="primary" @click="activeMenu = 'orders'">
+              <el-button type="primary" @click="$router.push('/teacher-center/orders')">
                 <el-icon><View /></el-icon>
                 查看新订单
               </el-button>
@@ -173,12 +188,6 @@ const activeMenu = ref('dashboard')
             </el-table>
           </div>
         </div>
-        <div v-else-if="activeMenu === 'orders'">
-          <router-view></router-view>
-        </div>
-        <div v-else-if="activeMenu === 'schedule'">
-          <TeacherSchedule />
-        </div>
         <div v-else-if="activeMenu === 'students'">
           <TeacherStudents />
         </div>
@@ -191,7 +200,7 @@ const activeMenu = ref('dashboard')
         <div v-else-if="activeMenu === 'income'">
           <TeacherIncome />
         </div>
-        <div v-else-if="activeMenu === 'profile'">
+        <div v-else>
           <router-view></router-view>
         </div>
       </el-main>

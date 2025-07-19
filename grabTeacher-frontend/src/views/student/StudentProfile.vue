@@ -1,50 +1,74 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { useUserStore } from '../../stores/user'
+import { ref, reactive, onMounted } from 'vue'
+import { useUserStore, type StudentInfo } from '../../stores/user'
 import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
 
-// 模拟用户资料数据
-const userForm = reactive({
-  username: userStore.username || '学生用户',
-  realName: '张三',
-  gender: '男',
-  age: 16,
-  grade: '初一',
-  school: '实验中学',
-  phone: '13800138000',
-  email: 'student@example.com',
-  avatar: '@/assets/pictures/studentBoy2.jpeg'
+// 学生信息表单
+const studentForm = reactive<StudentInfo>({
+  realName: '',
+  gradeLevel: '',
+  subjectsInterested: '',
+  learningGoals: '',
+  preferredTeachingStyle: '',
+  budgetRange: ''
 })
 
-// 学习偏好设置
-const preferences = reactive({
-  learningStyle: '视觉学习',
-  subjects: ['数学', '物理'],
-  weakPoints: ['函数', '微积分'],
-  strongPoints: ['代数', '概率'],
-  preferredDays: ['周一', '周三', '周六'],
-  preferredTime: '晚上'
-})
-
-// 模拟提交操作
+// 加载状态
 const loading = ref(false)
-const saveProfile = () => {
+const formLoading = ref(false)
+
+// 获取学生信息
+const fetchStudentProfile = async () => {
   loading.value = true
-  setTimeout(() => {
+  try {
+    const response = await userStore.getStudentProfile()
+    if (response.success && response.data) {
+      Object.assign(studentForm, response.data)
+    } else {
+      ElMessage.warning(response.message || '获取学生信息失败')
+    }
+  } catch (error) {
+    ElMessage.error('获取学生信息失败')
+  } finally {
     loading.value = false
-    ElMessage.success('个人资料保存成功')
-  }, 1000)
+  }
 }
 
-const savePreferences = () => {
-  loading.value = true
-  setTimeout(() => {
-    loading.value = false
-    ElMessage.success('学习偏好保存成功')
-  }, 1000)
+// 保存学生信息
+const saveProfile = async () => {
+  if (!studentForm.realName) {
+    ElMessage.warning('请输入真实姓名')
+    return
+  }
+
+  formLoading.value = true
+  try {
+    const response = await userStore.updateStudentProfile(studentForm)
+    if (response.success) {
+      ElMessage.success('保存成功')
+      if (response.data) {
+        Object.assign(studentForm, response.data)
+      }
+    } else {
+      ElMessage.error(response.message || '保存失败')
+    }
+  } catch (error) {
+    ElMessage.error('保存失败')
+  } finally {
+    formLoading.value = false
+  }
 }
+
+// 页面加载时获取数据
+onMounted(() => {
+  console.log('StudentProfile mounted')
+  console.log('用户信息:', userStore.user)
+  console.log('是否登录:', userStore.isLoggedIn)
+  console.log('Token:', userStore.token)
+  fetchStudentProfile()
+})
 </script>
 
 <template>
@@ -53,147 +77,79 @@ const savePreferences = () => {
 
     <el-tabs>
       <el-tab-pane label="基本信息">
-        <div class="profile-container">
+        <div class="profile-container" v-loading="loading">
           <div class="avatar-container">
             <div class="avatar">
-              <img :src="$getImageUrl(userForm.avatar)" alt="头像">
+              <img src="@/assets/pictures/studentBoy2.jpeg" alt="头像">
             </div>
             <el-button size="small" type="primary">更换头像</el-button>
           </div>
 
           <div class="form-container">
-            <el-form :model="userForm" label-width="100px">
+            <el-form :model="studentForm" label-width="120px" :disabled="loading">
               <el-form-item label="用户名">
-                <el-input v-model="userForm.username" disabled></el-input>
+                <el-input :value="userStore.user?.username" disabled></el-input>
               </el-form-item>
-              <el-form-item label="真实姓名">
-                <el-input v-model="userForm.realName"></el-input>
+              <el-form-item label="邮箱">
+                <el-input :value="userStore.user?.email" disabled></el-input>
               </el-form-item>
-              <el-form-item label="性别">
-                <el-radio-group v-model="userForm.gender">
-                  <el-radio label="男">男</el-radio>
-                  <el-radio label="女">女</el-radio>
-                </el-radio-group>
-              </el-form-item>
-              <el-form-item label="年龄">
-                <el-input-number v-model="userForm.age" :min="6" :max="25"></el-input-number>
+              <el-form-item label="真实姓名" required>
+                <el-input v-model="studentForm.realName" placeholder="请输入真实姓名"></el-input>
               </el-form-item>
               <el-form-item label="年级">
-                <el-select v-model="userForm.grade">
+                <el-select v-model="studentForm.gradeLevel" placeholder="请选择年级" style="width: 100%">
+                  <el-option label="小学一年级" value="小学一年级"></el-option>
+                  <el-option label="小学二年级" value="小学二年级"></el-option>
+                  <el-option label="小学三年级" value="小学三年级"></el-option>
+                  <el-option label="小学四年级" value="小学四年级"></el-option>
+                  <el-option label="小学五年级" value="小学五年级"></el-option>
+                  <el-option label="小学六年级" value="小学六年级"></el-option>
                   <el-option label="初一" value="初一"></el-option>
                   <el-option label="初二" value="初二"></el-option>
                   <el-option label="初三" value="初三"></el-option>
+                  <el-option label="高一" value="高一"></el-option>
+                  <el-option label="高二" value="高二"></el-option>
+                  <el-option label="高三" value="高三"></el-option>
                 </el-select>
               </el-form-item>
-              <el-form-item label="学校">
-                <el-input v-model="userForm.school"></el-input>
+              <el-form-item label="感兴趣的科目">
+                <el-input
+                  v-model="studentForm.subjectsInterested"
+                  placeholder="请输入感兴趣的科目，用逗号分隔"
+                ></el-input>
               </el-form-item>
-              <el-form-item label="手机号码">
-                <el-input v-model="userForm.phone"></el-input>
+              <el-form-item label="学习目标">
+                <el-input
+                  v-model="studentForm.learningGoals"
+                  type="textarea"
+                  :rows="3"
+                  placeholder="请描述您的学习目标"
+                ></el-input>
               </el-form-item>
-              <el-form-item label="邮箱">
-                <el-input v-model="userForm.email"></el-input>
+              <el-form-item label="偏好教学风格">
+                <el-select v-model="studentForm.preferredTeachingStyle" placeholder="请选择偏好的教学风格" style="width: 100%">
+                  <el-option label="启发式教学" value="启发式教学"></el-option>
+                  <el-option label="严谨型教学" value="严谨型教学"></el-option>
+                  <el-option label="幽默风趣型" value="幽默风趣型"></el-option>
+                  <el-option label="互动式教学" value="互动式教学"></el-option>
+                  <el-option label="实践型教学" value="实践型教学"></el-option>
+                </el-select>
+              </el-form-item>
+              <el-form-item label="预算范围">
+                <el-select v-model="studentForm.budgetRange" placeholder="请选择预算范围" style="width: 100%">
+                  <el-option label="50-100元/小时" value="50-100"></el-option>
+                  <el-option label="100-200元/小时" value="100-200"></el-option>
+                  <el-option label="200-300元/小时" value="200-300"></el-option>
+                  <el-option label="300元以上/小时" value="300+"></el-option>
+                </el-select>
               </el-form-item>
               <el-form-item>
-                <el-button type="primary" @click="saveProfile" :loading="loading">保存信息</el-button>
+                <el-button type="primary" @click="saveProfile" :loading="formLoading">
+                  保存信息
+                </el-button>
               </el-form-item>
             </el-form>
           </div>
-        </div>
-      </el-tab-pane>
-
-      <el-tab-pane label="学习偏好">
-        <div class="preferences-container">
-          <el-form :model="preferences" label-width="120px">
-            <el-form-item label="学习风格">
-              <el-select v-model="preferences.learningStyle">
-                <el-option label="视觉学习" value="视觉学习"></el-option>
-                <el-option label="听觉学习" value="听觉学习"></el-option>
-                <el-option label="动手学习" value="动手学习"></el-option>
-                <el-option label="阅读学习" value="阅读学习"></el-option>
-              </el-select>
-            </el-form-item>
-
-            <el-form-item label="关注科目">
-              <el-select v-model="preferences.subjects" multiple>
-                <el-option label="数学" value="数学"></el-option>
-                <el-option label="语文" value="语文"></el-option>
-                <el-option label="英语" value="英语"></el-option>
-                <el-option label="物理" value="物理"></el-option>
-                <el-option label="化学" value="化学"></el-option>
-                <el-option label="生物" value="生物"></el-option>
-                <el-option label="历史" value="历史"></el-option>
-                <el-option label="地理" value="地理"></el-option>
-                <el-option label="政治" value="政治"></el-option>
-              </el-select>
-            </el-form-item>
-
-            <el-form-item label="薄弱环节">
-              <el-select v-model="preferences.weakPoints" multiple>
-                <el-option label="代数" value="代数"></el-option>
-                <el-option label="几何" value="几何"></el-option>
-                <el-option label="函数" value="函数"></el-option>
-                <el-option label="微积分" value="微积分"></el-option>
-                <el-option label="概率" value="概率"></el-option>
-                <el-option label="统计" value="统计"></el-option>
-              </el-select>
-            </el-form-item>
-
-            <el-form-item label="擅长环节">
-              <el-select v-model="preferences.strongPoints" multiple>
-                <el-option label="代数" value="代数"></el-option>
-                <el-option label="几何" value="几何"></el-option>
-                <el-option label="函数" value="函数"></el-option>
-                <el-option label="微积分" value="微积分"></el-option>
-                <el-option label="概率" value="概率"></el-option>
-                <el-option label="统计" value="统计"></el-option>
-              </el-select>
-            </el-form-item>
-
-            <el-form-item label="偏好上课日期">
-              <el-select v-model="preferences.preferredDays" multiple>
-                <el-option label="周一" value="周一"></el-option>
-                <el-option label="周二" value="周二"></el-option>
-                <el-option label="周三" value="周三"></el-option>
-                <el-option label="周四" value="周四"></el-option>
-                <el-option label="周五" value="周五"></el-option>
-                <el-option label="周六" value="周六"></el-option>
-                <el-option label="周日" value="周日"></el-option>
-              </el-select>
-            </el-form-item>
-
-            <el-form-item label="偏好上课时间">
-              <el-select v-model="preferences.preferredTime">
-                <el-option label="上午" value="上午"></el-option>
-                <el-option label="下午" value="下午"></el-option>
-                <el-option label="晚上" value="晚上"></el-option>
-                <el-option label="周末" value="周末"></el-option>
-              </el-select>
-            </el-form-item>
-
-            <el-form-item>
-              <el-button type="primary" @click="savePreferences" :loading="loading">保存偏好</el-button>
-            </el-form-item>
-          </el-form>
-        </div>
-      </el-tab-pane>
-
-      <el-tab-pane label="修改密码">
-        <div class="password-container">
-          <el-form label-width="120px">
-            <el-form-item label="当前密码">
-              <el-input type="password" show-password></el-input>
-            </el-form-item>
-            <el-form-item label="新密码">
-              <el-input type="password" show-password></el-input>
-            </el-form-item>
-            <el-form-item label="确认新密码">
-              <el-input type="password" show-password></el-input>
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary">修改密码</el-button>
-            </el-form-item>
-          </el-form>
         </div>
       </el-tab-pane>
     </el-tabs>
@@ -235,9 +191,14 @@ const savePreferences = () => {
   flex: 1;
 }
 
-.preferences-container,
-.password-container {
-  margin-top: 20px;
-  max-width: 600px;
+@media (max-width: 768px) {
+  .profile-container {
+    flex-direction: column;
+  }
+
+  .avatar-container {
+    margin-right: 0;
+    margin-bottom: 30px;
+  }
 }
 </style>
