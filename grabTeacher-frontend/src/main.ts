@@ -7,6 +7,7 @@ import App from './App.vue'
 import router from './router'
 import imageLoader from './utils/imageLoader'
 import i18n from './i18n'
+import { useUserStore } from './stores/user'
 
 const app = createApp(App)
 
@@ -23,4 +24,9 @@ app.use(router)
 app.use(ElementPlus)
 app.use(imageLoader)
 app.use(i18n)
+
+// 初始化认证状态
+const userStore = useUserStore()
+userStore.initializeAuth()
+
 app.mount('#app')

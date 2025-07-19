@@ -71,8 +71,13 @@ const router = createRouter({
     },
     {
       path: '/teacher-login',
-      name: 'teacher-login',
-      component: TeacherLogin
+      name: 'TeacherLogin',
+      component: () => import('../views/TeacherLogin.vue')
+    },
+    {
+      path: '/teacher-register',
+      name: 'TeacherRegister',
+      component: () => import('../views/TeacherRegister.vue')
     },
     {
       path: '/student-center',
@@ -136,11 +141,6 @@ const router = createRouter({
       path: '/register',
       name: 'register',
       component: () => import('../views/Register.vue')
-    },
-    {
-      path: '/teacher-register',
-      name: 'teacher-register',
-      component: TeacherRegister
     },
     {
       path: '/student/center',
