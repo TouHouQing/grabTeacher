@@ -26,6 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime; // 添加这个import
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -294,6 +296,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
+        user.setUpdatedAt(LocalDateTime.now()); // 显式设置更新时间
         userMapper.updateById(user);
         
         log.info("用户密码更新成功: userId={}", userId);
@@ -317,6 +320,7 @@ public class AuthServiceImpl implements AuthService {
             
             // 更新密码
             user.setPassword(passwordEncoder.encode(newPassword));
+            user.setUpdatedAt(LocalDateTime.now()); // 显式设置更新时间
             userMapper.updateById(user);
             
             return true;

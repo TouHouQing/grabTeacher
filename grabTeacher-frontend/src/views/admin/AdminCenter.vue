@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
-import { useUserStore } from '../../stores/user'
+import { useUserStore, type PasswordChangeRequest } from '../../stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, Lock, Setting, Document, DataBoard } from '@element-plus/icons-vue'
 
@@ -24,8 +24,8 @@ const statistics = ref({
 })
 
 // 修改密码表单
-const passwordForm = reactive({
-  oldPassword: '',
+const passwordForm = reactive<PasswordChangeRequest>({
+  currentPassword: '',
   newPassword: '',
   confirmPassword: ''
 })
@@ -34,7 +34,7 @@ const passwordFormRef = ref()
 
 // 修改密码规则
 const passwordRules = {
-  oldPassword: [
+  currentPassword: [
     { required: true, message: '请输入原密码', trigger: 'blur' }
   ],
   newPassword: [
@@ -243,23 +243,61 @@ const handleMenuSelect = (key: string) => {
 }
 
 // 修改密码
-const handlePasswordChange = () => {
-  passwordFormRef.value?.validate((valid: boolean) => {
-    if (valid) {
-      loading.value = true
-      // 模拟API请求
-      setTimeout(() => {
-        loading.value = false
-        ElMessage.success('密码修改成功')
-        // 重置表单
-        Object.assign(passwordForm, {
-          oldPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        })
-      }, 1000)
+const handlePasswordChange = async () => {
+  if (!passwordFormRef.value) return
+
+  // 先进行表单验证，使用 try-catch 包装验证逻辑
+  let isFormValid = false
+  try {
+    isFormValid = await passwordFormRef.value.validate()
+  } catch (validationError) {
+    // 表单验证失败，不显示网络错误，直接返回
+    console.log('表单验证失败:', validationError)
+    return
+  }
+
+  if (!isFormValid) {
+    // 表单验证失败，不显示网络错误，直接返回
+    return
+  }
+
+  // 额外检查两次密码是否一致（双重保险）
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    ElMessage.error('两次输入密码不一致')
+    return
+  }
+
+  // 开始网络请求
+  loading.value = true
+
+  try {
+    // 调用后端API修改密码
+    const response = await userStore.changePassword({
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+      confirmPassword: passwordForm.confirmPassword
+    })
+
+    if (response.success) {
+      ElMessage.success('密码修改成功')
+      // 重置表单
+      Object.assign(passwordForm, {
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      })
+      // 清空表单验证状态
+      passwordFormRef.value.clearValidate()
+    } else {
+      ElMessage.error(response.message || '密码修改失败')
     }
-  })
+  } catch (error: any) {
+    console.error('网络请求失败:', error)
+    // 只有在网络请求时才显示网络错误
+    ElMessage.error(error.message || '网络错误，请稍后重试')
+  } finally {
+    loading.value = false
+  }
 }
 
 // 用户搜索
@@ -552,14 +590,14 @@ onMounted(() => {
               label-width="100px"
               style="max-width: 500px"
             >
-              <el-form-item label="原密码" prop="oldPassword">
-                <el-input
-                  v-model="passwordForm.oldPassword"
-                  type="password"
-                  placeholder="请输入原密码"
-                  show-password
-                />
-              </el-form-item>
+                             <el-form-item label="原密码" prop="currentPassword">
+                 <el-input
+                   v-model="passwordForm.currentPassword"
+                   type="password"
+                   placeholder="请输入原密码"
+                   show-password
+                 />
+               </el-form-item>
               <el-form-item label="新密码" prop="newPassword">
                 <el-input
                   v-model="passwordForm.newPassword"
