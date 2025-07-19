@@ -80,3 +80,126 @@ export const subjectAPI = {
     })
   }
 }
+
+// 学生管理 API
+export const studentAPI = {
+  // 获取学生列表
+  getList: (params: {
+    page?: number
+    size?: number
+    keyword?: string
+    gradeLevel?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/admin/students?${searchParams}`)
+  },
+
+  // 获取学生详情
+  getById: (id: number) => apiRequest(`/api/admin/students/${id}`),
+
+  // 添加学生
+  create: (data: {
+    realName: string
+    gradeLevel?: string
+    subjectsInterested?: string
+    learningGoals?: string
+    preferredTeachingStyle?: string
+    budgetRange?: string
+  }) => apiRequest('/api/admin/students', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  // 更新学生
+  update: (id: number, data: {
+    realName: string
+    gradeLevel?: string
+    subjectsInterested?: string
+    learningGoals?: string
+    preferredTeachingStyle?: string
+    budgetRange?: string
+  }) => apiRequest(`/api/admin/students/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  // 删除学生
+  delete: (id: number) => apiRequest(`/api/admin/students/${id}`, {
+    method: 'DELETE'
+  })
+}
+
+// 教师管理 API
+export const teacherAPI = {
+  // 获取教师列表
+  getList: (params: {
+    page?: number
+    size?: number
+    keyword?: string
+    subject?: string
+    isVerified?: boolean
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/admin/teachers?${searchParams}`)
+  },
+
+  // 获取教师详情
+  getById: (id: number) => apiRequest(`/api/admin/teachers/${id}`),
+
+  // 添加教师
+  create: (data: {
+    realName: string
+    educationBackground?: string
+    teachingExperience?: number
+    specialties?: string
+    subjects?: string
+    hourlyRate?: number
+    introduction?: string
+    videoIntroUrl?: string
+  }) => apiRequest('/api/admin/teachers', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  // 更新教师
+  update: (id: number, data: {
+    realName: string
+    educationBackground?: string
+    teachingExperience?: number
+    specialties?: string
+    subjects?: string
+    hourlyRate?: number
+    introduction?: string
+    videoIntroUrl?: string
+  }) => apiRequest(`/api/admin/teachers/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  // 删除教师
+  delete: (id: number) => apiRequest(`/api/admin/teachers/${id}`, {
+    method: 'DELETE'
+  }),
+
+  // 审核教师 - 使用查询参数
+  verify: (id: number, isVerified: boolean) =>
+    apiRequest(`/api/admin/teachers/${id}/verify?isVerified=${isVerified}`, {
+      method: 'PUT'
+    })
+}
+
+// 管理员统计 API
+export const adminAPI = {
+  // 获取统计数据
+  getStatistics: () => apiRequest('/api/admin/statistics')
+}

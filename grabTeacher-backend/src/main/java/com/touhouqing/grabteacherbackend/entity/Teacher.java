@@ -49,7 +49,6 @@ public class Teacher {
     private Boolean isVerified = false;
 
     @TableField("is_deleted")
-    @TableLogic
     @Builder.Default
     private Boolean isDeleted = false;
 
