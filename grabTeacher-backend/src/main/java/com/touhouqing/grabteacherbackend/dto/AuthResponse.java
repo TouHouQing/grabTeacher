@@ -14,6 +14,7 @@ public class AuthResponse {
     private String username;
     private String email;
     private String userType;
+    private String realName; // 新增字段
 
     public AuthResponse(String accessToken, Long id, String username, String email, String userType) {
         this.token = accessToken;
@@ -21,5 +22,14 @@ public class AuthResponse {
         this.username = username;
         this.email = email;
         this.userType = userType;
+    }
+    
+    public AuthResponse(String accessToken, Long id, String username, String email, String userType, String realName) {
+        this.token = accessToken;
+        this.id = id;
+        this.username = username;
+        this.email = email;
+        this.userType = userType;
+        this.realName = realName;
     }
 } 

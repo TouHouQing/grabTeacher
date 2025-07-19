@@ -6,9 +6,11 @@ import com.touhouqing.grabteacherbackend.dto.RegisterRequest;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.entity.User;
+import com.touhouqing.grabteacherbackend.entity.Admin;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.UserMapper;
+import com.touhouqing.grabteacherbackend.mapper.AdminMapper;
 import com.touhouqing.grabteacherbackend.service.AuthService;
 import com.touhouqing.grabteacherbackend.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final StudentMapper studentMapper;
     private final TeacherMapper teacherMapper;
+    private final AdminMapper adminMapper; // 新增
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
@@ -170,6 +173,73 @@ public class AuthServiceImpl implements AuthService {
             throw new BadCredentialsException("用户名、邮箱或密码错误");
         } catch (Exception e) {
             log.error("登录失败，系统错误: {}", e.getMessage(), e);
+            throw new RuntimeException("登录失败，请稍后重试");
+        }
+    }
+
+    /**
+     * 管理员登录
+     */
+    @Override
+    public AuthResponse authenticateAdmin(LoginRequest loginRequest) {
+        try {
+            log.info("尝试管理员登录: {}", loginRequest.getUsername());
+
+            // 支持用户名或邮箱登录
+            User user = userMapper.findByUsernameOrEmail(loginRequest.getUsername());
+            if (user == null) {
+                log.warn("管理员登录失败，用户不存在: {}", loginRequest.getUsername());
+                throw new BadCredentialsException("用户名、邮箱或密码错误");
+            }
+
+            // 检查是否为管理员类型
+            if (!"admin".equals(user.getUserType())) {
+                log.warn("登录失败，用户类型不是管理员: {}", loginRequest.getUsername());
+                throw new BadCredentialsException("用户名、邮箱或密码错误");
+            }
+
+            log.info("找到管理员用户: {}, 状态: {}", user.getEmail(), user.getStatus());
+
+            // 检查用户状态
+            if (!"active".equals(user.getStatus())) {
+                log.warn("管理员登录失败，账户未激活: {}", loginRequest.getUsername());
+                throw new BadCredentialsException("账户未激活");
+            }
+
+            // 验证密码
+            if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+                log.warn("管理员登录失败，密码错误: {}", loginRequest.getUsername());
+                throw new BadCredentialsException("用户名、邮箱或密码错误");
+            }
+
+            // 进行身份验证
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequest.getUsername(),
+                            loginRequest.getPassword()
+                    )
+            );
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            String jwt = jwtUtil.generateToken(authentication);
+
+            // 获取管理员真实姓名
+            Admin admin = adminMapper.findByUserId(user.getId());
+            String realName = admin != null ? admin.getRealName() : null;
+
+            log.info("管理员登录成功: {}", user.getEmail());
+
+            return new AuthResponse(jwt, user.getId(), user.getUsername(), 
+                                  user.getEmail(), user.getUserType(), realName);
+        } catch (BadCredentialsException e) {
+            log.warn("管理员登录失败，认证错误: {}", e.getMessage());
+            throw new BadCredentialsException("用户名、邮箱或密码错误");
+        } catch (AuthenticationException e) {
+            log.warn("管理员登录失败，认证异常: {}", e.getMessage());
+            throw new BadCredentialsException("用户名、邮箱或密码错误");
+        } catch (Exception e) {
+            log.error("管理员登录失败，系统错误: {}", e.getMessage(), e);
             throw new RuntimeException("登录失败，请稍后重试");
         }
     }

@@ -21,6 +21,28 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import com.touhouqing.grabteacherbackend.entity.Admin;
+import com.touhouqing.grabteacherbackend.mapper.AdminMapper;
+import com.touhouqing.grabteacherbackend.dto.AuthResponse;
+import com.touhouqing.grabteacherbackend.dto.LoginRequest;
+import com.touhouqing.grabteacherbackend.dto.RegisterRequest;
+import com.touhouqing.grabteacherbackend.dto.PasswordChangeRequest;
+import com.touhouqing.grabteacherbackend.security.UserPrincipal;
+import com.touhouqing.grabteacherbackend.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -197,6 +219,28 @@ public class AuthController {
             logger.error("密码修改异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("密码修改失败"));
+        }
+    }
+
+    /**
+     * 管理员登录
+     */
+    @Operation(summary = "管理员登录", description = "管理员专用登录接口")
+    @PostMapping("/admin/login")
+    public ResponseEntity<ApiResponse<AuthResponse>> authenticateAdmin(@Valid @RequestBody LoginRequest loginRequest) {
+        try {
+            logger.info("收到管理员登录请求: {}", loginRequest.getUsername());
+            
+            AuthResponse authResponse = authService.authenticateAdmin(loginRequest);
+            return ResponseEntity.ok(ApiResponse.success("登录成功", authResponse));
+        } catch (RuntimeException e) {
+            logger.warn("管理员登录失败: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(401, "邮箱或密码错误"));
+        } catch (Exception e) {
+            logger.error("管理员登录异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("登录失败，请稍后重试"));
         }
     }
 } 

@@ -41,4 +41,9 @@ public interface AuthService {
      * 修改密码
      */
     boolean changePassword(Long userId, String currentPassword, String newPassword);
+    
+    /**
+     * 管理员登录
+     */
+    AuthResponse authenticateAdmin(LoginRequest loginRequest);
 } 
