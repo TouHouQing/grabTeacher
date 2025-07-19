@@ -11,7 +11,7 @@
  Target Server Version : 90100 (9.1.0)
  File Encoding         : 65001
 
- Date: 19/07/2025 01:03:25
+ Date: 19/07/2025 10:37:18
 */
 
 SET NAMES utf8mb4;
@@ -50,8 +50,6 @@ CREATE TABLE `booking_requests` (
   `start_date` date DEFAULT NULL COMMENT '周期性预约开始日期',
   `end_date` date DEFAULT NULL COMMENT '周期性预约结束日期',
   `total_times` int DEFAULT NULL COMMENT '总课程次数',
-  `duration_minutes` int NOT NULL COMMENT '课程时长(分钟)',
-  `subject_id` bigint DEFAULT NULL COMMENT '科目ID',
   `student_requirements` text COMMENT '学生需求说明',
   `status` enum('pending','approved','rejected','cancelled') DEFAULT 'pending' COMMENT '申请状态pending-待定中，approved-已批准，rejected-已拒绝，cancelled-已取消',
   `teacher_reply` text COMMENT '教师回复内容',
@@ -138,6 +136,8 @@ CREATE TABLE `schedules` (
   `booking_source` enum('request','admin') DEFAULT 'request' COMMENT '预约来源：request-申请预约，admin-管理员安排',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
+  `recurring_weekdays` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '周期性预约的星期几，逗号分隔：1,3,5',
+  `recurring_time_slots` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '周期性预约的时间段，逗号分隔：14:00-16:00,18:00-20:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程安排表，记录具体的上课时间';
 
