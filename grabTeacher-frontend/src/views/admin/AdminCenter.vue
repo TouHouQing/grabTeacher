@@ -3,10 +3,11 @@ import { ref, onMounted, reactive } from 'vue'
 import { useUserStore, type PasswordChangeRequest } from '../../stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, Lock, Setting, Document, DataBoard } from '@element-plus/icons-vue'
+import { subjectAPI } from '../../utils/api'
 
 // 获取用户信息
 const userStore = useUserStore()
-const adminName = ref(userStore.username || '管理员')
+const adminName = ref('管理员')
 
 // 当前活跃菜单
 const activeMenu = ref('dashboard')
@@ -56,145 +57,28 @@ const passwordRules = {
   ]
 }
 
-// 用户信息相关
-interface UserInfo {
-  id: number
-  username: string
-  name: string
-  email: string
-  role: string
-  status: string
-  registerTime: string
-}
-
-const userList = ref<UserInfo[]>([
-  {
-    id: 1001,
-    username: 'teacher001',
-    name: '张老师',
-    email: 'teacher001@example.com',
-    role: '教师',
-    status: '正常',
-    registerTime: '2023-07-10 10:23'
-  },
-  {
-    id: 1002,
-    username: 'student002',
-    name: '王明',
-    email: 'student002@example.com',
-    role: '学生',
-    status: '正常',
-    registerTime: '2023-07-10 14:35'
-  },
-  {
-    id: 1003,
-    username: 'teacher003',
-    name: '李老师',
-    email: 'teacher003@example.com',
-    role: '教师',
-    status: '待认证',
-    registerTime: '2023-07-09 09:12'
-  }
-])
-
-// 用户搜索
-const userSearchForm = reactive({
-  keyword: '',
-  role: '',
-  status: ''
-})
-
-// 用户对话框
-const userDialogVisible = ref(false)
-const userDialogTitle = ref('')
-const userForm = reactive({
-  id: 0,
-  username: '',
-  name: '',
-  email: '',
-  role: '学生',
-  status: '正常',
-  password: ''
-})
-
-const userFormRef = ref()
-
-// 用户表单规则
-const userRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度为 3 到 20 个字符', trigger: 'blur' }
-  ],
-  name: [
-    { required: true, message: '请输入姓名', trigger: 'blur' }
-  ],
-  email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
-  ],
-  role: [
-    { required: true, message: '请选择角色', trigger: 'change' }
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度为 6 到 20 个字符', trigger: 'blur' }
-  ]
-}
-
-// 科目信息相关
+// 科目相关类型定义
 interface SubjectInfo {
   id: number
   name: string
-  description: string
-  category: string
-  status: string
-  createTime: string
-  teacherCount: number
+  gradeLevels: string
+  iconUrl?: string
+  isActive: boolean
 }
 
-const subjectList = ref<SubjectInfo[]>([
-  {
-    id: 1,
-    name: '高中数学',
-    description: '高中数学相关课程',
-    category: '理科',
-    status: '启用',
-    createTime: '2023-01-15 10:00',
-    teacherCount: 35
-  },
-  {
-    id: 2,
-    name: '高中英语',
-    description: '高中英语相关课程',
-    category: '文科',
-    status: '启用',
-    createTime: '2023-01-15 10:00',
-    teacherCount: 28
-  },
-  {
-    id: 3,
-    name: '高中物理',
-    description: '高中物理相关课程',
-    category: '理科',
-    status: '启用',
-    createTime: '2023-01-15 10:00',
-    teacherCount: 22
-  },
-  {
-    id: 4,
-    name: '初中语文',
-    description: '初中语文相关课程',
-    category: '文科',
-    status: '停用',
-    createTime: '2023-02-10 14:30',
-    teacherCount: 15
-  }
-])
+interface SubjectRequest {
+  name: string
+  gradeLevels?: string
+  iconUrl?: string
+  isActive?: boolean
+}
+
+// 科目列表
+const subjectList = ref<SubjectInfo[]>([])
 
 // 科目搜索
 const subjectSearchForm = reactive({
   keyword: '',
-  category: '',
   status: ''
 })
 
@@ -204,9 +88,9 @@ const subjectDialogTitle = ref('')
 const subjectForm = reactive({
   id: 0,
   name: '',
-  description: '',
-  category: '理科',
-  status: '启用'
+  gradeLevels: '',
+  iconUrl: '',
+  isActive: true
 })
 
 const subjectFormRef = ref()
@@ -216,21 +100,12 @@ const subjectRules = {
   name: [
     { required: true, message: '请输入科目名称', trigger: 'blur' }
   ],
-  description: [
-    { required: true, message: '请输入科目描述', trigger: 'blur' }
-  ],
-  category: [
-    { required: true, message: '请选择科目分类', trigger: 'change' }
+  gradeLevels: [
+    { required: true, message: '请输入适用年级', trigger: 'blur' }
   ]
 }
 
 // 分页信息
-const userPagination = reactive({
-  currentPage: 1,
-  pageSize: 10,
-  total: 0
-})
-
 const subjectPagination = reactive({
   currentPage: 1,
   pageSize: 10,
@@ -246,32 +121,26 @@ const handleMenuSelect = (key: string) => {
 const handlePasswordChange = async () => {
   if (!passwordFormRef.value) return
 
-  // 先进行表单验证，使用 try-catch 包装验证逻辑
   let isFormValid = false
   try {
     isFormValid = await passwordFormRef.value.validate()
   } catch (validationError) {
-    // 表单验证失败，不显示网络错误，直接返回
     console.log('表单验证失败:', validationError)
     return
   }
 
   if (!isFormValid) {
-    // 表单验证失败，不显示网络错误，直接返回
     return
   }
 
-  // 额外检查两次密码是否一致（双重保险）
   if (passwordForm.newPassword !== passwordForm.confirmPassword) {
     ElMessage.error('两次输入密码不一致')
     return
   }
 
-  // 开始网络请求
   loading.value = true
 
   try {
-    // 调用后端API修改密码
     const response = await userStore.changePassword({
       currentPassword: passwordForm.currentPassword,
       newPassword: passwordForm.newPassword,
@@ -280,127 +149,63 @@ const handlePasswordChange = async () => {
 
     if (response.success) {
       ElMessage.success('密码修改成功')
-      // 重置表单
       Object.assign(passwordForm, {
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       })
-      // 清空表单验证状态
       passwordFormRef.value.clearValidate()
     } else {
       ElMessage.error(response.message || '密码修改失败')
     }
   } catch (error: any) {
     console.error('网络请求失败:', error)
-    // 只有在网络请求时才显示网络错误
     ElMessage.error(error.message || '网络错误，请稍后重试')
   } finally {
     loading.value = false
   }
 }
 
-// 用户搜索
-const handleUserSearch = () => {
-  console.log('搜索用户:', userSearchForm)
-  // 这里后续接入后端API
-}
-
-// 重置用户搜索
-const resetUserSearch = () => {
-  Object.assign(userSearchForm, {
-    keyword: '',
-    role: '',
-    status: ''
-  })
-  handleUserSearch()
-}
-
-// 添加用户
-const handleAddUser = () => {
-  userDialogTitle.value = '添加用户'
-  Object.assign(userForm, {
-    id: 0,
-    username: '',
-    name: '',
-    email: '',
-    role: '学生',
-    status: '正常',
-    password: ''
-  })
-  userDialogVisible.value = true
-}
-
-// 编辑用户
-const handleEditUser = (row: UserInfo) => {
-  userDialogTitle.value = '编辑用户'
-  Object.assign(userForm, {
-    ...row,
-    password: '' // 编辑时不显示密码
-  })
-  userDialogVisible.value = true
-}
-
-// 删除用户
-const handleDeleteUser = (row: UserInfo) => {
-  ElMessageBox.confirm(
-    `确定要删除用户 "${row.name}" 吗？`,
-    '确认删除',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
+// 获取科目列表
+const loadSubjectList = async () => {
+  try {
+    loading.value = true
+    const params = {
+      page: subjectPagination.currentPage,
+      size: subjectPagination.pageSize,
+      keyword: subjectSearchForm.keyword || undefined,
+      isActive: subjectSearchForm.status === '启用' ? true : subjectSearchForm.status === '停用' ? false : undefined
     }
-  ).then(() => {
-    const index = userList.value.findIndex(u => u.id === row.id)
-    if (index !== -1) {
-      userList.value.splice(index, 1)
-      ElMessage.success('删除成功')
-    }
-  })
-}
 
-// 保存用户
-const handleSaveUser = () => {
-  userFormRef.value?.validate((valid: boolean) => {
-    if (valid) {
-      loading.value = true
-      setTimeout(() => {
-        loading.value = false
-        if (userForm.id === 0) {
-          // 添加用户
-          const newUser = {
-            ...userForm,
-            id: Date.now(),
-            registerTime: new Date().toLocaleString()
-          }
-          userList.value.unshift(newUser)
-          ElMessage.success('用户添加成功')
-        } else {
-          // 编辑用户
-          const index = userList.value.findIndex(u => u.id === userForm.id)
-          if (index !== -1) {
-            Object.assign(userList.value[index], userForm)
-            ElMessage.success('用户信息更新成功')
-          }
-        }
-        userDialogVisible.value = false
-      }, 1000)
+    const result = await subjectAPI.getList(params)
+
+    if (result.success && result.data) {
+      if (Array.isArray(result.data)) {
+        subjectList.value = result.data
+        subjectPagination.total = result.data.length
+      } else if (result.data.subjects) {
+        subjectList.value = result.data.subjects
+        subjectPagination.total = result.data.total || result.data.subjects.length
+      }
     }
-  })
+  } catch (error) {
+    console.error('获取科目列表失败:', error)
+    ElMessage.error('获取科目列表失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 // 科目搜索
 const handleSubjectSearch = () => {
-  console.log('搜索科目:', subjectSearchForm)
-  // 这里后续接入后端API
+  subjectPagination.currentPage = 1
+  loadSubjectList()
 }
 
 // 重置科目搜索
 const resetSubjectSearch = () => {
   Object.assign(subjectSearchForm, {
     keyword: '',
-    category: '',
     status: ''
   })
   handleSubjectSearch()
@@ -412,9 +217,9 @@ const handleAddSubject = () => {
   Object.assign(subjectForm, {
     id: 0,
     name: '',
-    description: '',
-    category: '理科',
-    status: '启用'
+    gradeLevels: '',
+    iconUrl: '',
+    isActive: true
   })
   subjectDialogVisible.value = true
 }
@@ -422,75 +227,98 @@ const handleAddSubject = () => {
 // 编辑科目
 const handleEditSubject = (row: SubjectInfo) => {
   subjectDialogTitle.value = '编辑科目'
-  Object.assign(subjectForm, row)
+  Object.assign(subjectForm, {
+    id: row.id,
+    name: row.name,
+    gradeLevels: row.gradeLevels,
+    iconUrl: row.iconUrl || '',
+    isActive: row.isActive
+  })
   subjectDialogVisible.value = true
 }
 
 // 删除科目
-const handleDeleteSubject = (row: SubjectInfo) => {
-  ElMessageBox.confirm(
-    `确定要删除科目 "${row.name}" 吗？`,
-    '确认删除',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    const index = subjectList.value.findIndex(s => s.id === row.id)
-    if (index !== -1) {
-      subjectList.value.splice(index, 1)
+const handleDeleteSubject = async (row: SubjectInfo) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除科目 "${row.name}" 吗？`,
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    loading.value = true
+    const result = await subjectAPI.delete(row.id)
+
+    if (result.success) {
       ElMessage.success('删除成功')
+      await loadSubjectList()
+    } else {
+      ElMessage.error(result.message || '删除失败')
     }
-  })
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('删除科目失败:', error)
+      ElMessage.error(error.message || '删除失败')
+    }
+  } finally {
+    loading.value = false
+  }
 }
 
 // 保存科目
-const handleSaveSubject = () => {
-  subjectFormRef.value?.validate((valid: boolean) => {
-    if (valid) {
-      loading.value = true
-      setTimeout(() => {
-        loading.value = false
-        if (subjectForm.id === 0) {
-          // 添加科目
-          const newSubject = {
-            ...subjectForm,
-            id: Date.now(),
-            createTime: new Date().toLocaleString(),
-            teacherCount: 0
-          }
-          subjectList.value.unshift(newSubject)
-          ElMessage.success('科目添加成功')
-        } else {
-          // 编辑科目
-          const index = subjectList.value.findIndex(s => s.id === subjectForm.id)
-          if (index !== -1) {
-            Object.assign(subjectList.value[index], subjectForm)
-            ElMessage.success('科目信息更新成功')
-          }
-        }
-        subjectDialogVisible.value = false
-      }, 1000)
+const handleSaveSubject = async () => {
+  if (!subjectFormRef.value) return
+
+  try {
+    const isValid = await subjectFormRef.value.validate()
+    if (!isValid) return
+
+    loading.value = true
+
+    const subjectData: SubjectRequest = {
+      name: subjectForm.name,
+      gradeLevels: subjectForm.gradeLevels,
+      iconUrl: subjectForm.iconUrl,
+      isActive: subjectForm.isActive
     }
-  })
+
+    let result
+    if (subjectForm.id === 0) {
+      // 添加科目
+      result = await subjectAPI.create(subjectData)
+    } else {
+      // 编辑科目
+      result = await subjectAPI.update(subjectForm.id, subjectData)
+    }
+
+    if (result.success) {
+      ElMessage.success(subjectForm.id === 0 ? '科目添加成功' : '科目更新成功')
+      subjectDialogVisible.value = false
+      await loadSubjectList()
+    } else {
+      ElMessage.error(result.message || '操作失败')
+    }
+  } catch (error: any) {
+    console.error('保存科目失败:', error)
+    ElMessage.error(error.message || '操作失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 // 分页处理
-const handleUserPageChange = (page: number) => {
-  userPagination.currentPage = page
-  // 这里后续接入后端API
-}
-
 const handleSubjectPageChange = (page: number) => {
   subjectPagination.currentPage = page
-  // 这里后续接入后端API
+  loadSubjectList()
 }
 
 // 页面初始化
-onMounted(() => {
-  userPagination.total = userList.value.length
-  subjectPagination.total = subjectList.value.length
+onMounted(async () => {
+  await loadSubjectList()
 })
 </script>
 
@@ -519,14 +347,10 @@ onMounted(() => {
             <el-icon><Lock /></el-icon>
             <span>修改密码</span>
           </el-menu-item>
-          <el-menu-item index="users">
-            <el-icon><User /></el-icon>
-            <span>用户管理</span>
+          <el-menu-item index="subjects">
+            <el-icon><Document /></el-icon>
+            <span>科目管理</span>
           </el-menu-item>
-                     <el-menu-item index="subjects">
-             <el-icon><Document /></el-icon>
-             <span>科目管理</span>
-           </el-menu-item>
         </el-menu>
       </div>
 
@@ -590,14 +414,14 @@ onMounted(() => {
               label-width="100px"
               style="max-width: 500px"
             >
-                             <el-form-item label="原密码" prop="currentPassword">
-                 <el-input
-                   v-model="passwordForm.currentPassword"
-                   type="password"
-                   placeholder="请输入原密码"
-                   show-password
-                 />
-               </el-form-item>
+              <el-form-item label="原密码" prop="currentPassword">
+                <el-input
+                  v-model="passwordForm.currentPassword"
+                  type="password"
+                  placeholder="请输入原密码"
+                  show-password
+                />
+              </el-form-item>
               <el-form-item label="新密码" prop="newPassword">
                 <el-input
                   v-model="passwordForm.newPassword"
@@ -627,90 +451,6 @@ onMounted(() => {
           </el-card>
         </div>
 
-        <!-- 用户管理 -->
-        <div v-show="activeMenu === 'users'" class="content-panel">
-          <h3>用户管理</h3>
-
-          <!-- 搜索区域 -->
-          <el-card class="search-card">
-            <el-form :model="userSearchForm" inline>
-              <el-form-item label="关键词">
-                <el-input
-                  v-model="userSearchForm.keyword"
-                  placeholder="用户名/姓名/邮箱"
-                  clearable
-                />
-              </el-form-item>
-              <el-form-item label="角色">
-                <el-select v-model="userSearchForm.role" placeholder="请选择" clearable>
-                  <el-option label="教师" value="教师" />
-                  <el-option label="学生" value="学生" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="状态">
-                <el-select v-model="userSearchForm.status" placeholder="请选择" clearable>
-                  <el-option label="正常" value="正常" />
-                  <el-option label="冻结" value="冻结" />
-                  <el-option label="待认证" value="待认证" />
-                </el-select>
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary" @click="handleUserSearch">搜索</el-button>
-                <el-button @click="resetUserSearch">重置</el-button>
-                <el-button type="success" @click="handleAddUser">添加用户</el-button>
-              </el-form-item>
-            </el-form>
-          </el-card>
-
-          <!-- 用户表格 -->
-          <el-card class="table-card">
-            <el-table :data="userList" style="width: 100%">
-              <el-table-column prop="id" label="ID" width="80" />
-              <el-table-column prop="username" label="用户名" />
-              <el-table-column prop="name" label="姓名" />
-              <el-table-column prop="email" label="邮箱" />
-              <el-table-column prop="role" label="角色" width="80">
-                <template #default="scope">
-                  <el-tag :type="scope.row.role === '教师' ? 'primary' : 'success'">
-                    {{ scope.row.role }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="status" label="状态" width="100">
-                <template #default="scope">
-                  <el-tag
-                    :type="scope.row.status === '正常' ? 'success' :
-                           scope.row.status === '待认证' ? 'warning' : 'danger'"
-                  >
-                    {{ scope.row.status }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="registerTime" label="注册时间" />
-              <el-table-column label="操作" width="150">
-                <template #default="scope">
-                  <el-button type="primary" size="small" @click="handleEditUser(scope.row)">
-                    编辑
-                  </el-button>
-                  <el-button type="danger" size="small" @click="handleDeleteUser(scope.row)">
-                    删除
-                  </el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-
-            <!-- 分页 -->
-                         <el-pagination
-               :current-page="userPagination.currentPage"
-               :page-size="userPagination.pageSize"
-               :total="userPagination.total"
-               layout="total, prev, pager, next, jumper"
-               @current-change="handleUserPageChange"
-               style="margin-top: 20px; text-align: right"
-             />
-          </el-card>
-        </div>
-
         <!-- 科目管理 -->
         <div v-show="activeMenu === 'subjects'" class="content-panel">
           <h3>科目管理</h3>
@@ -721,16 +461,9 @@ onMounted(() => {
               <el-form-item label="关键词">
                 <el-input
                   v-model="subjectSearchForm.keyword"
-                  placeholder="科目名称/描述"
+                  placeholder="科目名称"
                   clearable
                 />
-              </el-form-item>
-              <el-form-item label="分类">
-                <el-select v-model="subjectSearchForm.category" placeholder="请选择" clearable>
-                  <el-option label="理科" value="理科" />
-                  <el-option label="文科" value="文科" />
-                  <el-option label="艺术" value="艺术" />
-                </el-select>
               </el-form-item>
               <el-form-item label="状态">
                 <el-select v-model="subjectSearchForm.status" placeholder="请选择" clearable>
@@ -748,26 +481,18 @@ onMounted(() => {
 
           <!-- 科目表格 -->
           <el-card class="table-card">
-            <el-table :data="subjectList" style="width: 100%">
+            <el-table :data="subjectList" style="width: 100%" v-loading="loading">
               <el-table-column prop="id" label="ID" width="80" />
               <el-table-column prop="name" label="科目名称" />
-              <el-table-column prop="description" label="描述" />
-              <el-table-column prop="category" label="分类" width="100">
+              <el-table-column prop="gradeLevels" label="适用年级" />
+              <el-table-column prop="iconUrl" label="图标URL" />
+              <el-table-column prop="isActive" label="状态" width="100">
                 <template #default="scope">
-                  <el-tag :type="scope.row.category === '理科' ? 'primary' : 'success'">
-                    {{ scope.row.category }}
+                  <el-tag :type="scope.row.isActive ? 'success' : 'danger'">
+                    {{ scope.row.isActive ? '启用' : '停用' }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="status" label="状态" width="100">
-                <template #default="scope">
-                  <el-tag :type="scope.row.status === '启用' ? 'success' : 'danger'">
-                    {{ scope.row.status }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="teacherCount" label="教师数量" width="100" />
-              <el-table-column prop="createTime" label="创建时间" />
               <el-table-column label="操作" width="150">
                 <template #default="scope">
                   <el-button type="primary" size="small" @click="handleEditSubject(scope.row)">
@@ -781,75 +506,18 @@ onMounted(() => {
             </el-table>
 
             <!-- 分页 -->
-                         <el-pagination
-               :current-page="subjectPagination.currentPage"
-               :page-size="subjectPagination.pageSize"
-               :total="subjectPagination.total"
-               layout="total, prev, pager, next, jumper"
-               @current-change="handleSubjectPageChange"
-               style="margin-top: 20px; text-align: right"
-             />
+            <el-pagination
+              :current-page="subjectPagination.currentPage"
+              :page-size="subjectPagination.pageSize"
+              :total="subjectPagination.total"
+              layout="total, prev, pager, next, jumper"
+              @current-change="handleSubjectPageChange"
+              style="margin-top: 20px; text-align: right"
+            />
           </el-card>
         </div>
       </div>
     </div>
-
-    <!-- 用户对话框 -->
-    <el-dialog
-      v-model="userDialogVisible"
-      :title="userDialogTitle"
-      width="500px"
-    >
-      <el-form
-        ref="userFormRef"
-        :model="userForm"
-        :rules="userRules"
-        label-width="80px"
-      >
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="userForm.username" placeholder="请输入用户名" />
-        </el-form-item>
-        <el-form-item label="姓名" prop="name">
-          <el-input v-model="userForm.name" placeholder="请输入姓名" />
-        </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="userForm.email" placeholder="请输入邮箱" />
-        </el-form-item>
-        <el-form-item label="角色" prop="role">
-          <el-select v-model="userForm.role" placeholder="请选择角色">
-            <el-option label="教师" value="教师" />
-            <el-option label="学生" value="学生" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-select v-model="userForm.status" placeholder="请选择状态">
-            <el-option label="正常" value="正常" />
-            <el-option label="冻结" value="冻结" />
-            <el-option label="待认证" value="待认证" />
-          </el-select>
-        </el-form-item>
-        <el-form-item
-          v-if="userForm.id === 0"
-          label="密码"
-          prop="password"
-        >
-          <el-input
-            v-model="userForm.password"
-            type="password"
-            placeholder="请输入密码"
-            show-password
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="userDialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="loading" @click="handleSaveUser">
-            确定
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
 
     <!-- 科目对话框 -->
     <el-dialog
@@ -866,26 +534,24 @@ onMounted(() => {
         <el-form-item label="科目名称" prop="name">
           <el-input v-model="subjectForm.name" placeholder="请输入科目名称" />
         </el-form-item>
-        <el-form-item label="描述" prop="description">
+        <el-form-item label="适用年级" prop="gradeLevels">
           <el-input
-            v-model="subjectForm.description"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入科目描述"
+            v-model="subjectForm.gradeLevels"
+            placeholder="如：小学,初中,高中"
           />
         </el-form-item>
-        <el-form-item label="分类" prop="category">
-          <el-select v-model="subjectForm.category" placeholder="请选择分类">
-            <el-option label="理科" value="理科" />
-            <el-option label="文科" value="文科" />
-            <el-option label="艺术" value="艺术" />
-          </el-select>
+        <el-form-item label="图标URL">
+          <el-input
+            v-model="subjectForm.iconUrl"
+            placeholder="请输入图标URL（可选）"
+          />
         </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-select v-model="subjectForm.status" placeholder="请选择状态">
-            <el-option label="启用" value="启用" />
-            <el-option label="停用" value="停用" />
-          </el-select>
+        <el-form-item label="状态">
+          <el-switch
+            v-model="subjectForm.isActive"
+            active-text="启用"
+            inactive-text="停用"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
