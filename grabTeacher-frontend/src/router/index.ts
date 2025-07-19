@@ -29,6 +29,12 @@ const router = createRouter({
       name: 'TeacherRegister',
       component: () => import('../views/TeacherRegister.vue')
     },
+    // 管理员登录
+    {
+      path: '/admin',
+      name: 'AdminLogin',
+      component: () => import('../views/AdminLogin.vue')
+    },
     // 学生中心及其子路由
     {
       path: '/student-center',
@@ -172,10 +178,6 @@ const router = createRouter({
     {
       path: '/teacher/schedule',
       redirect: '/teacher-center/schedule'
-    },
-    {
-      path: '/admin',
-      redirect: '/admin-center'
     },
     {
       path: '/admin/user-management',

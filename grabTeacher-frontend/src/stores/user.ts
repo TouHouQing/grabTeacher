@@ -302,6 +302,32 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // 管理员登录
+  const adminLogin = async (loginData: LoginRequest): Promise<ApiResponse<User>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(loginData),
+      })
+
+      const result: ApiResponse<User> = await response.json()
+
+      if (result.success && result.data) {
+        setUser(result.data)
+      } else {
+        throw new Error(result.message || '登录失败')
+      }
+
+      return result
+    } catch (error: any) {
+      console.error('管理员登录失败:', error)
+      throw new Error(error.message || '网络错误，请稍后重试')
+    }
+  }
+
   return {
     user,
     token,
@@ -320,5 +346,6 @@ export const useUserStore = defineStore('user', () => {
     getTeacherProfile,
     updateTeacherProfile,
     changePassword,
+    adminLogin,
   }
 })

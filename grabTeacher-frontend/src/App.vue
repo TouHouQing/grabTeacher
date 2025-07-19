@@ -47,8 +47,7 @@ function updateLangClass() {
       <div class="auth-buttons" v-if="!userStore.isLoggedIn">
         <el-button type="primary" size="small" @click="$router.push('/login')">{{ $t('auth.studentLogin') }}</el-button>
         <el-button type="primary" size="small" @click="$router.push('/teacher-login')">{{ $t('auth.teacherLogin') }}</el-button>
-        <el-button type="success" size="small" @click="$router.push('/register')">{{ $t('auth.studentRegister') }}</el-button>
-        <el-button type="success" size="small" @click="$router.push('/teacher-register')">{{ $t('auth.teacherRegister') }}</el-button>
+        <el-button type="warning" size="small" @click="$router.push('/admin')">{{ langStore.currentLang === 'zh' ? '管理员' : 'Admin' }}</el-button>
         <el-button type="warning" size="small" @click="langStore.toggleLang()">
           {{ langStore.currentLang === 'zh' ? 'English' : '中文' }}
         </el-button>
@@ -56,6 +55,7 @@ function updateLangClass() {
       <div class="auth-buttons" v-else>
         <el-button v-if="userStore.isTeacher" @click="$router.push('/teacher-center')" type="success" size="small">{{ $t('auth.teacherCenter') }}</el-button>
         <el-button v-if="userStore.isStudent" @click="$router.push('/student-center')" type="success" size="small">{{ $t('auth.studentCenter') }}</el-button>
+        <el-button v-if="userStore.isAdmin" @click="$router.push('/admin-center')" type="danger" size="small">{{ langStore.currentLang === 'zh' ? '管理中心' : 'Admin Center' }}</el-button>
         <el-button @click="userStore.logout" type="info" size="small">{{ $t('auth.logout') }}</el-button>
         <el-button type="warning" size="small" @click="langStore.toggleLang()">
           {{ langStore.currentLang === 'zh' ? 'English' : '中文' }}
