@@ -19,21 +19,23 @@ const router = createRouter({
       name: 'Register',
       component: () => import('../views/Register.vue')
     },
+    // 向后兼容的重定向路由
     {
       path: '/teacher-login',
-      name: 'TeacherLogin',
-      component: () => import('../views/TeacherLogin.vue')
+      redirect: '/login'
+    },
+    {
+      path: '/admin',
+      redirect: '/login'
+    },
+    {
+      path: '/admin-login',
+      redirect: '/login'
     },
     {
       path: '/teacher-register',
       name: 'TeacherRegister',
       component: () => import('../views/TeacherRegister.vue')
-    },
-    // 管理员登录
-    {
-      path: '/admin',
-      name: 'AdminLogin',
-      component: () => import('../views/AdminLogin.vue')
     },
     // 学生中心及其子路由
     {
@@ -161,11 +163,6 @@ const router = createRouter({
       path: '/teacher-detail/:id',
       name: 'TeacherDetail',
       component: () => import('../views/student/TeacherDetail.vue')
-    },
-    {
-      path: '/mobile-test',
-      name: 'MobileTest',
-      component: () => import('../views/MobileTest.vue')
     },
     // 兼容旧路由的重定向
     {

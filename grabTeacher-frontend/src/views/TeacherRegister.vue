@@ -297,7 +297,7 @@ const handleRegister = async () => {
       </form>
 
       <div class="register-links">
-        <router-link to="/teacher-login">已有账号？教师登录</router-link>
+        <router-link to="/login">已有账号？立即登录</router-link>
         <router-link to="/register">学生注册</router-link>
       </div>
     </div>

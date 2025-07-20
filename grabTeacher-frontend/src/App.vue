@@ -61,9 +61,8 @@ function updateLangClass() {
         <el-menu-item index="/contact">{{ $t('nav.contact') }}</el-menu-item>
       </el-menu>
       <div class="auth-buttons" v-if="!userStore.isLoggedIn">
-        <el-button type="primary" size="small" @click="$router.push('/login')">{{ $t('auth.studentLogin') }}</el-button>
-        <el-button type="primary" size="small" @click="$router.push('/teacher-login')">{{ $t('auth.teacherLogin') }}</el-button>
-        <el-button type="warning" size="small" @click="$router.push('/admin')">{{ langStore.currentLang === 'zh' ? '管理员' : 'Admin' }}</el-button>
+        <el-button type="primary" size="small" @click="$router.push('/login')">{{ $t('auth.login') || '登录' }}</el-button>
+        <el-button type="success" size="small" @click="$router.push('/register')">{{ $t('auth.register') || '注册' }}</el-button>
         <el-button type="warning" size="small" @click="langStore.toggleLang()">
           {{ langStore.currentLang === 'zh' ? 'English' : '中文' }}
         </el-button>

@@ -161,14 +161,7 @@ const navItems = computed(() => [
               @click="navigateTo('/login')"
               class="auth-btn"
             >
-              学生登录
-            </el-button>
-            <el-button
-              size="large"
-              @click="navigateTo('/teacher-login')"
-              class="auth-btn"
-            >
-              教师登录
+              用户登录
             </el-button>
             <el-button
               size="large"
