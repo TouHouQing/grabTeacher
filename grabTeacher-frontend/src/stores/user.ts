@@ -65,7 +65,8 @@ export interface PasswordChangeRequest {
 export const useUserStore = defineStore('user', () => {
   const user = ref<User | null>(null)
   const token = ref<string | null>(localStorage.getItem('token'))
-  const isLoggedIn = ref<boolean>(!!token.value)
+  // 初始状态设为false，等待initializeAuth验证后再设置正确状态
+  const isLoggedIn = ref<boolean>(false)
 
   // 添加计算属性
   const isTeacher = computed(() => user.value?.userType === 'teacher')
@@ -172,13 +173,8 @@ export const useUserStore = defineStore('user', () => {
       console.log('开始初始化认证...')
       const storedToken = localStorage.getItem('token')
       if (storedToken) {
-        console.log('找到存储的token，设置登录状态')
-        token.value = storedToken
-        isLoggedIn.value = true
+        console.log('找到存储的token，尝试验证有效性')
 
-        // 暂时跳过API验证，避免网络错误阻塞页面加载
-        console.log('跳过API验证，直接设置登录状态')
-        /*
         // 验证token有效性并获取用户信息
         try {
           const response = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -190,6 +186,7 @@ export const useUserStore = defineStore('user', () => {
           if (response.ok) {
             const result = await response.json()
             if (result.success && result.data) {
+              console.log('Token验证成功，设置用户信息')
               user.value = {
                 id: result.data.id,
                 username: result.data.username,
@@ -197,22 +194,34 @@ export const useUserStore = defineStore('user', () => {
                 userType: result.data.authorities?.[0]?.authority?.replace('ROLE_', '').toLowerCase() || 'student',
                 token: storedToken
               }
+              token.value = storedToken
+              isLoggedIn.value = true
+            } else {
+              console.log('Token验证失败，清除登录状态')
+              clearUser()
             }
           } else {
+            console.log('Token无效，清除登录状态')
             // token无效，清除本地存储
             clearUser()
           }
         } catch (error) {
           console.error('验证token失败:', error)
+          // 网络错误时，暂时保持登录状态但不设置用户信息
+          // 这样可以避免网络问题导致用户被强制登出
+          console.log('网络错误，暂时清除登录状态以确保UI正确显示')
           clearUser()
         }
-        */
       } else {
-        console.log('没有找到存储的token')
+        console.log('没有找到存储的token，保持未登录状态')
+        // 确保状态一致性
+        clearUser()
       }
       console.log('认证初始化完成')
     } catch (error) {
       console.error('初始化认证时发生错误:', error)
+      // 发生错误时清除状态
+      clearUser()
     }
   }
 
