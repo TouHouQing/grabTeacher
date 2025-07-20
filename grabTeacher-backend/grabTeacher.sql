@@ -11,7 +11,7 @@
  Target Server Version : 90100 (9.1.0)
  File Encoding         : 65001
 
- Date: 19/07/2025 10:37:18
+ Date: 20/07/2025 18:02:42
 */
 
 SET NAMES utf8mb4;
@@ -30,7 +30,14 @@ CREATE TABLE `admins` (
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='管理员详细信息表，存储管理员的职务信息和权限';
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='管理员详细信息表，存储管理员的职务信息和权限';
+
+-- ----------------------------
+-- Records of admins
+-- ----------------------------
+BEGIN;
+INSERT INTO `admins` (`id`, `user_id`, `real_name`, `notes`, `is_deleted`, `deleted_at`) VALUES (1, 11, '管理员', '测试', 0, NULL);
+COMMIT;
 
 -- ----------------------------
 -- Table structure for booking_requests
@@ -63,6 +70,12 @@ CREATE TABLE `booking_requests` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='预约申请表，记录学生的课程预约申请';
 
 -- ----------------------------
+-- Records of booking_requests
+-- ----------------------------
+BEGIN;
+COMMIT;
+
+-- ----------------------------
 -- Table structure for courses
 -- ----------------------------
 DROP TABLE IF EXISTS `courses`;
@@ -78,8 +91,17 @@ CREATE TABLE `courses` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '课程创建时间',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
+  `gender` varchar(255) DEFAULT NULL COMMENT '课程适用年级如[小学一年级,小学二年级]',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程信息表，存储教师发布的课程详情';
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程信息表，存储教师发布的课程详情';
+
+-- ----------------------------
+-- Records of courses
+-- ----------------------------
+BEGIN;
+INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `duration_minutes`, `status`, `created_at`, `is_deleted`, `deleted_at`, `gender`) VALUES (1, 7, 1, '666', '222', 'one_on_one', 120, 'active', '2025-07-20 14:05:18', 1, '2025-07-20 14:07:01', NULL);
+INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `duration_minutes`, `status`, `created_at`, `is_deleted`, `deleted_at`, `gender`) VALUES (2, 7, 4, '123', '123', 'one_on_one', 120, 'active', '2025-07-20 14:05:40', 0, NULL, NULL);
+COMMIT;
 
 -- ----------------------------
 -- Table structure for reschedule_requests
@@ -116,6 +138,12 @@ CREATE TABLE `reschedule_requests` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='调课申请表，记录课程时间调整申请';
 
 -- ----------------------------
+-- Records of reschedule_requests
+-- ----------------------------
+BEGIN;
+COMMIT;
+
+-- ----------------------------
 -- Table structure for schedules
 -- ----------------------------
 DROP TABLE IF EXISTS `schedules`;
@@ -142,6 +170,12 @@ CREATE TABLE `schedules` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程安排表，记录具体的上课时间';
 
 -- ----------------------------
+-- Records of schedules
+-- ----------------------------
+BEGIN;
+COMMIT;
+
+-- ----------------------------
 -- Table structure for students
 -- ----------------------------
 DROP TABLE IF EXISTS `students`;
@@ -158,7 +192,14 @@ CREATE TABLE `students` (
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学生详细信息表，存储学生的个人资料和学习偏好';
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学生详细信息表，存储学生的个人资料和学习偏好';
+
+-- ----------------------------
+-- Records of students
+-- ----------------------------
+BEGIN;
+INSERT INTO `students` (`id`, `user_id`, `real_name`, `grade_level`, `subjects_interested`, `learning_goals`, `preferred_teaching_style`, `budget_range`, `is_deleted`, `deleted_at`) VALUES (6, 10, 'student23', '小学一年级', '数学', '123131123', '实践型教学', '100-200', 0, NULL);
+COMMIT;
 
 -- ----------------------------
 -- Table structure for subjects
@@ -173,7 +214,17 @@ CREATE TABLE `subjects` (
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='科目分类表，定义平台支持的所有教学科目';
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='科目分类表，定义平台支持的所有教学科目';
+
+-- ----------------------------
+-- Records of subjects
+-- ----------------------------
+BEGIN;
+INSERT INTO `subjects` (`id`, `name`, `grade_levels`, `icon_url`, `is_active`, `is_deleted`, `deleted_at`) VALUES (1, '语文', '小学', '', 1, 0, NULL);
+INSERT INTO `subjects` (`id`, `name`, `grade_levels`, `icon_url`, `is_active`, `is_deleted`, `deleted_at`) VALUES (2, '123', '123', '', 1, 0, NULL);
+INSERT INTO `subjects` (`id`, `name`, `grade_levels`, `icon_url`, `is_active`, `is_deleted`, `deleted_at`) VALUES (3, '555', '555', '', 1, 0, NULL);
+INSERT INTO `subjects` (`id`, `name`, `grade_levels`, `icon_url`, `is_active`, `is_deleted`, `deleted_at`) VALUES (4, '666', '6665', '', 1, 0, NULL);
+COMMIT;
 
 -- ----------------------------
 -- Table structure for teachers
@@ -195,7 +246,14 @@ CREATE TABLE `teachers` (
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='教师详细信息表，存储教师的专业资料和教学信息';
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='教师详细信息表，存储教师的专业资料和教学信息';
+
+-- ----------------------------
+-- Records of teachers
+-- ----------------------------
+BEGIN;
+INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`, `subjects`, `hourly_rate`, `introduction`, `video_intro_url`, `is_verified`, `is_deleted`, `deleted_at`) VALUES (7, 14, '12355', '硕士研究生', 1, '1231236', '英语,数学', 50.00, '123123555', NULL, 0, 0, NULL);
+COMMIT;
 
 -- ----------------------------
 -- Table structure for users
@@ -205,7 +263,7 @@ CREATE TABLE `users` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '用户ID，主键自增',
   `username` varchar(50) NOT NULL COMMENT '用户名，唯一标识',
   `email` varchar(100) NOT NULL COMMENT '邮箱地址，用于登录和通知',
-  `password` varchar(255) NOT NULL COMMENT '密码（加密）',
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '密码（加密）Bcrypt',
   `phone` varchar(20) DEFAULT NULL COMMENT '手机号码',
   `avatar_url` varchar(255) DEFAULT NULL COMMENT '头像图片URL地址',
   `user_type` enum('student','teacher','admin') NOT NULL COMMENT '用户类型：student-学生，teacher-教师，admin-管理员',
@@ -217,6 +275,15 @@ CREATE TABLE `users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户基础信息表，存储所有用户的通用信息';
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户基础信息表，存储所有用户的通用信息';
+
+-- ----------------------------
+-- Records of users
+-- ----------------------------
+BEGIN;
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (10, 'student', 'qinghaoyang@foxmail.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '', NULL, 'student', 'active', '2025-07-19 13:21:54', '2025-07-19 13:21:54', 0, '2025-07-19 23:32:59');
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (11, 'admin', 'admin@admin.com', '$2a$10$CLJSuGd2ptKI9VlCz3r4buGyY7HfKg1qivwbKEfkk8/6Pz57oKjWK', NULL, NULL, 'admin', 'active', '2025-07-19 16:23:39', '2025-07-19 19:54:42', 0, NULL);
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (14, 'teacher', '123456@qq.com', '$2a$10$eNVMo.XWzg/OG1RFYwzX0etNFyhahK3Cx3qVmPWvXP2hlOVstrVPm', '', NULL, 'teacher', 'active', '2025-07-19 14:38:47', '2025-07-19 14:38:47', 0, '2025-07-19 23:26:32');
+COMMIT;
 
 SET FOREIGN_KEY_CHECKS = 1;
