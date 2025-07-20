@@ -8,6 +8,20 @@ import TeacherMessages from './components/TeacherMessages.vue'
 import TeacherSchedule from './components/TeacherSchedule.vue'
 import TeacherIncome from './components/TeacherIncome.vue'
 
+import {
+  HomeFilled,
+  Tickets,
+  Calendar,
+  Reading,
+  User,
+  Document,
+  ChatLineRound,
+  Money,
+  Setting,
+  View,
+  VideoCamera
+} from '@element-plus/icons-vue'
+
 const userStore = useUserStore()
 const route = useRoute()
 const activeMenu = ref('dashboard')
@@ -20,6 +34,8 @@ watch(() => route.path, (path) => {
     activeMenu.value = 'orders'
   } else if (path.includes('/schedule')) {
     activeMenu.value = 'schedule'
+  } else if (path.includes('/courses')) {
+    activeMenu.value = 'courses'
   } else {
     activeMenu.value = 'dashboard'
   }
@@ -58,6 +74,10 @@ watch(() => route.path, (path) => {
             <el-menu-item index="schedule" @click="$router.push('/teacher-center/schedule')">
               <el-icon><Calendar /></el-icon>
               <span>课表管理</span>
+            </el-menu-item>
+            <el-menu-item index="courses" @click="$router.push('/teacher-center/courses')">
+              <el-icon><Reading /></el-icon>
+              <span>课程管理</span>
             </el-menu-item>
             <el-menu-item index="students">
               <el-icon><User /></el-icon>
@@ -186,6 +206,16 @@ watch(() => route.path, (path) => {
                 </template>
               </el-table-column>
             </el-table>
+          </div>
+        </div>
+        <div v-else-if="activeMenu === 'courses'">
+          <router-view v-if="$route.path.includes('/courses')" />
+          <div v-else>
+            <h3>课程管理</h3>
+            <p>请点击菜单中的"课程管理"进入课程管理页面。</p>
+            <el-button type="primary" @click="$router.push('/teacher-center/courses')">
+              进入课程管理
+            </el-button>
           </div>
         </div>
         <div v-else-if="activeMenu === 'students'">

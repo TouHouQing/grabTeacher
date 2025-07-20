@@ -2,8 +2,9 @@
 import { ref, onMounted, reactive } from 'vue'
 import { useUserStore, type PasswordChangeRequest } from '../../stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { User, Lock, Setting, Document, DataBoard, UserFilled, Avatar } from '@element-plus/icons-vue'
-import { subjectAPI, studentAPI, teacherAPI, adminAPI } from '../../utils/api'
+import { User, Lock, Setting, Document, DataBoard, UserFilled, Avatar, Reading } from '@element-plus/icons-vue'
+import { subjectAPI, studentAPI, teacherAPI, adminAPI, courseAPI } from '../../utils/api'
+
 
 // 获取用户信息
 const userStore = useUserStore()
@@ -217,6 +218,35 @@ const subjectPagination = reactive({
   total: 0
 })
 
+// 课程管理相关数据
+const courseList = ref([])
+const courseSearchForm = reactive({
+  keyword: '',
+  teacherId: null,
+  subjectId: null,
+  status: '',
+  courseType: ''
+})
+
+const coursePagination = reactive({
+  currentPage: 1,
+  pageSize: 10,
+  total: 0
+})
+
+const courseDialogVisible = ref(false)
+const courseDialogTitle = ref('')
+const courseForm = reactive({
+  id: null,
+  teacherId: null,
+  subjectId: null,
+  title: '',
+  description: '',
+  courseType: 'one_on_one',
+  durationMinutes: 120,
+  status: 'active'
+})
+
 // 菜单切换
 const handleMenuSelect = (key: string) => {
   activeMenu.value = key
@@ -236,6 +266,11 @@ const handleMenuSelect = (key: string) => {
     case 'subjects':
       if (subjectList.value.length === 0) {
         loadSubjectList()
+      }
+      break
+    case 'courses':
+      if (courseList.value.length === 0) {
+        loadCourseList()
       }
       break
     case 'dashboard':
@@ -796,6 +831,113 @@ const handleSubjectPageChange = (page: number) => {
   loadSubjectList()
 }
 
+// 课程管理方法
+const loadCourseList = async () => {
+  try {
+    loading.value = true
+    const params = {
+      page: coursePagination.currentPage,
+      size: coursePagination.pageSize,
+      ...courseSearchForm
+    }
+
+    const response = await courseAPI.getList(params)
+    if (response.success && response.data) {
+      courseList.value = response.data.courses || []
+      coursePagination.total = response.data.total || 0
+    }
+  } catch (error) {
+    console.error('获取课程列表失败:', error)
+    ElMessage.error('获取课程列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const searchCourses = () => {
+  coursePagination.currentPage = 1
+  loadCourseList()
+}
+
+const resetCourseSearch = () => {
+  Object.assign(courseSearchForm, {
+    keyword: '',
+    teacherId: null,
+    subjectId: null,
+    status: '',
+    courseType: ''
+  })
+  coursePagination.currentPage = 1
+  loadCourseList()
+}
+
+const openCourseDialog = () => {
+  courseDialogVisible.value = true
+  courseDialogTitle.value = '新增课程'
+}
+
+const editCourse = (course: any) => {
+  Object.assign(courseForm, course)
+  courseDialogVisible.value = true
+  courseDialogTitle.value = '编辑课程'
+}
+
+const deleteCourse = async (course: any) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除课程"${course.title}"吗？`, '确认删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+
+    const response = await courseAPI.delete(course.id)
+    if (response.success) {
+      ElMessage.success('删除成功')
+      loadCourseList()
+    } else {
+      ElMessage.error(response.message || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除课程失败:', error)
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+const handleCoursePageChange = (page: number) => {
+  coursePagination.currentPage = page
+  loadCourseList()
+}
+
+const handleCourseSizeChange = (size: number) => {
+  coursePagination.pageSize = size
+  coursePagination.currentPage = 1
+  loadCourseList()
+}
+
+const getCourseStatusType = (status: string) => {
+  switch (status) {
+    case 'active': return 'success'
+    case 'inactive': return 'info'
+    case 'full': return 'warning'
+    default: return 'info'
+  }
+}
+
+const getCourseStatusText = (status: string) => {
+  switch (status) {
+    case 'active': return '可报名'
+    case 'inactive': return '已下架'
+    case 'full': return '已满员'
+    default: return status
+  }
+}
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString()
+}
+
 // 页面初始化
 onMounted(async () => {
   await loadStatistics()
@@ -838,6 +980,10 @@ onMounted(async () => {
           <el-menu-item index="subjects">
             <el-icon><Document /></el-icon>
             <span>科目管理</span>
+          </el-menu-item>
+          <el-menu-item index="courses">
+            <el-icon><Reading /></el-icon>
+            <span>课程管理</span>
           </el-menu-item>
           <el-menu-item index="password">
             <el-icon><Lock /></el-icon>
@@ -1099,6 +1245,101 @@ onMounted(async () => {
               style="margin-top: 20px; text-align: right"
             />
           </el-card>
+        </div>
+
+        <!-- 课程管理 -->
+        <div v-show="activeMenu === 'courses'" class="content-panel">
+          <div class="course-management">
+            <div class="course-header">
+              <h3>课程管理</h3>
+              <el-button type="primary" @click="openCourseDialog">
+                <el-icon><Document /></el-icon>
+                新增课程
+              </el-button>
+            </div>
+
+            <!-- 课程搜索 -->
+            <el-card class="search-card" shadow="never">
+              <el-form :model="courseSearchForm" inline>
+                <el-form-item label="关键词">
+                  <el-input
+                    v-model="courseSearchForm.keyword"
+                    placeholder="搜索课程标题"
+                    clearable
+                    style="width: 200px"
+                  />
+                </el-form-item>
+                <el-form-item label="教师">
+                  <el-select v-model="courseSearchForm.teacherId" placeholder="选择教师" clearable style="width: 150px">
+                    <el-option
+                      v-for="teacher in teacherList"
+                      :key="teacher.id"
+                      :label="teacher.realName"
+                      :value="teacher.id"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="科目">
+                  <el-select v-model="courseSearchForm.subjectId" placeholder="选择科目" clearable style="width: 200px">
+                    <el-option
+                      v-for="subject in subjectList"
+                      :key="subject.id"
+                      :label="`${subject.name} (${subject.gradeLevels || '全年级'})`"
+                      :value="subject.id"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" @click="searchCourses">搜索</el-button>
+                  <el-button @click="resetCourseSearch">重置</el-button>
+                </el-form-item>
+              </el-form>
+            </el-card>
+
+            <!-- 课程表格 -->
+            <el-table :data="courseList" v-loading="loading" stripe style="width: 100%">
+              <el-table-column prop="title" label="课程标题" min-width="200" show-overflow-tooltip />
+              <el-table-column prop="teacherName" label="授课教师" width="120" />
+              <el-table-column prop="subjectName" label="科目" width="100" />
+              <el-table-column prop="courseType" label="类型" width="100">
+                <template #default="{ row }">
+                  {{ row.courseType === 'one_on_one' ? '一对一' : '大班课' }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="durationMinutes" label="时长(分钟)" width="100" />
+              <el-table-column prop="status" label="状态" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="getCourseStatusType(row.status)">
+                    {{ getCourseStatusText(row.status) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="createdAt" label="创建时间" width="120">
+                <template #default="{ row }">
+                  {{ formatDate(row.createdAt) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="200" fixed="right">
+                <template #default="{ row }">
+                  <el-button size="small" @click="editCourse(row)">编辑</el-button>
+                  <el-button size="small" type="danger" @click="deleteCourse(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <!-- 分页 -->
+            <div class="pagination-wrapper">
+              <el-pagination
+                :current-page="coursePagination.currentPage"
+                :page-size="coursePagination.pageSize"
+                :page-sizes="[10, 20, 50, 100]"
+                :total="coursePagination.total"
+                layout="total, sizes, prev, pager, next, jumper"
+                @size-change="handleCourseSizeChange"
+                @current-change="handleCoursePageChange"
+              />
+            </div>
+          </div>
         </div>
 
         <!-- 修改密码 -->

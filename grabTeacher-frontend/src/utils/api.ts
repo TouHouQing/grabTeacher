@@ -78,6 +78,11 @@ export const subjectAPI = {
     return apiRequest(`/api/admin/subjects/${id}/status?isActive=${isActive}`, {
       method: 'PATCH'
     })
+  },
+
+  // 获取活跃科目列表
+  getActiveSubjects: () => {
+    return apiRequest('/api/public/subjects/active')
   }
 }
 
@@ -206,4 +211,76 @@ export const teacherAPI = {
 export const adminAPI = {
   // 获取统计数据
   getStatistics: () => apiRequest('/api/admin/statistics')
+}
+
+// 课程管理 API
+export const courseAPI = {
+  // 获取课程列表（分页）
+  getList: (params: {
+    page?: number
+    size?: number
+    keyword?: string
+    subjectId?: number
+    teacherId?: number
+    status?: string
+    courseType?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/courses?${searchParams}`)
+  },
+
+  // 获取课程详情
+  getById: (id: number) => apiRequest(`/api/courses/${id}`),
+
+  // 创建课程
+  create: (data: {
+    teacherId?: number
+    subjectId: number
+    title: string
+    description?: string
+    courseType: string
+    durationMinutes: number
+    status?: string
+  }) => apiRequest('/api/courses', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  // 更新课程
+  update: (id: number, data: {
+    teacherId?: number
+    subjectId: number
+    title: string
+    description?: string
+    courseType: string
+    durationMinutes: number
+    status?: string
+  }) => apiRequest(`/api/courses/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  // 删除课程
+  delete: (id: number) => apiRequest(`/api/courses/${id}`, {
+    method: 'DELETE'
+  }),
+
+  // 获取活跃课程列表
+  getActiveCourses: () => apiRequest('/api/courses/active'),
+
+  // 获取教师的课程列表
+  getTeacherCourses: (teacherId: number) => apiRequest(`/api/courses/teacher/${teacherId}`),
+
+  // 获取当前教师的课程列表
+  getMyCourses: () => apiRequest('/api/courses/my-courses'),
+
+  // 更新课程状态
+  updateStatus: (id: number, status: string) => apiRequest(`/api/courses/${id}/status?status=${status}`, {
+    method: 'PATCH'
+  })
 }
