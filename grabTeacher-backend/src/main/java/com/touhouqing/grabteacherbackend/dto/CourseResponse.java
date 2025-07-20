@@ -54,6 +54,12 @@ public class CourseResponse {
     @Schema(description = "课程创建时间")
     private LocalDateTime createdAt;
 
+    @Schema(description = "课程适用年级", example = "小学一年级,小学二年级")
+    private String grade;
+
+    @Schema(description = "适合性别", example = "不限", allowableValues = {"男", "女", "不限"})
+    private String gender;
+
     // 辅助方法：获取课程类型显示名称
     public String getCourseTypeDisplay() {
         if (courseType == null) return "";

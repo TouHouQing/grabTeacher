@@ -91,6 +91,8 @@ public class CourseServiceImpl implements CourseService {
                 .courseType(request.getCourseType())
                 .durationMinutes(request.getDurationMinutes())
                 .status(request.getStatus() != null ? request.getStatus() : "active")
+                .grade(request.getGrade()) // 设置年级字段
+                .gender(request.getGender() != null ? request.getGender() : "不限") // 设置性别字段
                 .isDeleted(false)
                 .build();
 
@@ -142,6 +144,8 @@ public class CourseServiceImpl implements CourseService {
         course.setDescription(request.getDescription());
         course.setCourseType(request.getCourseType());
         course.setDurationMinutes(request.getDurationMinutes());
+        course.setGrade(request.getGrade()); // 更新年级字段
+        course.setGender(request.getGender() != null ? request.getGender() : "不限"); // 更新性别字段
         if (request.getStatus() != null) {
             course.setStatus(request.getStatus());
         }
@@ -193,7 +197,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Page<CourseResponse> getCourseList(int page, int size, String keyword, Long subjectId,
-                                            Long teacherId, String status, String courseType) {
+                                            Long teacherId, String status, String courseType, String grade, String gender) {
         Page<Course> pageParam = new Page<>(page, size);
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
 
@@ -217,6 +221,14 @@ public class CourseServiceImpl implements CourseService {
 
         if (StringUtils.hasText(courseType)) {
             queryWrapper.eq("course_type", courseType);
+        }
+
+        if (StringUtils.hasText(grade)) {
+            queryWrapper.like("grade", grade);
+        }
+
+        if (StringUtils.hasText(gender)) {
+            queryWrapper.eq("gender", gender);
         }
 
         queryWrapper.orderByDesc("created_at");
@@ -344,6 +356,8 @@ public class CourseServiceImpl implements CourseService {
                 .durationMinutes(course.getDurationMinutes())
                 .status(course.getStatus())
                 .createdAt(course.getCreatedAt())
+                .grade(course.getGrade()) // 设置年级字段
+                .gender(course.getGender()) // 设置性别字段
                 .build();
 
         // 设置显示名称

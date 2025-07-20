@@ -206,9 +206,10 @@ public class AdminController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String subject,
+            @RequestParam(required = false) String gender,
             @RequestParam(required = false) Boolean isVerified) {
         try {
-            Page<Teacher> teachers = adminService.getTeacherList(page, size, keyword, subject, isVerified);
+            Page<Teacher> teachers = adminService.getTeacherList(page, size, keyword, subject, gender, isVerified);
             return ResponseEntity.ok(ApiResponse.success("获取成功", teachers));
         } catch (Exception e) {
             logger.error("获取教师列表异常: ", e);

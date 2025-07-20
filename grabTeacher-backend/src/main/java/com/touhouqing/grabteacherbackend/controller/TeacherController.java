@@ -2,6 +2,8 @@ package com.touhouqing.grabteacherbackend.controller;
 
 import com.touhouqing.grabteacherbackend.dto.ApiResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
+import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequest;
+import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponse;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
@@ -113,4 +115,35 @@ public class TeacherController {
                     .body(ApiResponse.error("获取失败"));
         }
     }
-} 
+
+    /**
+     * 匹配教师（公开接口）
+     */
+    @PostMapping("/match")
+    public ResponseEntity<ApiResponse<List<TeacherMatchResponse>>> matchTeachers(
+            @Valid @RequestBody TeacherMatchRequest request) {
+        try {
+            List<TeacherMatchResponse> matchedTeachers = teacherService.matchTeachers(request);
+            return ResponseEntity.ok(ApiResponse.success("匹配成功", matchedTeachers));
+        } catch (Exception e) {
+            logger.error("匹配教师异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("匹配失败"));
+        }
+    }
+
+    /**
+     * 获取所有可用的年级选项（公开接口）
+     */
+    @GetMapping("/grades")
+    public ResponseEntity<ApiResponse<List<String>>> getAvailableGrades() {
+        try {
+            List<String> grades = teacherService.getAvailableGrades();
+            return ResponseEntity.ok(ApiResponse.success("获取年级选项成功", grades));
+        } catch (Exception e) {
+            logger.error("获取年级选项异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("获取失败"));
+        }
+    }
+}

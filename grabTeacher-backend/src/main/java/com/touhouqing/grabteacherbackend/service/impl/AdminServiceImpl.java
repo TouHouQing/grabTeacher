@@ -217,18 +217,21 @@ public class AdminServiceImpl implements AdminService {
     // ===================== 教师管理实现 =====================
 
     @Override
-    public Page<Teacher> getTeacherList(int page, int size, String keyword, String subject, Boolean isVerified) {
+    public Page<Teacher> getTeacherList(int page, int size, String keyword, String subject, String gender, Boolean isVerified) {
         Page<Teacher> pageParam = new Page<>(page, size);
         QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
 
         queryWrapper.eq("is_deleted", false); // 添加软删除条件
-        
+
         // 搜索条件
         if (StringUtils.hasText(keyword)) {
             queryWrapper.like("real_name", keyword);
         }
         if (StringUtils.hasText(subject)) {
             queryWrapper.like("subjects", subject);
+        }
+        if (StringUtils.hasText(gender)) {
+            queryWrapper.eq("gender", gender);
         }
         if (isVerified != null) {
             queryWrapper.eq("is_verified", isVerified);
@@ -259,6 +262,7 @@ public class AdminServiceImpl implements AdminService {
                 .hourlyRate(request.getHourlyRate())
                 .introduction(request.getIntroduction())
                 .videoIntroUrl(request.getVideoIntroUrl())
+                .gender(request.getGender() != null ? request.getGender() : "不愿透露")
                 .build();
 
         teacherMapper.insert(teacher);
@@ -282,6 +286,7 @@ public class AdminServiceImpl implements AdminService {
         teacher.setHourlyRate(request.getHourlyRate());
         teacher.setIntroduction(request.getIntroduction());
         teacher.setVideoIntroUrl(request.getVideoIntroUrl());
+        teacher.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
 
         teacherMapper.updateById(teacher);
         return teacher;

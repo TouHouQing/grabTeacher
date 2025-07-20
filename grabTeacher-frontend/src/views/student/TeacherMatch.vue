@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Calendar, Connection, Timer, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
+import { teacherAPI, subjectAPI } from '@/utils/api'
 
 // 声明图片相对路径，使用getImageUrl方法加载
 const teacherImages = {
@@ -81,6 +82,9 @@ const matchForm = reactive({
 const loading = ref(false)
 const showResults = ref(false)
 const matchedTeachers = ref<Teacher[]>([])
+const subjects = ref<any[]>([])
+const grades = ref<string[]>([])
+const loadingOptions = ref(false)
 
 // 新增课表相关数据
 const showScheduleModal = ref(false)
@@ -133,7 +137,7 @@ const selectedDayData = ref<{
 
 const router = useRouter()
 
-const handleMatch = () => {
+const handleMatch = async () => {
   // 验证必填项
   if (!matchForm.subject || !matchForm.grade) {
     ElMessage.warning('请至少选择科目和年级')
@@ -143,160 +147,55 @@ const handleMatch = () => {
   loading.value = true
   showResults.value = false
 
-  // 模拟API请求延迟
-  setTimeout(() => {
-    // 在真实环境中，这里应该是向后端发送请求
-    // 这里使用预设数据模拟匹配结果
-    const allTeachers = [
-      {
-        name: '张老师',
-        subject: 'Mathematics',
-        grade: 'Secondary 3',
-        experience: 10,
-        rating: 4.8,
-        description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣，使用多种教学方法帮助学生理解数学概念。',
-        avatar: teacherImages.teacherBoy1,
-        tags: ['趣味教学', '重点突破', '思维导图'],
-        schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'],
-        matchScore: 98,
-        gender: 'Male',
-        teachingStyle: 'Humorous and Witty Style'
-      },
-      {
-        name: '王老师',
-        subject: 'Science',
-        grade: 'Secondary 2',
-        experience: 12,
-        rating: 4.7,
-        description: '物理学博士，有丰富的教学经验，能将复杂概念简单化，善于通过实验和演示帮助学生理解物理原理。',
-        avatar: teacherImages.teacherBoy2,
-        tags: ['概念解析', '解题技巧', '实验教学'],
-        schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00'],
-        matchScore: 92,
-        gender: 'Male',
-        teachingStyle: 'Rigorous Teaching Style'
-      },
-      {
-        name: '李老师',
-        subject: 'English',
-        grade: 'Primary 5',
-        experience: 8,
-        rating: 4.9,
-        description: '英语教育专家，拥有海外留学背景，擅长英语口语教学和写作指导，教学方法生动有趣。',
-        avatar: teacherImages.teacherGirl1,
-        tags: ['口语练习', '阅读指导', '写作提升'],
-        schedule: ['周二 16:00-18:00', '周五 18:00-20:00', '周日 10:00-12:00'],
-        matchScore: 95,
-        gender: 'Female',
-        teachingStyle: 'Both Strict and Benevolent Style'
-      },
-      {
-        name: '陈老师',
-        subject: 'Mathematics',
-        grade: 'O-level',
-        experience: 15,
-        rating: 4.6,
-        description: '资深数学教师，擅长应付考试，指导学生掌握解题技巧和考试策略，帮助学生提高考试成绩。',
-        avatar: teacherImages.teacherBoy3,
-        tags: ['考试技巧', '题型分析', '快速提分'],
-        schedule: ['周一 19:00-21:00', '周四 19:00-21:00', '周六 16:00-18:00'],
-        matchScore: 90,
-        gender: 'Male',
-        teachingStyle: 'Rigorous Teaching Style'
-      },
-      {
-        name: '赵老师',
-        subject: 'Science',
-        grade: 'Primary 6',
-        experience: 7,
-        rating: 4.5,
-        description: '理科综合教师，擅长自然科学启蒙教育，通过趣味实验和互动方式让孩子爱上科学。',
-        avatar: teacherImages.teacherGirl4,
-        tags: ['趣味实验', '科学启蒙', '思维培养'],
-        schedule: ['周二 14:00-16:00', '周四 14:00-16:00', '周日 10:00-12:00'],
-        matchScore: 88,
-        gender: 'Female',
-        teachingStyle: 'Humorous and Witty Style'
-      }
-    ];
-
-    // 根据用户选择的条件过滤教师
-    let filtered = [...allTeachers];
-
-    if (matchForm.subject) {
-      filtered = filtered.filter(teacher => teacher.subject === matchForm.subject);
+  try {
+    // 构建匹配请求参数
+    const matchRequest = {
+      subject: matchForm.subject,
+      grade: matchForm.grade,
+      preferredTime: matchForm.preferredTime || undefined,
+      preferredDateStart: matchForm.preferredDateRange && matchForm.preferredDateRange.length > 0
+        ? matchForm.preferredDateRange[0] : undefined,
+      preferredDateEnd: matchForm.preferredDateRange && matchForm.preferredDateRange.length > 1
+        ? matchForm.preferredDateRange[1] : undefined,
+      limit: 3
     }
 
-    if (matchForm.grade) {
-      filtered = filtered.filter(teacher => teacher.grade === matchForm.grade);
+    // 调用后端API
+    const result = await teacherAPI.matchTeachers(matchRequest)
+
+    if (result.success && result.data) {
+      // 转换后端数据格式为前端需要的格式
+      const teachers = result.data.map((teacher: any) => ({
+        id: teacher.id,
+        name: teacher.name,
+        subject: teacher.subject,
+        grade: teacher.grade,
+        experience: teacher.experience,
+        rating: teacher.rating,
+        description: teacher.description,
+        avatar: teacher.avatar || teacherImages.teacherBoy1, // 使用默认头像如果没有
+        tags: teacher.tags || [],
+        schedule: teacher.schedule || ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'],
+        matchScore: teacher.matchScore,
+        hourlyRate: teacher.hourlyRate,
+        educationBackground: teacher.educationBackground,
+        specialties: teacher.specialties,
+        isVerified: teacher.isVerified
+      }))
+
+      matchedTeachers.value = teachers
+      showResults.value = true
+
+      ElMessage.success(`为您匹配到了 ${teachers.length} 位适合的教师`)
+    } else {
+      ElMessage.error('匹配失败，请稍后重试')
     }
-
-    if (matchForm.gender) {
-      filtered = filtered.filter(teacher => teacher.gender === matchForm.gender);
-    }
-
-    if (matchForm.teachingStyle) {
-      filtered = filtered.filter(teacher => teacher.teachingStyle === matchForm.teachingStyle);
-    }
-
-    // 动态计算匹配分数 - 在实际应用中应由后端计算
-    filtered.forEach(teacher => {
-      // 基础匹配分数
-      let score = 85 + Math.floor(Math.random() * 15);
-
-      // 根据偏好微调分数
-      if (matchForm.preferredTime && matchForm.preferredDateRange && matchForm.preferredDateRange.length === 2) {
-        // 日期和时间都选择了，提高分数
-        score += 8;
-      } else if (matchForm.preferredTime || (matchForm.preferredDateRange && matchForm.preferredDateRange.length === 2)) {
-        // 只选择了一项，小幅提高分数
-        score += 5;
-      }
-
-      if (matchForm.gender && teacher.gender === matchForm.gender) {
-        score += 3;
-      }
-
-      if (matchForm.teachingStyle && teacher.teachingStyle === matchForm.teachingStyle) {
-        score += 7;
-      }
-
-      // 限制最高分为99
-      teacher.matchScore = Math.min(score, 99);
-    });
-
-    // 排序结果，匹配分数高的排在前面
-    filtered.sort((a, b) => b.matchScore - a.matchScore);
-
-    // 如果筛选结果少于3个，添加更多教师以确保至少有3个结果
-    if (filtered.length < 3) {
-      // 找出不在筛选结果中的教师
-      const remainingTeachers = allTeachers.filter(
-        teacher => !filtered.some(t => t.name === teacher.name)
-      );
-
-      // 按匹配分数排序
-      remainingTeachers.sort((a, b) => b.matchScore - a.matchScore);
-
-      // 添加足够的教师，确保总数为3
-      while (filtered.length < 3 && remainingTeachers.length > 0) {
-        const nextTeacher = remainingTeachers.shift();
-        if (nextTeacher) {
-          // 降低匹配分数，表示这是额外推荐的
-          nextTeacher.matchScore = Math.max(70, nextTeacher.matchScore - 15);
-          filtered.push(nextTeacher);
-        }
-      }
-    }
-
-    // 更新匹配结果，最多显示3个教师
-    matchedTeachers.value = filtered.slice(0, 3);
-
-    loading.value = false;
-    showResults.value = true;
-
-    ElMessage.success(`为您匹配到了 3 位适合的教师`);
-  }, 1500)
+  } catch (error) {
+    console.error('匹配教师失败:', error)
+    ElMessage.error('匹配失败，请检查网络连接')
+  } finally {
+    loading.value = false
+  }
 }
 
 const resetForm = () => {
@@ -309,6 +208,40 @@ const resetForm = () => {
   matchForm.teachingStyle = '';
 
   showResults.value = false;
+}
+
+// 获取科目选项
+const loadSubjects = async () => {
+  try {
+    const result = await subjectAPI.getActiveSubjects()
+    if (result.success && result.data) {
+      subjects.value = result.data
+    }
+  } catch (error) {
+    console.error('获取科目列表失败:', error)
+  }
+}
+
+// 获取年级选项
+const loadGrades = async () => {
+  try {
+    const result = await teacherAPI.getAvailableGrades()
+    if (result.success && result.data) {
+      grades.value = result.data
+    }
+  } catch (error) {
+    console.error('获取年级列表失败:', error)
+  }
+}
+
+// 初始化选项数据
+const initOptions = async () => {
+  loadingOptions.value = true
+  try {
+    await Promise.all([loadSubjects(), loadGrades()])
+  } finally {
+    loadingOptions.value = false
+  }
 }
 
 // 生成未来一年的课表数据
@@ -844,6 +777,11 @@ const formatFullDate = (dateStr: string): string => {
   return `${year}年${month}月${day}日 ${weekday}`
 }
 
+// 组件挂载时初始化数据
+onMounted(() => {
+  initOptions()
+})
+
 </script>
 
 <template>
@@ -855,48 +793,28 @@ const formatFullDate = (dateStr: string): string => {
       <div class="match-form-section">
         <el-form :model="matchForm" label-position="top" class="match-form">
           <el-form-item label="科目 Subjects" required>
-            <el-select v-model="matchForm.subject" placeholder="请选择科目">
-              <el-option label="科学 Science" value="Science">
+            <el-select v-model="matchForm.subject" placeholder="请选择科目" :loading="loadingOptions">
+              <el-option
+                v-for="subject in subjects"
+                :key="subject.id"
+                :label="subject.name"
+                :value="subject.name">
                 <div class="option-with-icon">
                   <el-icon><Aim /></el-icon>
-                  <span>科学 Science</span>
-                </div>
-              </el-option>
-              <el-option label="数学 Mathematics" value="Mathematics">
-                <div class="option-with-icon">
-                  <el-icon><DataLine /></el-icon>
-                  <span>数学 Mathematics</span>
-                </div>
-              </el-option>
-              <el-option label="英文 English" value="English">
-                <div class="option-with-icon">
-                  <el-icon><ChatDotRound /></el-icon>
-                  <span>英文 English</span>
+                  <span>{{ subject.name }}</span>
                 </div>
               </el-option>
             </el-select>
           </el-form-item>
 
           <el-form-item label="年级 Grades" required>
-            <el-select v-model="matchForm.grade" placeholder="请选择年级">
-              <el-option-group label="小学 Primary">
-                <el-option label="Primary 1" value="Primary 1" />
-                <el-option label="Primary 2" value="Primary 2" />
-                <el-option label="Primary 3" value="Primary 3" />
-                <el-option label="Primary 4" value="Primary 4" />
-                <el-option label="Primary 5" value="Primary 5" />
-                <el-option label="Primary 6" value="Primary 6" />
-              </el-option-group>
-              <el-option-group label="中学 Secondary">
-                <el-option label="Secondary 1" value="Secondary 1" />
-                <el-option label="Secondary 2" value="Secondary 2" />
-                <el-option label="Secondary 3" value="Secondary 3" />
-                <el-option label="Secondary 4" value="Secondary 4" />
-              </el-option-group>
-              <el-option-group label="考试 Exam">
-                <el-option label="O-level" value="O-level" />
-                <el-option label="A-level" value="A-level" />
-              </el-option-group>
+            <el-select v-model="matchForm.grade" placeholder="请选择年级" :loading="loadingOptions">
+              <el-option
+                v-for="grade in grades"
+                :key="grade"
+                :label="grade"
+                :value="grade">
+              </el-option>
             </el-select>
           </el-form-item>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
 import { courseAPI, subjectAPI, teacherAPI } from '../../utils/api'
@@ -18,6 +18,8 @@ interface Course {
   durationMinutes: number
   status: string
   statusDisplay: string
+  grade?: string
+  gender?: string
   createdAt: string
 }
 
@@ -59,7 +61,9 @@ const searchForm = reactive({
   subjectId: null as number | null,
   teacherId: null as number | null,
   status: '',
-  courseType: ''
+  courseType: '',
+  grade: '',
+  gender: ''
 })
 
 // 课程表单
@@ -71,7 +75,9 @@ const courseForm = reactive({
   description: '',
   courseType: 'one_on_one',
   durationMinutes: 120,
-  status: 'active'
+  status: 'active',
+  grade: '',
+  gender: '不限'
 })
 
 // 表单验证规则
@@ -92,6 +98,9 @@ const formRules = {
   durationMinutes: [
     { required: true, message: '请输入课程时长', trigger: 'blur' },
     { type: 'number', min: 1, message: '课程时长必须大于0分钟', trigger: 'blur' }
+  ],
+  grade: [
+    { required: true, message: '请输入适用年级', trigger: 'blur' }
   ]
 }
 
@@ -106,6 +115,13 @@ const statusOptions = [
   { label: '可报名', value: 'active' },
   { label: '已下架', value: 'inactive' },
   { label: '已满员', value: 'full' }
+]
+
+// 性别选项
+const genderOptions = [
+  { label: '不限', value: '不限' },
+  { label: '男', value: '男' },
+  { label: '女', value: '女' }
 ]
 
 // 获取课程列表
@@ -170,6 +186,8 @@ const resetForm = () => {
   courseForm.courseType = 'one_on_one'
   courseForm.durationMinutes = 120
   courseForm.status = 'active'
+  courseForm.grade = ''
+  courseForm.gender = '不限'
 }
 
 // 打开新增对话框
@@ -190,6 +208,8 @@ const openEditDialog = (course: Course) => {
   courseForm.courseType = course.courseType
   courseForm.durationMinutes = course.durationMinutes
   courseForm.status = course.status
+  courseForm.grade = course.grade || ''
+  courseForm.gender = course.gender || '不限'
 
   dialogTitle.value = '编辑课程'
   isEditing.value = true
@@ -208,10 +228,12 @@ const saveCourse = async () => {
       description: courseForm.description,
       courseType: courseForm.courseType,
       durationMinutes: courseForm.durationMinutes,
-      status: courseForm.status
+      status: courseForm.status,
+      grade: courseForm.grade,
+      gender: courseForm.gender
     }
 
-    let response
+    let response: any
     if (isEditing.value && courseForm.id) {
       response = await courseAPI.update(courseForm.id, courseData)
     } else {
@@ -298,6 +320,8 @@ const resetSearch = () => {
   searchForm.teacherId = null
   searchForm.status = ''
   searchForm.courseType = ''
+  searchForm.grade = ''
+  searchForm.gender = ''
   pagination.current = 1
   fetchCourses()
 }
@@ -393,6 +417,24 @@ onMounted(() => {
             />
           </el-select>
         </el-form-item>
+        <el-form-item label="年级" style="background-color: #fff7ed; padding: 5px; border-radius: 4px;">
+          <el-input
+            v-model="searchForm.grade"
+            placeholder="搜索年级"
+            clearable
+            style="width: 150px"
+          />
+        </el-form-item>
+        <el-form-item label="性别" style="background-color: #f0f9ff; padding: 5px; border-radius: 4px;">
+          <el-select v-model="searchForm.gender" placeholder="选择性别" clearable style="width: 120px">
+            <el-option
+              v-for="option in genderOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="searchCourses">搜索</el-button>
           <el-button :icon="Refresh" @click="resetSearch">重置</el-button>
@@ -413,11 +455,13 @@ onMounted(() => {
         stripe
         style="width: 100%"
       >
-        <el-table-column prop="title" label="课程标题" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="teacherName" label="授课教师" width="120" />
-        <el-table-column prop="subjectName" label="科目" width="100" />
-        <el-table-column prop="courseTypeDisplay" label="类型" width="100" />
-        <el-table-column prop="durationMinutes" label="时长(分钟)" width="100" />
+        <el-table-column prop="title" label="课程标题" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="teacherName" label="授课教师" width="100" />
+        <el-table-column prop="subjectName" label="科目" width="80" />
+        <el-table-column prop="grade" label="适用年级" width="120" show-overflow-tooltip />
+        <el-table-column prop="gender" label="适合性别" width="90" />
+        <el-table-column prop="courseTypeDisplay" label="类型" width="80" />
+        <el-table-column prop="durationMinutes" label="时长(分钟)" width="90" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusTagType(row.status)">
@@ -512,6 +556,37 @@ onMounted(() => {
               </div>
             </el-option>
           </el-select>
+        </el-form-item>
+
+        <!-- 年级字段 -->
+        <el-form-item label="适用年级" prop="grade" required style="background-color: #f0f9ff; padding: 10px; border-radius: 4px;">
+          <el-input
+            v-model="courseForm.grade"
+            placeholder="请输入适用年级，如：小学一年级,小学二年级"
+            maxlength="100"
+            show-word-limit
+            clearable
+            style="width: 100%;"
+          />
+          <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+            多个年级请用逗号分隔，如：小学一年级,小学二年级
+          </div>
+        </el-form-item>
+
+        <!-- 性别字段 -->
+        <el-form-item label="适合性别" style="background-color: #fff7ed; padding: 10px; border-radius: 4px;">
+          <el-radio-group v-model="courseForm.gender">
+            <el-radio
+              v-for="option in genderOptions"
+              :key="option.value"
+              :label="option.value"
+            >
+              {{ option.label }}
+            </el-radio>
+          </el-radio-group>
+          <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+            选择课程适合的学生性别
+          </div>
         </el-form-item>
 
         <el-form-item label="课程标题" prop="title">
@@ -721,7 +796,7 @@ onMounted(() => {
   }
 
   .el-table {
-    min-width: 800px;
+    min-width: 1200px;
   }
 
   .pagination-wrapper {

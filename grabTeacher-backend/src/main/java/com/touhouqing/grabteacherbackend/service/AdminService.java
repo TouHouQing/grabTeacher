@@ -59,7 +59,7 @@ public interface AdminService {
     /**
      * 分页获取教师列表
      */
-    Page<Teacher> getTeacherList(int page, int size, String keyword, String subject, Boolean isVerified);
+    Page<Teacher> getTeacherList(int page, int size, String keyword, String subject, String gender, Boolean isVerified);
     
     /**
      * 根据ID获取教师信息

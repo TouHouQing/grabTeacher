@@ -19,6 +19,7 @@ interface ExtendedRegisterRequest {
   subjects?: string
   hourlyRate?: number
   introduction?: string
+  gender?: string
 }
 
 const router = useRouter()
@@ -41,7 +42,8 @@ const registerForm = reactive<ExtendedRegisterRequest>({
   specialties: '',
   subjects: '',
   hourlyRate: 0,
-  introduction: ''
+  introduction: '',
+  gender: '不愿透露'
 })
 
 const selectedSubjects = ref<string[]>([])
@@ -50,6 +52,13 @@ const selectedSubjects = ref<string[]>([])
 const subjectsString = computed(() => {
   return selectedSubjects.value.join(',')
 })
+
+// 性别选项
+const genderOptions = [
+  { label: '不愿透露', value: '不愿透露' },
+  { label: '男', value: '男' },
+  { label: '女', value: '女' }
+]
 
 const validateForm = (): boolean => {
   if (!registerForm.username || registerForm.username.length < 3 || registerForm.username.length > 50) {
@@ -206,6 +215,24 @@ const handleRegister = async () => {
         <!-- 教师专用字段 -->
         <div class="form-section teacher-info">
           <h3>教师信息</h3>
+
+          <div class="form-group">
+            <label>性别</label>
+            <div class="radio-group">
+              <label
+                v-for="option in genderOptions"
+                :key="option.value"
+                class="radio-option"
+              >
+                <input
+                  v-model="registerForm.gender"
+                  type="radio"
+                  :value="option.value"
+                />
+                <span>{{ option.label }}</span>
+              </label>
+            </div>
+          </div>
 
           <div class="form-group">
             <label for="educationBackground">教育背景</label>
@@ -390,6 +417,26 @@ const handleRegister = async () => {
 
 .subjects-select {
   min-height: 120px;
+}
+
+.radio-group {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.radio-option input[type="radio"] {
+  margin: 0;
+  width: auto;
+  height: auto;
 }
 
 .form-group small {

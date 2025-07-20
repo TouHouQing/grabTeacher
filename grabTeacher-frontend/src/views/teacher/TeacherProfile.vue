@@ -14,7 +14,8 @@ const teacherForm = reactive<TeacherInfo>({
   subjects: '',
   hourlyRate: 0,
   introduction: '',
-  videoIntroUrl: ''
+  videoIntroUrl: '',
+  gender: '不愿透露'
 })
 
 // 密码修改表单
@@ -28,6 +29,13 @@ const passwordForm = reactive<PasswordChangeRequest>({
 const loading = ref(false)
 const formLoading = ref(false)
 const passwordLoading = ref(false)
+
+// 性别选项
+const genderOptions = [
+  { label: '不愿透露', value: '不愿透露' },
+  { label: '男', value: '男' },
+  { label: '女', value: '女' }
+]
 
 // 获取教师信息
 const fetchTeacherProfile = async () => {
@@ -137,6 +145,17 @@ onMounted(() => {
               </el-form-item>
               <el-form-item label="真实姓名" required>
                 <el-input v-model="teacherForm.realName" placeholder="请输入真实姓名"></el-input>
+              </el-form-item>
+              <el-form-item label="性别">
+                <el-radio-group v-model="teacherForm.gender">
+                  <el-radio
+                    v-for="option in genderOptions"
+                    :key="option.value"
+                    :label="option.value"
+                  >
+                    {{ option.label }}
+                  </el-radio>
+                </el-radio-group>
               </el-form-item>
               <el-form-item label="学历">
                 <el-select v-model="teacherForm.educationBackground" placeholder="请选择学历" style="width: 100%">

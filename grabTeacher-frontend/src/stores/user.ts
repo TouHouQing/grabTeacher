@@ -53,6 +53,7 @@ export interface TeacherInfo {
   hourlyRate?: number
   introduction?: string
   videoIntroUrl?: string
+  gender?: string
   isVerified?: boolean
 }
 

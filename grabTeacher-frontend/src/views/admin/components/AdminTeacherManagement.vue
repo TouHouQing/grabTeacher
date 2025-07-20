@@ -12,6 +12,7 @@ const loading = ref(false)
 const teacherSearchForm = reactive({
   keyword: '',
   subject: '',
+  gender: '',
   isVerified: null as boolean | null
 })
 
@@ -35,6 +36,7 @@ const teacherForm = reactive({
   hourlyRate: 0,
   introduction: '',
   videoIntroUrl: '',
+  gender: '不愿透露',
   isVerified: false
 })
 
@@ -45,6 +47,13 @@ const teacherRules = {
   ]
 }
 
+// 性别选项
+const genderOptions = [
+  { label: '不愿透露', value: '不愿透露' },
+  { label: '男', value: '男' },
+  { label: '女', value: '女' }
+]
+
 // 获取教师列表
 const loadTeacherList = async () => {
   try {
@@ -54,6 +63,7 @@ const loadTeacherList = async () => {
       size: teacherPagination.pageSize,
       keyword: teacherSearchForm.keyword || undefined,
       subject: teacherSearchForm.subject || undefined,
+      gender: teacherSearchForm.gender || undefined,
       isVerified: teacherSearchForm.isVerified
     }
 
@@ -86,6 +96,7 @@ const searchTeachers = () => {
 const resetTeacherSearch = () => {
   teacherSearchForm.keyword = ''
   teacherSearchForm.subject = ''
+  teacherSearchForm.gender = ''
   teacherSearchForm.isVerified = null
   teacherPagination.currentPage = 1
   loadTeacherList()
@@ -104,6 +115,7 @@ const handleAddTeacher = () => {
     hourlyRate: 0,
     introduction: '',
     videoIntroUrl: '',
+    gender: '不愿透露',
     isVerified: false
   })
   teacherDialogVisible.value = true
@@ -129,6 +141,7 @@ const saveTeacher = async () => {
       hourlyRate: teacherForm.hourlyRate,
       introduction: teacherForm.introduction,
       videoIntroUrl: teacherForm.videoIntroUrl,
+      gender: teacherForm.gender,
       isVerified: teacherForm.isVerified
     }
 
@@ -240,6 +253,16 @@ onMounted(() => {
             style="width: 150px"
           />
         </el-form-item>
+        <el-form-item label="性别">
+          <el-select v-model="teacherSearchForm.gender" placeholder="选择性别" clearable style="width: 120px">
+            <el-option
+              v-for="option in genderOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="认证状态">
           <el-select v-model="teacherSearchForm.isVerified" placeholder="选择认证状态" clearable style="width: 120px">
             <el-option label="已认证" :value="true" />
@@ -256,6 +279,7 @@ onMounted(() => {
     <!-- 教师表格 -->
     <el-table :data="teacherList" v-loading="loading" stripe style="width: 100%">
       <el-table-column prop="realName" label="姓名" width="120" />
+      <el-table-column prop="gender" label="性别" width="80" />
       <el-table-column prop="educationBackground" label="教育背景" width="150" show-overflow-tooltip />
       <el-table-column prop="teachingExperience" label="教学经验" width="100">
         <template #default="{ row }">
@@ -278,8 +302,8 @@ onMounted(() => {
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <el-button size="small" :icon="Edit" @click="handleEditTeacher(row)">编辑</el-button>
-          <el-button 
-            size="small" 
+          <el-button
+            size="small"
             :type="row.isVerified ? 'warning' : 'success'"
             :icon="row.isVerified ? Close : Check"
             @click="toggleVerification(row)"
@@ -319,15 +343,23 @@ onMounted(() => {
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="教学经验">
-              <el-input-number v-model="teacherForm.teachingExperience" :min="0" :max="50" style="width: 100%" />
+            <el-form-item label="性别">
+              <el-radio-group v-model="teacherForm.gender">
+                <el-radio
+                  v-for="option in genderOptions"
+                  :key="option.value"
+                  :label="option.value"
+                >
+                  {{ option.label }}
+                </el-radio>
+              </el-radio-group>
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="教育背景">
-              <el-input v-model="teacherForm.educationBackground" placeholder="请输入教育背景" />
+            <el-form-item label="教学经验">
+              <el-input-number v-model="teacherForm.teachingExperience" :min="0" :max="50" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -336,6 +368,9 @@ onMounted(() => {
             </el-form-item>
           </el-col>
         </el-row>
+        <el-form-item label="教育背景">
+          <el-input v-model="teacherForm.educationBackground" placeholder="请输入教育背景" />
+        </el-form-item>
         <el-form-item label="教学科目">
           <el-input v-model="teacherForm.subjects" placeholder="请输入教学科目，多个科目用逗号分隔" />
         </el-form-item>

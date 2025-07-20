@@ -18,6 +18,7 @@ interface Course {
   durationMinutes: number
   status: string
   statusDisplay: string
+  grade?: string
   createdAt: string
 }
 
@@ -53,7 +54,8 @@ const courseForm = reactive({
   description: '',
   courseType: 'one_on_one',
   durationMinutes: 120,
-  status: 'active'
+  status: 'active',
+  grade: ''
 })
 
 // 表单验证规则
@@ -71,6 +73,9 @@ const formRules = {
   durationMinutes: [
     { required: true, message: '请输入课程时长', trigger: 'blur' },
     { type: 'number', min: 1, message: '课程时长必须大于0分钟', trigger: 'blur' }
+  ],
+  grade: [
+    { required: true, message: '请输入适用年级', trigger: 'blur' }
   ]
 }
 
@@ -152,6 +157,7 @@ const resetForm = () => {
   courseForm.courseType = 'one_on_one'
   courseForm.durationMinutes = 120
   courseForm.status = 'active'
+  courseForm.grade = ''
 }
 
 // 打开新增对话框
@@ -171,6 +177,7 @@ const openEditDialog = (course: Course) => {
   courseForm.courseType = course.courseType
   courseForm.durationMinutes = course.durationMinutes
   courseForm.status = course.status
+  courseForm.grade = course.grade || ''
 
   dialogTitle.value = '编辑课程'
   isEditing.value = true
@@ -188,7 +195,8 @@ const saveCourse = async () => {
       description: courseForm.description,
       courseType: courseForm.courseType,
       durationMinutes: courseForm.durationMinutes,
-      status: courseForm.status
+      status: courseForm.status,
+      grade: courseForm.grade
     }
 
     let response
@@ -377,6 +385,10 @@ onMounted(() => {
                   <span class="label">科目：</span>
                   <span class="value">{{ course.subjectName }}</span>
                 </div>
+                <div class="info-item" v-if="course.grade">
+                  <span class="label">年级：</span>
+                  <span class="value">{{ course.grade }}</span>
+                </div>
                 <div class="info-item">
                   <span class="label">类型：</span>
                   <span class="value">{{ course.courseTypeDisplay }}</span>
@@ -454,6 +466,18 @@ onMounted(() => {
               </div>
             </el-option>
           </el-select>
+        </el-form-item>
+
+        <el-form-item label="适用年级" prop="grade">
+          <el-input
+            v-model="courseForm.grade"
+            placeholder="请输入适用年级，如：小学一年级,小学二年级"
+            maxlength="100"
+            show-word-limit
+          />
+          <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+            多个年级请用逗号分隔，如：小学一年级,小学二年级
+          </div>
         </el-form-item>
 
         <el-form-item label="课程标题" prop="title">

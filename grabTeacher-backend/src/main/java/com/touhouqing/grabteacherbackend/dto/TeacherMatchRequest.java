@@ -1,0 +1,47 @@
+package com.touhouqing.grabteacherbackend.dto;
+
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+
+/**
+ * 教师匹配请求DTO
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class TeacherMatchRequest {
+    
+    /**
+     * 科目名称
+     */
+    private String subject;
+    
+    /**
+     * 年级
+     */
+    private String grade;
+    
+    /**
+     * 偏好时间
+     */
+    private String preferredTime;
+    
+    /**
+     * 偏好日期范围开始
+     */
+    private String preferredDateStart;
+    
+    /**
+     * 偏好日期范围结束
+     */
+    private String preferredDateEnd;
+    
+    /**
+     * 返回结果数量限制
+     */
+    @Builder.Default
+    private Integer limit = 3;
+}

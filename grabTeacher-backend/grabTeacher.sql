@@ -11,7 +11,7 @@
  Target Server Version : 90100 (9.1.0)
  File Encoding         : 65001
 
- Date: 20/07/2025 18:02:42
+ Date: 20/07/2025 19:36:36
 */
 
 SET NAMES utf8mb4;
@@ -91,16 +91,18 @@ CREATE TABLE `courses` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '课程创建时间',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
-  `gender` varchar(255) DEFAULT NULL COMMENT '课程适用年级如[小学一年级,小学二年级]',
+  `grade` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '课程适用年级如[小学一年级,小学二年级]',
+  `gender` enum('男','女','不限') DEFAULT '不限' COMMENT '适合性别：男、女、不限',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程信息表，存储教师发布的课程详情';
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程信息表，存储教师发布的课程详情';
 
 -- ----------------------------
 -- Records of courses
 -- ----------------------------
 BEGIN;
-INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `duration_minutes`, `status`, `created_at`, `is_deleted`, `deleted_at`, `gender`) VALUES (1, 7, 1, '666', '222', 'one_on_one', 120, 'active', '2025-07-20 14:05:18', 1, '2025-07-20 14:07:01', NULL);
-INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `duration_minutes`, `status`, `created_at`, `is_deleted`, `deleted_at`, `gender`) VALUES (2, 7, 4, '123', '123', 'one_on_one', 120, 'active', '2025-07-20 14:05:40', 0, NULL, NULL);
+INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `duration_minutes`, `status`, `created_at`, `is_deleted`, `deleted_at`, `grade`, `gender`) VALUES (1, 7, 1, '666', '222', 'one_on_one', 120, 'active', '2025-07-20 14:05:18', 1, '2025-07-20 14:07:01', NULL, NULL);
+INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `duration_minutes`, `status`, `created_at`, `is_deleted`, `deleted_at`, `grade`, `gender`) VALUES (2, 7, 4, '123', '123', 'one_on_one', 120, 'active', '2025-07-20 14:05:40', 0, NULL, NULL, NULL);
+INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `duration_minutes`, `status`, `created_at`, `is_deleted`, `deleted_at`, `grade`, `gender`) VALUES (3, 7, 1, '语文', '我爱语文', 'one_on_one', 120, 'active', '2025-07-20 18:45:57', 0, NULL, '小学一年级', NULL);
 COMMIT;
 
 -- ----------------------------
@@ -241,6 +243,7 @@ CREATE TABLE `teachers` (
   `hourly_rate` decimal(10,2) DEFAULT NULL COMMENT '每小时收费标准，单位：元',
   `introduction` text COMMENT '个人介绍和教学理念',
   `video_intro_url` varchar(255) DEFAULT NULL COMMENT '个人介绍视频URL地址',
+  `gender` enum('男','女','不愿透露') DEFAULT '不愿透露' COMMENT '性别：男、女、不愿透露',
   `is_verified` tinyint(1) DEFAULT '0' COMMENT '是否已认证：true-已认证，false-未认证',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',

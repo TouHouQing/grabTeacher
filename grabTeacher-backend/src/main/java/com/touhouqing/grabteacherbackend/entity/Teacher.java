@@ -1,6 +1,7 @@
 package com.touhouqing.grabteacherbackend.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -43,6 +44,9 @@ public class Teacher {
 
     @TableField("video_intro_url")
     private String videoIntroUrl;
+
+    @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
+    private String gender;
 
     @TableField("is_verified")
     @Builder.Default

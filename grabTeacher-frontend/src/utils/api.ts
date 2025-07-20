@@ -147,6 +147,7 @@ export const teacherAPI = {
     size?: number
     keyword?: string
     subject?: string
+    gender?: string
     isVerified?: boolean
   }) => {
     const searchParams = new URLSearchParams()
@@ -171,6 +172,7 @@ export const teacherAPI = {
     hourlyRate?: number
     introduction?: string
     videoIntroUrl?: string
+    gender?: string
   }) => apiRequest('/api/admin/teachers', {
     method: 'POST',
     body: JSON.stringify(data)
@@ -186,6 +188,7 @@ export const teacherAPI = {
     hourlyRate?: number
     introduction?: string
     videoIntroUrl?: string
+    gender?: string
   }) => apiRequest(`/api/admin/teachers/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)
@@ -214,7 +217,23 @@ export const teacherAPI = {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ isVerified: isVerified })
-    })
+    }),
+
+  // 匹配教师
+  matchTeachers: (data: {
+    subject?: string
+    grade?: string
+    preferredTime?: string
+    preferredDateStart?: string
+    preferredDateEnd?: string
+    limit?: number
+  }) => apiRequest('/api/teacher/match', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  // 获取可用年级选项
+  getAvailableGrades: () => apiRequest('/api/teacher/grades')
 }
 
 // 管理员统计 API
@@ -234,6 +253,8 @@ export const courseAPI = {
     teacherId?: number
     status?: string
     courseType?: string
+    grade?: string
+    gender?: string
   }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params).forEach(key => {
@@ -256,6 +277,8 @@ export const courseAPI = {
     courseType: string
     durationMinutes: number
     status?: string
+    grade?: string
+    gender?: string
   }) => apiRequest('/api/courses', {
     method: 'POST',
     body: JSON.stringify(data)
@@ -270,6 +293,8 @@ export const courseAPI = {
     courseType: string
     durationMinutes: number
     status?: string
+    grade?: string
+    gender?: string
   }) => apiRequest(`/api/courses/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)
