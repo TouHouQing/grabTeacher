@@ -194,7 +194,7 @@ public class TeacherServiceImpl implements TeacherService {
         courseQuery.eq("teacher_id", teacherId);
         courseQuery.eq("is_deleted", false);
         courseQuery.eq("status", "active");
-        courseQuery.like("gender", grade); // gender字段存储年级信息
+        courseQuery.like("grade", grade); // 修正：应该查询grade字段而不是gender字段
 
         List<Course> courses = courseMapper.selectList(courseQuery);
         return !courses.isEmpty();

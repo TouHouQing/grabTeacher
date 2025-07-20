@@ -255,7 +255,7 @@ CREATE TABLE `teachers` (
 -- Records of teachers
 -- ----------------------------
 BEGIN;
-INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`, `subjects`, `hourly_rate`, `introduction`, `video_intro_url`, `is_verified`, `is_deleted`, `deleted_at`) VALUES (7, 14, '12355', '硕士研究生', 1, '1231236', '英语,数学', 50.00, '123123555', NULL, 0, 0, NULL);
+INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`, `subjects`, `hourly_rate`, `introduction`, `video_intro_url`, `is_verified`, `is_deleted`, `deleted_at`) VALUES (7, 14, '12355', '硕士研究生', 1, '1231236', '语文,数学', 50.00, '123123555', NULL, 1, 0, NULL);
 COMMIT;
 
 -- ----------------------------

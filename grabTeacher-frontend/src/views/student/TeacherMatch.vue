@@ -15,11 +15,11 @@ const teacherImages = {
 }
 
 interface Teacher {
+  id: number
   name: string
   subject: string
   grade: string
   experience: number
-  rating: number
   description: string
   avatar: string
   tags: string[]
@@ -27,6 +27,10 @@ interface Teacher {
   matchScore: number
   gender: string
   teachingStyle: string
+  hourlyRate?: number
+  educationBackground?: string
+  specialties?: string
+  isVerified?: boolean
 }
 
 // 新增课表相关接口
@@ -171,7 +175,6 @@ const handleMatch = async () => {
         subject: teacher.subject,
         grade: teacher.grade,
         experience: teacher.experience,
-        rating: teacher.rating,
         description: teacher.description,
         avatar: teacher.avatar || teacherImages.teacherBoy1, // 使用默认头像如果没有
         tags: teacher.tags || [],
@@ -180,7 +183,9 @@ const handleMatch = async () => {
         hourlyRate: teacher.hourlyRate,
         educationBackground: teacher.educationBackground,
         specialties: teacher.specialties,
-        isVerified: teacher.isVerified
+        isVerified: teacher.isVerified,
+        gender: teacher.gender || 'Male', // 提供默认性别
+        teachingStyle: teacher.teachingStyle || '个性化教学' // 提供默认教学风格
       }))
 
       matchedTeachers.value = teachers
@@ -901,9 +906,8 @@ onMounted(() => {
             <div class="teacher-info">
               <div class="teacher-header">
                 <h4>{{ teacher.name }}</h4>
-                <div class="teacher-rating">
-                  <el-rate v-model="teacher.rating" disabled text-color="#ff9900" />
-                  <span class="rating-text">{{ teacher.rating.toFixed(1) }}分</span>
+                <div class="teacher-experience">
+                  <span class="experience-text">{{ teacher.experience }}年教学经验</span>
                 </div>
               </div>
               <div class="teacher-subject">
@@ -1410,9 +1414,14 @@ h2 {
   font-weight: 600;
 }
 
-.teacher-rating {
+.teacher-experience {
   display: flex;
   align-items: center;
+}
+
+.experience-text {
+  color: #666;
+  font-size: 14px;
 }
 
 .teacher-subject {
