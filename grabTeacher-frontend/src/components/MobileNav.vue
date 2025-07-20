@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useLangStore } from '@/stores/lang'
+import { useI18n } from 'vue-i18n'
 
 // 定义组件名称
 defineOptions({
@@ -12,6 +13,7 @@ defineOptions({
 const router = useRouter()
 const userStore = useUserStore()
 const langStore = useLangStore()
+const { t } = useI18n()
 
 const isMenuOpen = ref(false)
 
@@ -36,14 +38,14 @@ const handleLogout = () => {
 
 // 导航菜单项
 const navItems = computed(() => [
-  { path: '/', label: langStore.t('nav.home') },
-  { path: '/latest-courses', label: langStore.t('nav.latestCourses') },
-  { path: '/famous-teachers', label: langStore.t('nav.famousTeachers') },
-  { path: '/study-abroad', label: langStore.t('nav.studyAbroad') },
-  { path: '/about', label: langStore.t('nav.about') },
-  { path: '/campus', label: langStore.t('nav.campus') },
-  { path: '/platform', label: langStore.t('nav.platform') },
-  { path: '/contact', label: langStore.t('nav.contact') }
+  { path: '/', label: t('nav.home') },
+  { path: '/latest-courses', label: t('nav.latestCourses') },
+  { path: '/famous-teachers', label: t('nav.famousTeachers') },
+  { path: '/study-abroad', label: t('nav.studyAbroad') },
+  { path: '/about', label: t('nav.about') },
+  { path: '/campus', label: t('nav.campus') },
+  { path: '/platform', label: t('nav.platform') },
+  { path: '/contact', label: t('nav.contact') }
 ])
 </script>
 

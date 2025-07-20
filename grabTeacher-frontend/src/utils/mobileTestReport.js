@@ -20,17 +20,17 @@ class MobileTestReportGenerator {
    */
   async runCompleteTest() {
     console.log('🔍 开始移动端完整测试...')
-    
+
     try {
       await this.testDeviceInfo()
       await this.testPerformance()
       await this.testCompatibility()
       await this.testAccessibility()
       await this.testUsability()
-      
+
       const report = this.generateReport()
       this.displayReport(report)
-      
+
       return report
     } catch (error) {
       console.error('测试过程中发生错误:', error)
@@ -76,7 +76,7 @@ class MobileTestReportGenerator {
    */
   getConnectionInfo() {
     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection
-    
+
     if (connection) {
       return {
         effectiveType: connection.effectiveType,
@@ -85,7 +85,7 @@ class MobileTestReportGenerator {
         saveData: connection.saveData
       }
     }
-    
+
     return { effectiveType: 'unknown' }
   }
 
@@ -110,7 +110,7 @@ class MobileTestReportGenerator {
   getNavigationTiming() {
     const timing = window.performance.timing
     const navigation = window.performance.navigation
-    
+
     return {
       type: navigation.type,
       redirectCount: navigation.redirectCount,
@@ -146,7 +146,7 @@ class MobileTestReportGenerator {
     return new Promise((resolve) => {
       let frames = 0
       const startTime = performance.now()
-      
+
       const countFrame = () => {
         frames++
         if (performance.now() - startTime < 1000) {
@@ -155,7 +155,7 @@ class MobileTestReportGenerator {
           resolve(frames)
         }
       }
-      
+
       requestAnimationFrame(countFrame)
     })
   }
@@ -167,7 +167,7 @@ class MobileTestReportGenerator {
     return new Promise((resolve) => {
       let frameCount = 0
       let startTime = performance.now()
-      
+
       const measureScroll = () => {
         frameCount++
         if (performance.now() - startTime < 1000) {
@@ -179,7 +179,7 @@ class MobileTestReportGenerator {
           })
         }
       }
-      
+
       // 模拟滚动
       window.scrollBy(0, 1)
       requestAnimationFrame(measureScroll)
@@ -198,7 +198,7 @@ class MobileTestReportGenerator {
 
       let touchStartTime = 0
       let touchEndTime = 0
-      
+
       const testElement = document.createElement('div')
       testElement.style.cssText = `
         position: fixed;
@@ -209,17 +209,17 @@ class MobileTestReportGenerator {
         background: transparent;
         pointer-events: auto;
       `
-      
+
       document.body.appendChild(testElement)
-      
+
       testElement.addEventListener('touchstart', () => {
         touchStartTime = performance.now()
       })
-      
+
       testElement.addEventListener('touchend', () => {
         touchEndTime = performance.now()
         const latency = touchEndTime - touchStartTime
-        
+
         document.body.removeChild(testElement)
         resolve({
           supported: true,
@@ -227,7 +227,7 @@ class MobileTestReportGenerator {
           responsive: latency < 100 // 100ms以下认为响应良好
         })
       })
-      
+
       // 模拟触摸事件
       setTimeout(() => {
         const touchEvent = new TouchEvent('touchstart', {
@@ -239,7 +239,7 @@ class MobileTestReportGenerator {
           })]
         })
         testElement.dispatchEvent(touchEvent)
-        
+
         setTimeout(() => {
           const touchEndEvent = new TouchEvent('touchend', { touches: [] })
           testElement.dispatchEvent(touchEndEvent)
@@ -294,7 +294,7 @@ class MobileTestReportGenerator {
       arrowFunctions: (() => true)(),
       promises: typeof Promise !== 'undefined',
       asyncAwait: (async () => true)() instanceof Promise,
-      modules: typeof import !== 'undefined',
+      modules: typeof window !== 'undefined' && 'import' in window,
       intersectionObserver: 'IntersectionObserver' in window,
       serviceWorker: 'serviceWorker' in navigator,
       webWorkers: typeof Worker !== 'undefined'
@@ -334,7 +334,7 @@ class MobileTestReportGenerator {
    */
   testViewportMeta() {
     const viewportMeta = document.querySelector('meta[name="viewport"]')
-    
+
     if (!viewportMeta) {
       return { exists: false, recommendation: '建议添加viewport meta标签' }
     }
@@ -342,7 +342,7 @@ class MobileTestReportGenerator {
     const content = viewportMeta.getAttribute('content') || ''
     const hasWidth = content.includes('width=device-width')
     const hasInitialScale = content.includes('initial-scale=1')
-    
+
     return {
       exists: true,
       content,
@@ -391,7 +391,7 @@ class MobileTestReportGenerator {
       const styles = window.getComputedStyle(el)
       const color = styles.color
       const backgroundColor = styles.backgroundColor
-      
+
       if (color && backgroundColor && color !== 'rgba(0, 0, 0, 0)' && backgroundColor !== 'rgba(0, 0, 0, 0)') {
         totalElements++
         // 这里应该实现真正的对比度计算
@@ -416,9 +416,9 @@ class MobileTestReportGenerator {
     const focusableElements = document.querySelectorAll(
       'a[href], button, input, textarea, select, [tabindex]:not([tabindex="-1"])'
     )
-    
+
     let elementsWithFocusStyles = 0
-    
+
     focusableElements.forEach(el => {
       const styles = window.getComputedStyle(el, ':focus')
       if (styles.outline !== 'none' || styles.boxShadow !== 'none') {
@@ -429,7 +429,7 @@ class MobileTestReportGenerator {
     return {
       totalFocusableElements: focusableElements.length,
       elementsWithFocusStyles,
-      focusStylesRate: focusableElements.length > 0 ? 
+      focusStylesRate: focusableElements.length > 0 ?
         (elementsWithFocusStyles / focusableElements.length * 100).toFixed(2) : 0
     }
   }
@@ -442,8 +442,8 @@ class MobileTestReportGenerator {
     let elementsWithLabels = 0
 
     elementsNeedingLabels.forEach(el => {
-      if (el.getAttribute('aria-label') || 
-          el.getAttribute('aria-labelledby') || 
+      if (el.getAttribute('aria-label') ||
+          el.getAttribute('aria-labelledby') ||
           el.getAttribute('alt') ||
           el.textContent?.trim()) {
         elementsWithLabels++
@@ -453,7 +453,7 @@ class MobileTestReportGenerator {
     return {
       totalElements: elementsNeedingLabels.length,
       elementsWithLabels,
-      labelRate: elementsNeedingLabels.length > 0 ? 
+      labelRate: elementsNeedingLabels.length > 0 ?
         (elementsWithLabels / elementsNeedingLabels.length * 100).toFixed(2) : 100
     }
   }
@@ -463,7 +463,7 @@ class MobileTestReportGenerator {
    */
   testSemanticHTML() {
     const semanticElements = ['header', 'nav', 'main', 'section', 'article', 'aside', 'footer']
-    const foundElements = semanticElements.filter(tag => 
+    const foundElements = semanticElements.filter(tag =>
       document.querySelector(tag)
     )
 
@@ -506,7 +506,7 @@ class MobileTestReportGenerator {
     return {
       totalElements: interactiveElements.length,
       adequateSizeCount,
-      adequacyRate: interactiveElements.length > 0 ? 
+      adequacyRate: interactiveElements.length > 0 ?
         (adequateSizeCount / interactiveElements.length * 100).toFixed(2) : 100
     }
   }
@@ -530,7 +530,7 @@ class MobileTestReportGenerator {
     return {
       totalElements: textElements.length,
       readableCount,
-      readabilityRate: textElements.length > 0 ? 
+      readabilityRate: textElements.length > 0 ?
         (readableCount / textElements.length * 100).toFixed(2) : 100
     }
   }
@@ -713,20 +713,20 @@ class MobileTestReportGenerator {
     console.log(`兼容性: ${report.scores.compatibility}/100`)
     console.log(`可访问性: ${report.scores.accessibility}/100`)
     console.log(`可用性: ${report.scores.usability}/100`)
-    
+
     if (report.recommendations.length > 0) {
       console.log('\n💡 改进建议:')
       report.recommendations.forEach((rec, index) => {
         console.log(`${index + 1}. ${rec}`)
       })
     }
-    
+
     console.log('\n📱 设备信息:')
     console.log(`屏幕尺寸: ${report.device.screen.width}x${report.device.screen.height}`)
     console.log(`视口尺寸: ${report.device.viewport.width}x${report.device.viewport.height}`)
     console.log(`像素比: ${report.device.viewport.devicePixelRatio}`)
     console.log(`网络类型: ${report.device.connection.effectiveType}`)
-    
+
     console.log('\n✅ 测试完成!')
   }
 }

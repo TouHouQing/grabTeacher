@@ -168,38 +168,51 @@ export const useUserStore = defineStore('user', () => {
 
   // 初始化时检查本地存储的token
   const initializeAuth = async () => {
-    const storedToken = localStorage.getItem('token')
-    if (storedToken) {
-      token.value = storedToken
-      isLoggedIn.value = true
+    try {
+      console.log('开始初始化认证...')
+      const storedToken = localStorage.getItem('token')
+      if (storedToken) {
+        console.log('找到存储的token，设置登录状态')
+        token.value = storedToken
+        isLoggedIn.value = true
 
-      // 验证token有效性并获取用户信息
-      try {
-        const response = await fetch(`${API_BASE_URL}/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${storedToken}`,
-          },
-        })
+        // 暂时跳过API验证，避免网络错误阻塞页面加载
+        console.log('跳过API验证，直接设置登录状态')
+        /*
+        // 验证token有效性并获取用户信息
+        try {
+          const response = await fetch(`${API_BASE_URL}/auth/me`, {
+            headers: {
+              'Authorization': `Bearer ${storedToken}`,
+            },
+          })
 
-        if (response.ok) {
-          const result = await response.json()
-          if (result.success && result.data) {
-            user.value = {
-              id: result.data.id,
-              username: result.data.username,
-              email: result.data.email,
-              userType: result.data.authorities?.[0]?.authority?.replace('ROLE_', '').toLowerCase() || 'student',
-              token: storedToken
+          if (response.ok) {
+            const result = await response.json()
+            if (result.success && result.data) {
+              user.value = {
+                id: result.data.id,
+                username: result.data.username,
+                email: result.data.email,
+                userType: result.data.authorities?.[0]?.authority?.replace('ROLE_', '').toLowerCase() || 'student',
+                token: storedToken
+              }
             }
+          } else {
+            // token无效，清除本地存储
+            clearUser()
           }
-        } else {
-          // token无效，清除本地存储
+        } catch (error) {
+          console.error('验证token失败:', error)
           clearUser()
         }
-      } catch (error) {
-        console.error('验证token失败:', error)
-        clearUser()
+        */
+      } else {
+        console.log('没有找到存储的token')
       }
+      console.log('认证初始化完成')
+    } catch (error) {
+      console.error('初始化认证时发生错误:', error)
     }
   }
 

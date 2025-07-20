@@ -162,6 +162,11 @@ const router = createRouter({
       name: 'TeacherDetail',
       component: () => import('../views/student/TeacherDetail.vue')
     },
+    {
+      path: '/mobile-test',
+      name: 'MobileTest',
+      component: () => import('../views/MobileTest.vue')
+    },
     // 兼容旧路由的重定向
     {
       path: '/student',

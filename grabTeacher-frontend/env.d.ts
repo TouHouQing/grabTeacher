@@ -10,6 +10,7 @@ declare module 'vue' {
   export const computed: <T>(getter: () => T) => { readonly value: T };
 
   export const onMounted: (callback: () => void) => void;
+  export const onUnmounted: (callback: () => void) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export const defineOptions: (options: Record<string, any>) => void;
 
@@ -31,6 +32,8 @@ declare module 'vue' {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export const createApp: any;
 }
+
+
 
 // 解决图片导入问题
 declare module '*.jpg' {
@@ -61,7 +64,7 @@ declare module '*.svg' {
 declare module '*.vue' {
   import type { DefineComponent } from 'vue'
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const component: DefineComponent<object, object, any>
+  const component: DefineComponent<{}, {}, any>
   export default component
 }
 

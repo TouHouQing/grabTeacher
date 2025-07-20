@@ -37,7 +37,7 @@ const handleTouchStart = (event: TouchEvent) => {
   if (props.disabled) return
 
   isPressed.value = true
-  
+
   // 触觉反馈
   if (props.haptic && 'vibrate' in navigator) {
     navigator.vibrate(10)
@@ -49,7 +49,7 @@ const handleTouchStart = (event: TouchEvent) => {
     const touch = event.touches[0]
     const x = touch.clientX - rect.left
     const y = touch.clientY - rect.top
-    
+
     ripples.value.push({
       id: rippleId++,
       x,
@@ -59,7 +59,7 @@ const handleTouchStart = (event: TouchEvent) => {
 
     // 清理旧的波纹
     setTimeout(() => {
-      ripples.value = ripples.value.filter(ripple => 
+      ripples.value = ripples.value.filter(ripple =>
         Date.now() - ripple.timestamp < 600
       )
     }, 600)
@@ -92,7 +92,8 @@ onMounted(() => {
   if (containerRef.value) {
     containerRef.value.style.webkitUserSelect = 'none'
     containerRef.value.style.userSelect = 'none'
-    containerRef.value.style.webkitTouchCallout = 'none'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(containerRef.value.style as any).webkitTouchCallout = 'none'
   }
 })
 
@@ -193,7 +194,7 @@ onUnmounted(() => {
   .touch-feedback--pressed {
     transform: scale(0.95);
   }
-  
+
   .ripple {
     background-color: rgba(0, 0, 0, 0.5);
   }
@@ -204,11 +205,11 @@ onUnmounted(() => {
   .touch-feedback {
     transition: none;
   }
-  
+
   .touch-feedback--pressed {
     transform: none;
   }
-  
+
   .ripple {
     animation: none;
     opacity: 0;

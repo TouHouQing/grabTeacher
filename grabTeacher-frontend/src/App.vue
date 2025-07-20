@@ -10,10 +10,16 @@ const userStore = useUserStore()
 const langStore = useLangStore()
 
 // 初始化语言设置
-onMounted(() => {
-  langStore.initLang()
-  updateLangClass()
-  userStore.initializeAuth() // 添加这行
+onMounted(async () => {
+  try {
+    console.log('App组件开始挂载...')
+    langStore.initLang()
+    updateLangClass()
+    await userStore.initializeAuth()
+    console.log('App组件挂载完成')
+  } catch (error) {
+    console.error('App组件挂载时发生错误:', error)
+  }
 })
 
 // 监听语言变化，添加或移除特定语言的类
