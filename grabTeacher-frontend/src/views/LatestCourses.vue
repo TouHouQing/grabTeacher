@@ -596,34 +596,213 @@ export default {
 }
 
 @media (max-width: 768px) {
+  .latest-courses {
+    padding-top: 56px; /* 适配移动端导航高度 */
+  }
+
   .banner {
     height: 200px;
+    padding: 0 20px;
   }
 
   .banner h1 {
     font-size: 32px;
+    margin-bottom: 10px;
   }
 
   .banner p {
     font-size: 16px;
   }
 
-  .courses-grid {
-    grid-template-columns: 1fr;
+  .container {
+    padding: 30px 16px;
+  }
+
+  .filter-section {
+    margin-bottom: 30px;
   }
 
   .filter-form {
     flex-direction: column;
     align-items: stretch;
+    gap: 16px;
   }
 
   .filter-form .el-form-item {
     margin-right: 0;
-    margin-bottom: 15px;
+    margin-bottom: 0;
+    width: 100%;
+  }
+
+  .filter-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 12px;
+  }
+
+  .filter-actions .el-button {
+    flex: 1;
+  }
+
+  .courses-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .course-card {
+    padding: 16px;
+  }
+
+  .course-image {
+    height: 180px;
+    margin-bottom: 16px;
+  }
+
+  .course-info h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .course-teacher {
+    margin-bottom: 12px;
+  }
+
+  .course-teacher img {
+    width: 24px;
+    height: 24px;
+  }
+
+  .course-teacher span {
+    font-size: 13px;
+  }
+
+  .course-description {
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+
+  .course-meta {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  .meta-item {
+    font-size: 12px;
+  }
+
+  .course-price {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .course-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .course-actions .el-button {
+    width: 100%;
   }
 
   .promotion-section {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .promotion-card {
+    padding: 16px;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .promotion-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+    margin-right: 0;
+    margin-bottom: 12px;
+  }
+
+  .promotion-content h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .promotion-content p {
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+
+  .pagination {
+    margin-top: 30px;
+  }
+
+  .el-pagination {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .latest-courses {
+    padding-top: 52px;
+  }
+
+  .banner {
+    height: 180px;
+    padding: 0 16px;
+  }
+
+  .banner h1 {
+    font-size: 28px;
+  }
+
+  .banner p {
+    font-size: 14px;
+  }
+
+  .container {
+    padding: 24px 12px;
+  }
+
+  .course-card {
+    padding: 12px;
+  }
+
+  .course-image {
+    height: 160px;
+    margin-bottom: 12px;
+  }
+
+  .filter-actions {
+    flex-direction: column;
+  }
+
+  .filter-actions .el-button {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+
+  .promotion-card {
+    padding: 12px;
+  }
+
+  .promotion-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .el-pagination {
+    flex-wrap: wrap;
+  }
+
+  .el-pagination .el-pagination__sizes,
+  .el-pagination .el-pagination__jump {
+    order: 3;
+    margin-top: 12px;
   }
 }
 </style>

@@ -203,14 +203,74 @@ const handleLogin = async () => {
   font-size: 14px;
 }
 
-@media (max-width: 480px) {
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .admin-login-container {
+    padding: 16px;
+    align-items: flex-start;
+    padding-top: 80px; /* 为移动端导航留出空间 */
+  }
+
   .admin-login-wrapper {
     padding: 24px;
-    margin: 10px;
+    max-width: 100%;
+    width: 100%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
   .admin-login-header h2 {
     font-size: 24px;
+    margin-bottom: 6px;
+  }
+
+  .admin-login-header p {
+    font-size: 13px;
+  }
+
+  .admin-login-form .el-form-item {
+    margin-bottom: 20px;
+  }
+
+  .admin-login-form .el-input__inner {
+    font-size: 16px; /* 防止iOS缩放 */
+    padding: 12px 16px;
+  }
+
+  .admin-login-btn {
+    padding: 12px;
+    font-size: 16px;
+  }
+
+  .admin-login-footer {
+    margin-top: 20px;
+  }
+
+  .admin-login-footer .el-link {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-login-container {
+    padding: 12px;
+    padding-top: 70px;
+  }
+
+  .admin-login-wrapper {
+    padding: 20px;
+    margin: 0;
+  }
+
+  .admin-login-header h2 {
+    font-size: 22px;
+  }
+
+  .admin-login-form .el-input__inner {
+    padding: 14px 16px;
+  }
+
+  .admin-login-btn {
+    padding: 14px;
   }
 }
 </style>

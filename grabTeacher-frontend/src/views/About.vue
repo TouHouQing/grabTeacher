@@ -454,30 +454,233 @@ defineOptions({
 }
 
 @media (max-width: 768px) {
+  .about-page {
+    padding-top: 56px; /* 适配移动端导航高度 */
+  }
+
+  .banner {
+    height: 200px;
+    padding: 0 20px;
+  }
+
+  .banner h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+
+  .banner p {
+    font-size: 16px;
+  }
+
+  .container {
+    padding: 30px 16px;
+  }
+
+  .section {
+    margin-bottom: 40px;
+  }
+
+  .section h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+
+  .intro-content {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .intro-image {
+    width: 100%;
+    height: 200px;
+  }
+
+  .intro-text {
+    width: 100%;
+  }
+
+  .intro-text p {
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+
   .mission-content,
   .team-members,
   .contact-info {
     grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .mission-card {
+    padding: 20px;
+    text-align: center;
+  }
+
+  .mission-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+    margin: 0 auto 16px;
+  }
+
+  .mission-card h3 {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+
+  .mission-card p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .team-member {
+    padding: 20px;
+  }
+
+  .member-avatar {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 16px;
+  }
+
+  .team-member h3 {
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+
+  .member-title {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .member-desc {
+    font-size: 13px;
+    line-height: 1.5;
   }
 
   .timeline::before {
-    left: 40px;
+    left: 20px;
+  }
+
+  .timeline-item {
+    margin-bottom: 30px;
   }
 
   .timeline-date {
     left: 0;
     text-align: left;
-    padding-left: 60px;
+    padding-left: 50px;
     padding-right: 0;
+    font-size: 14px;
+    font-weight: 600;
   }
 
   .timeline-content {
-    margin-left: 80px;
-    width: calc(100% - 80px);
+    margin-left: 50px;
+    width: calc(100% - 50px);
+    padding: 16px;
   }
 
   .timeline-content::before {
-    left: -50px;
+    left: -30px;
+    width: 8px;
+    height: 8px;
+  }
+
+  .timeline-content h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .timeline-content p {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .contact-item {
+    padding: 16px;
+    text-align: center;
+  }
+
+  .contact-item .el-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+
+  .contact-item h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .contact-item p {
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .about-page {
+    padding-top: 52px;
+  }
+
+  .banner {
+    height: 180px;
+    padding: 0 16px;
+  }
+
+  .banner h1 {
+    font-size: 28px;
+  }
+
+  .banner p {
+    font-size: 14px;
+  }
+
+  .container {
+    padding: 24px 12px;
+  }
+
+  .section h2 {
+    font-size: 20px;
+  }
+
+  .intro-image {
+    height: 160px;
+  }
+
+  .mission-card {
+    padding: 16px;
+  }
+
+  .mission-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .team-member {
+    padding: 16px;
+  }
+
+  .member-avatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .timeline-content {
+    margin-left: 40px;
+    width: calc(100% - 40px);
+    padding: 12px;
+  }
+
+  .timeline-date {
+    padding-left: 40px;
+    font-size: 12px;
+  }
+
+  .contact-item {
+    padding: 12px;
   }
 }
 </style>

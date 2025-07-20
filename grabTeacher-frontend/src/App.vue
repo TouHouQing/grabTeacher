@@ -2,6 +2,9 @@
 import { useUserStore } from './stores/user'
 import { useLangStore } from './stores/lang'
 import { onMounted, watch } from 'vue'
+import MobileNav from './components/MobileNav.vue'
+import MobileBottomNav from './components/MobileBottomNav.vue'
+import MobileSearch from './components/MobileSearch.vue'
 
 const userStore = useUserStore()
 const langStore = useLangStore()
@@ -32,7 +35,14 @@ function updateLangClass() {
 
 <template>
   <div class="app">
-    <header class="header">
+    <!-- 移动端导航 -->
+    <MobileNav />
+
+    <!-- 移动端搜索 -->
+    <MobileSearch />
+
+    <!-- 桌面端导航 -->
+    <header class="header desktop-only">
       <div class="logo">GrabTeacher</div>
       <el-menu mode="horizontal" router class="nav-menu">
         <el-menu-item index="/">{{ $t('nav.home') }}</el-menu-item>
@@ -65,6 +75,10 @@ function updateLangClass() {
     <main class="main">
       <router-view></router-view>
     </main>
+
+    <!-- 移动端底部导航 -->
+    <MobileBottomNav />
+
     <footer class="footer">
       <div class="footer-content">
         <p>
@@ -90,6 +104,10 @@ body {
   width: 100%;
   height: 100%;
   font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  /* 移动端优化 */
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 #app {
@@ -116,8 +134,20 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1px;
+  padding: 0 20px;
   height: 60px;
+}
+
+/* 确保桌面端导航在大屏幕上显示 */
+.header.desktop-only {
+  display: flex;
+}
+
+/* 移动端隐藏桌面导航 */
+@media (max-width: 768px) {
+  .header.desktop-only {
+    display: none !important;
+  }
 }
 
 .logo {
@@ -146,6 +176,24 @@ body {
   padding-top: 60px;
   flex: 1;
   width: 100%;
+  min-height: calc(100vh - 60px);
+}
+
+/* 移动端为底部导航留出空间 */
+@media (max-width: 768px) {
+  .main {
+    padding-top: 56px;
+    padding-bottom: 60px; /* 为底部导航留出空间 */
+    min-height: calc(100vh - 116px);
+  }
+}
+
+@media (max-width: 480px) {
+  .main {
+    padding-top: 52px;
+    padding-bottom: 55px;
+    min-height: calc(100vh - 107px);
+  }
 }
 
 .footer {
@@ -224,45 +272,179 @@ body {
   padding: 0 !important;
 }
 
+/* 全局移动端优化类 */
+.mobile-container {
+  padding: 0 16px;
+}
+
+.mobile-card {
+  margin: 8px 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mobile-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.mobile-grid-1 {
+  grid-template-columns: 1fr;
+}
+
+.mobile-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* 隐藏/显示类 */
+.mobile-only {
+  display: none;
+}
+
+.desktop-only {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: block;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-container {
+    padding: 0 12px;
+  }
+
+  .mobile-grid {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-container {
+    padding: 0 8px;
+  }
+
+  .mobile-grid {
+    gap: 8px;
+  }
+}
+
+/* 移动端优化 - 添加更多断点 */
+@media (max-width: 1200px) {
+  .header {
+    padding: 0 15px;
+  }
+
+  .nav-menu .el-menu-item {
+    padding: 0 12px;
+    font-size: 14px;
+  }
+}
+
 @media (max-width: 992px) {
   .header {
     flex-wrap: nowrap;
     overflow-x: auto;
+    padding: 0 10px;
   }
 
   .nav-menu {
     overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  .nav-menu::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
   }
 
   .nav-menu .el-menu-item {
     padding: 0 8px;
     font-size: 13px;
+    white-space: nowrap;
   }
 }
 
 @media (max-width: 768px) {
   .header {
-    padding: 0 5px;
+    padding: 0 8px;
+    height: 56px;
   }
 
   .logo {
-    font-size: 18px;
-    margin-right: 5px;
+    font-size: 16px;
+    margin-right: 8px;
+    font-weight: 600;
   }
 
   .auth-buttons {
-    margin-left: 5px;
+    margin-left: 8px;
+    gap: 4px;
+  }
+
+  .el-button.el-button--small {
+    padding: 6px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+  }
+
+  .nav-menu .el-menu-item {
+    padding: 0 6px;
+    font-size: 12px;
+    min-width: auto;
+  }
+
+  /* 主内容区域适配 */
+  .el-main {
+    padding-top: 56px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 0 6px;
+    height: 52px;
+  }
+
+  .logo {
+    font-size: 14px;
+    margin-right: 6px;
+  }
+
+  .auth-buttons {
+    margin-left: 6px;
     gap: 2px;
   }
 
   .el-button.el-button--small {
     padding: 4px 6px;
     font-size: 11px;
+    min-width: auto;
   }
 
   .nav-menu .el-menu-item {
-    padding: 0 6px;
-    font-size: 12px;
+    padding: 0 4px;
+    font-size: 11px;
+  }
+
+  .el-main {
+    padding-top: 52px !important;
+  }
+}
+
+/* 移动端触摸优化 */
+@media (hover: none) and (pointer: coarse) {
+  .nav-menu .el-menu-item {
+    min-height: 44px; /* 增加触摸目标大小 */
+  }
+
+  .el-button {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 </style>

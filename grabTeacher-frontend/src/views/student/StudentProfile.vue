@@ -273,13 +273,90 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
+  .student-profile {
+    padding: 16px;
+  }
+
   .profile-container {
     flex-direction: column;
+    margin-top: 16px;
   }
 
   .avatar-container {
     margin-right: 0;
-    margin-bottom: 30px;
+    margin-bottom: 24px;
+    align-items: center;
+  }
+
+  .avatar {
+    width: 120px;
+    height: 120px;
+    margin-bottom: 12px;
+  }
+
+  .form-container {
+    width: 100%;
+  }
+
+  .el-form-item {
+    margin-bottom: 16px;
+  }
+
+  .el-form-item__label {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .el-input__inner,
+  .el-select .el-input__inner,
+  .el-textarea__inner {
+    font-size: 16px; /* 防止iOS缩放 */
+    padding: 12px 16px;
+  }
+
+  .el-button {
+    width: 100%;
+    margin-bottom: 12px;
+  }
+
+  .password-container {
+    margin-top: 16px;
+    max-width: 100%;
+  }
+
+  .el-tabs__item {
+    font-size: 14px;
+    padding: 0 16px;
+  }
+
+  .el-tabs__content {
+    padding: 16px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .student-profile {
+    padding: 12px;
+  }
+
+  .avatar {
+    width: 100px;
+    height: 100px;
+  }
+
+  .el-form-item__label {
+    font-size: 13px;
+  }
+
+  .el-input__inner,
+  .el-select .el-input__inner,
+  .el-textarea__inner {
+    padding: 14px 16px;
+  }
+
+  .el-tabs__item {
+    font-size: 13px;
+    padding: 0 12px;
   }
 }
 </style>

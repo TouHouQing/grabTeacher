@@ -631,34 +631,205 @@ body {
 }
 
 @media (max-width: 768px) {
+    .home-page {
+        padding-top: 56px; /* 为移动端导航留出空间 */
+    }
+
     .banner {
-        height: 450px;
+        height: 400px;
+        padding: 0 20px;
     }
 
     .banner-title {
-        font-size: 48px;
+        font-size: 36px;
+        margin-bottom: 16px;
     }
 
     .banner-subtitle {
-        font-size: 28px;
+        font-size: 24px;
+        margin-bottom: 16px;
+    }
+
+    .banner-desc {
+        font-size: 16px;
+        line-height: 1.5;
+    }
+
+    .container {
+        padding: 30px 16px;
+    }
+
+    .section {
+        margin-bottom: 40px;
+    }
+
+    .section-title {
+        font-size: 24px;
+        margin-bottom: 12px;
+    }
+
+    .section-subtitle {
+        font-size: 14px;
+        margin-bottom: 24px;
     }
 
     .feature-grid {
         grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .feature-item {
+        text-align: center;
+        padding: 24px 16px;
+    }
+
+    .feature-icon {
+        font-size: 40px;
+        margin-bottom: 16px;
+    }
+
+    .feature-item h3 {
+        font-size: 18px;
+        margin-bottom: 12px;
+    }
+
+    .feature-item p {
+        font-size: 14px;
+        line-height: 1.6;
     }
 
     .teachers-grid,
     .courses-grid {
         grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .teacher-card,
+    .course-card {
+        margin-bottom: 0;
+    }
+
+    .teacher-info h3,
+    .course-info h3 {
+        font-size: 16px;
+        margin-bottom: 8px;
+    }
+
+    .teacher-info p,
+    .course-info p {
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .course-meta {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
+
+    .course-meta span {
+        font-size: 12px;
     }
 
     .testimonial-card {
         flex-direction: column;
+        text-align: center;
+        padding: 20px;
     }
 
     .testimonial-avatar {
-        width: 100%;
-        height: 100px;
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 16px;
+    }
+
+    .testimonial-content {
+        margin-left: 0;
+    }
+
+    .testimonial-text {
+        font-size: 14px;
+        line-height: 1.6;
+        margin-bottom: 16px;
+    }
+
+    .testimonial-author h4 {
+        font-size: 16px;
+        margin-bottom: 4px;
+    }
+
+    .testimonial-author p {
+        font-size: 13px;
+    }
+
+    .cta {
+        padding: 40px 20px;
+        text-align: center;
+    }
+
+    .cta-title {
+        font-size: 24px;
+        margin-bottom: 16px;
+    }
+
+    .cta-subtitle {
+        font-size: 16px;
+        margin-bottom: 24px;
+        line-height: 1.5;
+    }
+}
+
+@media (max-width: 480px) {
+    .banner {
+        height: 350px;
+        padding: 0 16px;
+    }
+
+    .banner-title {
+        font-size: 28px;
+        margin-bottom: 12px;
+    }
+
+    .banner-subtitle {
+        font-size: 20px;
+        margin-bottom: 12px;
+    }
+
+    .banner-desc {
+        font-size: 14px;
+    }
+
+    .container {
+        padding: 24px 12px;
+    }
+
+    .section-title {
+        font-size: 20px;
+    }
+
+    .feature-item {
+        padding: 20px 12px;
+    }
+
+    .feature-icon {
+        font-size: 36px;
+    }
+
+    .teacher-avatar img,
+    .course-image img {
+        height: 200px;
+    }
+
+    .cta {
+        padding: 32px 16px;
+    }
+
+    .cta-title {
+        font-size: 20px;
+    }
+
+    .cta-subtitle {
+        font-size: 14px;
     }
 }
 </style>

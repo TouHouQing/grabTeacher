@@ -474,9 +474,178 @@ const resetForm = () => {
 }
 
 @media (max-width: 768px) {
+  .platform-page {
+    padding-top: 56px; /* 适配移动端导航高度 */
+  }
+
+  .banner {
+    height: 200px;
+    padding: 0 20px;
+  }
+
+  .banner h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+
+  .banner p {
+    font-size: 16px;
+  }
+
+  .container {
+    padding: 30px 16px;
+  }
+
+  .section {
+    margin-bottom: 40px;
+  }
+
+  .section h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+
   .advantages,
   .requirements-list {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .advantage-item,
+  .requirement-item {
+    padding: 20px 16px;
+  }
+
+  .advantage-item .el-icon,
+  .requirement-item .el-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+
+  .advantage-item h3,
+  .requirement-item h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .advantage-item p,
+  .requirement-item p {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .positions-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .position-card {
+    padding: 20px 16px;
+  }
+
+  .position-header h3 {
+    font-size: 16px;
+  }
+
+  .position-header .el-tag {
+    font-size: 12px;
+  }
+
+  .position-card p {
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .application-form {
+    padding: 20px 16px;
+  }
+
+  .application-form h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .el-form-item {
+    margin-bottom: 16px;
+  }
+
+  .el-form-item__label {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .el-input__inner,
+  .el-select .el-input__inner,
+  .el-textarea__inner {
+    font-size: 16px; /* 防止iOS缩放 */
+    padding: 12px 16px;
+  }
+
+  .el-textarea__inner {
+    min-height: 80px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .form-actions .el-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .platform-page {
+    padding-top: 52px;
+  }
+
+  .banner {
+    height: 180px;
+    padding: 0 16px;
+  }
+
+  .banner h1 {
+    font-size: 28px;
+  }
+
+  .banner p {
+    font-size: 14px;
+  }
+
+  .container {
+    padding: 24px 12px;
+  }
+
+  .section h2 {
+    font-size: 20px;
+  }
+
+  .advantage-item,
+  .requirement-item,
+  .position-card {
+    padding: 16px 12px;
+  }
+
+  .application-form {
+    padding: 16px 12px;
+  }
+
+  .application-form h2 {
+    font-size: 18px;
+  }
+
+  .el-input__inner,
+  .el-select .el-input__inner,
+  .el-textarea__inner {
+    padding: 14px 16px;
+  }
+
+  .form-actions .el-button {
+    padding: 14px;
   }
 }
 </style>

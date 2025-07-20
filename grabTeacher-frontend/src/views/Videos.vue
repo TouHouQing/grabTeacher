@@ -229,18 +229,151 @@ const videos = ref<Video[]>([
 }
 
 @media (max-width: 768px) {
+    .videos-page {
+        padding-top: 56px; /* 适配移动端导航高度 */
+    }
+
+    .banner {
+        height: 200px;
+        padding: 0 20px;
+    }
+
+    .banner h1 {
+        font-size: 32px;
+        margin-bottom: 10px;
+    }
+
+    .banner p {
+        font-size: 16px;
+    }
+
+    .videos-content {
+        padding: 20px 16px;
+    }
+
     .page-header {
         flex-direction: column;
         align-items: stretch;
-        gap: 20px;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .page-header h2 {
+        font-size: 24px;
+        margin-bottom: 8px;
     }
 
     .filters {
         flex-direction: column;
+        gap: 12px;
+    }
+
+    .filters .el-select,
+    .filters .el-input {
+        width: 100%;
+    }
+
+    .video-card {
+        margin-bottom: 16px;
     }
 
     .video-cover {
-        height: 200px;
+        height: 180px;
+    }
+
+    .video-duration {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+
+    .video-content {
+        padding: 16px;
+    }
+
+    .video-content h3 {
+        font-size: 16px;
+        margin-bottom: 8px;
+    }
+
+    .description {
+        font-size: 13px;
+        line-height: 1.5;
+        margin-bottom: 12px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .video-footer {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+
+    .teacher-info,
+    .student-count {
+        font-size: 13px;
+        gap: 6px;
+    }
+
+    .watch-btn {
+        height: 36px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .videos-page {
+        padding-top: 52px;
+    }
+
+    .banner {
+        height: 180px;
+        padding: 0 16px;
+    }
+
+    .banner h1 {
+        font-size: 28px;
+    }
+
+    .banner p {
+        font-size: 14px;
+    }
+
+    .videos-content {
+        padding: 16px 12px;
+    }
+
+    .page-header h2 {
+        font-size: 20px;
+    }
+
+    .video-cover {
+        height: 160px;
+    }
+
+    .video-content {
+        padding: 12px;
+    }
+
+    .video-content h3 {
+        font-size: 15px;
+    }
+
+    .description {
+        font-size: 12px;
+    }
+
+    .teacher-info,
+    .student-count {
+        font-size: 12px;
+    }
+
+    .watch-btn {
+        height: 32px;
+        font-size: 13px;
     }
 }
 </style>

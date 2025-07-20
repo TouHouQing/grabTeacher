@@ -467,4 +467,124 @@ const handleRegister = async () => {
 .register-card::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .register-container {
+    padding: 16px;
+    align-items: flex-start;
+    padding-top: 80px; /* 为移动端导航留出空间 */
+  }
+
+  .register-card {
+    padding: 24px;
+    max-width: 100%;
+    width: 100%;
+    max-height: calc(100vh - 100px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .register-card h2 {
+    font-size: 24px;
+    margin-bottom: 24px;
+  }
+
+  .register-form {
+    gap: 20px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .form-group {
+    margin-bottom: 0;
+  }
+
+  .form-group label {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 12px 16px;
+    font-size: 16px; /* 防止iOS缩放 */
+    border-radius: 8px;
+  }
+
+  .form-group textarea {
+    min-height: 80px;
+  }
+
+  .checkbox-group {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .checkbox-item {
+    min-width: calc(50% - 4px);
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+
+  .register-btn {
+    padding: 14px;
+    font-size: 16px;
+    border-radius: 8px;
+    margin-top: 16px;
+  }
+
+  .register-links {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+
+  .register-links a {
+    font-size: 14px;
+    padding: 8px 0;
+  }
+
+  .error-message,
+  .success-message {
+    font-size: 14px;
+    padding: 12px;
+    border-radius: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .register-container {
+    padding: 12px;
+    padding-top: 70px;
+  }
+
+  .register-card {
+    padding: 20px;
+    max-height: calc(100vh - 90px);
+  }
+
+  .register-card h2 {
+    font-size: 22px;
+  }
+
+  .checkbox-item {
+    min-width: 100%;
+    font-size: 13px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 14px 16px;
+  }
+
+  .register-btn {
+    padding: 16px;
+    font-size: 16px;
+  }
+}
 </style>

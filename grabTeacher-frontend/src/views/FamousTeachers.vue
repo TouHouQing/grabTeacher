@@ -459,23 +459,205 @@ const viewTeacherDetail = (teacherId: number) => {
 }
 
 @media (max-width: 768px) {
-  .teacher-card {
-    flex-direction: column;
+  .famous-teachers {
+    padding-top: 56px; /* 适配移动端导航高度 */
   }
 
-  .teacher-avatar {
-    width: 100%;
-    height: 250px;
+  .banner {
+    height: 200px;
+    padding: 0 20px;
+  }
+
+  .banner h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+
+  .banner p {
+    font-size: 16px;
+  }
+
+  .container {
+    padding: 30px 16px;
+  }
+
+  .filter-section {
+    margin-bottom: 30px;
   }
 
   .filter-form {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    gap: 16px;
   }
 
   .filter-form .el-form-item {
     margin-right: 0;
+    margin-bottom: 0;
     width: 100%;
+  }
+
+  .filter-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 12px;
+  }
+
+  .filter-actions .el-button {
+    flex: 1;
+  }
+
+  .teachers-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .teacher-card {
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .teacher-avatar {
+    width: 100%;
+    height: 200px;
+    margin-bottom: 16px;
+  }
+
+  .teacher-info {
+    padding: 0;
+  }
+
+  .teacher-info h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  .teacher-info p {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .teacher-description {
+    font-size: 13px !important;
+    line-height: 1.5;
+    margin-bottom: 12px !important;
+  }
+
+  .teacher-tags {
+    margin-bottom: 12px;
+  }
+
+  .teacher-tag {
+    font-size: 12px;
+    margin-right: 6px;
+    margin-bottom: 6px;
+  }
+
+  .teacher-schedule {
+    margin-bottom: 16px;
+  }
+
+  .schedule-title {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  .schedule-times {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .schedule-tag {
+    font-size: 12px;
+    padding: 4px 8px;
+    margin-right: 0;
+    margin-bottom: 0;
+  }
+
+  .teacher-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .teacher-actions .el-button {
+    width: 100%;
+  }
+
+  .pagination {
+    margin-top: 30px;
+  }
+
+  .el-pagination {
+    justify-content: center;
+  }
+
+  .el-pagination .el-pager li {
+    min-width: 32px;
+    height: 32px;
+    line-height: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .famous-teachers {
+    padding-top: 52px;
+  }
+
+  .banner {
+    height: 180px;
+    padding: 0 16px;
+  }
+
+  .banner h1 {
+    font-size: 28px;
+  }
+
+  .banner p {
+    font-size: 14px;
+  }
+
+  .container {
+    padding: 24px 12px;
+  }
+
+  .teacher-card {
+    padding: 12px;
+  }
+
+  .teacher-avatar {
+    height: 180px;
+    margin-bottom: 12px;
+  }
+
+  .teacher-info h3 {
+    font-size: 16px;
+  }
+
+  .teacher-info p {
+    font-size: 13px;
+  }
+
+  .teacher-description {
+    font-size: 12px !important;
+  }
+
+  .filter-actions {
+    flex-direction: column;
+  }
+
+  .filter-actions .el-button {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+
+  .el-pagination {
+    flex-wrap: wrap;
+  }
+
+  .el-pagination .el-pagination__sizes,
+  .el-pagination .el-pagination__jump {
+    order: 3;
+    margin-top: 12px;
   }
 }
 </style>

@@ -383,12 +383,206 @@ h2::after {
 
   .contact-content {
     grid-template-columns: 1fr;
+    gap: 30px;
   }
 }
 
 @media (max-width: 768px) {
+  .contact-page {
+    padding-top: 56px; /* 适配移动端导航高度 */
+  }
+
+  .banner {
+    height: 200px;
+    padding: 0 20px;
+  }
+
+  .banner h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+
+  .banner p {
+    font-size: 16px;
+  }
+
+  .container {
+    padding: 30px 16px;
+  }
+
   .contact-info-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .contact-info-card {
+    padding: 20px 16px;
+  }
+
+  .icon {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 16px;
+  }
+
+  .icon .el-icon {
+    font-size: 24px;
+  }
+
+  .contact-info-card h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .contact-info-card p {
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .contact-content {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .contact-form {
+    padding: 20px;
+  }
+
+  .contact-form h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .form-group {
+    margin-bottom: 0;
+  }
+
+  .form-group label {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 12px 16px;
+    font-size: 16px; /* 防止iOS缩放 */
+    border-radius: 6px;
+  }
+
+  .form-group textarea {
+    min-height: 100px;
+  }
+
+  .form-actions {
+    margin-top: 20px;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .form-actions .el-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+  }
+
+  .map-section {
+    padding: 20px;
+  }
+
+  .map-section h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .map-container {
+    height: 250px;
+    border-radius: 6px;
+  }
+
+  .cta-section {
+    padding: 30px 20px;
+    margin-bottom: 16px;
+  }
+
+  .cta-section h2 {
+    font-size: 22px;
+    margin-bottom: 12px;
+  }
+
+  .cta-section p {
+    font-size: 14px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+}
+
+@media (max-width: 480px) {
+  .contact-page {
+    padding-top: 52px;
+  }
+
+  .banner {
+    height: 180px;
+    padding: 0 16px;
+  }
+
+  .banner h1 {
+    font-size: 28px;
+  }
+
+  .banner p {
+    font-size: 14px;
+  }
+
+  .container {
+    padding: 24px 12px;
+  }
+
+  .contact-info-card {
+    padding: 16px 12px;
+  }
+
+  .icon {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 12px;
+  }
+
+  .icon .el-icon {
+    font-size: 20px;
+  }
+
+  .contact-form,
+  .map-section {
+    padding: 16px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 14px 16px;
+  }
+
+  .map-container {
+    height: 200px;
+  }
+
+  .cta-section {
+    padding: 24px 16px;
+  }
+
+  .cta-section h2 {
+    font-size: 20px;
+  }
+
+  .cta-section p {
+    font-size: 13px;
   }
 }
 </style>

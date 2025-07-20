@@ -193,4 +193,84 @@ const handleLogin = async () => {
 .login-links a:hover {
   text-decoration: underline;
 }
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .login-container {
+    padding: 16px;
+    align-items: flex-start;
+    padding-top: 80px; /* 为移动端导航留出空间 */
+  }
+
+  .login-card {
+    padding: 24px;
+    max-width: 100%;
+    width: 100%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .login-card h2 {
+    font-size: 24px;
+    margin-bottom: 24px;
+  }
+
+  .form-group label {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .form-group input {
+    padding: 12px 16px;
+    font-size: 16px; /* 防止iOS缩放 */
+    border-radius: 8px;
+  }
+
+  .login-btn {
+    padding: 14px;
+    font-size: 16px;
+    border-radius: 8px;
+    margin-top: 8px;
+  }
+
+  .login-links {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+
+  .login-links a {
+    font-size: 14px;
+    padding: 8px 0;
+  }
+
+  .error-message {
+    font-size: 14px;
+    padding: 12px;
+    border-radius: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-container {
+    padding: 12px;
+    padding-top: 70px;
+  }
+
+  .login-card {
+    padding: 20px;
+  }
+
+  .login-card h2 {
+    font-size: 22px;
+  }
+
+  .form-group input {
+    padding: 14px 16px;
+  }
+
+  .login-btn {
+    padding: 16px;
+    font-size: 16px;
+  }
+}
 </style>

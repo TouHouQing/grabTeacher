@@ -204,6 +204,16 @@ export const teacherAPI = {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ isVerified: isVerified })
+    }),
+
+  // 更新教师认证状态
+  updateVerification: (id: number, isVerified: boolean) =>
+    apiRequest(`/api/admin/teachers/${id}/verify`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ isVerified: isVerified })
     })
 }
 

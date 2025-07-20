@@ -423,8 +423,185 @@ const filteredCampuses = computed(() => {
 }
 
 @media (max-width: 768px) {
+  .campus-page {
+    padding-top: 56px; /* 适配移动端导航高度 */
+  }
+
+  .banner {
+    height: 200px;
+    padding: 0 20px;
+  }
+
+  .banner h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+
+  .banner p {
+    font-size: 16px;
+  }
+
+  .container {
+    padding: 30px 16px;
+  }
+
+  .section {
+    margin-bottom: 40px;
+  }
+
+  .section h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+
   .campus-grid {
     grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .campus-item {
+    padding: 20px 16px;
+  }
+
+  .campus-image {
+    height: 200px;
+    margin-bottom: 16px;
+  }
+
+  .campus-item h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  .campus-item p {
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .campus-features {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .feature-tag {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
+  .visit-appointment {
+    padding: 30px 20px;
+  }
+
+  .visit-appointment h2 {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  .section-desc {
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .appointment-form {
+    max-width: 100%;
+  }
+
+  .el-form-item {
+    margin-bottom: 16px;
+  }
+
+  .el-form-item__label {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .el-input__inner,
+  .el-select .el-input__inner,
+  .el-textarea__inner {
+    font-size: 16px; /* 防止iOS缩放 */
+    padding: 12px 16px;
+  }
+
+  .el-date-picker {
+    width: 100%;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .form-actions .el-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .campus-page {
+    padding-top: 52px;
+  }
+
+  .banner {
+    height: 180px;
+    padding: 0 16px;
+  }
+
+  .banner h1 {
+    font-size: 28px;
+  }
+
+  .banner p {
+    font-size: 14px;
+  }
+
+  .container {
+    padding: 24px 12px;
+  }
+
+  .section h2 {
+    font-size: 20px;
+  }
+
+  .campus-item {
+    padding: 16px 12px;
+  }
+
+  .campus-image {
+    height: 160px;
+    margin-bottom: 12px;
+  }
+
+  .campus-item h3 {
+    font-size: 16px;
+  }
+
+  .campus-item p {
+    font-size: 13px;
+  }
+
+  .visit-appointment {
+    padding: 24px 16px;
+  }
+
+  .visit-appointment h2 {
+    font-size: 18px;
+  }
+
+  .section-desc {
+    font-size: 13px;
+  }
+
+  .el-input__inner,
+  .el-select .el-input__inner,
+  .el-textarea__inner {
+    padding: 14px 16px;
+  }
+
+  .form-actions .el-button {
+    padding: 14px;
   }
 }
 </style>

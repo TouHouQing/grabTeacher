@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
-import { courseAPI, subjectAPI, teacherAPI } from '@/utils/api'
+import { courseAPI, subjectAPI, teacherAPI } from '../../utils/api'
 
 // 课程接口定义
 interface Course {
@@ -397,6 +397,11 @@ onMounted(() => {
           <el-button type="primary" :icon="Search" @click="searchCourses">搜索</el-button>
           <el-button :icon="Refresh" @click="resetSearch">重置</el-button>
         </el-form-item>
+        <el-form-item class="add-button-item">
+          <el-button type="primary" :icon="Plus" @click="openAddDialog">
+            新增课程
+          </el-button>
+        </el-form-item>
       </el-form>
     </el-card>
 
@@ -606,6 +611,142 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   margin-top: 20px;
+}
+
+/* 统计卡片样式 */
+.statistics-section {
+  margin-bottom: 20px;
+}
+
+.statistics-cards {
+  margin-bottom: 0;
+}
+
+.statistic-card {
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+}
+
+.statistic-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.statistic-card.active {
+  border-left: 4px solid #67c23a;
+}
+
+.statistic-card.inactive {
+  border-left: 4px solid #909399;
+}
+
+.statistic-card.full {
+  border-left: 4px solid #e6a23c;
+}
+
+.statistic-content {
+  text-align: center;
+  padding: 10px;
+}
+
+.statistic-number {
+  font-size: 28px;
+  font-weight: bold;
+  color: #303133;
+  margin-bottom: 5px;
+}
+
+.statistic-label {
+  font-size: 14px;
+  color: #606266;
+}
+
+.search-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.add-button-item {
+  margin-left: auto;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .admin-course-management {
+    padding: 10px;
+  }
+
+  .header h2 {
+    font-size: 18px;
+  }
+
+  .statistic-number {
+    font-size: 24px;
+  }
+
+  .statistic-label {
+    font-size: 12px;
+  }
+
+  .search-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-form .el-form-item {
+    margin-bottom: 12px;
+    width: 100%;
+  }
+
+  .search-form .el-form-item .el-input,
+  .search-form .el-form-item .el-select {
+    width: 100% !important;
+  }
+
+  .add-button-item {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .add-button-item .el-button {
+    width: 100%;
+  }
+
+  .table-card {
+    overflow-x: auto;
+  }
+
+  .el-table {
+    min-width: 800px;
+  }
+
+  .pagination-wrapper {
+    padding: 10px;
+  }
+
+  .pagination-wrapper .el-pagination {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .statistic-number {
+    font-size: 20px;
+  }
+
+  .search-form .el-form-item .el-form-item__label {
+    width: 60px !important;
+    font-size: 14px;
+  }
+
+  .el-table .el-button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
 }
 
 .dialog-footer {

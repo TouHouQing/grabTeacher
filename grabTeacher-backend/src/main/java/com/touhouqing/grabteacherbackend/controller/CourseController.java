@@ -29,7 +29,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/courses")
 @Tag(name = "课程管理", description = "课程相关的增删改查操作")
-@SecurityRequirement(name = "Bearer Authentication")
+@SecurityRequirement(name = "bearerAuth")
 public class CourseController {
 
     private static final Logger logger = LoggerFactory.getLogger(CourseController.class);

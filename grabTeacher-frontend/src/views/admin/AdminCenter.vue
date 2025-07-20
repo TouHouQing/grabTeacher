@@ -872,6 +872,17 @@ const resetCourseSearch = () => {
 }
 
 const openCourseDialog = () => {
+  // 重置表单
+  Object.assign(courseForm, {
+    id: null,
+    teacherId: null,
+    subjectId: null,
+    title: '',
+    description: '',
+    courseType: 'one_on_one',
+    durationMinutes: 120,
+    status: 'active'
+  })
   courseDialogVisible.value = true
   courseDialogTitle.value = '新增课程'
 }
@@ -880,6 +891,42 @@ const editCourse = (course: any) => {
   Object.assign(courseForm, course)
   courseDialogVisible.value = true
   courseDialogTitle.value = '编辑课程'
+}
+
+const saveCourse = async () => {
+  try {
+    loading.value = true
+
+    const courseData = {
+      teacherId: courseForm.teacherId,
+      subjectId: courseForm.subjectId,
+      title: courseForm.title,
+      description: courseForm.description,
+      courseType: courseForm.courseType,
+      durationMinutes: courseForm.durationMinutes,
+      status: courseForm.status
+    }
+
+    let response
+    if (courseForm.id) {
+      response = await courseAPI.update(courseForm.id, courseData)
+    } else {
+      response = await courseAPI.create(courseData)
+    }
+
+    if (response.success) {
+      ElMessage.success(courseForm.id ? '课程更新成功' : '课程创建成功')
+      courseDialogVisible.value = false
+      await loadCourseList()
+    } else {
+      ElMessage.error(response.message || '操作失败')
+    }
+  } catch (error) {
+    console.error('保存课程失败:', error)
+    ElMessage.error('保存课程失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 const deleteCourse = async (course: any) => {
@@ -1339,6 +1386,102 @@ onMounted(async () => {
                 @current-change="handleCoursePageChange"
               />
             </div>
+
+            <!-- 新增/编辑课程对话框 -->
+            <el-dialog
+              v-model="courseDialogVisible"
+              :title="courseDialogTitle"
+              width="600px"
+              :close-on-click-modal="false"
+            >
+              <el-form
+                :model="courseForm"
+                ref="courseFormRef"
+                label-width="100px"
+              >
+                <el-form-item label="授课教师" prop="teacherId" required>
+                  <el-select v-model="courseForm.teacherId" placeholder="请选择教师" style="width: 100%">
+                    <el-option
+                      v-for="teacher in teacherList"
+                      :key="teacher.id"
+                      :label="teacher.realName"
+                      :value="teacher.id"
+                    />
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item label="科目" prop="subjectId" required>
+                  <el-select v-model="courseForm.subjectId" placeholder="请选择科目" style="width: 100%">
+                    <el-option
+                      v-for="subject in subjectList"
+                      :key="subject.id"
+                      :label="`${subject.name} (${subject.gradeLevels || '全年级'})`"
+                      :value="subject.id"
+                    >
+                      <div style="display: flex; justify-content: space-between;">
+                        <span>{{ subject.name }}</span>
+                        <span style="color: #8492a6; font-size: 12px;">{{ subject.gradeLevels || '全年级' }}</span>
+                      </div>
+                    </el-option>
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item label="课程标题" prop="title" required>
+                  <el-input
+                    v-model="courseForm.title"
+                    placeholder="请输入课程标题"
+                    maxlength="200"
+                    show-word-limit
+                  />
+                </el-form-item>
+
+                <el-form-item label="课程描述">
+                  <el-input
+                    v-model="courseForm.description"
+                    type="textarea"
+                    placeholder="请输入课程描述"
+                    :rows="4"
+                    maxlength="500"
+                    show-word-limit
+                  />
+                </el-form-item>
+
+                <el-form-item label="课程类型" required>
+                  <el-radio-group v-model="courseForm.courseType">
+                    <el-radio label="one_on_one">一对一</el-radio>
+                    <el-radio label="large_class">大班课</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+
+                <el-form-item label="课程时长" required>
+                  <el-input-number
+                    v-model="courseForm.durationMinutes"
+                    :min="1"
+                    :max="480"
+                    :step="30"
+                    style="width: 200px"
+                  />
+                  <span style="margin-left: 10px; color: #909399;">分钟</span>
+                </el-form-item>
+
+                <el-form-item label="课程状态">
+                  <el-radio-group v-model="courseForm.status">
+                    <el-radio label="active">可报名</el-radio>
+                    <el-radio label="inactive">已下架</el-radio>
+                    <el-radio label="full">已满员</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+              </el-form>
+
+              <template #footer>
+                <span class="dialog-footer">
+                  <el-button @click="courseDialogVisible = false">取消</el-button>
+                  <el-button type="primary" @click="saveCourse" :loading="loading">
+                    {{ courseForm.id ? '更新' : '创建' }}
+                  </el-button>
+                </span>
+              </template>
+            </el-dialog>
           </div>
         </div>
 
@@ -1643,22 +1786,175 @@ onMounted(async () => {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .admin-center {
+    padding-top: 56px; /* 适配移动端导航高度 */
+  }
+
   .admin-container {
     flex-direction: column;
+    height: calc(100vh - 56px);
   }
 
   .admin-sidebar {
     width: 100%;
     height: auto;
+    order: 2; /* 将侧边栏移到底部 */
+    box-shadow: 0 -2px 12px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  .admin-content {
+    order: 1;
+    overflow-y: auto;
+    flex: 1;
+    padding: 16px;
   }
 
   .admin-menu {
     display: flex;
     height: auto;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid #e6e6e6;
+  }
+
+  .admin-menu .el-menu-item {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 0 16px;
+    height: 48px;
+    line-height: 48px;
+    border-bottom: none;
+    border-right: 1px solid #e6e6e6;
+  }
+
+  .admin-menu .el-menu-item:last-child {
+    border-right: none;
+  }
+
+  .admin-menu .el-menu-item span {
+    margin-left: 8px;
+    font-size: 13px;
+  }
+
+  .statistics-cards {
+    margin-bottom: 20px;
   }
 
   .statistics-cards .el-col {
-    margin-bottom: 20px;
+    margin-bottom: 12px;
+  }
+
+  .statistic-card {
+    margin-bottom: 0;
+  }
+
+  .statistic {
+    padding: 16px;
+  }
+
+  .statistic h4 {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  .statistic-value {
+    font-size: 20px;
+  }
+
+  .dashboard-content h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .password-card {
+    max-width: 100%;
+    margin: 0;
+  }
+
+  .search-card,
+  .table-card {
+    margin-bottom: 16px;
+  }
+
+  .el-table {
+    font-size: 13px;
+  }
+
+  .el-table th,
+  .el-table td {
+    padding: 8px 0;
+  }
+
+  .el-button--small {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .el-form-item {
+    margin-bottom: 16px;
+  }
+
+  .el-form-item__label {
+    font-size: 14px;
+  }
+
+  .el-input__inner,
+  .el-select .el-input__inner {
+    font-size: 16px; /* 防止iOS缩放 */
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-center {
+    padding-top: 52px;
+  }
+
+  .admin-container {
+    height: calc(100vh - 52px);
+  }
+
+  .admin-content {
+    padding: 12px;
+  }
+
+  .admin-menu .el-menu-item {
+    padding: 0 12px;
+    height: 44px;
+    line-height: 44px;
+  }
+
+  .admin-menu .el-menu-item span {
+    font-size: 12px;
+  }
+
+  .statistic {
+    padding: 12px;
+  }
+
+  .statistic-value {
+    font-size: 18px;
+  }
+
+  .dashboard-content h2 {
+    font-size: 18px;
+  }
+
+  .el-table {
+    font-size: 12px;
+  }
+
+  .el-button--small {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+
+  .search-form .el-form-item {
+    margin-bottom: 12px;
+  }
+
+  .search-form .el-button {
+    width: 100%;
+    margin-top: 8px;
   }
 }
 

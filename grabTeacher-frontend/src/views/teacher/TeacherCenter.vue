@@ -424,40 +424,161 @@ export default {
 }
 
 @media (max-width: 768px) {
+  .teacher-center {
+    padding-top: 56px; /* 适配移动端导航高度 */
+  }
+
   .el-container {
     flex-direction: column;
+    height: calc(100vh - 56px);
   }
 
   .el-aside {
     width: 100% !important;
     height: auto;
+    order: 2; /* 将侧边栏移到底部 */
+    box-shadow: 0 -2px 12px 0 rgba(0, 0, 0, 0.05);
   }
 
   .el-main {
-    padding: 10px;
+    padding: 16px;
+    order: 1;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .sidebar {
+    height: auto;
+  }
+
+  .user-info {
+    flex-direction: row;
+    padding: 12px 16px;
+    align-items: center;
+  }
+
+  .avatar {
+    margin-right: 12px;
+    margin-bottom: 0;
+  }
+
+  .info h3 {
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+
+  .info p {
+    font-size: 12px;
+    color: #999;
+  }
+
+  .el-menu-vertical {
+    display: flex;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid #e6e6e6;
+  }
+
+  .el-menu-vertical .el-menu-item {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 0 16px;
+    height: 48px;
+    line-height: 48px;
+    border-bottom: none;
+    border-right: 1px solid #e6e6e6;
+  }
+
+  .el-menu-vertical .el-menu-item:last-child {
+    border-right: none;
+  }
+
+  .el-menu-vertical .el-menu-item span {
+    margin-left: 8px;
+    font-size: 13px;
+  }
+
+  .dashboard {
+    padding: 0;
+  }
+
+  .dashboard h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
   }
 
   .dashboard-stats {
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    padding: 16px;
+  }
+
+  .stat-card h3 {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+  }
+
+  .quick-actions h3,
+  .upcoming-courses h3,
+  .new-orders h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
   }
 
   .action-buttons {
     flex-direction: column;
+    gap: 8px;
   }
 
   .action-buttons .el-button {
-    margin-bottom: 10px;
+    width: 100%;
+    margin-bottom: 0;
   }
 }
 
 @media (max-width: 480px) {
+  .teacher-center {
+    padding-top: 52px;
+  }
+
+  .el-container {
+    height: calc(100vh - 52px);
+  }
+
+  .el-main {
+    padding: 12px;
+  }
+
+  .user-info {
+    padding: 10px 12px;
+  }
+
   .dashboard-stats {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .stat-card {
     width: 100%;
+    padding: 12px;
+  }
+
+  .el-menu-vertical .el-menu-item {
+    padding: 0 12px;
+    height: 44px;
+    line-height: 44px;
+  }
+
+  .el-menu-vertical .el-menu-item span {
+    font-size: 12px;
   }
 }
 </style>
