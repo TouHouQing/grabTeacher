@@ -125,7 +125,39 @@ const handleRegister = async () => {
 <template>
   <div class="register-container">
     <div class="register-card">
-      <h2>学生注册</h2>
+      <h2>用户注册</h2>
+
+      <!-- 注册类型选择 -->
+      <div class="register-type-selector">
+        <div class="type-options">
+          <button
+            type="button"
+            class="type-btn student-btn"
+            :class="{ active: registerForm.userType === 'student' }"
+            @click="registerForm.userType = 'student'"
+          >
+            <div class="type-icon">👨‍🎓</div>
+            <div class="type-text">
+              <h3>学生注册</h3>
+              <p>寻找优质教师，开启学习之旅</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            class="type-btn teacher-btn"
+            :class="{ active: registerForm.userType === 'teacher' }"
+            @click="$router.push('/teacher-register')"
+          >
+            <div class="type-icon">👨‍🏫</div>
+            <div class="type-text">
+              <h3>教师注册</h3>
+              <p>分享知识，成就他人</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
       <form @submit.prevent="handleRegister" class="register-form">
         <!-- 基本信息 -->
         <div class="form-section">
@@ -293,7 +325,6 @@ const handleRegister = async () => {
 
       <div class="register-links">
         <router-link to="/login">已有账号？立即登录</router-link>
-        <router-link to="/teacher-register">教师注册</router-link>
       </div>
     </div>
   </div>
@@ -324,6 +355,58 @@ const handleRegister = async () => {
   text-align: center;
   margin-bottom: 1.5rem;
   color: #333;
+}
+
+.register-type-selector {
+  margin-bottom: 2rem;
+}
+
+.type-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.type-btn {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+.type-btn:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+}
+
+.type-btn.active {
+  border-color: #667eea;
+  background: #f8f9ff;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.type-icon {
+  font-size: 2.5rem;
+  flex-shrink: 0;
+}
+
+.type-text h3 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.type-text p {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .register-form {
@@ -535,6 +618,28 @@ const handleRegister = async () => {
     font-size: 16px;
     border-radius: 8px;
     margin-top: 16px;
+  }
+
+  .type-options {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .type-btn {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .type-icon {
+    font-size: 2rem;
+  }
+
+  .type-text h3 {
+    font-size: 16px;
+  }
+
+  .type-text p {
+    font-size: 13px;
   }
 
   .register-links {

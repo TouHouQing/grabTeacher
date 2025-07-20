@@ -13,6 +13,8 @@ const en = {
     contact: 'Contact Us'
   },
   auth: {
+    login: 'Login',
+    register: 'Register',
     studentLogin: 'Student Login',
     teacherLogin: 'Teacher Login',
     studentRegister: 'Student Register',
@@ -95,6 +97,8 @@ const zh = {
     contact: '联系我们'
   },
   auth: {
+    login: '登录',
+    register: '注册',
     studentLogin: '学生登录',
     teacherLogin: '教师登录',
     studentRegister: '学生注册',
