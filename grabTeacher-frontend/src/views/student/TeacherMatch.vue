@@ -951,7 +951,7 @@ onMounted(() => {
                 <el-button type="info" plain size="large">
                   <el-icon><Message /></el-icon> 联系教师
                 </el-button>
-                <el-button type="success" plain size="large" @click="router.push(`/student/teacher-detail/${teacher.name}`)">
+                <el-button type="success" plain size="large" @click="router.push(`/teacher-detail/${teacher.id}`)">
                   <el-icon><View /></el-icon> 查看详情
                 </el-button>
               </div>

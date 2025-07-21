@@ -233,7 +233,10 @@ export const teacherAPI = {
   }),
 
   // 获取可用年级选项
-  getAvailableGrades: () => apiRequest('/api/teacher/grades')
+  getAvailableGrades: () => apiRequest('/api/teacher/grades'),
+
+  // 获取教师详情（公开接口）
+  getDetail: (id: number) => apiRequest(`/api/teacher/${id}`)
 }
 
 // 管理员统计 API

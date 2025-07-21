@@ -2,7 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Calendar, Phone, Message, Location, School, Trophy, VideoCamera } from '@element-plus/icons-vue'
+import { Calendar, Phone, Message, Location, School, Trophy, VideoCamera, ArrowLeft, Loading } from '@element-plus/icons-vue'
+import { teacherAPI } from '@/utils/api'
 import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
 import teacherBoy2 from '@/assets/pictures/teacherBoy2.jpeg'
 import teacherBoy3 from '@/assets/pictures/teacherBoy3.jpeg'
@@ -19,7 +20,11 @@ const router = useRouter()
 // 获取路由传递的教师ID并转换为数字
 const teacherId = parseInt(route.params.id as string)
 
-// 教师数据库（与FamousTeachers.vue中的数据保持一致）
+// 教师信息状态
+const teacher = ref(null)
+const loading = ref(true)
+
+// 默认教师数据库（作为后备数据）
 const teachersData = {
   1: {
     id: 1,
@@ -311,9 +316,6 @@ const teachersData = {
   }
 }
 
-// 当前教师信息
-const teacher = ref(teachersData[teacherId] || teachersData[1])
-
 // 视频播放控制
 const isPlaying = ref(false)
 const videoRef = ref()
@@ -323,7 +325,64 @@ const goBack = () => {
   router.back()
 }
 
-// 在真实场景中，我们应该通过API获取教师详情
+// 获取教师详情数据
+const fetchTeacherDetail = async () => {
+  try {
+    loading.value = true
+    const result = await teacherAPI.getDetail(teacherId)
+
+    if (result.success && result.data) {
+      // 转换后端数据格式为前端需要的格式
+      const teacherData = result.data
+      teacher.value = {
+        id: teacherData.id,
+        name: teacherData.realName,
+        subject: teacherData.subjects ? teacherData.subjects.split(',')[0] : '未设置',
+        grade: '初中', // 暂时使用默认值
+        experience: teacherData.teachingExperience || 0,
+        rating: 4.8, // 暂时使用默认值
+        description: teacherData.introduction || '暂无介绍',
+        detailedDescription: teacherData.introduction || '暂无详细介绍',
+        avatar: teacherBoy1, // 使用默认头像
+        videoIntro: teacherBoy1v,
+        tags: teacherData.specialties ? teacherData.specialties.split(',') : [],
+        schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'], // 暂时使用默认值
+        gender: teacherData.gender || 'Male',
+        teachingStyle: '个性化教学',
+        education: teacherData.educationBackground || '暂无信息',
+        location: '新加坡',
+        contactPhone: '+65 8888 8888',
+        contactEmail: 'teacher@grabteacher.com',
+        achievements: ['优秀教师奖']
+      }
+      ElMessage.success(`${teacher.value.name}的详情加载完成`)
+    } else {
+      // 如果API失败，使用默认数据
+      if (teachersData[teacherId]) {
+        teacher.value = teachersData[teacherId]
+        ElMessage.warning('使用默认教师数据')
+      } else {
+        ElMessage.error('教师信息不存在')
+        router.push('/famous-teachers')
+        return
+      }
+    }
+  } catch (error) {
+    console.error('获取教师详情失败:', error)
+    // 如果API失败，使用默认数据
+    if (teachersData[teacherId]) {
+      teacher.value = teachersData[teacherId]
+      ElMessage.warning('网络异常，使用默认教师数据')
+    } else {
+      ElMessage.error('教师信息不存在')
+      router.push('/famous-teachers')
+      return
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(() => {
   // 页面加载时滚动到顶部
   window.scrollTo({
@@ -331,20 +390,8 @@ onMounted(() => {
     behavior: 'smooth'
   })
 
-  // 检查教师是否存在
-  if (!teachersData[teacherId]) {
-    ElMessage.error('教师信息不存在')
-    router.push('/famous-teachers')
-    return
-  }
-
-  // 更新教师信息
-  teacher.value = teachersData[teacherId]
-
-  // 模拟API请求延迟
-  setTimeout(() => {
-    ElMessage.success(`${teacher.value.name}的详情加载完成`)
-  }, 500)
+  // 获取教师详情
+  fetchTeacherDetail()
 })
 
 // 预约课程
@@ -374,7 +421,11 @@ const contactTeacher = () => {
     </div>
 
     <div class="detail-content">
-      <div class="teacher-profile">
+      <div v-if="loading" class="loading-container">
+        <el-icon class="loading-icon"><Loading /></el-icon>
+        <p>正在加载教师详情...</p>
+      </div>
+      <div v-else-if="teacher" class="teacher-profile">
         <div class="profile-header">
           <div class="profile-avatar">
             <img :src="teacher.avatar" :alt="teacher.name">
@@ -475,6 +526,9 @@ const contactTeacher = () => {
           </el-button>
         </div>
       </div>
+      <div v-else class="error-container">
+        <p>教师信息加载失败</p>
+      </div>
     </div>
   </div>
 </template>
@@ -509,6 +563,39 @@ h2 {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   padding: 30px;
   border: 1px solid #f0f0f0;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: #666;
+}
+
+.loading-icon {
+  font-size: 48px;
+  color: #409eff;
+  animation: rotate 2s linear infinite;
+  margin-bottom: 20px;
+}
+
+.error-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: #999;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .teacher-profile {
