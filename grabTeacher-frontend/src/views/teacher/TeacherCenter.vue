@@ -1,46 +1,102 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import TeacherStudents from './components/TeacherStudents.vue'
-import TeacherMaterials from './components/TeacherMaterials.vue'
+import { bookingAPI } from '../../utils/api'
+import { ElMessage } from 'element-plus'
 import TeacherMessages from './components/TeacherMessages.vue'
-import TeacherSchedule from './components/TeacherSchedule.vue'
-import TeacherIncome from './components/TeacherIncome.vue'
 
 import {
   HomeFilled,
   DocumentChecked,
-  Tickets,
   Calendar,
   Reading,
   User,
-  Document,
   ChatLineRound,
   Money,
   Setting,
-  View,
   VideoCamera
 } from '@element-plus/icons-vue'
+
+// 课程安排接口定义
+interface ScheduleItem {
+  id: number
+  scheduledDate: string
+  startTime: string
+  endTime: string
+  courseName: string
+  studentName: string
+  status: string
+  isTrial: boolean
+}
 
 const userStore = useUserStore()
 const route = useRoute()
 const activeMenu = ref('dashboard')
+const todayCourses = ref<ScheduleItem[]>([])
+const loading = ref(false)
 
 // 根据当前路由设置激活菜单
-watch(() => route.path, (path) => {
+watch(() => route.path, (path: string) => {
   if (path.includes('/profile')) {
     activeMenu.value = 'profile'
-  } else if (path.includes('/orders')) {
-    activeMenu.value = 'orders'
   } else if (path.includes('/schedule')) {
     activeMenu.value = 'schedule'
   } else if (path.includes('/courses')) {
     activeMenu.value = 'courses'
+  } else if (path.includes('/bookings')) {
+    activeMenu.value = 'bookings'
+  } else if (path.includes('/messages')) {
+    activeMenu.value = 'messages'
   } else {
     activeMenu.value = 'dashboard'
   }
 }, { immediate: true })
+
+// 获取即将开始的课程
+const fetchUpcomingCourses = async () => {
+  try {
+    loading.value = true
+    const today = new Date().toISOString().split('T')[0]
+    const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+    const response = await bookingAPI.getTeacherSchedules({
+      startDate: today,
+      endDate: nextWeek
+    })
+
+    if (response.success && response.data) {
+      // 过滤即将开始的课程并按时间排序
+      const upcoming_schedules = response.data.filter((schedule: ScheduleItem) =>
+        schedule.status === 'progressing'
+      ).sort((a: ScheduleItem, b: ScheduleItem) => {
+        // 先按日期排序，再按时间排序
+        const dateCompare = a.scheduledDate.localeCompare(b.scheduledDate)
+        if (dateCompare !== 0) return dateCompare
+        return a.startTime.localeCompare(b.startTime)
+      }).slice(0, 10) // 只显示最近的10个课程
+
+      todayCourses.value = upcoming_schedules
+    } else {
+      ElMessage.error(response.message || '获取即将开始课程失败')
+    }
+  } catch (error) {
+    console.error('获取即将开始课程失败:', error)
+    ElMessage.error('获取即将开始课程失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 格式化时间显示
+const formatTimeRange = (startTime: string, endTime: string) => {
+  return `${startTime}-${endTime}`
+}
+
+// 组件挂载时获取数据
+onMounted(() => {
+  fetchUpcomingCourses()
+})
 </script>
 
 <template>
@@ -72,10 +128,6 @@ watch(() => route.path, (path) => {
               <el-icon><DocumentChecked /></el-icon>
               <span>预约管理</span>
             </el-menu-item>
-            <el-menu-item index="orders" @click="$router.push('/teacher-center/orders')">
-              <el-icon><Tickets /></el-icon>
-              <span>订单管理</span>
-            </el-menu-item>
             <el-menu-item index="schedule" @click="$router.push('/teacher-center/schedule')">
               <el-icon><Calendar /></el-icon>
               <span>课表管理</span>
@@ -84,21 +136,9 @@ watch(() => route.path, (path) => {
               <el-icon><Reading /></el-icon>
               <span>课程管理</span>
             </el-menu-item>
-            <el-menu-item index="students">
-              <el-icon><User /></el-icon>
-              <span>学生管理</span>
-            </el-menu-item>
-            <el-menu-item index="materials">
-              <el-icon><Document /></el-icon>
-              <span>教学资料</span>
-            </el-menu-item>
             <el-menu-item index="messages">
               <el-icon><ChatLineRound /></el-icon>
               <span>消息中心</span>
-            </el-menu-item>
-            <el-menu-item index="income">
-              <el-icon><Money /></el-icon>
-              <span>收入管理</span>
             </el-menu-item>
             <el-menu-item index="profile" @click="$router.push('/teacher-center/profile')">
               <el-icon><Setting /></el-icon>
@@ -125,17 +165,8 @@ watch(() => route.path, (path) => {
                 <el-icon><Calendar /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">3</div>
-                <div class="stat-label">今日课程</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">
-                <el-icon><Tickets /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">2</div>
-                <div class="stat-label">新订单</div>
+                <div class="stat-value">{{ todayCourses.length }}</div>
+                <div class="stat-label">即将开始</div>
               </div>
             </div>
             <div class="stat-card">
@@ -152,13 +183,13 @@ watch(() => route.path, (path) => {
           <div class="quick-actions">
             <h3>快捷操作</h3>
             <div class="action-buttons">
-              <el-button type="primary" @click="$router.push('/teacher-center/orders')">
-                <el-icon><View /></el-icon>
-                查看新订单
-              </el-button>
               <el-button type="success">
                 <el-icon><VideoCamera /></el-icon>
                 开始上课
+              </el-button>
+              <el-button type="primary" @click="$router.push('/teacher-center/schedule')">
+                <el-icon><Calendar /></el-icon>
+                查看课表
               </el-button>
               <el-button type="warning">
                 <el-icon><ChatLineRound /></el-icon>
@@ -168,50 +199,37 @@ watch(() => route.path, (path) => {
           </div>
 
           <div class="upcoming-courses">
-            <h3>今日课程</h3>
-            <el-table :data="todayCourses" style="width: 100%">
-              <el-table-column prop="time" label="时间" width="180" />
-              <el-table-column prop="course" label="课程" />
-              <el-table-column prop="student" label="学生" />
-              <el-table-column label="操作">
-                <template #default>
-                  <el-button type="primary" size="small">进入教室</el-button>
-                  <el-button type="info" size="small">查看详情</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
+            <h3>即将开始课程</h3>
+            <div v-loading="loading">
+              <el-table :data="todayCourses" style="width: 100%">
+                <el-table-column prop="scheduledDate" label="日期" width="120" />
+                <el-table-column label="时间" width="140">
+                  <template #default="scope">
+                    {{ formatTimeRange(scope.row.startTime, scope.row.endTime) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="courseName" label="课程" />
+                <el-table-column prop="studentName" label="学生" width="120" />
+                <el-table-column label="类型" width="80">
+                  <template #default="scope">
+                    <el-tag v-if="scope.row.isTrial" type="warning" size="small">试听</el-tag>
+                    <el-tag v-else type="success" size="small">正式</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="180">
+                  <template #default>
+                    <el-button type="primary" size="small">进入教室</el-button>
+                    <el-button type="info" size="small">查看详情</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <div v-if="!loading && todayCourses.length === 0" class="empty-state">
+                <el-empty description="暂无即将开始的课程" />
+              </div>
+            </div>
           </div>
 
-          <div class="new-orders">
-            <h3>最新订单</h3>
-            <el-table :data="newOrders" style="width: 100%">
-              <el-table-column prop="date" label="日期" width="180" />
-              <el-table-column prop="student" label="学生" />
-              <el-table-column prop="course" label="课程" />
-              <el-table-column prop="status" label="状态">
-                <template #default="scope">
-                  <el-tag
-                    :type="scope.row.status === '待接单' ? 'warning' :
-                          scope.row.status === '已接单' ? 'success' : 'info'"
-                  >
-                    {{ scope.row.status }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作">
-                <template #default="scope">
-                  <el-button
-                    v-if="scope.row.status === '待接单'"
-                    type="primary"
-                    size="small"
-                  >
-                    接单
-                  </el-button>
-                  <el-button type="info" size="small">详情</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-          </div>
+
         </div>
         <div v-else-if="activeMenu === 'courses'">
           <router-view v-if="$route.path.includes('/courses')" />
@@ -223,17 +241,8 @@ watch(() => route.path, (path) => {
             </el-button>
           </div>
         </div>
-        <div v-else-if="activeMenu === 'students'">
-          <TeacherStudents />
-        </div>
-        <div v-else-if="activeMenu === 'materials'">
-          <TeacherMaterials />
-        </div>
         <div v-else-if="activeMenu === 'messages'">
           <TeacherMessages />
-        </div>
-        <div v-else-if="activeMenu === 'income'">
-          <TeacherIncome />
         </div>
         <div v-else>
           <router-view></router-view>
@@ -243,46 +252,7 @@ watch(() => route.path, (path) => {
   </div>
 </template>
 
-<script lang="ts">
-export default {
-  name: 'TeacherCenterView',
-  data() {
-    return {
-      todayCourses: [
-        {
-          time: '14:00-16:00',
-          course: '初中英语 - 阅读理解技巧',
-          student: '赵同学'
-        },
-        {
-          time: '16:30-18:30',
-          course: '初中化学 - 有机化学',
-          student: '钱同学'
-        },
-        {
-          time: '10:00-12:00',
-          course: '初中数学 - 几何证明',
-          student: '孙同学'
-        }
-      ],
-      newOrders: [
-        {
-          date: '2023-07-10',
-          student: '王芳',
-          course: '初中数学 - 概率统计',
-          status: '待接单'
-        },
-        {
-          date: '2023-07-09',
-          student: '张明',
-          course: '初中数学 - 立体几何',
-          status: '已接单'
-        }
-      ]
-    }
-  }
-}
-</script>
+
 
 <style scoped>
 .teacher-center {
@@ -397,7 +367,7 @@ export default {
   color: #666;
 }
 
-.quick-actions, .upcoming-courses, .new-orders {
+.quick-actions, .upcoming-courses {
   background-color: #fff;
   border-radius: 8px;
   padding: 20px;
@@ -405,11 +375,16 @@ export default {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
 }
 
-.quick-actions h3, .upcoming-courses h3, .new-orders h3 {
+.quick-actions h3, .upcoming-courses h3 {
   margin-top: 0;
   margin-bottom: 20px;
   font-size: 18px;
   color: #333;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 0;
 }
 
 .action-buttons {
@@ -532,8 +507,7 @@ export default {
   }
 
   .quick-actions h3,
-  .upcoming-courses h3,
-  .new-orders h3 {
+  .upcoming-courses h3 {
     font-size: 16px;
     margin-bottom: 12px;
   }

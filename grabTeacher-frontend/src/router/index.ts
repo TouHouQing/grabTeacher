@@ -78,12 +78,7 @@ const router = createRouter({
           component: () => import('../views/teacher/TeacherProfile.vue'),
           meta: { requiresAuth: true, role: 'teacher' }
         },
-        {
-          path: 'orders',
-          name: 'TeacherOrders',
-          component: () => import('../views/teacher/TeacherOrders.vue'),
-          meta: { requiresAuth: true, role: 'teacher' }
-        },
+
         {
           path: 'schedule',
           name: 'TeacherSchedule',
@@ -175,10 +170,7 @@ const router = createRouter({
       path: '/teacher/profile',
       redirect: '/teacher-center/profile'
     },
-    {
-      path: '/teacher/orders',
-      redirect: '/teacher-center/orders'
-    },
+
     {
       path: '/teacher/schedule',
       redirect: '/teacher-center/schedule'
