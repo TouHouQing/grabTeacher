@@ -1,8 +1,36 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Calendar, Timer, Refresh, Check } from '@element-plus/icons-vue'
+import { bookingAPI } from '@/utils/api'
 
+// 课程安排接口（基于后端ScheduleResponseDTO）
+interface CourseSchedule {
+  id: number;
+  teacherId: number;
+  teacherName: string;
+  studentId: number;
+  studentName: string;
+  courseId: number;
+  courseTitle: string;
+  subjectName: string;
+  scheduledDate: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  totalTimes: number;
+  status: 'progressing' | 'completed' | 'cancelled';
+  teacherNotes?: string;
+  studentFeedback?: string;
+  createdAt: string;
+  bookingRequestId: number;
+  bookingSource: string;
+  isTrial: boolean;
+  sessionNumber: number;
+  courseType: string;
+}
+
+// 聚合后的课程信息（用于显示）
 interface Course {
   id: number;
   title: string;
@@ -16,11 +44,12 @@ interface Course {
   endDate: string;
   totalLessons: number;
   completedLessons: number;
-  remainingLessons?: number; // 剩余课时
-  weeklySchedule?: string[]; // 每周固定时间
+  remainingLessons?: number;
+  weeklySchedule?: string[];
   image: string;
   description: string;
   status: 'active' | 'completed' | 'upcoming';
+  schedules?: CourseSchedule[]; // 关联的课程安排
 }
 
 // 调课相关接口
@@ -37,84 +66,129 @@ interface RescheduleRequest {
   status: 'pending' | 'approved' | 'rejected'; // 待确认、已同意、已拒绝
 }
 
-// 模拟课程数据
-const courses = ref<Course[]>([
-  {
-    id: 1,
-    title: '初中数学 - 函数与导数',
-    teacher: '张老师',
-    teacherAvatar: '@/assets/pictures/teacherBoy1.jpeg',
-    subject: '数学',
-    schedule: '每周一、三 18:00-20:00',
-    progress: 60,
-    nextClass: '2023-07-15 18:00-20:00',
-    startDate: '2023-05-15',
-    endDate: '2023-08-15',
-    totalLessons: 24,
-    completedLessons: 14,
-    remainingLessons: 10,
-    weeklySchedule: ['周一 18:00-20:00', '周三 18:00-20:00'],
-    image: '@/assets/pictures/math1.jpeg',
-    description: '本课程深入浅出地讲解初中数学中的函数与导数知识点，适合初二、初三学生。通过系统讲解和大量练习，帮助学生掌握函数与导数的核心概念和解题技巧。',
-    status: 'active'
-  },
-  {
-    id: 2,
-    title: '初中物理 - 力学与电学',
-    teacher: '王老师',
-    teacherAvatar: '@/assets/pictures/teacherBoy2.jpeg',
-    subject: '物理',
-    schedule: '每周二、四 16:00-18:00',
-    progress: 45,
-    nextClass: '2023-07-12 16:00-18:00',
-    startDate: '2023-06-01',
-    endDate: '2023-09-01',
-    totalLessons: 20,
-    completedLessons: 9,
-    remainingLessons: 11,
-    weeklySchedule: ['周二 16:00-18:00', '周四 16:00-18:00'],
-    image: '@/assets/pictures/physics1.jpeg',
-    description: '从基础概念到难点突破，全面讲解初中物理力学与电学知识。通过实验演示和题型分析，帮助学生理解物理概念和解题思路。',
-    status: 'active'
-  },
-  {
-    id: 3,
-    title: '初中英语 - 语法精讲',
-    teacher: '李老师',
-    teacherAvatar: '@/assets/pictures/teacherBoy3.jpeg',
-    subject: '英语',
-    schedule: '每周六 10:00-12:00',
-    progress: 100,
-    nextClass: '已完成',
-    startDate: '2023-04-08',
-    endDate: '2023-06-24',
-    totalLessons: 12,
-    completedLessons: 12,
-    remainingLessons: 0,
-    image: '@/assets/pictures/english1.jpeg',
-    description: '系统梳理初中英语语法知识，打牢语法基础，提高英语成绩。通过大量例句和练习，帮助学生掌握语法规则和写作技巧。',
-    status: 'completed'
-  },
-  {
-    id: 4,
-    title: '初中生物 - 基因与遗传',
-    teacher: '陈老师',
-    teacherAvatar: '@/assets/pictures/teacherGirl1.jpeg',
-    subject: '生物',
-    schedule: '每周五 18:00-20:00',
-    progress: 0,
-    nextClass: '2023-07-21 18:00-20:00',
-    startDate: '2023-07-21',
-    endDate: '2023-10-20',
-    totalLessons: 16,
-    completedLessons: 0,
-    remainingLessons: 16,
-    weeklySchedule: ['周五 18:00-20:00'],
-    image: '@/assets/pictures/biology1.jpeg',
-    description: '本课程将深入讲解基因与遗传的相关知识，包括DNA结构、基因表达、遗传规律等内容，帮助学生理解生物学中的重要概念。',
-    status: 'upcoming'
+// 响应式数据
+const courses = ref<Course[]>([])
+const loading = ref(false)
+const schedules = ref<CourseSchedule[]>([])
+
+// 获取学生课程安排
+const loadStudentSchedules = async () => {
+  try {
+    loading.value = true
+
+    // 获取未来3个月的课程安排
+    const startDate = new Date().toISOString().split('T')[0]
+    const endDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+    const result = await bookingAPI.getStudentSchedules({
+      startDate,
+      endDate
+    })
+
+    if (result.success && result.data) {
+      schedules.value = result.data
+      // 将课程安排转换为课程列表
+      courses.value = convertSchedulesToCourses(result.data)
+    } else {
+      ElMessage.error(result.message || '获取课程安排失败')
+    }
+  } catch (error) {
+    console.error('获取课程安排失败:', error)
+    ElMessage.error('获取课程安排失败，请稍后重试')
+  } finally {
+    loading.value = false
   }
-])
+}
+
+// 将课程安排转换为课程列表
+const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => {
+  // 按课程ID分组
+  const courseGroups = new Map<number, CourseSchedule[]>()
+
+  scheduleList.forEach(schedule => {
+    if (!courseGroups.has(schedule.courseId)) {
+      courseGroups.set(schedule.courseId, [])
+    }
+    courseGroups.get(schedule.courseId)!.push(schedule)
+  })
+
+  // 转换为Course对象
+  const courseList: Course[] = []
+
+  courseGroups.forEach((scheduleGroup, courseId) => {
+    const firstSchedule = scheduleGroup[0]
+    const completedCount = scheduleGroup.filter(s => s.status === 'completed').length
+    const totalCount = firstSchedule.totalTimes || scheduleGroup.length
+    const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+
+    // 找到下一次课程
+    const upcomingSchedules = scheduleGroup
+      .filter(s => s.status === 'progressing' && new Date(s.scheduledDate) >= new Date())
+      .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
+
+    const nextSchedule = upcomingSchedules[0]
+    const nextClass = nextSchedule
+      ? `${nextSchedule.scheduledDate} ${nextSchedule.startTime}-${nextSchedule.endTime}`
+      : '暂无安排'
+
+    // 确定课程状态
+    let status: 'active' | 'completed' | 'upcoming' = 'active'
+    if (progress === 100) {
+      status = 'completed'
+    } else if (scheduleGroup.every(s => new Date(s.scheduledDate) > new Date())) {
+      status = 'upcoming'
+    }
+
+    courseList.push({
+      id: courseId,
+      title: firstSchedule.courseTitle,
+      teacher: firstSchedule.teacherName,
+      teacherAvatar: '@/assets/pictures/teacherBoy1.jpeg', // 默认头像
+      subject: firstSchedule.subjectName,
+      schedule: generateScheduleText(scheduleGroup),
+      progress,
+      nextClass,
+      startDate: scheduleGroup[0]?.scheduledDate || '',
+      endDate: scheduleGroup[scheduleGroup.length - 1]?.scheduledDate || '',
+      totalLessons: totalCount,
+      completedLessons: completedCount,
+      remainingLessons: totalCount - completedCount,
+      weeklySchedule: [],
+      image: getSubjectImage(firstSchedule.subjectName),
+      description: `${firstSchedule.courseTitle} - ${firstSchedule.subjectName}课程`,
+      status,
+      schedules: scheduleGroup
+    })
+  })
+
+  return courseList
+}
+
+// 生成课程安排文本
+const generateScheduleText = (schedules: CourseSchedule[]): string => {
+  if (schedules.length === 0) return '暂无安排'
+
+  // 简单处理：显示第一个安排的时间
+  const first = schedules[0]
+  return `${first.startTime}-${first.endTime}`
+}
+
+// 根据科目获取图片
+const getSubjectImage = (subject: string): string => {
+  const imageMap: Record<string, string> = {
+    '数学': '@/assets/pictures/math1.jpeg',
+    '英语': '@/assets/pictures/english1.jpeg',
+    '物理': '@/assets/pictures/physics1.jpeg',
+    '化学': '@/assets/pictures/chemistry1.jpeg',
+    '生物': '@/assets/pictures/biology1.jpeg'
+  }
+  return imageMap[subject] || '@/assets/pictures/math1.jpeg'
+}
+
+// 组件挂载时加载数据
+onMounted(() => {
+  loadStudentSchedules()
+})
 
 // 课程过滤状态
 const activeTab = ref('all')
@@ -345,7 +419,12 @@ export default {
       <el-tabs v-model="activeTab" type="border-card">
         <el-tab-pane label="全部课程" name="all">
           <div class="tab-content">
-            <el-empty v-if="filteredCourses.length === 0" description="暂无课程" />
+            <div v-if="loading" class="loading-container">
+              <el-skeleton :rows="3" animated />
+            </div>
+            <el-empty v-else-if="filteredCourses.length === 0" description="暂无课程">
+              <el-button type="primary" @click="loadStudentSchedules">刷新</el-button>
+            </el-empty>
             <div v-else class="courses-grid">
               <el-card v-for="course in filteredCourses" :key="course.id" class="course-card" :body-style="{ padding: '0px' }">
                 <div class="course-image">
@@ -1261,5 +1340,11 @@ h2 {
   .detail-meta {
     grid-template-columns: 1fr;
   }
+}
+
+/* 加载状态样式 */
+.loading-container {
+  padding: 40px 20px;
+  text-align: center;
 }
 </style>

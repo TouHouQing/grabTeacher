@@ -264,6 +264,31 @@ public class CourseController {
     }
 
     /**
+     * 获取教师的公开课程列表（供学生预约时查看）
+     */
+    @Operation(summary = "获取教师公开课程列表", description = "获取指定教师的活跃课程列表，供学生预约时选择")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "教师不存在")
+    })
+    @GetMapping("/public/teacher/{teacherId}")
+    public ResponseEntity<ApiResponse<List<CourseResponse>>> getTeacherPublicCourses(
+            @Parameter(description = "教师ID", required = true) @PathVariable Long teacherId) {
+        try {
+            List<CourseResponse> courses = courseService.getTeacherCourses(teacherId, null, "public");
+            return ResponseEntity.ok(ApiResponse.success("获取教师课程列表成功", courses));
+        } catch (RuntimeException e) {
+            logger.warn("获取教师课程列表失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("获取教师课程列表异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("获取失败，请稍后重试"));
+        }
+    }
+
+    /**
      * 更新课程状态
      */
     @Operation(summary = "更新课程状态", description = "教师可以更新自己课程的状态，管理员可以更新任何课程的状态")

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, Connection, Timer, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { Calendar, Connection, Timer, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { teacherAPI, subjectAPI, bookingAPI } from '@/utils/api'
 
@@ -94,6 +94,11 @@ const loadingOptions = ref(false)
 const showScheduleModal = ref(false)
 const currentTeacher = ref<Teacher | null>(null)
 const currentTeacherSchedule = ref<TeacherSchedule | null>(null)
+
+// 课程选择相关数据
+const teacherCourses = ref<any[]>([])
+const selectedCourse = ref<any | null>(null)
+const loadingCourses = ref(false)
 
 // 新增周期性选课数据
 const recurringSchedules = ref<RecurringSchedule[]>([])
@@ -316,10 +321,33 @@ const getTimeSlotsForDay = (dayOfWeek: number): string[] => {
   }
 }
 
+// 获取教师课程列表
+const loadTeacherCourses = async (teacherId: number) => {
+  try {
+    loadingCourses.value = true
+    const result = await teacherAPI.getPublicCourses(teacherId)
+    if (result.success && result.data) {
+      teacherCourses.value = result.data
+    } else {
+      teacherCourses.value = []
+      ElMessage.warning('该教师暂无可预约的课程')
+    }
+  } catch (error) {
+    console.error('获取教师课程失败:', error)
+    teacherCourses.value = []
+    ElMessage.error('获取教师课程失败')
+  } finally {
+    loadingCourses.value = false
+  }
+}
+
 // 显示教师课表
-const showTeacherSchedule = (teacher: Teacher) => {
+const showTeacherSchedule = async (teacher: Teacher) => {
   currentTeacher.value = teacher
   currentTeacherSchedule.value = generateYearSchedule(teacher.name)
+
+  // 获取教师课程列表
+  await loadTeacherCourses(teacher.id)
 
   // 生成可用的周期性时间段
   generateAvailableTimeSlots()
@@ -335,6 +363,8 @@ const showTeacherSchedule = (teacher: Teacher) => {
   scheduleForm.singleDate = ''
   scheduleForm.singleStartTime = ''
   scheduleForm.singleEndTime = ''
+  // 重置课程选择
+  selectedCourse.value = null
 
   showScheduleModal.value = true
 }
@@ -448,6 +478,11 @@ const createBookingRequest = async () => {
   }
 
   // 验证表单数据
+  if (!selectedCourse.value) {
+    ElMessage.warning('请选择要预约的课程')
+    return
+  }
+
   if (scheduleForm.bookingType === 'single') {
     if (!scheduleForm.singleDate || !scheduleForm.singleStartTime || !scheduleForm.singleEndTime) {
       ElMessage.warning('请选择上课日期和时间')
@@ -471,9 +506,9 @@ const createBookingRequest = async () => {
     // 构建预约请求数据
     const bookingData: any = {
       teacherId: currentTeacher.value.id,
-      courseId: null, // 可以根据需要设置课程ID
+      courseId: selectedCourse.value.id, // 使用选择的课程ID
       bookingType: scheduleForm.bookingType,
-      studentRequirements: `希望预约${currentTeacher.value.name}老师的${currentTeacher.value.subject}课程`,
+      studentRequirements: `希望预约${currentTeacher.value.name}老师的《${selectedCourse.value.title}》课程`,
       isTrial: isTrial,
       trialDurationMinutes: isTrial ? 30 : undefined
     }
@@ -1070,6 +1105,41 @@ onMounted(() => {
         </div>
 
         <el-form :model="scheduleForm" label-width="120px" class="schedule-form">
+          <el-form-item label="选择课程" required>
+            <div v-if="loadingCourses" class="loading-courses">
+              <el-skeleton :rows="2" animated />
+            </div>
+            <div v-else-if="teacherCourses.length === 0" class="no-courses">
+              <el-empty description="该教师暂无可预约的课程" :image-size="80" />
+            </div>
+            <div v-else class="course-selection">
+              <el-radio-group v-model="selectedCourse" size="large" class="course-radio-group">
+                <el-radio
+                  v-for="course in teacherCourses"
+                  :key="course.id"
+                  :label="course"
+                  class="course-radio-item"
+                >
+                  <div class="course-info">
+                    <div class="course-title">{{ course.title }}</div>
+                    <div class="course-details">
+                      <el-tag size="small" type="primary">{{ course.subjectName }}</el-tag>
+                      <el-tag size="small" type="info">{{ course.durationMinutes }}分钟</el-tag>
+                      <el-tag size="small" type="success" v-if="course.grade">{{ course.grade }}</el-tag>
+                    </div>
+                    <div class="course-description" v-if="course.description">
+                      {{ course.description }}
+                    </div>
+                  </div>
+                </el-radio>
+              </el-radio-group>
+            </div>
+            <div class="form-item-tip">
+              <el-icon><InfoFilled /></el-icon>
+              请选择要预约的具体课程，选择后可继续设置上课时间
+            </div>
+          </el-form-item>
+
           <el-form-item label="预约类型">
             <el-radio-group v-model="scheduleForm.bookingType" size="large">
               <el-radio-button label="single">单次预约</el-radio-button>
@@ -1258,9 +1328,10 @@ onMounted(() => {
             type="primary"
             @click="createBookingRequest"
             :disabled="
-              scheduleForm.bookingType === 'single'
+              !selectedCourse ||
+              (scheduleForm.bookingType === 'single'
                 ? !scheduleForm.singleDate || !scheduleForm.singleStartTime || !scheduleForm.singleEndTime
-                : scheduleForm.selectedTimeSlots.length === 0 || scheduleForm.selectedWeekdays.length === 0
+                : scheduleForm.selectedTimeSlots.length === 0 || scheduleForm.selectedWeekdays.length === 0)
             "
           >
             确认预约
@@ -1812,6 +1883,14 @@ h2 {
   font-size: 13px;
   color: #999;
   margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.form-item-tip .el-icon {
+  color: #409eff;
+  font-size: 14px;
 }
 
 .time-slot-selection {
@@ -2526,6 +2605,130 @@ h2 {
   font-size: 12px;
   color: #666;
   font-style: italic;
+}
+
+/* 课程选择样式 */
+.loading-courses {
+  padding: 20px;
+}
+
+.no-courses {
+  padding: 20px;
+  text-align: center;
+}
+
+.course-selection {
+  width: 100%;
+}
+
+.course-radio-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.course-radio-group .el-radio {
+  margin-right: 0 !important;
+}
+
+.course-radio-item {
+  width: 100%;
+  margin: 0 0 16px 0 !important;
+  padding: 0 !important;
+  border: 2px solid #e8e8e8;
+  border-radius: 8px;
+  background-color: #fafafa;
+  transition: all 0.3s;
+  display: flex !important;
+  align-items: flex-start !important;
+  min-height: auto !important;
+  height: auto !important;
+}
+
+.course-radio-item:hover {
+  border-color: #409eff;
+  background-color: #f0f9ff;
+}
+
+.course-radio-item.is-checked {
+  border-color: #409eff;
+  background-color: #e6f7ff;
+}
+
+.course-radio-item .el-radio__input {
+  margin-top: 20px;
+  margin-left: 16px;
+  margin-right: 12px;
+}
+
+.course-radio-item .el-radio__label {
+  padding: 16px 16px 16px 0;
+  width: 100%;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.course-info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.course-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.course-details {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.course-details .el-tag {
+  margin: 0;
+  font-size: 12px;
+  height: 24px;
+  line-height: 22px;
+}
+
+.course-description {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+  word-break: break-word;
+  margin-top: 4px;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .course-radio-item .el-radio__input {
+    margin-top: 16px;
+    margin-left: 12px;
+    margin-right: 8px;
+  }
+
+  .course-radio-item .el-radio__label {
+    padding: 12px 12px 12px 0;
+  }
+
+  .course-title {
+    font-size: 15px;
+  }
+
+  .course-details .el-tag {
+    font-size: 11px;
+    height: 22px;
+    line-height: 20px;
+  }
 }
 </style>
 

@@ -66,7 +66,13 @@
               </el-avatar>
               <div class="teacher-details">
                 <div class="teacher-name">{{ booking.teacherName }}</div>
-                <div class="course-info">{{ booking.courseTitle || '自定义课程' }}</div>
+                <div class="course-info">
+                  <div class="course-title">{{ booking.courseTitle || '自定义课程' }}</div>
+                  <div class="course-meta" v-if="booking.subjectName || booking.courseDurationMinutes">
+                    <el-tag v-if="booking.subjectName" size="small" type="primary">{{ booking.subjectName }}</el-tag>
+                    <el-tag v-if="booking.courseDurationMinutes" size="small" type="info">{{ booking.courseDurationMinutes }}分钟</el-tag>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="booking-status">
@@ -696,6 +702,24 @@ const getStatusText = (status: string) => {
 
 .reply-content {
   border-left-color: #67c23a;
+}
+
+/* 课程信息样式 */
+.course-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.course-title {
+  font-size: 14px;
+  color: #606266;
+}
+
+.course-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 /* 响应式设计 */

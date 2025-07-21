@@ -236,7 +236,10 @@ export const teacherAPI = {
   getAvailableGrades: () => apiRequest('/api/teacher/grades'),
 
   // 获取教师详情（公开接口）
-  getDetail: (id: number) => apiRequest(`/api/teacher/${id}`)
+  getDetail: (id: number) => apiRequest(`/api/teacher/${id}`),
+
+  // 获取教师的公开课程列表（供学生预约时查看）
+  getPublicCourses: (teacherId: number) => apiRequest(`/api/courses/public/teacher/${teacherId}`)
 }
 
 // 管理员统计 API

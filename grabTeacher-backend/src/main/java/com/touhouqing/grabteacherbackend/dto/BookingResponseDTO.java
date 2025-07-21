@@ -42,6 +42,12 @@ public class BookingResponseDTO {
     @Schema(description = "课程标题", example = "高中数学 - 函数与导数专题")
     private String courseTitle;
 
+    @Schema(description = "科目名称", example = "数学")
+    private String subjectName;
+
+    @Schema(description = "课程时长（分钟）", example = "120")
+    private Integer courseDurationMinutes;
+
     @Schema(description = "预约类型", example = "single", allowableValues = {"single", "recurring"})
     private String bookingType;
 

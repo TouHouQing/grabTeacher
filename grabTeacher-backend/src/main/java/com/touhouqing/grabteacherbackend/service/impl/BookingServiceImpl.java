@@ -553,9 +553,17 @@ public class BookingServiceImpl implements BookingService {
 
         // 获取课程信息
         String courseTitle = null;
+        String subjectName = null;
+        Integer courseDurationMinutes = null;
         if (bookingRequest.getCourseId() != null) {
             Course course = courseMapper.selectById(bookingRequest.getCourseId());
-            courseTitle = course != null ? course.getTitle() : null;
+            if (course != null) {
+                courseTitle = course.getTitle();
+                courseDurationMinutes = course.getDurationMinutes();
+                // 获取科目信息
+                Subject subject = subjectMapper.selectById(course.getSubjectId());
+                subjectName = subject != null ? subject.getName() : null;
+            }
         }
 
         return BookingResponseDTO.builder()
@@ -566,6 +574,8 @@ public class BookingServiceImpl implements BookingService {
                 .teacherName(teacherName)
                 .courseId(bookingRequest.getCourseId())
                 .courseTitle(courseTitle)
+                .subjectName(subjectName)
+                .courseDurationMinutes(courseDurationMinutes)
                 .bookingType(bookingRequest.getBookingType())
                 .requestedDate(bookingRequest.getRequestedDate())
                 .requestedStartTime(bookingRequest.getRequestedStartTime())

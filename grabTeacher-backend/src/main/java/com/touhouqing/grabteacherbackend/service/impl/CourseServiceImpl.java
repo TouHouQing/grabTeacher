@@ -247,7 +247,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public List<CourseResponse> getTeacherCourses(Long teacherId, Long currentUserId, String userType) {
-        // 权限检查：教师只能查看自己的课程，管理员可以查看任何教师的课程
+        // 权限检查：教师只能查看自己的课程，管理员可以查看任何教师的课程，public模式允许查看活跃课程
         if ("teacher".equals(userType)) {
             QueryWrapper<Teacher> teacherQuery = new QueryWrapper<>();
             teacherQuery.eq("user_id", currentUserId);
@@ -264,6 +264,16 @@ public class CourseServiceImpl implements CourseService {
             } else if (!teacher.getId().equals(teacherId)) {
                 throw new RuntimeException("没有权限查看此教师的课程");
             }
+        } else if ("public".equals(userType)) {
+            // 公开访问模式，只返回活跃状态的课程
+            if (teacherId == null) {
+                throw new RuntimeException("教师ID不能为空");
+            }
+            // 验证教师是否存在且已认证
+            Teacher teacher = teacherMapper.selectById(teacherId);
+            if (teacher == null || teacher.getIsDeleted() || !teacher.getIsVerified()) {
+                throw new RuntimeException("教师不存在或未认证");
+            }
         } else if (!"admin".equals(userType)) {
             throw new RuntimeException("没有权限查看教师课程");
         }
@@ -272,7 +282,15 @@ public class CourseServiceImpl implements CourseService {
             throw new RuntimeException("教师ID不能为空");
         }
 
-        List<Course> courses = courseMapper.findByTeacherId(teacherId);
+        List<Course> courses;
+        if ("public".equals(userType)) {
+            // 公开访问只返回活跃状态的课程
+            courses = courseMapper.findActiveByTeacherId(teacherId);
+        } else {
+            // 其他情况返回所有课程
+            courses = courseMapper.findByTeacherId(teacherId);
+        }
+
         return courses.stream()
                 .map(this::convertToCourseResponse)
                 .collect(Collectors.toList());
