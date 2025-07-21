@@ -44,10 +44,10 @@ const changePassword = async () => {
   try {
     await passwordFormRef.value.validate()
     loading.value = true
-    
+
     await userStore.changePassword(passwordForm)
     ElMessage.success('密码修改成功')
-    
+
     // 重置表单
     passwordForm.currentPassword = ''
     passwordForm.newPassword = ''
@@ -77,7 +77,7 @@ const resetForm = () => {
 <template>
   <div class="password-change">
     <h3>修改密码</h3>
-    
+
     <el-card class="password-card" shadow="never">
       <el-form
         ref="passwordFormRef"
@@ -95,7 +95,7 @@ const resetForm = () => {
             autocomplete="current-password"
           />
         </el-form-item>
-        
+
         <el-form-item label="新密码" prop="newPassword">
           <el-input
             v-model="passwordForm.newPassword"
@@ -105,7 +105,7 @@ const resetForm = () => {
             autocomplete="new-password"
           />
         </el-form-item>
-        
+
         <el-form-item label="确认新密码" prop="confirmPassword">
           <el-input
             v-model="passwordForm.confirmPassword"
@@ -115,7 +115,7 @@ const resetForm = () => {
             autocomplete="new-password"
           />
         </el-form-item>
-        
+
         <el-form-item>
           <el-button type="primary" @click="changePassword" :loading="loading">
             修改密码
@@ -142,11 +142,14 @@ const resetForm = () => {
 <style scoped>
 .password-change {
   padding: 20px;
+  padding-top: 5px; /* 增加顶部间距，避免被导航栏遮挡 */
 }
 
 .password-change h3 {
   margin: 0 0 20px 0;
   color: #303133;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .password-card {

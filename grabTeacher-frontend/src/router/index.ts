@@ -101,22 +101,8 @@ const router = createRouter({
     {
       path: '/admin-center',
       name: 'AdminCenter',
-      component: () => import('../views/admin/AdminCenter.vue'),
-      meta: { requiresAuth: true, role: 'admin' },
-      children: [
-        {
-          path: 'user-management',
-          name: 'UserManagement',
-          component: () => import('../views/admin/UserManagement.vue'),
-          meta: { requiresAuth: true, role: 'admin' }
-        },
-        {
-          path: 'course-management',
-          name: 'AdminCourseManagement',
-          component: () => import('../views/admin/AdminCourseManagement.vue'),
-          meta: { requiresAuth: true, role: 'admin' }
-        }
-      ]
+      component: () => import('../views/admin/AdminCenterNew.vue'),
+      meta: { requiresAuth: true, role: 'admin' }
     },
     // 其他现有路由...
     {

@@ -109,6 +109,14 @@ onMounted(() => {
 <style scoped>
 .admin-dashboard {
   padding: 20px;
+  padding-top: 5px; /* 增加顶部间距，避免被导航栏遮挡 */
+}
+
+.admin-dashboard h3 {
+  margin: 0 0 20px 0;
+  color: #303133;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .statistics-cards {

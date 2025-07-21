@@ -137,7 +137,6 @@ const fetchCourses = async () => {
     const response = await courseAPI.getList(params)
     if (response.success && response.data) {
       courses.value = response.data.courses || []
-      console.log('课程数据:', courses.value) // 添加调试日志
       pagination.total = response.data.total || 0
       pagination.current = response.data.current || 1
       pagination.size = response.data.size || 10
@@ -361,9 +360,6 @@ onMounted(() => {
   <div class="admin-course-management">
     <div class="header">
       <h2>课程管理</h2>
-      <el-button type="primary" :icon="Plus" @click="openAddDialog">
-        新增课程
-      </el-button>
     </div>
 
     <!-- 搜索筛选区域 -->
@@ -418,7 +414,7 @@ onMounted(() => {
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="年级" style="background-color: #fff7ed; padding: 5px; border-radius: 4px;">
+        <el-form-item label="年级">
           <el-input
             v-model="searchForm.grade"
             placeholder="搜索年级"
@@ -426,7 +422,7 @@ onMounted(() => {
             style="width: 150px"
           />
         </el-form-item>
-        <el-form-item label="性别" style="background-color: #f0f9ff; padding: 5px; border-radius: 4px;">
+        <el-form-item label="性别">
           <el-select v-model="searchForm.gender" placeholder="选择性别" clearable style="width: 120px">
             <el-option
               v-for="option in genderOptions"
@@ -461,12 +457,12 @@ onMounted(() => {
         <el-table-column prop="subjectName" label="科目" width="80" />
         <el-table-column prop="grade" label="适用年级" width="120" show-overflow-tooltip>
           <template #default="{ row }">
-            <span style="background-color: yellow;">{{ row.grade || '未设置' }}</span>
+            {{ row.grade || '未设置' }}
           </template>
         </el-table-column>
         <el-table-column prop="gender" label="适合性别" width="90">
           <template #default="{ row }">
-            <span style="background-color: lightblue;">{{ row.gender || '未设置' }}</span>
+            {{ row.gender || '未设置' }}
           </template>
         </el-table-column>
         <el-table-column prop="courseTypeDisplay" label="类型" width="80" />
@@ -669,11 +665,12 @@ onMounted(() => {
 <style scoped>
 .admin-course-management {
   padding: 20px;
+  padding-top: 5px; /* 增加顶部间距，避免被导航栏遮挡 */
 }
 
 .header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   margin-bottom: 20px;
 }
@@ -681,6 +678,8 @@ onMounted(() => {
 .header h2 {
   margin: 0;
   color: #303133;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .search-card {

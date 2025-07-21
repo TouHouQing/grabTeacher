@@ -228,9 +228,6 @@ onMounted(() => {
   <div class="teacher-management">
     <div class="header">
       <h3>教师管理</h3>
-      <el-button type="primary" :icon="Plus" @click="handleAddTeacher">
-        添加教师
-      </el-button>
     </div>
 
     <!-- 搜索区域 -->
@@ -272,6 +269,9 @@ onMounted(() => {
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="searchTeachers">搜索</el-button>
           <el-button :icon="Refresh" @click="resetTeacherSearch">重置</el-button>
+          <el-button type="primary" :icon="Plus" @click="handleAddTeacher">
+            添加教师
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -299,18 +299,20 @@ onMounted(() => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" :icon="Edit" @click="handleEditTeacher(row)">编辑</el-button>
-          <el-button
-            size="small"
-            :type="row.isVerified ? 'warning' : 'success'"
-            :icon="row.isVerified ? Close : Check"
-            @click="toggleVerification(row)"
-          >
-            {{ row.isVerified ? '取消认证' : '认证' }}
-          </el-button>
-          <el-button size="small" type="danger" :icon="Delete" @click="handleDeleteTeacher(row)">删除</el-button>
+          <div class="operation-buttons">
+            <el-button size="small" :icon="Edit" @click="handleEditTeacher(row)">编辑</el-button>
+            <el-button
+              size="small"
+              :type="row.isVerified ? 'warning' : 'success'"
+              :icon="row.isVerified ? Close : Check"
+              @click="toggleVerification(row)"
+            >
+              {{ row.isVerified ? '取消认证' : '认证' }}
+            </el-button>
+            <el-button size="small" type="danger" :icon="Delete" @click="handleDeleteTeacher(row)">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -407,11 +409,12 @@ onMounted(() => {
 <style scoped>
 .teacher-management {
   padding: 20px;
+  padding-top: 5px; /* 增加顶部间距，避免被导航栏遮挡 */
 }
 
 .header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   margin-bottom: 20px;
 }
@@ -419,6 +422,8 @@ onMounted(() => {
 .header h3 {
   margin: 0;
   color: #303133;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .search-card {
@@ -435,5 +440,16 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.operation-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.operation-buttons .el-button {
+  margin: 0;
 }
 </style>

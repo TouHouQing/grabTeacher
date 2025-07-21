@@ -200,9 +200,6 @@ onMounted(() => {
   <div class="subject-management">
     <div class="header">
       <h3>科目管理</h3>
-      <el-button type="primary" :icon="Plus" @click="handleAddSubject">
-        添加科目
-      </el-button>
     </div>
 
     <!-- 搜索区域 -->
@@ -226,6 +223,9 @@ onMounted(() => {
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="searchSubjects">搜索</el-button>
           <el-button :icon="Refresh" @click="resetSubjectSearch">重置</el-button>
+          <el-button type="primary" :icon="Plus" @click="handleAddSubject">
+            添加科目
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -252,17 +252,19 @@ onMounted(() => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="240" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" :icon="Edit" @click="handleEditSubject(row)">编辑</el-button>
-          <el-button 
-            size="small" 
-            :type="row.isActive ? 'warning' : 'success'"
-            @click="toggleSubjectStatus(row)"
-          >
-            {{ row.isActive ? '停用' : '启用' }}
-          </el-button>
-          <el-button size="small" type="danger" :icon="Delete" @click="handleDeleteSubject(row)">删除</el-button>
+          <div class="operation-buttons">
+            <el-button size="small" :icon="Edit" @click="handleEditSubject(row)">编辑</el-button>
+            <el-button
+              size="small"
+              :type="row.isActive ? 'warning' : 'success'"
+              @click="toggleSubjectStatus(row)"
+            >
+              {{ row.isActive ? '停用' : '启用' }}
+            </el-button>
+            <el-button size="small" type="danger" :icon="Delete" @click="handleDeleteSubject(row)">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -292,9 +294,9 @@ onMounted(() => {
           <el-input v-model="subjectForm.name" placeholder="请输入科目名称" />
         </el-form-item>
         <el-form-item label="适用年级" prop="gradeLevels">
-          <el-input 
-            v-model="subjectForm.gradeLevels" 
-            placeholder="请输入适用年级，如：小学,初中,高中" 
+          <el-input
+            v-model="subjectForm.gradeLevels"
+            placeholder="请输入适用年级，如：小学,初中,高中"
           />
           <div style="color: #909399; font-size: 12px; margin-top: 5px;">
             多个年级用逗号分隔，如：小学,初中,高中
@@ -322,11 +324,12 @@ onMounted(() => {
 <style scoped>
 .subject-management {
   padding: 20px;
+  padding-top: 5px; /* 增加顶部间距，避免被导航栏遮挡 */
 }
 
 .header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   margin-bottom: 20px;
 }
@@ -334,6 +337,8 @@ onMounted(() => {
 .header h3 {
   margin: 0;
   color: #303133;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .search-card {
@@ -350,5 +355,16 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.operation-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.operation-buttons .el-button {
+  margin: 0;
 }
 </style>

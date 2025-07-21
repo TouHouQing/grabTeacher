@@ -157,5 +157,8 @@ const handleMenuSelect = (key: string) => {
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   min-height: calc(100vh - 120px);
+  /* 确保内容不被遮挡 */
+  position: relative;
+  z-index: 1;
 }
 </style>
