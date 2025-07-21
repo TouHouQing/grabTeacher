@@ -137,6 +137,7 @@ const fetchCourses = async () => {
     const response = await courseAPI.getList(params)
     if (response.success && response.data) {
       courses.value = response.data.courses || []
+      console.log('课程数据:', courses.value) // 添加调试日志
       pagination.total = response.data.total || 0
       pagination.current = response.data.current || 1
       pagination.size = response.data.size || 10
@@ -458,8 +459,16 @@ onMounted(() => {
         <el-table-column prop="title" label="课程标题" min-width="180" show-overflow-tooltip />
         <el-table-column prop="teacherName" label="授课教师" width="100" />
         <el-table-column prop="subjectName" label="科目" width="80" />
-        <el-table-column prop="grade" label="适用年级" width="120" show-overflow-tooltip />
-        <el-table-column prop="gender" label="适合性别" width="90" />
+        <el-table-column prop="grade" label="适用年级" width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span style="background-color: yellow;">{{ row.grade || '未设置' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="gender" label="适合性别" width="90">
+          <template #default="{ row }">
+            <span style="background-color: lightblue;">{{ row.gender || '未设置' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="courseTypeDisplay" label="类型" width="80" />
         <el-table-column prop="durationMinutes" label="时长(分钟)" width="90" />
         <el-table-column prop="status" label="状态" width="100">
@@ -559,7 +568,7 @@ onMounted(() => {
         </el-form-item>
 
         <!-- 年级字段 -->
-        <el-form-item label="适用年级" prop="grade" required style="background-color: #f0f9ff; padding: 10px; border-radius: 4px;">
+        <el-form-item label="适用年级" prop="grade" required>
           <el-input
             v-model="courseForm.grade"
             placeholder="请输入适用年级，如：小学一年级,小学二年级"
@@ -574,7 +583,7 @@ onMounted(() => {
         </el-form-item>
 
         <!-- 性别字段 -->
-        <el-form-item label="适合性别" style="background-color: #fff7ed; padding: 10px; border-radius: 4px;">
+        <el-form-item label="适合性别">
           <el-radio-group v-model="courseForm.gender">
             <el-radio
               v-for="option in genderOptions"

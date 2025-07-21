@@ -62,7 +62,6 @@ public class Course {
     private LocalDateTime createdAt;
 
     @TableField("is_deleted")
-    @TableLogic
     @Builder.Default
     @Schema(description = "是否删除", example = "false", hidden = true)
     private Boolean isDeleted = false;

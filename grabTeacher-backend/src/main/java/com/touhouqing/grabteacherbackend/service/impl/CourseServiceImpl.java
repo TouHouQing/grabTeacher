@@ -356,8 +356,8 @@ public class CourseServiceImpl implements CourseService {
                 .durationMinutes(course.getDurationMinutes())
                 .status(course.getStatus())
                 .createdAt(course.getCreatedAt())
-                .grade(course.getGrade()) // 设置年级字段
-                .gender(course.getGender()) // 设置性别字段
+                .grade(course.getGrade() != null ? course.getGrade() : "未设置") // 设置年级字段，null时显示"未设置"
+                .gender(course.getGender() != null ? course.getGender() : "未设置") // 设置性别字段，null时显示"未设置"
                 .build();
 
         // 设置显示名称

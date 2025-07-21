@@ -51,7 +51,6 @@ public class User {
     private LocalDateTime updatedAt;
 
     @TableField("is_deleted")
-    @TableLogic
     @Builder.Default
     private Boolean isDeleted = false;
 
