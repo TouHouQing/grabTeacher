@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, Connection, Timer, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled } from '@element-plus/icons-vue'
+import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { teacherAPI, subjectAPI, bookingAPI } from '@/utils/api'
 
@@ -66,7 +66,8 @@ interface RecurringSchedule {
 
 interface AvailableTimeSlot {
   weekday: number
-  time: string
+  time?: string // 兼容旧格式
+  timeSlot?: string // 新格式
   available: boolean
   conflictDates?: string[] // 冲突的具体日期
   availableFromDate?: string // 从什么时候开始可用
@@ -344,13 +345,12 @@ const loadTeacherCourses = async (teacherId: number) => {
 // 显示教师课表
 const showTeacherSchedule = async (teacher: Teacher) => {
   currentTeacher.value = teacher
-  currentTeacherSchedule.value = generateYearSchedule(teacher.name)
 
   // 获取教师课程列表
   await loadTeacherCourses(teacher.id)
 
-  // 生成可用的周期性时间段
-  generateAvailableTimeSlots()
+  // 生成可用的周期性时间段（从API获取真实数据）
+  await generateAvailableTimeSlots()
 
   // 重置选课表单
   scheduleForm.bookingType = 'recurring'
@@ -370,7 +370,44 @@ const showTeacherSchedule = async (teacher: Teacher) => {
 }
 
 // 生成可用的周期性时间段
-const generateAvailableTimeSlots = () => {
+const generateAvailableTimeSlots = async () => {
+  if (!currentTeacher.value) return
+
+  try {
+    // 计算查询时间范围（未来3个月）
+    const startDate = new Date().toISOString().split('T')[0]
+    const endDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+    // 调用后端API获取真实的时间段可用性
+    const result = await teacherAPI.checkAvailability(currentTeacher.value.id, {
+      startDate,
+      endDate
+    })
+
+    if (result.success && result.data) {
+      availableTimeSlots.value = result.data.map((item: any) => ({
+        weekday: item.weekday,
+        time: item.timeSlot, // 保持向后兼容
+        timeSlot: item.timeSlot, // 新字段
+        available: item.available,
+        conflictDates: item.conflictDates || [],
+        availableFromDate: item.availableFromDate,
+        conflictEndDate: item.conflictEndDate,
+        conflictReason: item.conflictReason
+      }))
+    } else {
+      // 如果API调用失败，使用默认时间段
+      generateDefaultTimeSlots()
+    }
+  } catch (error) {
+    console.error('获取时间段可用性失败:', error)
+    // 如果API调用失败，使用默认时间段
+    generateDefaultTimeSlots()
+  }
+}
+
+// 生成默认时间段（作为备用）
+const generateDefaultTimeSlots = () => {
   availableTimeSlots.value = []
 
   const weekdays = [1, 2, 3, 4, 5, 6, 0] // 周一到周日
@@ -382,18 +419,14 @@ const generateAvailableTimeSlots = () => {
 
   weekdays.forEach(weekday => {
     timeSlots.forEach(time => {
-      // 检查该时间段在未来3个月内的可用性
-      const { conflicts, availableFromDate, conflictEndDate, conflictReason } = checkTimeSlotConflicts(weekday, time)
-      const availabilityRate = 1 - (conflicts.length / 12) // 假设检查12周
-
       availableTimeSlots.value.push({
         weekday,
         time,
-        available: availabilityRate > 0.7, // 70%以上可用才显示为可选
-        conflictDates: conflicts,
-        availableFromDate,
-        conflictEndDate,
-        conflictReason
+        available: true, // 默认都可用
+        conflictDates: [],
+        availableFromDate: undefined,
+        conflictEndDate: undefined,
+        conflictReason: undefined
       })
     })
   })
@@ -616,13 +649,13 @@ const getWeekdayShort = (weekday: number): string => {
 
 // 判断某个星期几是否可用（检查所有选中的时间段）
 const isTimeSlotAvailable = (weekday: number, time: string): boolean => {
-  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && s.time === time)
+  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === time)
   return slot ? slot.available : true // 默认可用，除非有冲突
 }
 
 // 判断某个时间段是否有可用的开始日期
 const hasAvailableFromDate = (weekday: number, time: string): boolean => {
-  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && s.time === time)
+  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === time)
   return slot ? !!slot.availableFromDate : false
 }
 
@@ -680,8 +713,8 @@ const getWeekdayAvailableFromDateForAllSlots = (weekday: number): string => {
 
 // 获取星期几的提示信息
 const getWeekdayTooltip = (weekday: number, time: string): string => {
-  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && s.time === time)
-  if (!slot) return ''
+  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === time)
+  if (!slot) return '暂无数据'
 
   if (slot.available) {
     return '可用'
@@ -725,7 +758,7 @@ const formatDate = (dateStr: string): string => {
 // 判断某个时间段是否有冲突
 const hasTimeSlotConflicts = (time: string): boolean => {
   return availableTimeSlots.value.some(slot =>
-    slot.time === time &&
+    (slot.time || slot.timeSlot) === time &&
     ((slot.conflictDates && slot.conflictDates.length > 0) || slot.availableFromDate)
   )
 }
@@ -733,7 +766,7 @@ const hasTimeSlotConflicts = (time: string): boolean => {
 // 获取冲突摘要
 const getTimeSlotConflictSummary = (time: string): string => {
   const conflictSlots = availableTimeSlots.value.filter(slot =>
-    slot.time === time &&
+    (slot.time || slot.timeSlot) === time &&
     ((slot.conflictDates && slot.conflictDates.length > 0) || slot.availableFromDate)
   )
 
@@ -748,7 +781,7 @@ const getTimeSlotConflictSummary = (time: string): string => {
         ? slot.availableFromDate
         : earliest
     }, '')
-    return `部分时段从 ${earliestDate} 开始可用`
+    return `部分时段从 ${formatDate(earliestDate)} 开始可用`
   }
 
   if (conflictSlots2.length > 0) {
@@ -762,16 +795,87 @@ const getTimeSlotConflictSummary = (time: string): string => {
 
 
 // 显示月度课表
-const showMonthlySchedule = (teacher: Teacher) => {
+const showMonthlySchedule = async (teacher: Teacher) => {
   currentMonthTeacher.value = teacher
   currentMonth.value = new Date().getMonth()
   currentYear.value = new Date().getFullYear()
-  generateMonthlyScheduleData()
+  await generateMonthlyScheduleData()
   showMonthlyModal.value = true
 }
 
 // 生成月度课表数据
-const generateMonthlyScheduleData = () => {
+const generateMonthlyScheduleData = async () => {
+  if (!currentMonthTeacher.value) return
+
+  const year = currentYear.value
+  const month = currentMonth.value
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const firstDay = new Date(year, month, 1).getDay()
+
+  monthlyScheduleData.value = []
+
+  try {
+    // 计算查询时间范围
+    const startDate = new Date(year, month, 1).toISOString().split('T')[0]
+    const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0]
+
+    // 调用API获取教师课表数据
+    const result = await teacherAPI.getPublicSchedule(currentMonthTeacher.value.id, {
+      startDate,
+      endDate
+    })
+
+    let scheduleData: any = {}
+    if (result.success && result.data) {
+      // 将课表数据按日期分组
+      result.data.daySchedules.forEach((daySchedule: any) => {
+        scheduleData[daySchedule.date] = daySchedule.timeSlots
+      })
+    }
+
+    // 生成日历数据
+    for (let week = 0; week < 6; week++) {
+      const weekData = []
+      for (let day = 0; day < 7; day++) {
+        const dayNumber = week * 7 + day - firstDay + 1
+
+        if (dayNumber > 0 && dayNumber <= daysInMonth) {
+          const date = new Date(year, month, dayNumber)
+          const dateStr = date.toISOString().split('T')[0]
+
+          // 获取该日的真实时间段数据
+          const timeSlots = scheduleData[dateStr] || generateDefaultDayTimeSlots()
+
+          weekData.push({
+            day: dayNumber,
+            date: dateStr,
+            isCurrentMonth: true,
+            timeSlots: timeSlots,
+            availableCount: timeSlots.filter((slot: any) => slot.available).length,
+            bookedCount: timeSlots.filter((slot: any) => slot.booked).length
+          })
+        } else {
+          weekData.push({
+            day: dayNumber > 0 ? dayNumber : dayNumber + daysInMonth,
+            date: '',
+            isCurrentMonth: false,
+            timeSlots: [],
+            availableCount: 0,
+            bookedCount: 0
+          })
+        }
+      }
+      monthlyScheduleData.value.push(weekData)
+    }
+  } catch (error) {
+    console.error('获取教师课表失败:', error)
+    // 如果API调用失败，生成默认数据
+    generateDefaultMonthlyScheduleData()
+  }
+}
+
+// 生成默认月度课表数据（作为备用）
+const generateDefaultMonthlyScheduleData = () => {
   const year = currentYear.value
   const month = currentMonth.value
   const daysInMonth = new Date(year, month + 1, 0).getDate()
@@ -789,8 +893,8 @@ const generateMonthlyScheduleData = () => {
         const date = new Date(year, month, dayNumber)
         const dateStr = date.toISOString().split('T')[0]
 
-        // 生成该日的时间段数据
-        const timeSlots = generateDayTimeSlots()
+        // 生成该日的默认时间段数据
+        const timeSlots = generateDefaultDayTimeSlots()
 
         weekData.push({
           day: dayNumber,
@@ -815,8 +919,8 @@ const generateMonthlyScheduleData = () => {
   }
 }
 
-// 生成某一天的时间段数据
-const generateDayTimeSlots = () => {
+// 生成默认的某一天时间段数据
+const generateDefaultDayTimeSlots = () => {
   const timeSlots = [
     '09:00-10:00', '10:00-11:00', '11:00-12:00',
     '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00',
@@ -824,10 +928,13 @@ const generateDayTimeSlots = () => {
   ]
 
   return timeSlots.map(time => ({
-    time,
-    available: Math.random() > 0.3, // 70%概率可用
-    booked: Math.random() < 0.2,    // 20%概率已预订
-    student: Math.random() < 0.2 ? `学生${Math.floor(Math.random() * 10) + 1}` : null
+    timeSlot: time,
+    available: true, // 默认都可用
+    booked: false,   // 默认未预订
+    studentName: null,
+    courseTitle: null,
+    status: null,
+    isTrial: false
   }))
 }
 
@@ -1041,14 +1148,7 @@ onMounted(() => {
               <div class="teacher-tags">
                 <el-tag v-for="(tag, i) in teacher.tags" :key="i" size="small" class="teacher-tag" effect="light">{{ tag }}</el-tag>
               </div>
-              <div class="teacher-schedule">
-                <div class="schedule-title">可授课时间：</div>
-                <div class="schedule-times">
-                  <span v-for="(time, i) in teacher.schedule" :key="i" class="schedule-tag">
-                    <el-icon><Timer /></el-icon> {{ time }}
-                  </span>
-                </div>
-              </div>
+
               <div class="selected-time" v-if="matchForm.preferredDateRange && matchForm.preferredDateRange.length === 2 && matchForm.preferredTime">
                 <div class="selected-time-title">您的预约时间：</div>
                 <div class="selected-time-value">
@@ -1384,11 +1484,11 @@ onMounted(() => {
                   <div class="time-slots-preview">
                     <div
                       v-for="slot in day.timeSlots.slice(0, 3)"
-                      :key="slot.time"
+                      :key="slot.timeSlot || slot.time"
                       :class="['mini-slot', { 'available': slot.available, 'booked': slot.booked }]"
-                      :title="`${slot.time} - ${slot.booked ? '已预订' : '可用'}`"
+                      :title="`${slot.timeSlot || slot.time} - ${slot.booked ? '已预订' : '可用'}`"
                     >
-                      {{ slot.time.split('-')[0] }}
+                      {{ (slot.timeSlot || slot.time || '').split('-')[0] }}
                     </div>
                     <div v-if="day.timeSlots.length > 3" class="more-slots">
                       +{{ day.timeSlots.length - 3 }}
@@ -1436,16 +1536,21 @@ onMounted(() => {
           <div class="slots-grid">
             <div
               v-for="slot in selectedDayData.timeSlots"
-              :key="slot.time"
+              :key="slot.timeSlot || slot.time"
               :class="['time-slot-detail', { 'available': slot.available, 'booked': slot.booked }]"
             >
-              <div class="slot-time">{{ slot.time }}</div>
+              <div class="slot-time">{{ slot.timeSlot || slot.time }}</div>
               <div class="slot-status">
                 <span v-if="slot.booked" class="status-booked">已预订</span>
                 <span v-else-if="slot.available" class="status-available">可预约</span>
                 <span v-else class="status-unavailable">不可用</span>
               </div>
-              <div v-if="slot.student" class="slot-student">{{ slot.student }}</div>
+              <div v-if="slot.studentName || slot.student" class="slot-student">
+                学生：{{ slot.studentName || slot.student }}
+              </div>
+              <div v-if="slot.courseTitle" class="slot-course">
+                课程：{{ slot.courseTitle }}
+              </div>
             </div>
           </div>
         </div>

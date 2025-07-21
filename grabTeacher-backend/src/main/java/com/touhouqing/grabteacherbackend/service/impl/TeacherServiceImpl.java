@@ -5,10 +5,16 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponse;
+import com.touhouqing.grabteacherbackend.dto.TeacherScheduleResponse;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotAvailability;
 import com.touhouqing.grabteacherbackend.entity.Course;
+import com.touhouqing.grabteacherbackend.entity.Schedule;
+import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Subject;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
+import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
+import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
@@ -21,8 +27,10 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,6 +41,8 @@ public class TeacherServiceImpl implements TeacherService {
     private final TeacherMapper teacherMapper;
     private final SubjectService subjectService;
     private final CourseMapper courseMapper;
+    private final ScheduleMapper scheduleMapper;
+    private final StudentMapper studentMapper;
 
     /**
      * 根据用户ID获取教师信息
@@ -317,5 +327,186 @@ public class TeacherServiceImpl implements TeacherService {
                 .distinct()
                 .sorted()
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public TeacherScheduleResponse getTeacherPublicSchedule(Long teacherId, LocalDate startDate, LocalDate endDate) {
+        // 获取教师信息
+        Teacher teacher = teacherMapper.selectById(teacherId);
+        if (teacher == null) {
+            throw new RuntimeException("教师不存在");
+        }
+
+        // 获取指定时间范围内的课程安排
+        List<Schedule> schedules = scheduleMapper.findByTeacherIdAndDateRange(teacherId, startDate, endDate);
+
+        // 按日期分组
+        Map<LocalDate, List<Schedule>> schedulesByDate = schedules.stream()
+                .collect(Collectors.groupingBy(Schedule::getScheduledDate));
+
+        // 生成每日课表
+        List<TeacherScheduleResponse.DaySchedule> daySchedules = new ArrayList<>();
+        LocalDate currentDate = startDate;
+
+        while (!currentDate.isAfter(endDate)) {
+            List<Schedule> daySchedules_raw = schedulesByDate.getOrDefault(currentDate, new ArrayList<>());
+
+            // 生成该日的时间段信息
+            List<TeacherScheduleResponse.TimeSlotInfo> timeSlots = generateTimeSlots(daySchedules_raw, currentDate);
+
+            int availableCount = (int) timeSlots.stream().filter(TeacherScheduleResponse.TimeSlotInfo::getAvailable).count();
+            int bookedCount = (int) timeSlots.stream().filter(TeacherScheduleResponse.TimeSlotInfo::getBooked).count();
+
+            TeacherScheduleResponse.DaySchedule daySchedule = TeacherScheduleResponse.DaySchedule.builder()
+                    .date(currentDate)
+                    .dayOfWeek(currentDate.getDayOfWeek().getValue() % 7) // 转换为0=周日格式
+                    .timeSlots(timeSlots)
+                    .availableCount(availableCount)
+                    .bookedCount(bookedCount)
+                    .build();
+
+            daySchedules.add(daySchedule);
+            currentDate = currentDate.plusDays(1);
+        }
+
+        return TeacherScheduleResponse.builder()
+                .teacherId(teacherId)
+                .teacherName(teacher.getRealName())
+                .startDate(startDate)
+                .endDate(endDate)
+                .daySchedules(daySchedules)
+                .build();
+    }
+
+    @Override
+    public List<TimeSlotAvailability> checkTeacherAvailability(Long teacherId, LocalDate startDate, LocalDate endDate, List<String> timeSlots) {
+        // 如果没有指定时间段，使用默认时间段
+        if (timeSlots == null || timeSlots.isEmpty()) {
+            timeSlots = getDefaultTimeSlots();
+        }
+
+        List<TimeSlotAvailability> availabilities = new ArrayList<>();
+
+        // 检查每个星期几和时间段的组合
+        for (int weekday = 0; weekday <= 6; weekday++) { // 0=周日, 1=周一, ..., 6=周六
+            for (String timeSlot : timeSlots) {
+                TimeSlotAvailability availability = checkWeekdayTimeSlotAvailability(
+                    teacherId, weekday, timeSlot, startDate, endDate);
+                availabilities.add(availability);
+            }
+        }
+
+        return availabilities;
+    }
+
+    /**
+     * 生成时间段信息
+     */
+    private List<TeacherScheduleResponse.TimeSlotInfo> generateTimeSlots(List<Schedule> daySchedules, LocalDate date) {
+        List<String> allTimeSlots = getDefaultTimeSlots();
+        List<TeacherScheduleResponse.TimeSlotInfo> timeSlots = new ArrayList<>();
+
+        // 将已有课程按时间段分组
+        Map<String, Schedule> scheduleByTimeSlot = new HashMap<>();
+        for (Schedule schedule : daySchedules) {
+            String timeSlot = schedule.getStartTime().toString() + "-" + schedule.getEndTime().toString();
+            scheduleByTimeSlot.put(timeSlot, schedule);
+        }
+
+        // 生成所有时间段的信息
+        for (String timeSlot : allTimeSlots) {
+            String[] times = timeSlot.split("-");
+            LocalTime startTime = LocalTime.parse(times[0]);
+            LocalTime endTime = LocalTime.parse(times[1]);
+
+            Schedule existingSchedule = scheduleByTimeSlot.get(timeSlot);
+            boolean isBooked = existingSchedule != null && !"cancelled".equals(existingSchedule.getStatus());
+
+            TeacherScheduleResponse.TimeSlotInfo timeSlotInfo = TeacherScheduleResponse.TimeSlotInfo.builder()
+                    .timeSlot(timeSlot)
+                    .startTime(startTime)
+                    .endTime(endTime)
+                    .available(!isBooked)
+                    .booked(isBooked)
+                    .build();
+
+            if (isBooked) {
+                // 获取学生信息
+                Student student = studentMapper.selectById(existingSchedule.getStudentId());
+                if (student != null) {
+                    timeSlotInfo.setStudentName(student.getRealName());
+                }
+
+                // 获取课程信息
+                Course course = courseMapper.selectById(existingSchedule.getCourseId());
+                if (course != null) {
+                    timeSlotInfo.setCourseTitle(course.getTitle());
+                }
+
+                timeSlotInfo.setStatus(existingSchedule.getStatus());
+                timeSlotInfo.setIsTrial(existingSchedule.getIsTrial());
+            }
+
+            timeSlots.add(timeSlotInfo);
+        }
+
+        return timeSlots;
+    }
+
+    /**
+     * 检查特定星期几和时间段的可用性
+     */
+    private TimeSlotAvailability checkWeekdayTimeSlotAvailability(Long teacherId, int weekday, String timeSlot, LocalDate startDate, LocalDate endDate) {
+        String[] times = timeSlot.split("-");
+        LocalTime startTime = LocalTime.parse(times[0]);
+        LocalTime endTime = LocalTime.parse(times[1]);
+
+        List<String> conflictDates = new ArrayList<>();
+        LocalDate currentDate = startDate;
+        int totalWeeks = 0;
+        int conflictWeeks = 0;
+
+        // 检查指定时间范围内每周该星期几的情况
+        while (!currentDate.isAfter(endDate)) {
+            int currentWeekday = currentDate.getDayOfWeek().getValue() % 7; // 转换为0=周日格式
+
+            if (currentWeekday == weekday) {
+                totalWeeks++;
+
+                // 检查该日期该时间段是否有冲突
+                int conflictCount = scheduleMapper.countConflictingSchedules(teacherId, currentDate, startTime, endTime);
+                if (conflictCount > 0) {
+                    conflictWeeks++;
+                    conflictDates.add(currentDate.toString());
+                }
+            }
+
+            currentDate = currentDate.plusDays(1);
+        }
+
+        double availabilityRate = totalWeeks > 0 ? (double) (totalWeeks - conflictWeeks) / totalWeeks : 1.0;
+        boolean available = availabilityRate > 0.7; // 70%以上可用才认为可选
+
+        return TimeSlotAvailability.builder()
+                .weekday(weekday)
+                .timeSlot(timeSlot)
+                .available(available)
+                .availabilityRate(availabilityRate)
+                .conflictDates(conflictDates)
+                .conflictReason(conflictDates.isEmpty() ? null : "已有其他学生预约")
+                .description(String.format("该时间段在查询范围内有%d个日期冲突，可用率%.1f%%",
+                    conflictDates.size(), availabilityRate * 100))
+                .build();
+    }
+
+    /**
+     * 获取默认时间段列表
+     */
+    private List<String> getDefaultTimeSlots() {
+        return Arrays.asList(
+            "09:00-10:00", "10:00-11:00", "11:00-12:00",
+            "14:00-15:00", "15:00-16:00", "16:00-17:00", "17:00-18:00",
+            "18:00-19:00", "19:00-20:00", "20:00-21:00"
+        );
     }
 }

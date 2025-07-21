@@ -4,6 +4,8 @@ import com.touhouqing.grabteacherbackend.dto.ApiResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponse;
+import com.touhouqing.grabteacherbackend.dto.TeacherScheduleResponse;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotAvailability;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
@@ -11,12 +13,14 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -142,6 +146,43 @@ public class TeacherController {
             return ResponseEntity.ok(ApiResponse.success("获取年级选项成功", grades));
         } catch (Exception e) {
             logger.error("获取年级选项异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("获取失败"));
+        }
+    }
+
+    /**
+     * 获取教师的公开课表（供学生查看）
+     */
+    @GetMapping("/{teacherId}/schedule")
+    public ResponseEntity<ApiResponse<TeacherScheduleResponse>> getTeacherPublicSchedule(
+            @PathVariable Long teacherId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        try {
+            TeacherScheduleResponse schedule = teacherService.getTeacherPublicSchedule(teacherId, startDate, endDate);
+            return ResponseEntity.ok(ApiResponse.success("获取教师课表成功", schedule));
+        } catch (Exception e) {
+            logger.error("获取教师课表异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("获取失败"));
+        }
+    }
+
+    /**
+     * 检查教师时间段可用性（供学生预约时查看）
+     */
+    @GetMapping("/{teacherId}/availability")
+    public ResponseEntity<ApiResponse<List<TimeSlotAvailability>>> checkTeacherAvailability(
+            @PathVariable Long teacherId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) List<String> timeSlots) {
+        try {
+            List<TimeSlotAvailability> availability = teacherService.checkTeacherAvailability(teacherId, startDate, endDate, timeSlots);
+            return ResponseEntity.ok(ApiResponse.success("获取时间段可用性成功", availability));
+        } catch (Exception e) {
+            logger.error("检查教师时间段可用性异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("获取失败"));
         }

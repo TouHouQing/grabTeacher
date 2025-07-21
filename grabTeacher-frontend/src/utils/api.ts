@@ -239,7 +239,40 @@ export const teacherAPI = {
   getDetail: (id: number) => apiRequest(`/api/teacher/${id}`),
 
   // 获取教师的公开课程列表（供学生预约时查看）
-  getPublicCourses: (teacherId: number) => apiRequest(`/api/courses/public/teacher/${teacherId}`)
+  getPublicCourses: (teacherId: number) => apiRequest(`/api/courses/public/teacher/${teacherId}`),
+
+  // 获取教师的公开课表（供学生查看）
+  getPublicSchedule: (teacherId: number, params: {
+    startDate: string
+    endDate: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/teacher/${teacherId}/schedule?${searchParams}`)
+  },
+
+  // 检查教师时间段可用性（供学生预约时查看）
+  checkAvailability: (teacherId: number, params: {
+    startDate: string
+    endDate: string
+    timeSlots?: string[]
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        if (key === 'timeSlots' && Array.isArray(params[key])) {
+          params[key].forEach(slot => searchParams.append('timeSlots', slot))
+        } else {
+          searchParams.append(key, params[key].toString())
+        }
+      }
+    })
+    return apiRequest(`/api/teacher/${teacherId}/availability?${searchParams}`)
+  }
 }
 
 // 管理员统计 API

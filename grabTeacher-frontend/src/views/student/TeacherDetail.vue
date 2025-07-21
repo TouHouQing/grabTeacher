@@ -492,16 +492,7 @@ const contactTeacher = () => {
           </div>
         </div>
 
-        <div class="profile-section">
-          <h4 class="section-title"><el-icon><Calendar /></el-icon> 可授课时间</h4>
-          <div class="section-content">
-            <div class="schedule-times">
-              <el-tag v-for="(time, i) in teacher.schedule" :key="i" class="schedule-tag" type="info" effect="plain">
-                {{ time }}
-              </el-tag>
-            </div>
-          </div>
-        </div>
+
 
         <div class="profile-section">
           <h4 class="section-title"><el-icon><VideoCamera /></el-icon> 教师介绍视频</h4>
