@@ -50,12 +50,7 @@ const router = createRouter({
           component: () => import('../views/student/StudentProfile.vue'),
           meta: { requiresAuth: true, role: 'student' }
         },
-        {
-          path: 'orders',
-          name: 'StudentOrders',
-          component: () => import('../views/student/StudentOrders.vue'),
-          meta: { requiresAuth: true, role: 'student' }
-        },
+
         {
           path: 'match',
           name: 'TeacherMatch',
@@ -171,10 +166,7 @@ const router = createRouter({
       path: '/student/profile',
       redirect: '/student-center/profile'
     },
-    {
-      path: '/student/orders',
-      redirect: '/student-center/orders'
-    },
+
     {
       path: '/teacher',
       redirect: '/teacher-center'

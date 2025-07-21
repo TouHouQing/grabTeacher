@@ -2,9 +2,9 @@
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { HomeFilled, Connection, Document, Tickets, Reading, Calendar, ChatLineRound, User } from '@element-plus/icons-vue'
+import { HomeFilled, Connection, Document, Reading, ChatLineRound, User, Clock } from '@element-plus/icons-vue'
 import StudentCourses from './components/StudentCourses.vue'
-import StudentSchedule from './components/StudentSchedule.vue'
+
 import StudentMessages from './components/StudentMessages.vue'
 
 const userStore = useUserStore()
@@ -15,8 +15,7 @@ const activeMenu = ref('dashboard')
 watch(() => route.path, (path) => {
   if (path.includes('/profile')) {
     activeMenu.value = 'profile'
-  } else if (path.includes('/orders')) {
-    activeMenu.value = 'orders'
+
   } else if (path.includes('/match')) {
     activeMenu.value = 'match'
   } else {
@@ -56,18 +55,12 @@ watch(() => route.path, (path) => {
               <el-icon><Document /></el-icon>
               <span>我的预约</span>
             </el-menu-item>
-            <el-menu-item index="orders" @click="$router.push('/student-center/orders')">
-              <el-icon><Tickets /></el-icon>
-              <span>我的订单</span>
-            </el-menu-item>
+
             <el-menu-item index="courses">
               <el-icon><Reading /></el-icon>
               <span>我的课程</span>
             </el-menu-item>
-            <el-menu-item index="schedule">
-              <el-icon><Calendar /></el-icon>
-              <span>上课安排</span>
-            </el-menu-item>
+
             <el-menu-item index="messages">
               <el-icon><ChatLineRound /></el-icon>
               <span>消息中心</span>
@@ -94,16 +87,16 @@ watch(() => route.path, (path) => {
             </div>
             <div class="stat-card">
               <div class="stat-icon">
-                <el-icon><Calendar /></el-icon>
+                <el-icon><Document /></el-icon>
               </div>
               <div class="stat-info">
                 <div class="stat-value">3</div>
-                <div class="stat-label">今日课程</div>
+                <div class="stat-label">我的预约</div>
               </div>
             </div>
             <div class="stat-card">
               <div class="stat-icon">
-                <el-icon><Tickets /></el-icon>
+                <el-icon><Reading /></el-icon>
               </div>
               <div class="stat-info">
                 <div class="stat-value">5</div>
@@ -128,10 +121,7 @@ watch(() => route.path, (path) => {
                 <el-icon><Connection /></el-icon>
                 智能匹配教师
               </el-button>
-              <el-button type="success" @click="activeMenu = 'schedule'">
-                <el-icon><Calendar /></el-icon>
-                查看课表
-              </el-button>
+
               <el-button type="warning" @click="activeMenu = 'messages'">
                 <el-icon><ChatLineRound /></el-icon>
                 联系客服
@@ -157,9 +147,7 @@ watch(() => route.path, (path) => {
         <div v-else-if="activeMenu === 'courses'">
           <StudentCourses />
         </div>
-        <div v-else-if="activeMenu === 'schedule'">
-          <StudentSchedule />
-        </div>
+
         <div v-else-if="activeMenu === 'messages'">
           <StudentMessages />
         </div>
