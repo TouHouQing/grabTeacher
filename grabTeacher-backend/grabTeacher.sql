@@ -11,7 +11,7 @@
  Target Server Version : 90100 (9.1.0)
  File Encoding         : 65001
 
- Date: 21/07/2025 10:21:48
+ Date: 21/07/2025 13:14:26
 */
 
 SET NAMES utf8mb4;
@@ -66,13 +66,16 @@ CREATE TABLE `booking_requests` (
   `approved_at` timestamp NULL DEFAULT NULL COMMENT '批准时间',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
+  `is_trial` tinyint(1) DEFAULT '0' COMMENT '是否为免费试听课：true-是，false-否',
+  `trial_duration_minutes` int DEFAULT NULL COMMENT '试听课时长（分钟）',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='预约申请表，记录学生的课程预约申请';
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='预约申请表，记录学生的课程预约申请';
 
 -- ----------------------------
 -- Records of booking_requests
 -- ----------------------------
 BEGIN;
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`) VALUES (3, 6, 7, NULL, 'recurring', NULL, NULL, NULL, '2,3', '17:00-18:00', '2025-07-22', '2025-08-26', 12, '希望预约12355老师的语文课程', 'approved', '可以', NULL, '2025-07-21 13:07:49', '2025-07-21 13:12:05', '2025-07-21 13:12:05', 0, NULL, 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -154,7 +157,7 @@ CREATE TABLE `schedules` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '排课ID，主键自增',
   `teacher_id` bigint NOT NULL COMMENT '授课教师ID',
   `student_id` bigint NOT NULL COMMENT '学生ID',
-  `course_id` bigint NOT NULL COMMENT '课程ID',
+  `course_id` bigint DEFAULT NULL COMMENT '课程ID',
   `scheduled_date` date NOT NULL COMMENT '上课日期',
   `start_time` time NOT NULL COMMENT '开始时间',
   `end_time` time NOT NULL COMMENT '结束时间',
@@ -169,13 +172,26 @@ CREATE TABLE `schedules` (
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   `recurring_weekdays` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '周期性预约的星期几，逗号分隔：1,3,5',
   `recurring_time_slots` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '周期性预约的时间段，逗号分隔：14:00-16:00,18:00-20:00',
+  `is_trial` tinyint(1) DEFAULT '0' COMMENT '是否为试听课：true-是，false-否',
+  `session_number` int DEFAULT NULL COMMENT '课程序号（在周期性课程中的第几次课）',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程安排表，记录具体的上课时间';
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程安排表，记录具体的上课时间';
 
 -- ----------------------------
 -- Records of schedules
 -- ----------------------------
 BEGIN;
+INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`, `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`, `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`, `recurring_time_slots`, `is_trial`, `session_number`) VALUES (1, 7, 6, NULL, '2025-07-22', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3, 'request', 0, NULL, '2,3', '17:00-18:00', 0, 1);
+INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`, `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`, `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`, `recurring_time_slots`, `is_trial`, `session_number`) VALUES (2, 7, 6, NULL, '2025-07-23', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3, 'request', 0, NULL, '2,3', '17:00-18:00', 0, 2);
+INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`, `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`, `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`, `recurring_time_slots`, `is_trial`, `session_number`) VALUES (3, 7, 6, NULL, '2025-07-29', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3, 'request', 0, NULL, '2,3', '17:00-18:00', 0, 3);
+INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`, `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`, `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`, `recurring_time_slots`, `is_trial`, `session_number`) VALUES (4, 7, 6, NULL, '2025-07-30', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3, 'request', 0, NULL, '2,3', '17:00-18:00', 0, 4);
+INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`, `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`, `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`, `recurring_time_slots`, `is_trial`, `session_number`) VALUES (5, 7, 6, NULL, '2025-08-05', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3, 'request', 0, NULL, '2,3', '17:00-18:00', 0, 5);
+INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`, `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`, `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`, `recurring_time_slots`, `is_trial`, `session_number`) VALUES (6, 7, 6, NULL, '2025-08-06', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3, 'request', 0, NULL, '2,3', '17:00-18:00', 0, 6);
+INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`, `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`, `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`, `recurring_time_slots`, `is_trial`, `session_number`) VALUES (7, 7, 6, NULL, '2025-08-12', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3, 'request', 0, NULL, '2,3', '17:00-18:00', 0, 7);
+INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`, `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`, `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`, `recurring_time_slots`, `is_trial`, `session_number`) VALUES (8, 7, 6, NULL, '2025-08-13', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3, 'request', 0, NULL, '2,3', '17:00-18:00', 0, 8);
+INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`, `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`, `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`, `recurring_time_slots`, `is_trial`, `session_number`) VALUES (9, 7, 6, NULL, '2025-08-19', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3, 'request', 0, NULL, '2,3', '17:00-18:00', 0, 9);
+INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`, `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`, `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`, `recurring_time_slots`, `is_trial`, `session_number`) VALUES (10, 7, 6, NULL, '2025-08-20', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3, 'request', 0, NULL, '2,3', '17:00-18:00', 0, 10);
+INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`, `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`, `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`, `recurring_time_slots`, `is_trial`, `session_number`) VALUES (11, 7, 6, NULL, '2025-08-26', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3, 'request', 0, NULL, '2,3', '17:00-18:00', 0, 11);
 COMMIT;
 
 -- ----------------------------
@@ -196,13 +212,14 @@ CREATE TABLE `students` (
   `gender` enum('男','女','不愿透露') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '不愿透露' COMMENT '性别：男、女、不愿透露',
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学生详细信息表，存储学生的个人资料和学习偏好';
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学生详细信息表，存储学生的个人资料和学习偏好';
 
 -- ----------------------------
 -- Records of students
 -- ----------------------------
 BEGIN;
 INSERT INTO `students` (`id`, `user_id`, `real_name`, `grade_level`, `subjects_interested`, `learning_goals`, `preferred_teaching_style`, `budget_range`, `is_deleted`, `deleted_at`, `gender`) VALUES (6, 10, 'student23', '小学一年级', '数学', '123131123', '实践型教学', '100-200', 0, NULL, '不愿透露');
+INSERT INTO `students` (`id`, `user_id`, `real_name`, `grade_level`, `subjects_interested`, `learning_goals`, `preferred_teaching_style`, `budget_range`, `is_deleted`, `deleted_at`, `gender`) VALUES (7, 15, '青', '小学二年级', '数学', '666', '温和型', '200-300', 0, NULL, '不愿透露');
 COMMIT;
 
 -- ----------------------------
@@ -225,9 +242,9 @@ CREATE TABLE `subjects` (
 -- ----------------------------
 BEGIN;
 INSERT INTO `subjects` (`id`, `name`, `grade_levels`, `icon_url`, `is_active`, `is_deleted`, `deleted_at`) VALUES (1, '语文', '小学', '', 1, 0, NULL);
-INSERT INTO `subjects` (`id`, `name`, `grade_levels`, `icon_url`, `is_active`, `is_deleted`, `deleted_at`) VALUES (2, '123', '123', '', 1, 0, NULL);
-INSERT INTO `subjects` (`id`, `name`, `grade_levels`, `icon_url`, `is_active`, `is_deleted`, `deleted_at`) VALUES (3, '555', '555', '', 1, 0, NULL);
-INSERT INTO `subjects` (`id`, `name`, `grade_levels`, `icon_url`, `is_active`, `is_deleted`, `deleted_at`) VALUES (4, '666', '6665', '', 1, 0, NULL);
+INSERT INTO `subjects` (`id`, `name`, `grade_levels`, `icon_url`, `is_active`, `is_deleted`, `deleted_at`) VALUES (2, '123', '123', '', 1, 1, '2025-07-21 13:06:51');
+INSERT INTO `subjects` (`id`, `name`, `grade_levels`, `icon_url`, `is_active`, `is_deleted`, `deleted_at`) VALUES (3, '555', '555', '', 1, 1, '2025-07-21 13:06:52');
+INSERT INTO `subjects` (`id`, `name`, `grade_levels`, `icon_url`, `is_active`, `is_deleted`, `deleted_at`) VALUES (4, '666', '6665', '', 1, 1, '2025-07-21 13:06:54');
 COMMIT;
 
 -- ----------------------------
@@ -251,13 +268,14 @@ CREATE TABLE `teachers` (
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='教师详细信息表，存储教师的专业资料和教学信息';
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='教师详细信息表，存储教师的专业资料和教学信息';
 
 -- ----------------------------
 -- Records of teachers
 -- ----------------------------
 BEGIN;
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`, `subjects`, `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`, `deleted_at`) VALUES (7, 14, '12355', '硕士研究生', 1, '1231236', '语文,数学', 50.00, '123123555', NULL, '不愿透露', 1, 0, NULL);
+INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`, `subjects`, `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`, `deleted_at`) VALUES (8, 16, '青', '333', 2, '5555', '物理,化学,生物', NULL, '1123132312', NULL, '不愿透露', 0, 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -277,18 +295,22 @@ CREATE TABLE `users` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
+  `has_used_trial` tinyint(1) DEFAULT '0' COMMENT '是否已使用免费试听：true-已使用，false-未使用',
+  `trial_used_at` timestamp NULL DEFAULT NULL COMMENT '试听课使用时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户基础信息表，存储所有用户的通用信息';
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户基础信息表，存储所有用户的通用信息';
 
 -- ----------------------------
 -- Records of users
 -- ----------------------------
 BEGIN;
-INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (10, 'student', 'qinghaoyang@foxmail.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '', NULL, 'student', 'active', '2025-07-19 13:21:54', '2025-07-19 13:21:54', 0, '2025-07-19 23:32:59');
-INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (11, 'admin', 'admin@admin.com', '$2a$10$CLJSuGd2ptKI9VlCz3r4buGyY7HfKg1qivwbKEfkk8/6Pz57oKjWK', NULL, NULL, 'admin', 'active', '2025-07-19 16:23:39', '2025-07-19 19:54:42', 0, NULL);
-INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (14, 'teacher', '123456@qq.com', '$2a$10$eNVMo.XWzg/OG1RFYwzX0etNFyhahK3Cx3qVmPWvXP2hlOVstrVPm', '', NULL, 'teacher', 'active', '2025-07-19 14:38:47', '2025-07-19 14:38:47', 0, '2025-07-19 23:26:32');
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`) VALUES (10, 'student', 'qinghaoyang@foxmail.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '', NULL, 'student', 'active', '2025-07-19 13:21:54', '2025-07-19 13:21:54', 0, '2025-07-19 23:32:59', 0, NULL);
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`) VALUES (11, 'admin', 'admin@admin.com', '$2a$10$CLJSuGd2ptKI9VlCz3r4buGyY7HfKg1qivwbKEfkk8/6Pz57oKjWK', NULL, NULL, 'admin', 'active', '2025-07-19 16:23:39', '2025-07-19 19:54:42', 0, NULL, 0, NULL);
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`) VALUES (14, 'teacher', '123456@qq.com', '$2a$10$eNVMo.XWzg/OG1RFYwzX0etNFyhahK3Cx3qVmPWvXP2hlOVstrVPm', '', NULL, 'teacher', 'active', '2025-07-19 14:38:47', '2025-07-19 14:38:47', 0, '2025-07-19 23:26:32', 0, NULL);
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`) VALUES (15, 'student2', 'jiang659585281@163.com', '$2a$10$Cktv7O3R9jT2UAdz15jyLO7lQ1UWcJwn/7v3gt9kV5XyWoJ6CDNiu', '', NULL, 'student', 'active', '2025-07-21 10:51:14', '2025-07-21 10:51:14', 0, NULL, 0, NULL);
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`) VALUES (16, 'teacher2', 'PGS.000936581@med.suez.edu.eg', '$2a$10$Vu87ac.Pm3FAyPuco3A3W.W.ZtxM10pLyo1LM7wZuqX0sFdg/5g7y', '', NULL, 'teacher', 'active', '2025-07-21 10:51:59', '2025-07-21 10:51:59', 0, NULL, 0, NULL);
 COMMIT;
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -72,6 +72,7 @@ public class AuthServiceImpl implements AuthService {
                     .userType(registerRequest.getUserType().name())
                     .status("active")
                     .isDeleted(false)
+                    .hasUsedTrial(false) // 新用户默认未使用免费试听
                     .build();
 
             userMapper.insert(user);

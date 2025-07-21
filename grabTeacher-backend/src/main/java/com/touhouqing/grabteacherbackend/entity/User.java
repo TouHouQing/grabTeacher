@@ -57,6 +57,13 @@ public class User {
     @TableField("deleted_at")
     private LocalDateTime deletedAt;
 
+    @TableField("has_used_trial")
+    @Builder.Default
+    private Boolean hasUsedTrial = false;
+
+    @TableField("trial_used_at")
+    private LocalDateTime trialUsedAt;
+
     // 保留必要的构造函数
     public User(String username, String email, String password, String userType) {
         this.username = username;
@@ -65,5 +72,6 @@ public class User {
         this.userType = userType;
         this.status = "active";
         this.isDeleted = false;
+        this.hasUsedTrial = false;
     }
-} 
+}

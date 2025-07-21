@@ -245,6 +245,135 @@ export const adminAPI = {
   getStatistics: () => apiRequest('/api/admin/statistics')
 }
 
+// 预约管理 API
+export const bookingAPI = {
+  // 创建预约申请（学生）
+  createRequest: (data: {
+    teacherId: number
+    courseId?: number
+    bookingType: 'single' | 'recurring'
+    requestedDate?: string
+    requestedStartTime?: string
+    requestedEndTime?: string
+    recurringWeekdays?: number[]
+    recurringTimeSlots?: string[]
+    startDate?: string
+    endDate?: string
+    totalTimes?: number
+    studentRequirements?: string
+    isTrial?: boolean
+    trialDurationMinutes?: number
+  }) => apiRequest('/api/booking/request', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  // 教师审批预约申请
+  approve: (id: number, data: {
+    status: 'approved' | 'rejected'
+    teacherReply?: string
+    adminNotes?: string
+  }) => apiRequest(`/api/booking/${id}/approve`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  // 学生取消预约申请
+  cancel: (id: number) => apiRequest(`/api/booking/${id}/cancel`, {
+    method: 'PUT'
+  }),
+
+  // 获取预约申请详情
+  getById: (id: number) => apiRequest(`/api/booking/${id}`),
+
+  // 获取学生的预约申请列表
+  getStudentRequests: (params: {
+    page?: number
+    size?: number
+    status?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/booking/student/my?${searchParams}`)
+  },
+
+  // 获取教师的预约申请列表
+  getTeacherRequests: (params: {
+    page?: number
+    size?: number
+    status?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/booking/teacher/my?${searchParams}`)
+  },
+
+  // 获取教师的课程安排列表
+  getTeacherSchedules: (params: {
+    startDate: string
+    endDate: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/booking/teacher/schedules?${searchParams}`)
+  },
+
+  // 获取学生的课程安排列表
+  getStudentSchedules: (params: {
+    startDate: string
+    endDate: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/booking/student/schedules?${searchParams}`)
+  },
+
+  // 检查免费试听资格
+  checkTrialEligibility: () => apiRequest('/api/booking/trial/check'),
+
+  // 管理员获取预约申请列表
+  getAdminRequests: (params: {
+    page?: number
+    size?: number
+    status?: string
+    keyword?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/booking/admin/list?${searchParams}`)
+  },
+
+  // 管理员审批预约申请
+  adminApprove: (id: number, data: {
+    status: 'approved' | 'rejected'
+    teacherReply?: string
+    adminNotes?: string
+  }) => apiRequest(`/api/booking/admin/${id}/approve`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  })
+}
+
 // 课程管理 API
 export const courseAPI = {
   // 获取课程列表（分页）

@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
+import { HomeFilled, Connection, Document, Tickets, Reading, Calendar, ChatLineRound, User } from '@element-plus/icons-vue'
 import StudentCourses from './components/StudentCourses.vue'
 import StudentSchedule from './components/StudentSchedule.vue'
 import StudentMessages from './components/StudentMessages.vue'
@@ -50,6 +51,10 @@ watch(() => route.path, (path) => {
             <el-menu-item index="match" @click="$router.push('/student-center/match')">
               <el-icon><Connection /></el-icon>
               <span>智能匹配教师</span>
+            </el-menu-item>
+            <el-menu-item index="bookings" @click="$router.push('/student-center/bookings')">
+              <el-icon><Document /></el-icon>
+              <span>我的预约</span>
             </el-menu-item>
             <el-menu-item index="orders" @click="$router.push('/student-center/orders')">
               <el-icon><Tickets /></el-icon>

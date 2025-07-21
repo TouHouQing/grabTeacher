@@ -10,6 +10,7 @@ import TeacherIncome from './components/TeacherIncome.vue'
 
 import {
   HomeFilled,
+  DocumentChecked,
   Tickets,
   Calendar,
   Reading,
@@ -66,6 +67,10 @@ watch(() => route.path, (path) => {
             <el-menu-item index="dashboard" @click="$router.push('/teacher-center')">
               <el-icon><HomeFilled /></el-icon>
               <span>控制台</span>
+            </el-menu-item>
+            <el-menu-item index="bookings" @click="$router.push('/teacher-center/bookings')">
+              <el-icon><DocumentChecked /></el-icon>
+              <span>预约管理</span>
             </el-menu-item>
             <el-menu-item index="orders" @click="$router.push('/teacher-center/orders')">
               <el-icon><Tickets /></el-icon>
