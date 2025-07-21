@@ -33,14 +33,14 @@ public class BookingRequestDTO {
     @Schema(description = "预约类型", example = "single", allowableValues = {"single", "recurring"}, required = true)
     private String bookingType;
 
-    // 单次预约相关字段
-    @Schema(description = "请求的上课日期(单次预约)", example = "2024-01-15")
+    // 单次预约相关字段（包括试听课）
+    @Schema(description = "请求的上课日期(单次预约/试听课)", example = "2024-01-15")
     private LocalDate requestedDate;
 
-    @Schema(description = "请求的开始时间(单次预约)", example = "14:00")
+    @Schema(description = "请求的开始时间(单次预约/试听课)", example = "14:00")
     private LocalTime requestedStartTime;
 
-    @Schema(description = "请求的结束时间(单次预约)", example = "16:00")
+    @Schema(description = "请求的结束时间(单次预约/试听课，试听课固定30分钟)", example = "16:00")
     private LocalTime requestedEndTime;
 
     // 周期性预约相关字段
@@ -63,9 +63,9 @@ public class BookingRequestDTO {
     private String studentRequirements;
 
     @Builder.Default
-    @Schema(description = "是否为免费试听课", example = "false")
+    @Schema(description = "是否为免费试听课（每人仅限一次，固定30分钟）", example = "false")
     private Boolean isTrial = false;
 
-    @Schema(description = "试听课时长（分钟）", example = "30")
+    @Schema(description = "试听课时长（分钟，固定为30）", example = "30")
     private Integer trialDurationMinutes;
 }

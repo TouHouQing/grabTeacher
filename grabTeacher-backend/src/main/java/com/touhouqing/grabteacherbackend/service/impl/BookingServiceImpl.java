@@ -68,8 +68,16 @@ public class BookingServiceImpl implements BookingService {
             if (!canUseFreeTrial(studentUserId)) {
                 throw new RuntimeException("您已使用过免费试听课，无法再次申请");
             }
-            // 试听课固定30分钟
+            // 试听课固定30分钟，强制设置时长
             request.setTrialDurationMinutes(30);
+
+            // 如果是试听课且为单次预约，需要调整结束时间确保为30分钟
+            if ("single".equals(request.getBookingType()) && request.getRequestedStartTime() != null) {
+                LocalTime startTime = request.getRequestedStartTime();
+                LocalTime endTime = startTime.plusMinutes(30);
+                request.setRequestedEndTime(endTime);
+                log.info("试听课时间已调整为30分钟: {} - {}", startTime, endTime);
+            }
         }
 
         // 验证预约时间
@@ -485,6 +493,11 @@ public class BookingServiceImpl implements BookingService {
     private void generateSingleSchedule(BookingRequest bookingRequest) {
         log.info("生成单次课程安排，预约申请ID: {}", bookingRequest.getId());
 
+        // 记录试听课信息
+        if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
+            log.info("生成试听课安排，固定30分钟时长");
+        }
+
         Schedule schedule = Schedule.builder()
                 .teacherId(bookingRequest.getTeacherId())
                 .studentId(bookingRequest.getStudentId())
@@ -501,7 +514,16 @@ public class BookingServiceImpl implements BookingService {
                 .build();
 
         scheduleMapper.insert(schedule);
-        log.info("单次课程安排生成完成，安排ID: {}", schedule.getId());
+
+        // 计算并记录时长信息
+        if (bookingRequest.getRequestedStartTime() != null && bookingRequest.getRequestedEndTime() != null) {
+            LocalTime startTime = bookingRequest.getRequestedStartTime();
+            LocalTime endTime = bookingRequest.getRequestedEndTime();
+            int durationMinutes = (int) java.time.Duration.between(startTime, endTime).toMinutes();
+            log.info("单次课程安排生成完成，安排ID: {}，时长: {}分钟", schedule.getId(), durationMinutes);
+        } else {
+            log.info("单次课程安排生成完成，安排ID: {}", schedule.getId());
+        }
     }
 
     /**

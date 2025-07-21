@@ -106,16 +106,16 @@ const recurringSchedules = ref<RecurringSchedule[]>([])
 const availableTimeSlots = ref<AvailableTimeSlot[]>([])
 const selectedRecurringSchedule = ref<RecurringSchedule | null>(null)
 const scheduleForm = reactive({
-  bookingType: 'recurring' as 'single' | 'recurring', // 预约类型
+  bookingType: 'recurring' as 'trial' | 'recurring', // 预约类型：试听或周期性
   selectedWeekdays: [] as number[],
   selectedTimeSlots: [] as string[], // 改为数组支持多选
   startDate: '',
   endDate: '',
   sessionCount: 12, // 默认12次课
-  // 单次预约相关字段
-  singleDate: '',
-  singleStartTime: '',
-  singleEndTime: ''
+  // 试听课相关字段
+  trialDate: '',
+  trialStartTime: '',
+  trialEndTime: ''
 })
 
 // 月度课表查看相关数据
@@ -359,10 +359,10 @@ const showTeacherSchedule = async (teacher: Teacher) => {
   scheduleForm.startDate = new Date().toISOString().split('T')[0]
   scheduleForm.endDate = ''
   scheduleForm.sessionCount = 12
-  // 重置单次预约字段
-  scheduleForm.singleDate = ''
-  scheduleForm.singleStartTime = ''
-  scheduleForm.singleEndTime = ''
+  // 重置试听课字段
+  scheduleForm.trialDate = ''
+  scheduleForm.trialStartTime = ''
+  scheduleForm.trialEndTime = ''
   // 重置课程选择
   selectedCourse.value = null
 
@@ -479,27 +479,19 @@ const checkTimeSlotConflicts = (weekday: number, time: string): { conflicts: str
   return { conflicts, availableFromDate, conflictEndDate, conflictReason }
 }
 
-// 检查是否为试听课申请
-const checkIfTrialRequest = async (): Promise<boolean> => {
-  try {
-    const result = await bookingAPI.checkTrialEligibility()
-    if (result.success && result.data) {
-      // 如果用户可以使用免费试听，询问是否要申请试听课
-      const confirmed = await ElMessageBox.confirm(
-        '您可以申请30分钟免费试听课，是否要申请试听课？',
-        '免费试听课',
-        {
-          confirmButtonText: '申请试听课',
-          cancelButtonText: '申请正式课程',
-          type: 'info'
-        }
-      )
-      return confirmed === 'confirm'
-    }
-    return false
-  } catch (error) {
-    console.error('检查试听资格失败:', error)
-    return false
+// 自动计算试听课结束时间（固定30分钟）
+const updateTrialEndTime = () => {
+  if (scheduleForm.trialStartTime) {
+    const [hours, minutes] = scheduleForm.trialStartTime.split(':').map(Number)
+    const startTime = new Date()
+    startTime.setHours(hours, minutes, 0, 0)
+
+    // 加30分钟
+    const endTime = new Date(startTime.getTime() + 30 * 60 * 1000)
+    const endHours = endTime.getHours().toString().padStart(2, '0')
+    const endMinutes = endTime.getMinutes().toString().padStart(2, '0')
+
+    scheduleForm.trialEndTime = `${endHours}:${endMinutes}`
   }
 }
 
@@ -516,9 +508,9 @@ const createBookingRequest = async () => {
     return
   }
 
-  if (scheduleForm.bookingType === 'single') {
-    if (!scheduleForm.singleDate || !scheduleForm.singleStartTime || !scheduleForm.singleEndTime) {
-      ElMessage.warning('请选择上课日期和时间')
+  if (scheduleForm.bookingType === 'trial') {
+    if (!scheduleForm.trialDate || !scheduleForm.trialStartTime || !scheduleForm.trialEndTime) {
+      ElMessage.warning('请选择试听课日期和时间')
       return
     }
   } else {
@@ -533,24 +525,21 @@ const createBookingRequest = async () => {
   }
 
   try {
-    // 检查是否为试听课申请
-    const isTrial = await checkIfTrialRequest()
-
     // 构建预约请求数据
     const bookingData: any = {
       teacherId: currentTeacher.value.id,
       courseId: selectedCourse.value.id, // 使用选择的课程ID
-      bookingType: scheduleForm.bookingType,
+      bookingType: scheduleForm.bookingType === 'trial' ? 'single' : 'recurring', // 试听课作为单次预约处理
       studentRequirements: `希望预约${currentTeacher.value.name}老师的《${selectedCourse.value.title}》课程`,
-      isTrial: isTrial,
-      trialDurationMinutes: isTrial ? 30 : undefined
+      isTrial: scheduleForm.bookingType === 'trial',
+      trialDurationMinutes: scheduleForm.bookingType === 'trial' ? 30 : undefined
     }
 
-    if (scheduleForm.bookingType === 'single') {
-      // 单次预约
-      bookingData.requestedDate = scheduleForm.singleDate
-      bookingData.requestedStartTime = scheduleForm.singleStartTime
-      bookingData.requestedEndTime = scheduleForm.singleEndTime
+    if (scheduleForm.bookingType === 'trial') {
+      // 试听课预约
+      bookingData.requestedDate = scheduleForm.trialDate
+      bookingData.requestedStartTime = scheduleForm.trialStartTime
+      bookingData.requestedEndTime = scheduleForm.trialEndTime
     } else {
       // 周期性预约
       bookingData.recurringWeekdays = scheduleForm.selectedWeekdays
@@ -565,13 +554,13 @@ const createBookingRequest = async () => {
 
     if (result.success && result.data) {
       let successMessage = ''
-      if (scheduleForm.bookingType === 'single') {
-        successMessage = `预约申请提交成功！${currentTeacher.value?.name} - ${scheduleForm.singleDate} ${scheduleForm.singleStartTime}-${scheduleForm.singleEndTime}${isTrial ? '（30分钟免费试听）' : ''}`
+      if (scheduleForm.bookingType === 'trial') {
+        successMessage = `试听课申请提交成功！${currentTeacher.value?.name} - ${scheduleForm.trialDate} ${scheduleForm.trialStartTime}-${scheduleForm.trialEndTime}（30分钟免费试听）`
       } else {
         const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
         const selectedDays = scheduleForm.selectedWeekdays.map(day => weekdayNames[day]).join('、')
         const selectedTimes = scheduleForm.selectedTimeSlots.join('、')
-        successMessage = `预约申请提交成功！${currentTeacher.value?.name} - 每周${selectedDays} ${selectedTimes}，共${scheduleForm.sessionCount}次课${isTrial ? '（包含30分钟免费试听）' : ''}`
+        successMessage = `预约申请提交成功！${currentTeacher.value?.name} - 每周${selectedDays} ${selectedTimes}，共${scheduleForm.sessionCount}次课`
       }
 
       ElMessage.success({
@@ -1242,19 +1231,31 @@ onMounted(() => {
 
           <el-form-item label="预约类型">
             <el-radio-group v-model="scheduleForm.bookingType" size="large">
-              <el-radio-button label="single">单次预约</el-radio-button>
+              <el-radio-button label="trial">试听课</el-radio-button>
               <el-radio-button label="recurring">周期性预约</el-radio-button>
             </el-radio-group>
-            <div class="form-item-tip">选择单次预约或周期性预约</div>
+            <div class="form-item-tip">
+              <div>试听课：30分钟免费试听，每人仅限一次机会</div>
+              <div>周期性预约：长期课程安排</div>
+            </div>
           </el-form-item>
 
-          <!-- 单次预约表单 -->
-          <template v-if="scheduleForm.bookingType === 'single'">
-            <el-form-item label="上课日期">
+          <!-- 试听课表单 -->
+          <template v-if="scheduleForm.bookingType === 'trial'">
+            <el-alert
+              title="试听课说明"
+              description="试听课固定30分钟，每人仅限一次机会。请选择合适的日期和开始时间，系统将自动设置为30分钟时长。"
+              type="info"
+              show-icon
+              :closable="false"
+              style="margin-bottom: 20px;"
+            />
+
+            <el-form-item label="试听日期">
               <el-date-picker
-                v-model="scheduleForm.singleDate"
+                v-model="scheduleForm.trialDate"
                 type="date"
-                placeholder="选择上课日期"
+                placeholder="选择试听日期"
                 :disabled-date="(date) => date < new Date()"
                 format="YYYY-MM-DD"
                 value-format="YYYY-MM-DD"
@@ -1262,25 +1263,25 @@ onMounted(() => {
               />
             </el-form-item>
 
-            <el-form-item label="上课时间">
+            <el-form-item label="试听时间">
               <div style="display: flex; gap: 10px; align-items: center;">
                 <el-time-select
-                  v-model="scheduleForm.singleStartTime"
+                  v-model="scheduleForm.trialStartTime"
                   start="08:00"
                   step="00:30"
-                  end="22:00"
+                  end="21:30"
                   placeholder="开始时间"
                   style="width: 120px"
+                  @change="updateTrialEndTime"
                 />
                 <span>至</span>
-                <el-time-select
-                  v-model="scheduleForm.singleEndTime"
-                  start="08:00"
-                  step="00:30"
-                  end="22:00"
-                  placeholder="结束时间"
+                <el-input
+                  v-model="scheduleForm.trialEndTime"
+                  placeholder="自动计算"
+                  readonly
                   style="width: 120px"
                 />
+                <el-tag type="success" size="small">固定30分钟</el-tag>
               </div>
             </el-form-item>
           </template>
@@ -1429,12 +1430,12 @@ onMounted(() => {
             @click="createBookingRequest"
             :disabled="
               !selectedCourse ||
-              (scheduleForm.bookingType === 'single'
-                ? !scheduleForm.singleDate || !scheduleForm.singleStartTime || !scheduleForm.singleEndTime
+              (scheduleForm.bookingType === 'trial'
+                ? !scheduleForm.trialDate || !scheduleForm.trialStartTime || !scheduleForm.trialEndTime
                 : scheduleForm.selectedTimeSlots.length === 0 || scheduleForm.selectedWeekdays.length === 0)
             "
           >
-            确认预约
+            {{ scheduleForm.bookingType === 'trial' ? '申请试听' : '确认预约' }}
           </el-button>
         </span>
       </template>
