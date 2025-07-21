@@ -299,7 +299,7 @@ onMounted(() => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right">
+      <el-table-column label="操作" width="280" fixed="right" align="center">
         <template #default="{ row }">
           <div class="operation-buttons">
             <el-button size="small" :icon="Edit" @click="handleEditTeacher(row)">编辑</el-button>
@@ -445,11 +445,37 @@ onMounted(() => {
 .operation-buttons {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  width: 100%;
+  padding: 0 8px;
 }
 
 .operation-buttons .el-button {
   margin: 0;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* 确保操作列标题居中 */
+:deep(.el-table__header-wrapper .el-table__header th:last-child .cell) {
+  text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .operation-buttons {
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+  }
+
+  .operation-buttons .el-button {
+    font-size: 12px;
+    padding: 4px 8px;
+    min-width: 50px;
+  }
 }
 </style>

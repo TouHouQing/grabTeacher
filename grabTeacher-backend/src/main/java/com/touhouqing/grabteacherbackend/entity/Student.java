@@ -40,6 +40,9 @@ public class Student {
     @TableField("budget_range")
     private String budgetRange;
 
+    @TableField("gender")
+    private String gender;
+
     @TableField("is_deleted")
     @Builder.Default
     private Boolean isDeleted = false;

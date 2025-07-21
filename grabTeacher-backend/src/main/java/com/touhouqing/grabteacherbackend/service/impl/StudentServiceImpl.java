@@ -58,6 +58,9 @@ public class StudentServiceImpl implements StudentService {
         if (request.getBudgetRange() != null) {
             student.setBudgetRange(request.getBudgetRange());
         }
+        if (request.getGender() != null) {
+            student.setGender(request.getGender());
+        }
 
         studentMapper.updateById(student);
         log.info("更新学生信息成功: userId={}", userId);

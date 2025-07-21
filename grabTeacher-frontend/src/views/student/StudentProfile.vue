@@ -12,8 +12,16 @@ const studentForm = reactive<StudentInfo>({
   subjectsInterested: '',
   learningGoals: '',
   preferredTeachingStyle: '',
-  budgetRange: ''
+  budgetRange: '',
+  gender: '不愿透露'
 })
+
+// 性别选项
+const genderOptions = [
+  { label: '不愿透露', value: '不愿透露' },
+  { label: '男', value: '男' },
+  { label: '女', value: '女' }
+]
 
 // 密码修改表单
 const passwordForm = reactive<PasswordChangeRequest>({
@@ -135,6 +143,17 @@ onMounted(() => {
               </el-form-item>
               <el-form-item label="真实姓名" required>
                 <el-input v-model="studentForm.realName" placeholder="请输入真实姓名"></el-input>
+              </el-form-item>
+              <el-form-item label="性别">
+                <el-radio-group v-model="studentForm.gender">
+                  <el-radio
+                    v-for="option in genderOptions"
+                    :key="option.value"
+                    :label="option.value"
+                  >
+                    {{ option.label }}
+                  </el-radio>
+                </el-radio-group>
               </el-form-item>
               <el-form-item label="年级">
                 <el-select v-model="studentForm.gradeLevel" placeholder="请选择年级" style="width: 100%">

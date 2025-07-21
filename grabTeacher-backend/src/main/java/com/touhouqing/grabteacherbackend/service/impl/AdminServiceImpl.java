@@ -164,6 +164,7 @@ public class AdminServiceImpl implements AdminService {
                 .learningGoals(request.getLearningGoals())
                 .preferredTeachingStyle(request.getPreferredTeachingStyle())
                 .budgetRange(request.getBudgetRange())
+                .gender(request.getGender() != null ? request.getGender() : "不愿透露")
                 .build();
 
         studentMapper.insert(student);
@@ -185,6 +186,7 @@ public class AdminServiceImpl implements AdminService {
         student.setLearningGoals(request.getLearningGoals());
         student.setPreferredTeachingStyle(request.getPreferredTeachingStyle());
         student.setBudgetRange(request.getBudgetRange());
+        student.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
 
         studentMapper.updateById(student);
         return student;

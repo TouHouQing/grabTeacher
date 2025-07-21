@@ -11,7 +11,8 @@ const loading = ref(false)
 // 搜索表单
 const studentSearchForm = reactive({
   keyword: '',
-  gradeLevel: ''
+  gradeLevel: '',
+  gender: ''
 })
 
 // 分页信息
@@ -31,8 +32,16 @@ const studentForm = reactive({
   subjectsInterested: '',
   learningGoals: '',
   preferredTeachingStyle: '',
-  budgetRange: ''
+  budgetRange: '',
+  gender: '不愿透露'
 })
+
+// 性别选项
+const genderOptions = [
+  { label: '不愿透露', value: '不愿透露' },
+  { label: '男', value: '男' },
+  { label: '女', value: '女' }
+]
 
 // 表单验证规则
 const studentRules = {
@@ -81,6 +90,7 @@ const searchStudents = () => {
 const resetStudentSearch = () => {
   studentSearchForm.keyword = ''
   studentSearchForm.gradeLevel = ''
+  studentSearchForm.gender = ''
   studentPagination.currentPage = 1
   loadStudentList()
 }
@@ -95,7 +105,8 @@ const handleAddStudent = () => {
     subjectsInterested: '',
     learningGoals: '',
     preferredTeachingStyle: '',
-    budgetRange: ''
+    budgetRange: '',
+    gender: '不愿透露'
   })
   studentDialogVisible.value = true
 }
@@ -117,7 +128,8 @@ const saveStudent = async () => {
       subjectsInterested: studentForm.subjectsInterested,
       learningGoals: studentForm.learningGoals,
       preferredTeachingStyle: studentForm.preferredTeachingStyle,
-      budgetRange: studentForm.budgetRange
+      budgetRange: studentForm.budgetRange,
+      gender: studentForm.gender
     }
 
     let result
@@ -208,6 +220,16 @@ onMounted(() => {
             <el-option label="高中" value="高中" />
           </el-select>
         </el-form-item>
+        <el-form-item label="性别">
+          <el-select v-model="studentSearchForm.gender" placeholder="选择性别" clearable style="width: 120px">
+            <el-option
+              v-for="option in genderOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="searchStudents">搜索</el-button>
           <el-button :icon="Refresh" @click="resetStudentSearch">重置</el-button>
@@ -222,11 +244,12 @@ onMounted(() => {
     <el-table :data="studentList" v-loading="loading" stripe style="width: 100%">
       <el-table-column prop="realName" label="姓名" width="120" />
       <el-table-column prop="gradeLevel" label="年级" width="100" />
+      <el-table-column prop="gender" label="性别" width="80" />
       <el-table-column prop="subjectsInterested" label="感兴趣科目" min-width="150" show-overflow-tooltip />
       <el-table-column prop="learningGoals" label="学习目标" min-width="200" show-overflow-tooltip />
       <el-table-column prop="preferredTeachingStyle" label="偏好教学方式" min-width="150" show-overflow-tooltip />
       <el-table-column prop="budgetRange" label="预算范围" width="120" />
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column label="操作" width="180" fixed="right" align="center">
         <template #default="{ row }">
           <div class="operation-buttons">
             <el-button size="small" :icon="Edit" @click="handleEditStudent(row)">编辑</el-button>
@@ -265,6 +288,16 @@ onMounted(() => {
             <el-option label="小学" value="小学" />
             <el-option label="初中" value="初中" />
             <el-option label="高中" value="高中" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="性别">
+          <el-select v-model="studentForm.gender" placeholder="请选择性别" style="width: 100%">
+            <el-option
+              v-for="option in genderOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="感兴趣科目">
@@ -336,11 +369,37 @@ onMounted(() => {
 .operation-buttons {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  width: 100%;
+  padding: 0 8px;
 }
 
 .operation-buttons .el-button {
   margin: 0;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* 确保操作列标题居中 */
+:deep(.el-table__header-wrapper .el-table__header th:last-child .cell) {
+  text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .operation-buttons {
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+  }
+
+  .operation-buttons .el-button {
+    font-size: 12px;
+    padding: 4px 8px;
+    min-width: 50px;
+  }
 }
 </style>

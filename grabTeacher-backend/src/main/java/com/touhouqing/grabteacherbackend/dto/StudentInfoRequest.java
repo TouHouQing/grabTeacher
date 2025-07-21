@@ -14,4 +14,5 @@ public class StudentInfoRequest {
     private String learningGoals;
     private String preferredTeachingStyle;
     private String budgetRange;
-} 
+    private String gender;
+}

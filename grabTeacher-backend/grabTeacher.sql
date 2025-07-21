@@ -11,7 +11,7 @@
  Target Server Version : 90100 (9.1.0)
  File Encoding         : 65001
 
- Date: 20/07/2025 19:36:36
+ Date: 21/07/2025 10:21:48
 */
 
 SET NAMES utf8mb4;
@@ -94,15 +94,16 @@ CREATE TABLE `courses` (
   `grade` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '课程适用年级如[小学一年级,小学二年级]',
   `gender` enum('男','女','不限') DEFAULT '不限' COMMENT '适合性别：男、女、不限',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程信息表，存储教师发布的课程详情';
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程信息表，存储教师发布的课程详情';
 
 -- ----------------------------
 -- Records of courses
 -- ----------------------------
 BEGIN;
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `duration_minutes`, `status`, `created_at`, `is_deleted`, `deleted_at`, `grade`, `gender`) VALUES (1, 7, 1, '666', '222', 'one_on_one', 120, 'active', '2025-07-20 14:05:18', 1, '2025-07-20 14:07:01', NULL, NULL);
-INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `duration_minutes`, `status`, `created_at`, `is_deleted`, `deleted_at`, `grade`, `gender`) VALUES (2, 7, 4, '123', '123', 'one_on_one', 120, 'active', '2025-07-20 14:05:40', 0, NULL, NULL, NULL);
+INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `duration_minutes`, `status`, `created_at`, `is_deleted`, `deleted_at`, `grade`, `gender`) VALUES (2, 7, 4, '123', '123', 'one_on_one', 120, 'active', '2025-07-20 14:05:40', 1, '2025-07-21 09:43:03', NULL, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `duration_minutes`, `status`, `created_at`, `is_deleted`, `deleted_at`, `grade`, `gender`) VALUES (3, 7, 1, '语文', '我爱语文', 'one_on_one', 120, 'active', '2025-07-20 18:45:57', 0, NULL, '小学一年级', NULL);
+INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `duration_minutes`, `status`, `created_at`, `is_deleted`, `deleted_at`, `grade`, `gender`) VALUES (4, 7, 4, '213', '21', 'one_on_one', 120, 'active', '2025-07-21 09:39:14', 1, '2025-07-21 09:43:01', NULL, '不限');
 COMMIT;
 
 -- ----------------------------
@@ -192,6 +193,7 @@ CREATE TABLE `students` (
   `budget_range` varchar(50) DEFAULT NULL COMMENT '预算范围，如：100-200元/小时',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
+  `gender` enum('男','女','不愿透露') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '不愿透露' COMMENT '性别：男、女、不愿透露',
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学生详细信息表，存储学生的个人资料和学习偏好';
@@ -200,7 +202,7 @@ CREATE TABLE `students` (
 -- Records of students
 -- ----------------------------
 BEGIN;
-INSERT INTO `students` (`id`, `user_id`, `real_name`, `grade_level`, `subjects_interested`, `learning_goals`, `preferred_teaching_style`, `budget_range`, `is_deleted`, `deleted_at`) VALUES (6, 10, 'student23', '小学一年级', '数学', '123131123', '实践型教学', '100-200', 0, NULL);
+INSERT INTO `students` (`id`, `user_id`, `real_name`, `grade_level`, `subjects_interested`, `learning_goals`, `preferred_teaching_style`, `budget_range`, `is_deleted`, `deleted_at`, `gender`) VALUES (6, 10, 'student23', '小学一年级', '数学', '123131123', '实践型教学', '100-200', 0, NULL, '不愿透露');
 COMMIT;
 
 -- ----------------------------
@@ -255,7 +257,7 @@ CREATE TABLE `teachers` (
 -- Records of teachers
 -- ----------------------------
 BEGIN;
-INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`, `subjects`, `hourly_rate`, `introduction`, `video_intro_url`, `is_verified`, `is_deleted`, `deleted_at`) VALUES (7, 14, '12355', '硕士研究生', 1, '1231236', '语文,数学', 50.00, '123123555', NULL, 1, 0, NULL);
+INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`, `subjects`, `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`, `deleted_at`) VALUES (7, 14, '12355', '硕士研究生', 1, '1231236', '语文,数学', 50.00, '123123555', NULL, '不愿透露', 1, 0, NULL);
 COMMIT;
 
 -- ----------------------------

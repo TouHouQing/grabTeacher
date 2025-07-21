@@ -43,6 +43,7 @@ public class RegisterRequest {
     private String learningGoals;
     private String preferredTeachingStyle;
     private String budgetRange;
+    private String gender;
 
     // 教师额外信息
     private String educationBackground;

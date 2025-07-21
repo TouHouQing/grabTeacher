@@ -87,6 +87,7 @@ public class AuthServiceImpl implements AuthService {
                         .learningGoals(StringUtils.hasText(registerRequest.getLearningGoals()) ? registerRequest.getLearningGoals() : null)
                         .preferredTeachingStyle(StringUtils.hasText(registerRequest.getPreferredTeachingStyle()) ? registerRequest.getPreferredTeachingStyle() : null)
                         .budgetRange(StringUtils.hasText(registerRequest.getBudgetRange()) ? registerRequest.getBudgetRange() : null)
+                        .gender(StringUtils.hasText(registerRequest.getGender()) ? registerRequest.getGender() : "不愿透露")
                         .isDeleted(false)
                         .build();
                 

@@ -479,32 +479,34 @@ onMounted(() => {
             {{ new Date(row.createdAt).toLocaleDateString() }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="300" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button size="small" :icon="Edit" @click="openEditDialog(row)">
-              编辑
-            </el-button>
-            <el-dropdown @command="(status) => updateCourseStatus(row, status)">
-              <el-button size="small" type="primary">
-                状态<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            <div class="operation-buttons">
+              <el-button size="small" :icon="Edit" @click="openEditDialog(row)">
+                编辑
               </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="active" :disabled="row.status === 'active'">
-                    设为可报名
-                  </el-dropdown-item>
-                  <el-dropdown-item command="inactive" :disabled="row.status === 'inactive'">
-                    设为已下架
-                  </el-dropdown-item>
-                  <el-dropdown-item command="full" :disabled="row.status === 'full'">
-                    设为已满员
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-            <el-button size="small" type="danger" :icon="Delete" @click="deleteCourse(row)">
-              删除
-            </el-button>
+              <el-dropdown @command="(status) => updateCourseStatus(row, status)">
+                <el-button size="small" type="primary">
+                  状态<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="active" :disabled="row.status === 'active'">
+                      设为可报名
+                    </el-dropdown-item>
+                    <el-dropdown-item command="inactive" :disabled="row.status === 'inactive'">
+                      设为已下架
+                    </el-dropdown-item>
+                    <el-dropdown-item command="full" :disabled="row.status === 'full'">
+                      设为已满员
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+              <el-button size="small" type="danger" :icon="Delete" @click="deleteCourse(row)">
+                删除
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -836,5 +838,42 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.operation-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  width: 100%;
+  padding: 0 8px;
+}
+
+.operation-buttons .el-button {
+  margin: 0;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* 确保操作列标题居中 */
+:deep(.el-table__header-wrapper .el-table__header th:last-child .cell) {
+  text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .operation-buttons {
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+  }
+
+  .operation-buttons .el-button {
+    font-size: 12px;
+    padding: 4px 8px;
+    min-width: 50px;
+  }
 }
 </style>

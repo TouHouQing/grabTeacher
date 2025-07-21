@@ -18,6 +18,7 @@ interface ExtendedRegisterRequest {
   learningGoals?: string
   preferredTeachingStyle?: string
   budgetRange?: string
+  gender?: string
 }
 
 const router = useRouter()
@@ -39,7 +40,8 @@ const registerForm = reactive<ExtendedRegisterRequest>({
   subjectsInterested: '',
   learningGoals: '',
   preferredTeachingStyle: '',
-  budgetRange: ''
+  budgetRange: '',
+  gender: '不愿透露'
 })
 
 const selectedSubjects = ref<string[]>([])
@@ -48,6 +50,13 @@ const selectedSubjects = ref<string[]>([])
 const subjectsString = computed(() => {
   return selectedSubjects.value.join(',')
 })
+
+// 性别选项
+const genderOptions = [
+  { label: '不愿透露', value: '不愿透露' },
+  { label: '男', value: '男' },
+  { label: '女', value: '女' }
+]
 
 const validateForm = (): boolean => {
   if (!registerForm.username || registerForm.username.length < 3 || registerForm.username.length > 50) {
@@ -298,6 +307,24 @@ const handleRegister = async () => {
           </div>
 
           <div class="form-group">
+            <label>性别</label>
+            <div class="radio-group">
+              <label
+                v-for="option in genderOptions"
+                :key="option.value"
+                class="radio-option"
+              >
+                <input
+                  v-model="registerForm.gender"
+                  type="radio"
+                  :value="option.value"
+                />
+                <span>{{ option.label }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
             <label for="budgetRange">预算范围（元/小时）</label>
             <select id="budgetRange" v-model="registerForm.budgetRange">
               <option value="">请选择预算范围</option>
@@ -467,6 +494,26 @@ const handleRegister = async () => {
 
 .subjects-select {
   min-height: 120px;
+}
+
+.radio-group {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.radio-option input[type="radio"] {
+  margin: 0;
+  width: auto;
+  height: auto;
 }
 
 .form-group small {

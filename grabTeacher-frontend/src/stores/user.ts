@@ -40,6 +40,7 @@ export interface StudentInfo {
   learningGoals?: string
   preferredTeachingStyle?: string
   budgetRange?: string
+  gender?: string
 }
 
 export interface TeacherInfo {
