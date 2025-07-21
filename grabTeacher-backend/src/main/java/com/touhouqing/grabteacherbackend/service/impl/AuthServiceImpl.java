@@ -165,10 +165,20 @@ public class AuthServiceImpl implements AuthService {
 
             String jwt = jwtUtil.generateToken(authentication);
 
+            // 根据用户类型获取真实姓名
+            String realName = null;
+            if ("student".equals(user.getUserType())) {
+                Student student = studentMapper.findByUserId(user.getId());
+                realName = student != null ? student.getRealName() : null;
+            } else if ("teacher".equals(user.getUserType())) {
+                Teacher teacher = teacherMapper.findByUserId(user.getId());
+                realName = teacher != null ? teacher.getRealName() : null;
+            }
+
             log.info("用户登录成功: {}", user.getEmail());
 
-            return new AuthResponse(jwt, user.getId(), user.getUsername(), 
-                                  user.getEmail(), user.getUserType());
+            return new AuthResponse(jwt, user.getId(), user.getUsername(),
+                                  user.getEmail(), user.getUserType(), realName);
         } catch (BadCredentialsException e) {
             log.warn("登录失败，认证错误: {}", e.getMessage());
             throw new BadCredentialsException("用户名、邮箱或密码错误");

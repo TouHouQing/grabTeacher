@@ -74,7 +74,7 @@ watch(() => route.path, (path) => {
       </el-aside>
       <el-main>
         <div v-if="activeMenu === 'dashboard'" class="dashboard">
-          <h2>欢迎回来，{{ userStore.user?.username }}!</h2>
+          <h2>欢迎回来，{{ userStore.user?.realName }}!</h2>
           <div class="dashboard-stats">
             <div class="stat-card">
               <div class="stat-icon">
