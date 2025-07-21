@@ -1,27 +1,113 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import { HomeFilled, Connection, Document, Reading, ChatLineRound, User, Clock } from '@element-plus/icons-vue'
 import StudentCourses from './components/StudentCourses.vue'
-
 import StudentMessages from './components/StudentMessages.vue'
+import { bookingAPI } from '../../utils/api'
+import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
 const route = useRoute()
 const activeMenu = ref('dashboard')
+const upcomingCourses = ref<UpcomingCourse[]>([])
+const loading = ref(false)
 
 // 根据当前路由设置激活菜单
-watch(() => route.path, (path) => {
+watch(() => route.path, (path: string) => {
   if (path.includes('/profile')) {
     activeMenu.value = 'profile'
-
   } else if (path.includes('/match')) {
     activeMenu.value = 'match'
   } else {
     activeMenu.value = 'dashboard'
   }
 }, { immediate: true })
+
+// 定义课程安排类型
+interface ScheduleResponse {
+  id: number;
+  teacherId: number;
+  teacherName: string;
+  studentId: number;
+  studentName: string;
+  courseId: number;
+  courseTitle: string;
+  scheduledDate: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  [key: string]: any;
+}
+
+// 定义即将开始课程类型
+interface UpcomingCourse {
+  date: string;
+  time: string;
+  course: string;
+  teacher: string;
+  scheduleId: number;
+}
+
+// 获取即将开始的课程
+const loadUpcomingCourses = async () => {
+  try {
+    loading.value = true
+
+    // 获取未来30天的课程安排
+    const startDate = new Date().toISOString().split('T')[0]
+    const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+    const result = await bookingAPI.getStudentSchedules({
+      startDate,
+      endDate
+    })
+
+    if (result.success && result.data) {
+      // 筛选出状态为progressing且日期在今天或之后的课程
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const upcomingSchedules = result.data
+        .filter((schedule: ScheduleResponse) =>
+          schedule.status === 'progressing' &&
+          new Date(schedule.scheduledDate) >= today
+        )
+        .sort((a: ScheduleResponse, b: ScheduleResponse) =>
+          new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
+        )
+        .slice(0, 5) // 只显示最近的5个课程
+
+      // 转换为表格所需的格式
+      upcomingCourses.value = upcomingSchedules.map((schedule: ScheduleResponse): UpcomingCourse => ({
+        date: schedule.scheduledDate,
+        time: `${schedule.startTime}-${schedule.endTime}`,
+        course: schedule.courseTitle || '未指定课程',
+        teacher: schedule.teacherName || '未指定教师',
+        scheduleId: schedule.id
+      }))
+    } else {
+      ElMessage.error(result.message || '获取课程安排失败')
+    }
+  } catch (error) {
+    console.error('获取即将开始的课程失败:', error)
+    ElMessage.error('获取课程安排失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 进入课堂
+const enterClassroom = (scheduleId: number) => {
+  // 跳转到课堂页面
+  window.open(`/classroom/${scheduleId}`, '_blank')
+}
+
+// 页面加载时获取数据
+onMounted(() => {
+  loadUpcomingCourses()
+})
 </script>
 
 <template>
@@ -131,14 +217,22 @@ watch(() => route.path, (path) => {
 
           <div class="upcoming-courses">
             <h3>即将开始的课程</h3>
-            <el-table :data="upcomingCourses" style="width: 100%">
+            <div v-if="loading" class="loading-container">
+              <el-skeleton :rows="3" animated />
+            </div>
+            <el-empty v-else-if="upcomingCourses.length === 0" description="暂无即将开始的课程">
+              <el-button type="primary" @click="loadUpcomingCourses">刷新</el-button>
+            </el-empty>
+            <el-table v-else :data="upcomingCourses" style="width: 100%">
               <el-table-column prop="date" label="日期" width="180" />
               <el-table-column prop="time" label="时间" width="180" />
               <el-table-column prop="course" label="课程" />
               <el-table-column prop="teacher" label="教师" />
               <el-table-column label="操作">
-                <template #default>
-                  <el-button type="primary" size="small">进入课堂</el-button>
+                <template #default="scope">
+                  <el-button type="primary" size="small" @click="enterClassroom(scope.row.scheduleId)">
+                    进入课堂
+                  </el-button>
                 </template>
               </el-table-column>
             </el-table>
@@ -159,35 +253,7 @@ watch(() => route.path, (path) => {
   </div>
 </template>
 
-<script lang="ts">
-export default {
-  name: 'StudentCenterView',
-  data() {
-    return {
-      upcomingCourses: [
-        {
-          date: '2023-07-10',
-          time: '14:00-16:00',
-          course: '初中数学 - 函数与导数',
-          teacher: '张老师'
-        },
-        {
-          date: '2023-07-12',
-          time: '16:00-18:00',
-          course: '初中物理 - 力学与电学',
-          teacher: '王老师'
-        },
-        {
-          date: '2023-07-15',
-          time: '10:00-12:00',
-          course: '初中数学 - 函数与导数',
-          teacher: '张老师'
-        }
-      ]
-    }
-  }
-}
-</script>
+
 
 <style scoped>
 .student-center {
@@ -448,6 +514,10 @@ export default {
   .recent-activities h3 {
     font-size: 16px;
     margin-bottom: 12px;
+  }
+
+  .loading-container {
+    padding: 20px;
   }
 
   .action-buttons {
