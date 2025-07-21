@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, Timer, Refresh, Check } from '@element-plus/icons-vue'
-import { bookingAPI } from '@/utils/api'
+import { Calendar, Timer, Refresh, Check, VideoCamera, ChatDotRound, InfoFilled, Download } from '@element-plus/icons-vue'
+import { bookingAPI, rescheduleAPI } from '@/utils/api'
 
 // 课程安排接口（基于后端ScheduleResponseDTO）
 interface CourseSchedule {
@@ -89,6 +89,8 @@ const loadStudentSchedules = async () => {
       schedules.value = result.data
       // 将课程安排转换为课程列表
       courses.value = convertSchedulesToCourses(result.data)
+      // 加载调课申请状态
+      await loadRescheduleStatus()
     } else {
       ElMessage.error(result.message || '获取课程安排失败')
     }
@@ -135,7 +137,8 @@ const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => 
     let status: 'active' | 'completed' | 'upcoming' = 'active'
     if (progress === 100) {
       status = 'completed'
-    } else if (scheduleGroup.every(s => new Date(s.scheduledDate) > new Date())) {
+    } else if (completedCount === 0 && scheduleGroup.every(s => new Date(s.scheduledDate) > new Date())) {
+      // 只有当没有任何课程已完成且所有课程都在未来时，才设置为 upcoming
       status = 'upcoming'
     }
 
@@ -231,6 +234,9 @@ const availableTimeSlots = ref<string[]>([
 // 调课申请记录
 const rescheduleRequests = ref<RescheduleRequest[]>([])
 
+// 课程调课状态映射
+const courseRescheduleStatus = ref<Map<number, string>>(new Map())
+
 const showCourseDetail = (course: Course) => {
   currentCourse.value = course
   detailDialogVisible.value = true
@@ -241,10 +247,23 @@ const showReschedule = (course: Course) => {
   currentRescheduleCourse.value = course
   rescheduleType.value = 'single'
 
-  // 重置表单
+  // 找到下次课程（最近的未来课程）
+  const nextSchedule = course.schedules?.find(s =>
+    new Date(s.scheduledDate) > new Date() && s.status === 'progressing'
+  )
+
+  let originalDate = ''
+  let originalTime = ''
+
+  if (nextSchedule) {
+    originalDate = nextSchedule.scheduledDate
+    originalTime = `${nextSchedule.startTime}-${nextSchedule.endTime}`
+  }
+
+  // 重置表单并设置原定课程信息
   rescheduleForm.value = {
-    originalDate: '',
-    originalTime: '',
+    originalDate,
+    originalTime,
     newDate: '',
     newTime: '',
     selectedWeekdays: [],
@@ -290,7 +309,7 @@ const getWeekdayName = (weekday: number): string => {
 }
 
 // 提交调课申请
-const submitReschedule = () => {
+const submitReschedule = async () => {
   if (!currentRescheduleCourse.value) return
 
   // 验证表单
@@ -324,37 +343,85 @@ const submitReschedule = () => {
     return
   }
 
-  // 创建调课申请
-  const newRequest: RescheduleRequest = {
-    courseId: currentRescheduleCourse.value.id,
-    type: rescheduleType.value,
-    reason: rescheduleForm.value.reason,
-    applyDate: new Date().toISOString().split('T')[0],
-    status: 'pending'
-  }
-
-  if (rescheduleType.value === 'single') {
-    newRequest.originalDate = rescheduleForm.value.originalDate
-    newRequest.originalTime = rescheduleForm.value.originalTime
-    newRequest.newDate = rescheduleForm.value.newDate
-    newRequest.newTime = rescheduleForm.value.newTime
-  } else {
-    const weekdayNames = rescheduleForm.value.selectedWeekdays.map(day => getWeekdayName(day))
-    newRequest.newWeeklySchedule = rescheduleForm.value.selectedTimeSlots.map(time =>
-      `${weekdayNames.join('、')} ${time}`
+  try {
+    // 获取最近的课程安排ID（用于调课申请）
+    const nextSchedule = currentRescheduleCourse.value.schedules?.find(s =>
+      new Date(s.scheduledDate) > new Date() && s.status === 'progressing'
     )
+
+    if (!nextSchedule) {
+      ElMessage.error('没有找到可调课的课程安排')
+      return
+    }
+
+    // 构建调课申请数据
+    const requestData = {
+      scheduleId: nextSchedule.id,
+      requestType: rescheduleType.value,
+      reason: rescheduleForm.value.reason,
+      urgencyLevel: 'medium' as const
+    }
+
+    if (rescheduleType.value === 'single') {
+      Object.assign(requestData, {
+        newDate: rescheduleForm.value.newDate,
+        newStartTime: rescheduleForm.value.newTime.split('-')[0],
+        newEndTime: rescheduleForm.value.newTime.split('-')[1]
+      })
+    } else {
+      Object.assign(requestData, {
+        newRecurringWeekdays: rescheduleForm.value.selectedWeekdays,
+        newRecurringTimeSlots: rescheduleForm.value.selectedTimeSlots
+      })
+    }
+
+    // 调用API提交申请
+    const result = await rescheduleAPI.createRequest(requestData)
+
+    if (result.success) {
+      ElMessage.success('调课申请已提交，等待老师确认')
+      showRescheduleModal.value = false
+
+      // 刷新课程列表以更新状态
+      await loadStudentSchedules()
+    } else {
+      ElMessage.error(result.message || '提交调课申请失败')
+    }
+  } catch (error) {
+    console.error('提交调课申请失败:', error)
+    ElMessage.error('提交调课申请失败，请稍后重试')
   }
-
-  rescheduleRequests.value.push(newRequest)
-
-  ElMessage.success('调课申请已提交，等待老师确认')
-  showRescheduleModal.value = false
 }
 
 // 获取调课申请状态
 const getRescheduleStatus = (courseId: number) => {
-  const request = rescheduleRequests.value.find(r => r.courseId === courseId && r.status === 'pending')
-  return request ? '调课申请中' : null
+  return courseRescheduleStatus.value.get(courseId) || null
+}
+
+// 加载学生的调课申请状态
+const loadRescheduleStatus = async () => {
+  try {
+    const result = await rescheduleAPI.getStudentRequests({
+      page: 1,
+      size: 100,
+      status: 'pending'
+    })
+
+    if (result.success && result.data?.records) {
+      courseRescheduleStatus.value.clear()
+      result.data.records.forEach((request: any) => {
+        // 根据scheduleId找到对应的课程
+        const course = courses.value.find(c =>
+          c.schedules?.some(s => s.id === request.scheduleId)
+        )
+        if (course) {
+          courseRescheduleStatus.value.set(course.id, '调课申请中')
+        }
+      })
+    }
+  } catch (error) {
+    console.error('加载调课申请状态失败:', error)
+  }
 }
 
 // 格式化日期显示
@@ -363,24 +430,7 @@ const formatDate = (dateStr: string): string => {
   return `${date.getMonth() + 1}月${date.getDate()}日`
 }
 
-// 获取下周的日期选项（用于单次调课的原定日期）
-const getUpcomingDates = (): { label: string, value: string }[] => {
-  const dates = []
-  const today = new Date()
 
-  for (let i = 0; i < 14; i++) {
-    const date = new Date(today)
-    date.setDate(today.getDate() + i)
-
-    const dateStr = date.toISOString().split('T')[0]
-    const weekday = getWeekdayName(date.getDay())
-    const label = `${formatDate(dateStr)} ${weekday}`
-
-    dates.push({ label, value: dateStr })
-  }
-
-  return dates
-}
 
 // 下载学习资料
 const downloadMaterials = (courseId: number) => {
@@ -468,17 +518,17 @@ export default {
                     <el-button size="small" type="primary" @click="enterClassroom(course)">
                       <el-icon><VideoCamera /></el-icon> 进入课堂
                     </el-button>
+                    <el-button size="small" type="success" @click="contactTeacher(course.teacher)">
+                      <el-icon><ChatDotRound /></el-icon> 联系教师
+                    </el-button>
                     <el-button
-                      v-if="course.status === 'active' && course.remainingLessons && course.remainingLessons > 0"
+                      v-if="course.remainingLessons && course.remainingLessons > 0"
                       size="small"
                       type="warning"
                       @click="showReschedule(course)"
                       :disabled="!!getRescheduleStatus(course.id)"
                     >
                       <el-icon><Refresh /></el-icon> 调课
-                    </el-button>
-                    <el-button size="small" type="success" @click="contactTeacher(course.teacher)">
-                      <el-icon><ChatDotRound /></el-icon> 联系教师
                     </el-button>
                     <el-button size="small" type="info" @click="showCourseDetail(course)">
                       <el-icon><InfoFilled /></el-icon> 详情
@@ -526,6 +576,15 @@ export default {
                     </el-button>
                     <el-button size="small" type="success" @click="contactTeacher(course.teacher)">
                       <el-icon><ChatDotRound /></el-icon> 联系教师
+                    </el-button>
+                    <el-button
+                      v-if="course.remainingLessons && course.remainingLessons > 0"
+                      size="small"
+                      type="warning"
+                      @click="showReschedule(course)"
+                      :disabled="!!getRescheduleStatus(course.id)"
+                    >
+                      <el-icon><Refresh /></el-icon> 调课
                     </el-button>
                     <el-button size="small" type="info" @click="showCourseDetail(course)">
                       <el-icon><InfoFilled /></el-icon> 详情
@@ -757,23 +816,20 @@ export default {
         <div v-if="rescheduleType === 'single'" class="single-reschedule-form">
           <el-form :model="rescheduleForm" label-width="120px">
             <el-form-item label="原定课程">
-              <div class="original-schedule-group">
-                <el-select v-model="rescheduleForm.originalDate" placeholder="选择原定日期" style="width: 200px;">
-                  <el-option
-                    v-for="date in getUpcomingDates()"
-                    :key="date.value"
-                    :label="date.label"
-                    :value="date.value"
-                  />
-                </el-select>
-                <el-select v-model="rescheduleForm.originalTime" placeholder="选择原定时间" style="width: 150px;">
-                  <el-option
-                    v-for="time in availableTimeSlots"
-                    :key="time"
-                    :label="time"
-                    :value="time"
-                  />
-                </el-select>
+              <div class="original-schedule-display">
+                <div class="schedule-info">
+                  <el-tag type="info" size="large">
+                    <el-icon><Calendar /></el-icon>
+                    {{ rescheduleForm.originalDate ? new Date(rescheduleForm.originalDate).toLocaleDateString('zh-CN') : '未选择日期' }}
+                  </el-tag>
+                  <el-tag type="info" size="large">
+                    <el-icon><Timer /></el-icon>
+                    {{ rescheduleForm.originalTime || '未选择时间' }}
+                  </el-tag>
+                </div>
+                <div class="schedule-note">
+                  <el-text type="info" size="small">* 将调整下次即将到来的课程</el-text>
+                </div>
               </div>
             </el-form-item>
 
@@ -1293,6 +1349,33 @@ h2 {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* 原定课程显示样式 */
+.original-schedule-display {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.schedule-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.schedule-info .el-tag {
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.schedule-info .el-icon {
+  margin-right: 6px;
+}
+
+.schedule-note {
+  margin-top: 4px;
 }
 
 @media (max-width: 768px) {

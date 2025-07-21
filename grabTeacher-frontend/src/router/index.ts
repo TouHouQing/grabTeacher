@@ -96,6 +96,12 @@ const router = createRouter({
           name: 'TeacherCourses',
           component: () => import('../views/teacher/components/TeacherCourses.vue'),
           meta: { requiresAuth: true, role: 'teacher' }
+        },
+        {
+          path: 'reschedule',
+          name: 'TeacherReschedule',
+          component: () => import('../views/teacher/RescheduleManagement.vue'),
+          meta: { requiresAuth: true, role: 'teacher' }
         }
       ]
     },

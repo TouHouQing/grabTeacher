@@ -487,3 +487,80 @@ export const courseAPI = {
     method: 'PATCH'
   })
 }
+
+// 调课管理 API
+export const rescheduleAPI = {
+  // 创建调课申请（学生操作）
+  createRequest: (data: {
+    scheduleId: number
+    requestType: 'single' | 'recurring' | 'cancel'
+    newDate?: string
+    newStartTime?: string
+    newEndTime?: string
+    newRecurringWeekdays?: number[]
+    newRecurringTimeSlots?: string[]
+    reason: string
+    urgencyLevel?: 'low' | 'medium' | 'high'
+    advanceNoticeHours?: number
+    effectiveDate?: string
+    notes?: string
+  }) => apiRequest('/api/reschedule/request', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  // 教师审批调课申请
+  approve: (id: number, data: {
+    status: 'approved' | 'rejected'
+    reviewNotes?: string
+    compensationAmount?: number
+    effectiveDate?: string
+  }) => apiRequest(`/api/reschedule/${id}/approve`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  // 取消调课申请（学生操作）
+  cancel: (id: number) => apiRequest(`/api/reschedule/${id}/cancel`, {
+    method: 'PUT'
+  }),
+
+  // 获取学生的调课申请列表
+  getStudentRequests: (params: {
+    page?: number
+    size?: number
+    status?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/reschedule/student/requests?${searchParams}`)
+  },
+
+  // 获取教师需要审批的调课申请列表
+  getTeacherRequests: (params: {
+    page?: number
+    size?: number
+    status?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/reschedule/teacher/requests?${searchParams}`)
+  },
+
+  // 根据ID获取调课申请详情
+  getById: (id: number) => apiRequest(`/api/reschedule/${id}`),
+
+  // 获取教师待处理的调课申请数量
+  getPendingCount: () => apiRequest('/api/reschedule/teacher/pending-count'),
+
+  // 检查是否可以申请调课
+  canApply: (scheduleId: number) => apiRequest(`/api/reschedule/can-apply/${scheduleId}`)
+}

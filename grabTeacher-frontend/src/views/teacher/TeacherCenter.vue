@@ -46,6 +46,8 @@ watch(() => route.path, (path: string) => {
     activeMenu.value = 'courses'
   } else if (path.includes('/bookings')) {
     activeMenu.value = 'bookings'
+  } else if (path.includes('/reschedule')) {
+    activeMenu.value = 'reschedule'
   } else if (path.includes('/messages')) {
     activeMenu.value = 'messages'
   } else {
@@ -135,6 +137,10 @@ onMounted(() => {
             <el-menu-item index="courses" @click="$router.push('/teacher-center/courses')">
               <el-icon><Reading /></el-icon>
               <span>课程管理</span>
+            </el-menu-item>
+            <el-menu-item index="reschedule" @click="$router.push('/teacher-center/reschedule')">
+              <el-icon><Calendar /></el-icon>
+              <span>调课管理</span>
             </el-menu-item>
             <el-menu-item index="messages">
               <el-icon><ChatLineRound /></el-icon>
