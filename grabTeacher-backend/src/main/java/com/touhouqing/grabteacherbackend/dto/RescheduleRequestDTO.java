@@ -23,11 +23,11 @@ import java.util.List;
 public class RescheduleRequestDTO {
 
     @NotNull(message = "课程安排ID不能为空")
-    @Schema(description = "原课程安排ID", example = "1", required = true)
+    @Schema(description = "原课程安排ID", example = "1")
     private Long scheduleId;
 
     @NotBlank(message = "申请类型不能为空")
-    @Schema(description = "申请类型", example = "single", allowableValues = {"single", "recurring", "cancel"}, required = true)
+    @Schema(description = "申请类型", example = "single", allowableValues = {"single", "recurring", "cancel"})
     private String requestType;
 
     // 单次调课相关字段
@@ -48,10 +48,11 @@ public class RescheduleRequestDTO {
     private List<String> newRecurringTimeSlots;
 
     @NotBlank(message = "调课原因不能为空")
-    @Schema(description = "调课原因", example = "临时有事无法参加", required = true)
+    @Schema(description = "调课原因", example = "临时有事无法参加")
     private String reason;
 
     @Schema(description = "紧急程度", example = "medium", allowableValues = {"low", "medium", "high"})
+    @Builder.Default()
     private String urgencyLevel = "medium";
 
     @Schema(description = "提前通知小时数", example = "24")

@@ -2,6 +2,7 @@ package com.touhouqing.grabteacherbackend.config;
 
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -10,6 +11,20 @@ import java.util.Base64;
 
 @Configuration
 public class JwtConfig {
+
+    /**
+     * JWT密钥，从环境变量读取，如果环境变量不存在则使用默认值
+     * 环境变量名：JWT_SECRET
+     */
+    @Value("${JWT_SECRET}")
+    private String jwtSecret;
+
+    /**
+     * JWT过期时间（毫秒），从环境变量读取，如果环境变量不存在则使用默认值
+     * 环境变量名：JWT_EXPIRATION
+     */
+    @Value("${JWT_EXPIRATION}")
+    private long jwtExpiration;
 
     @Bean
     public SecretKey jwtSecretKey() {
@@ -23,4 +38,4 @@ public class JwtConfig {
         SecretKey key = Keys.secretKeyFor(SignatureAlgorithm.HS512);
         return Base64.getEncoder().encodeToString(key.getEncoded());
     }
-} 
+}

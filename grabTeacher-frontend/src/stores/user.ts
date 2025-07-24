@@ -76,7 +76,7 @@ export const useUserStore = defineStore('user', () => {
   const isAdmin = computed(() => user.value?.userType === 'admin')
 
   // API 基础配置
-  const API_BASE_URL = 'http://localhost:8080/api'
+  const API_BASE_URL = 'http://grabteacher.ltd'
 
   // 设置用户信息
   const setUser = (userData: User) => {
@@ -99,7 +99,7 @@ export const useUserStore = defineStore('user', () => {
   // 用户注册
   const register = async (registerData: RegisterRequest): Promise<ApiResponse<User>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +126,7 @@ export const useUserStore = defineStore('user', () => {
   // 用户登录
   const login = async (loginData: LoginRequest): Promise<ApiResponse<User>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -154,7 +154,7 @@ export const useUserStore = defineStore('user', () => {
   const logout = async (): Promise<void> => {
     try {
       if (token.value) {
-        await fetch(`${API_BASE_URL}/auth/logout`, {
+        await fetch(`${API_BASE_URL}/api/auth/logout`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -179,7 +179,7 @@ export const useUserStore = defineStore('user', () => {
 
         // 验证token有效性并获取用户信息
         try {
-          const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
             headers: {
               'Authorization': `Bearer ${storedToken}`,
             },
@@ -230,7 +230,7 @@ export const useUserStore = defineStore('user', () => {
   // 获取学生信息
   const getStudentProfile = async (): Promise<ApiResponse<StudentInfo>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/student/profile`, {
+      const response = await fetch(`${API_BASE_URL}/api/student/profile`, {
         headers: {
           'Authorization': `Bearer ${token.value}`,
         },
@@ -248,7 +248,7 @@ export const useUserStore = defineStore('user', () => {
   // 更新学生信息
   const updateStudentProfile = async (data: Partial<StudentInfo>): Promise<ApiResponse<StudentInfo>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/student/profile`, {
+      const response = await fetch(`${API_BASE_URL}/api/student/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -269,7 +269,7 @@ export const useUserStore = defineStore('user', () => {
   // 获取教师信息
   const getTeacherProfile = async (): Promise<ApiResponse<TeacherInfo>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/teacher/profile`, {
+      const response = await fetch(`${API_BASE_URL}/api/teacher/profile`, {
         headers: {
           'Authorization': `Bearer ${token.value}`,
         },
@@ -287,7 +287,7 @@ export const useUserStore = defineStore('user', () => {
   // 更新教师信息
   const updateTeacherProfile = async (data: Partial<TeacherInfo>): Promise<ApiResponse<TeacherInfo>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/teacher/profile`, {
+      const response = await fetch(`${API_BASE_URL}/api/teacher/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -308,7 +308,7 @@ export const useUserStore = defineStore('user', () => {
   // 修改密码
   const changePassword = async (data: PasswordChangeRequest): Promise<ApiResponse<string>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/user/change-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/user/change-password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -329,7 +329,7 @@ export const useUserStore = defineStore('user', () => {
   // 管理员登录
   const adminLogin = async (loginData: LoginRequest): Promise<ApiResponse<User>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/admin/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

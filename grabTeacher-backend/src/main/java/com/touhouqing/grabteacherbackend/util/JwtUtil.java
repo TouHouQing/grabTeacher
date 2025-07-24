@@ -2,7 +2,6 @@ package com.touhouqing.grabteacherbackend.util;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
@@ -15,10 +14,10 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret}")
+    @Value("${JWT_SECRET}")
     private String jwtSecret;
 
-    @Value("${jwt.expiration}")
+    @Value("${JWT_EXPIRATION}")
     private int jwtExpirationInMs;
 
     // 可选：使用自动生成的密钥

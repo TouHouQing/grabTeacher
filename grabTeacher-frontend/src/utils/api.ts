@@ -1,5 +1,5 @@
 // API基础配置
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+const API_BASE_URL = 'http://grabteacher.ltd'
 
 // 创建API请求函数
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
@@ -13,6 +13,9 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
   const token = localStorage.getItem('token')
   if (token) {
     defaultHeaders['Authorization'] = `Bearer ${token}`
+    console.log('API请求包含token:', token.substring(0, 20) + '...')
+  } else {
+    console.log('API请求没有token')
   }
 
   const config: RequestInit = {
@@ -23,10 +26,23 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
     },
   }
 
+  console.log('API请求:', {
+    url,
+    method: config.method || 'GET',
+    headers: config.headers
+  })
+
   try {
     const response = await fetch(url, config)
 
+    console.log('API响应状态:', response.status)
+
     if (!response.ok) {
+      if (response.status === 401) {
+        console.error('401错误 - 认证失败，可能token无效或过期')
+        // 如果是401错误，清除本地token
+        localStorage.removeItem('token')
+      }
       throw new Error(`HTTP error! status: ${response.status}`)
     }
 
