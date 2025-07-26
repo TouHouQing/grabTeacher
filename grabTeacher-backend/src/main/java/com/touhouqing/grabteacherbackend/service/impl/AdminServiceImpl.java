@@ -4,12 +4,16 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.touhouqing.grabteacherbackend.entity.Student;
+import com.touhouqing.grabteacherbackend.entity.StudentSubject;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
+import com.touhouqing.grabteacherbackend.entity.TeacherSubject;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
+import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
+import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.UserMapper;
 import com.touhouqing.grabteacherbackend.service.AdminService;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +36,9 @@ public class AdminServiceImpl implements AdminService {
 
     private final UserMapper userMapper;
     private final StudentMapper studentMapper;
+    private final StudentSubjectMapper studentSubjectMapper;
     private final TeacherMapper teacherMapper;
+    private final TeacherSubjectMapper teacherSubjectMapper;
     @Autowired
     private PasswordEncoder passwordEncoder;
 
@@ -168,6 +174,15 @@ public class AdminServiceImpl implements AdminService {
                 .build();
 
         studentMapper.insert(student);
+
+        // 处理学生感兴趣的科目关联
+        if (request.getSubjectIds() != null && !request.getSubjectIds().isEmpty()) {
+            for (Long subjectId : request.getSubjectIds()) {
+                StudentSubject studentSubject = new StudentSubject(student.getId(), subjectId);
+                studentSubjectMapper.insert(studentSubject);
+            }
+        }
+
         return student;
     }
 
@@ -189,6 +204,21 @@ public class AdminServiceImpl implements AdminService {
         student.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
 
         studentMapper.updateById(student);
+
+        // 更新学生感兴趣的科目关联
+        if (request.getSubjectIds() != null) {
+            // 先删除现有的科目关联
+            studentSubjectMapper.deleteByStudentId(studentId);
+
+            // 添加新的科目关联
+            if (!request.getSubjectIds().isEmpty()) {
+                for (Long subjectId : request.getSubjectIds()) {
+                    StudentSubject studentSubject = new StudentSubject(studentId, subjectId);
+                    studentSubjectMapper.insert(studentSubject);
+                }
+            }
+        }
+
         return student;
     }
 
@@ -260,7 +290,6 @@ public class AdminServiceImpl implements AdminService {
                 .educationBackground(request.getEducationBackground())
                 .teachingExperience(request.getTeachingExperience())
                 .specialties(request.getSpecialties())
-                .subjects(request.getSubjects())
                 .hourlyRate(request.getHourlyRate())
                 .introduction(request.getIntroduction())
                 .videoIntroUrl(request.getVideoIntroUrl())
@@ -268,6 +297,15 @@ public class AdminServiceImpl implements AdminService {
                 .build();
 
         teacherMapper.insert(teacher);
+
+        // 处理教师科目关联
+        if (request.getSubjectIds() != null && !request.getSubjectIds().isEmpty()) {
+            for (Long subjectId : request.getSubjectIds()) {
+                TeacherSubject teacherSubject = new TeacherSubject(teacher.getId(), subjectId);
+                teacherSubjectMapper.insert(teacherSubject);
+            }
+        }
+
         return teacher;
     }
 
@@ -284,13 +322,26 @@ public class AdminServiceImpl implements AdminService {
         teacher.setEducationBackground(request.getEducationBackground());
         teacher.setTeachingExperience(request.getTeachingExperience());
         teacher.setSpecialties(request.getSpecialties());
-        teacher.setSubjects(request.getSubjects());
         teacher.setHourlyRate(request.getHourlyRate());
         teacher.setIntroduction(request.getIntroduction());
         teacher.setVideoIntroUrl(request.getVideoIntroUrl());
         teacher.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
 
         teacherMapper.updateById(teacher);
+
+        // 更新教师科目关联
+        if (request.getSubjectIds() != null) {
+            // 先删除原有关联
+            teacherSubjectMapper.deleteByTeacherId(teacherId);
+            // 添加新的关联
+            if (!request.getSubjectIds().isEmpty()) {
+                for (Long subjectId : request.getSubjectIds()) {
+                    TeacherSubject teacherSubject = new TeacherSubject(teacherId, subjectId);
+                    teacherSubjectMapper.insert(teacherSubject);
+                }
+            }
+        }
+
         return teacher;
     }
 
@@ -327,5 +378,15 @@ public class AdminServiceImpl implements AdminService {
 
         teacher.setIsVerified(isVerified);
         teacherMapper.updateById(teacher);
+    }
+
+    @Override
+    public List<Long> getTeacherSubjects(Long teacherId) {
+        return teacherSubjectMapper.getSubjectIdsByTeacherId(teacherId);
+    }
+
+    @Override
+    public List<Long> getStudentSubjects(Long studentId) {
+        return studentSubjectMapper.getSubjectIdsByStudentId(studentId);
     }
 }

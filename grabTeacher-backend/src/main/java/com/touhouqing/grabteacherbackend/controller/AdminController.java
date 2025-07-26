@@ -6,7 +6,11 @@ import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
+import com.touhouqing.grabteacherbackend.dto.GradeRequest;
+import com.touhouqing.grabteacherbackend.dto.GradeResponse;
 import com.touhouqing.grabteacherbackend.service.AdminService;
+import com.touhouqing.grabteacherbackend.service.GradeService;
+import jakarta.validation.Valid;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,6 +38,9 @@ public class AdminController {
 
     @Autowired
     private AdminService adminService;
+
+    @Autowired
+    private GradeService gradeService;
 
     /**
      * 获取系统统计信息
@@ -321,4 +328,134 @@ public class AdminController {
                     .body(ApiResponse.error("审核失败"));
         }
     }
-} 
+
+    /**
+     * 获取教师科目列表
+     */
+    @Operation(summary = "获取教师科目列表", description = "获取指定教师的科目ID列表")
+    @GetMapping("/teachers/{teacherId}/subjects")
+    public ResponseEntity<ApiResponse<List<Long>>> getTeacherSubjects(@PathVariable Long teacherId) {
+        try {
+            List<Long> subjectIds = adminService.getTeacherSubjects(teacherId);
+            return ResponseEntity.ok(ApiResponse.success("获取成功", subjectIds));
+        } catch (Exception e) {
+            logger.error("获取教师科目异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("获取失败"));
+        }
+    }
+
+    /**
+     * 获取学生感兴趣的科目列表
+     */
+    @Operation(summary = "获取学生科目列表", description = "获取指定学生感兴趣的科目ID列表")
+    @GetMapping("/students/{studentId}/subjects")
+    public ResponseEntity<ApiResponse<List<Long>>> getStudentSubjects(@PathVariable Long studentId) {
+        try {
+            List<Long> subjectIds = adminService.getStudentSubjects(studentId);
+            return ResponseEntity.ok(ApiResponse.success("获取成功", subjectIds));
+        } catch (Exception e) {
+            logger.error("获取学生科目异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("获取失败"));
+        }
+    }
+
+    // ==================== 年级管理接口 ====================
+
+    /**
+     * 获取所有年级列表
+     */
+    @Operation(summary = "获取所有年级列表", description = "获取系统中所有年级信息")
+    @GetMapping("/grades")
+    public ResponseEntity<ApiResponse<List<GradeResponse>>> getAllGrades() {
+        try {
+            List<GradeResponse> grades = gradeService.getAllGrades();
+            return ResponseEntity.ok(ApiResponse.success("获取成功", grades));
+        } catch (Exception e) {
+            logger.error("获取年级列表异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("获取失败"));
+        }
+    }
+
+    /**
+     * 根据ID获取年级信息
+     */
+    @Operation(summary = "根据ID获取年级信息", description = "根据年级ID获取详细信息")
+    @GetMapping("/grades/{id}")
+    public ResponseEntity<ApiResponse<GradeResponse>> getGradeById(@PathVariable Long id) {
+        try {
+            GradeResponse grade = gradeService.getGradeById(id);
+            return ResponseEntity.ok(ApiResponse.success("获取成功", grade));
+        } catch (RuntimeException e) {
+            logger.warn("获取年级失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("获取年级异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("获取失败"));
+        }
+    }
+
+    /**
+     * 创建年级
+     */
+    @Operation(summary = "创建年级", description = "创建新的年级")
+    @PostMapping("/grades")
+    public ResponseEntity<ApiResponse<GradeResponse>> createGrade(@Valid @RequestBody GradeRequest request) {
+        try {
+            GradeResponse grade = gradeService.createGrade(request);
+            return ResponseEntity.ok(ApiResponse.success("创建成功", grade));
+        } catch (RuntimeException e) {
+            logger.warn("创建年级失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("创建年级异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("创建失败"));
+        }
+    }
+
+    /**
+     * 更新年级
+     */
+    @Operation(summary = "更新年级", description = "更新年级信息")
+    @PutMapping("/grades/{id}")
+    public ResponseEntity<ApiResponse<GradeResponse>> updateGrade(@PathVariable Long id, @Valid @RequestBody GradeRequest request) {
+        try {
+            GradeResponse grade = gradeService.updateGrade(id, request);
+            return ResponseEntity.ok(ApiResponse.success("更新成功", grade));
+        } catch (RuntimeException e) {
+            logger.warn("更新年级失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("更新年级异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("更新失败"));
+        }
+    }
+
+    /**
+     * 删除年级
+     */
+    @Operation(summary = "删除年级", description = "删除指定年级")
+    @DeleteMapping("/grades/{id}")
+    public ResponseEntity<ApiResponse<String>> deleteGrade(@PathVariable Long id) {
+        try {
+            gradeService.deleteGrade(id);
+            return ResponseEntity.ok(ApiResponse.success("删除成功", "删除成功"));
+        } catch (RuntimeException e) {
+            logger.warn("删除年级失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("删除年级异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("删除失败"));
+        }
+    }
+}

@@ -2,11 +2,13 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue'
-import { studentAPI } from '../../../utils/api'
+import { studentAPI, gradeApi } from '../../../utils/api'
 
 // 学生列表
 const studentList = ref([])
 const loading = ref(false)
+const availableGrades = ref([])
+const loadingGrades = ref(false)
 
 // 搜索表单
 const studentSearchForm = reactive({
@@ -190,8 +192,24 @@ const handleStudentSizeChange = (size: number) => {
   loadStudentList()
 }
 
+// 获取年级列表
+const loadGrades = async () => {
+  try {
+    loadingGrades.value = true
+    const response = await gradeApi.getAll()
+    if (response.success && response.data) {
+      availableGrades.value = response.data
+    }
+  } catch (error) {
+    console.error('获取年级列表失败:', error)
+  } finally {
+    loadingGrades.value = false
+  }
+}
+
 onMounted(() => {
   loadStudentList()
+  loadGrades()
 })
 </script>
 
@@ -214,10 +232,13 @@ onMounted(() => {
           />
         </el-form-item>
         <el-form-item label="年级">
-          <el-select v-model="studentSearchForm.gradeLevel" placeholder="选择年级" clearable style="width: 150px">
-            <el-option label="小学" value="小学" />
-            <el-option label="初中" value="初中" />
-            <el-option label="高中" value="高中" />
+          <el-select v-model="studentSearchForm.gradeLevel" placeholder="选择年级" clearable style="width: 200px" :loading="loadingGrades">
+            <el-option
+              v-for="grade in availableGrades"
+              :key="grade.id"
+              :label="grade.gradeName"
+              :value="grade.gradeName"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="性别">
@@ -284,10 +305,13 @@ onMounted(() => {
           <el-input v-model="studentForm.realName" placeholder="请输入学生姓名" />
         </el-form-item>
         <el-form-item label="年级">
-          <el-select v-model="studentForm.gradeLevel" placeholder="请选择年级" style="width: 100%">
-            <el-option label="小学" value="小学" />
-            <el-option label="初中" value="初中" />
-            <el-option label="高中" value="高中" />
+          <el-select v-model="studentForm.gradeLevel" placeholder="请选择年级" style="width: 100%" :loading="loadingGrades">
+            <el-option
+              v-for="grade in availableGrades"
+              :key="grade.id"
+              :label="grade.gradeName"
+              :value="grade.gradeName"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="性别">

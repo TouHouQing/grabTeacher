@@ -27,7 +27,6 @@ const subjectDialogTitle = ref('')
 const subjectForm = reactive({
   id: 0,
   name: '',
-  gradeLevels: '',
   iconUrl: '',
   isActive: true
 })
@@ -92,7 +91,6 @@ const handleAddSubject = () => {
   Object.assign(subjectForm, {
     id: 0,
     name: '',
-    gradeLevels: '',
     iconUrl: '',
     isActive: true
   })
@@ -112,7 +110,6 @@ const saveSubject = async () => {
     loading.value = true
     const subjectData = {
       name: subjectForm.name,
-      gradeLevels: subjectForm.gradeLevels,
       iconUrl: subjectForm.iconUrl,
       isActive: subjectForm.isActive
     }
@@ -233,7 +230,6 @@ onMounted(() => {
     <!-- 科目表格 -->
     <el-table :data="subjectList" v-loading="loading" stripe style="width: 100%">
       <el-table-column prop="name" label="科目名称" width="400" />
-      <el-table-column prop="gradeLevels" label="适用年级" width="400" />
       <el-table-column prop="iconUrl" label="图标" width="400">
         <template #default="{ row }">
           <el-image
@@ -292,15 +288,6 @@ onMounted(() => {
       <el-form :model="subjectForm" :rules="subjectRules" label-width="100px">
         <el-form-item label="科目名称" prop="name">
           <el-input v-model="subjectForm.name" placeholder="请输入科目名称" />
-        </el-form-item>
-        <el-form-item label="适用年级" prop="gradeLevels">
-          <el-input
-            v-model="subjectForm.gradeLevels"
-            placeholder="请输入适用年级，如：小学,初中,高中"
-          />
-          <div style="color: #909399; font-size: 12px; margin-top: 5px;">
-            多个年级用逗号分隔，如：小学,初中,高中
-          </div>
         </el-form-item>
         <el-form-item label="图标URL">
           <el-input v-model="subjectForm.iconUrl" placeholder="请输入图标链接地址" />

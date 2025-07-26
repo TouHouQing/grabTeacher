@@ -28,8 +28,4 @@ app.use(ElementPlus, {
 app.use(imageLoader)
 app.use(i18n)
 
-// 初始化认证状态
-const userStore = useUserStore()
-userStore.initializeAuth()
-
 app.mount('#app')

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { gradeApi } from '../utils/api'
 
 // 定义组件名称
 defineOptions({
@@ -30,6 +31,10 @@ const filter = reactive({
   grade: '',
   experience: ''
 })
+
+// 年级相关数据
+const availableGrades = ref([])
+const loadingGrades = ref(false)
 
 // 教师数据
 const teachers = ref([
@@ -179,6 +184,26 @@ const resetFilter = () => {
 const viewTeacherDetail = (teacherId: number) => {
   router.push(`/student/teacher-detail/${teacherId}`)
 }
+
+// 获取年级列表
+const loadGrades = async () => {
+  try {
+    loadingGrades.value = true
+    const response = await gradeApi.getAllPublic()
+    if (response.success && response.data) {
+      availableGrades.value = response.data
+    }
+  } catch (error) {
+    console.error('获取年级列表失败:', error)
+  } finally {
+    loadingGrades.value = false
+  }
+}
+
+// 组件挂载时加载数据
+onMounted(() => {
+  loadGrades()
+})
 </script>
 
 <template>
@@ -204,9 +229,13 @@ const viewTeacherDetail = (teacherId: number) => {
             </el-select>
           </el-form-item>
           <el-form-item label="年级">
-            <el-select v-model="filter.grade" placeholder="选择年级" clearable>
-              <el-option label="小学" value="小学" />
-              <el-option label="初中" value="初中" />
+            <el-select v-model="filter.grade" placeholder="选择年级" clearable :loading="loadingGrades">
+              <el-option
+                v-for="grade in availableGrades"
+                :key="grade.id"
+                :label="grade.gradeName"
+                :value="grade.gradeName"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="教龄">

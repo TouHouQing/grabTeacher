@@ -5,11 +5,15 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.touhouqing.grabteacherbackend.dto.CourseRequest;
 import com.touhouqing.grabteacherbackend.dto.CourseResponse;
 import com.touhouqing.grabteacherbackend.entity.Course;
+import com.touhouqing.grabteacherbackend.entity.CourseGrade;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.entity.Subject;
+import com.touhouqing.grabteacherbackend.entity.Grade;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseGradeMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.SubjectMapper;
+import com.touhouqing.grabteacherbackend.mapper.GradeMapper;
 import com.touhouqing.grabteacherbackend.service.CourseService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,12 +31,18 @@ public class CourseServiceImpl implements CourseService {
 
     @Autowired
     private CourseMapper courseMapper;
-    
+
+    @Autowired
+    private CourseGradeMapper courseGradeMapper;
+
     @Autowired
     private TeacherMapper teacherMapper;
-    
+
     @Autowired
     private SubjectMapper subjectMapper;
+
+    @Autowired
+    private GradeMapper gradeMapper;
 
     @Override
     @Transactional
@@ -91,12 +101,29 @@ public class CourseServiceImpl implements CourseService {
                 .courseType(request.getCourseType())
                 .durationMinutes(request.getDurationMinutes())
                 .status(request.getStatus() != null ? request.getStatus() : "active")
-                .grade(request.getGrade()) // 设置年级字段
-                .gender(request.getGender() != null ? request.getGender() : "不限") // 设置性别字段
                 .isDeleted(false)
                 .build();
 
         courseMapper.insert(course);
+
+        // 处理年级数据 - 验证年级是否存在于年级管理表中
+        if (StringUtils.hasText(request.getGrade())) {
+            String[] grades = request.getGrade().split(",");
+            for (String grade : grades) {
+                String trimmedGrade = grade.trim();
+                if (StringUtils.hasText(trimmedGrade)) {
+                    // 验证年级是否存在于年级管理表中
+                    Grade gradeEntity = gradeMapper.findByGradeName(trimmedGrade);
+                    if (gradeEntity == null) {
+                        throw new RuntimeException("年级 '" + trimmedGrade + "' 不存在，请先在年级管理中添加该年级");
+                    }
+
+                    CourseGrade courseGrade = new CourseGrade(course.getId(), trimmedGrade);
+                    courseGradeMapper.insert(courseGrade);
+                }
+            }
+        }
+
         log.info("课程创建成功: {}", course.getTitle());
         return course;
     }
@@ -144,13 +171,31 @@ public class CourseServiceImpl implements CourseService {
         course.setDescription(request.getDescription());
         course.setCourseType(request.getCourseType());
         course.setDurationMinutes(request.getDurationMinutes());
-        course.setGrade(request.getGrade()); // 更新年级字段
-        course.setGender(request.getGender() != null ? request.getGender() : "不限"); // 更新性别字段
         if (request.getStatus() != null) {
             course.setStatus(request.getStatus());
         }
 
         courseMapper.updateById(course);
+
+        // 更新年级数据：先删除原有关联，再插入新的关联
+        courseGradeMapper.deleteByCourseId(course.getId());
+        if (StringUtils.hasText(request.getGrade())) {
+            String[] grades = request.getGrade().split(",");
+            for (String grade : grades) {
+                String trimmedGrade = grade.trim();
+                if (StringUtils.hasText(trimmedGrade)) {
+                    // 验证年级是否存在于年级管理表中
+                    Grade gradeEntity = gradeMapper.findByGradeName(trimmedGrade);
+                    if (gradeEntity == null) {
+                        throw new RuntimeException("年级 '" + trimmedGrade + "' 不存在，请先在年级管理中添加该年级");
+                    }
+
+                    CourseGrade courseGrade = new CourseGrade(course.getId(), trimmedGrade);
+                    courseGradeMapper.insert(courseGrade);
+                }
+            }
+        }
+
         log.info("课程更新成功: {}", course.getTitle());
         return course;
     }
@@ -173,6 +218,10 @@ public class CourseServiceImpl implements CourseService {
         course.setIsDeleted(true);
         course.setDeletedAt(LocalDateTime.now());
         courseMapper.updateById(course);
+
+        // 删除课程年级关联
+        courseGradeMapper.deleteByCourseId(id);
+
         log.info("课程删除成功: {}", course.getTitle());
     }
 
@@ -197,7 +246,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Page<CourseResponse> getCourseList(int page, int size, String keyword, Long subjectId,
-                                            Long teacherId, String status, String courseType, String grade, String gender) {
+                                            Long teacherId, String status, String courseType, String grade) {
         Page<Course> pageParam = new Page<>(page, size);
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
 
@@ -225,10 +274,6 @@ public class CourseServiceImpl implements CourseService {
 
         if (StringUtils.hasText(grade)) {
             queryWrapper.like("grade", grade);
-        }
-
-        if (StringUtils.hasText(gender)) {
-            queryWrapper.eq("gender", gender);
         }
 
         queryWrapper.orderByDesc("created_at");
@@ -362,6 +407,13 @@ public class CourseServiceImpl implements CourseService {
         Subject subject = subjectMapper.selectById(course.getSubjectId());
         String subjectName = subject != null ? subject.getName() : "未知科目";
 
+        // 获取课程年级信息
+        List<CourseGrade> courseGrades = courseGradeMapper.findByCourseId(course.getId());
+        String gradeStr = courseGrades.isEmpty() ? "未设置" :
+            courseGrades.stream()
+                .map(CourseGrade::getGrade)
+                .collect(Collectors.joining(","));
+
         CourseResponse response = CourseResponse.builder()
                 .id(course.getId())
                 .teacherId(course.getTeacherId())
@@ -374,8 +426,7 @@ public class CourseServiceImpl implements CourseService {
                 .durationMinutes(course.getDurationMinutes())
                 .status(course.getStatus())
                 .createdAt(course.getCreatedAt())
-                .grade(course.getGrade() != null ? course.getGrade() : "未设置") // 设置年级字段，null时显示"未设置"
-                .gender(course.getGender() != null ? course.getGender() : "未设置") // 设置性别字段，null时显示"未设置"
+                .grade(gradeStr) // 从course_grades表获取年级信息
                 .build();
 
         // 设置显示名称

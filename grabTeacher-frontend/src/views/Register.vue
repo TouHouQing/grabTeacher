@@ -2,6 +2,7 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { getApiBaseUrl } from '@/utils/env'
 
 // 扩展注册请求接口
 interface ExtendedRegisterRequest {
@@ -15,6 +16,7 @@ interface ExtendedRegisterRequest {
   // 学生信息
   gradeLevel?: string
   subjectsInterested?: string
+  studentSubjectIds?: number[] // 学生感兴趣的科目ID列表
   learningGoals?: string
   preferredTeachingStyle?: string
   budgetRange?: string
@@ -44,11 +46,21 @@ const registerForm = reactive<ExtendedRegisterRequest>({
   gender: '不愿透露'
 })
 
-const selectedSubjects = ref<string[]>([])
+// 科目相关数据
+interface Subject {
+  id: number
+  name: string
+}
 
-// 计算属性：将选中的科目转换为字符串
+const subjects = ref<Subject[]>([])
+const selectedSubjectIds = ref<number[]>([])
+
+// 计算属性：将选中的科目转换为字符串（保持兼容性）
 const subjectsString = computed(() => {
-  return selectedSubjects.value.join(',')
+  return selectedSubjectIds.value
+    .map(id => subjects.value.find(s => s.id === id)?.name)
+    .filter(Boolean)
+    .join(',')
 })
 
 // 性别选项
@@ -57,6 +69,48 @@ const genderOptions = [
   { label: '男', value: '男' },
   { label: '女', value: '女' }
 ]
+
+// 获取科目列表
+const fetchSubjects = async () => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/public/subjects/active`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      if (result.success && result.data) {
+        subjects.value = result.data.map((subject: any) => ({
+          id: subject.id,
+          name: subject.name
+        }))
+      }
+    }
+  } catch (error) {
+    console.error('获取科目列表失败:', error)
+    // 如果获取失败，使用默认科目列表
+    subjects.value = [
+      { id: 1, name: '语文' },
+      { id: 2, name: '数学' },
+      { id: 3, name: '英语' },
+      { id: 4, name: '物理' },
+      { id: 5, name: '化学' },
+      { id: 6, name: '生物' },
+      { id: 7, name: '历史' },
+      { id: 8, name: '地理' },
+      { id: 9, name: '政治' }
+    ]
+  }
+}
+
+// 组件挂载时获取科目列表
+import { onMounted } from 'vue'
+onMounted(() => {
+  fetchSubjects()
+})
 
 const validateForm = (): boolean => {
   if (!registerForm.username || registerForm.username.length < 3 || registerForm.username.length > 50) {
@@ -97,11 +151,12 @@ const handleRegister = async () => {
 
   // 设置感兴趣的科目
   registerForm.subjectsInterested = subjectsString.value
+  registerForm.studentSubjectIds = selectedSubjectIds.value
 
   loading.value = true
 
   try {
-    const response = await fetch('http://grabteacher.ltd/api/auth/register', {
+    const response = await fetch(`${getApiBaseUrl()}/api/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -267,19 +322,17 @@ const handleRegister = async () => {
             <label for="subjectsInterested">感兴趣的科目</label>
             <select
               id="subjectsInterested"
-              v-model="selectedSubjects"
+              v-model="selectedSubjectIds"
               multiple
               class="subjects-select"
             >
-              <option value="数学">数学</option>
-              <option value="语文">语文</option>
-              <option value="英语">英语</option>
-              <option value="物理">物理</option>
-              <option value="化学">化学</option>
-              <option value="生物">生物</option>
-              <option value="历史">历史</option>
-              <option value="地理">地理</option>
-              <option value="政治">政治</option>
+              <option
+                v-for="subject in subjects"
+                :key="subject.id"
+                :value="subject.id"
+              >
+                {{ subject.name }}
+              </option>
             </select>
             <small>按住 Ctrl 键可以选择多个科目</small>
           </div>

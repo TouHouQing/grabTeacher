@@ -70,12 +70,6 @@ public class Course {
     @Schema(description = "删除时间", hidden = true)
     private LocalDateTime deletedAt;
 
-    @Schema(description = "课程适用年级", example = "小学一年级,小学二年级")
-    private String grade;
-
-    @Schema(description = "适合性别", example = "男", allowableValues = {"男", "女", "不限"})
-    private String gender;
-
     // 保留必要的构造函数
     public Course(Long teacherId, Long subjectId, String title, String courseType, Integer durationMinutes) {
         this.teacherId = teacherId;

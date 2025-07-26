@@ -1,7 +1,14 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useUserStore, type StudentInfo, type PasswordChangeRequest } from '../../stores/user'
 import { ElMessage } from 'element-plus'
+import { getApiBaseUrl } from '@/utils/env'
+
+// 科目接口
+interface Subject {
+  id: number
+  name: string
+}
 
 const userStore = useUserStore()
 
@@ -14,6 +21,18 @@ const studentForm = reactive<StudentInfo>({
   preferredTeachingStyle: '',
   budgetRange: '',
   gender: '不愿透露'
+})
+
+// 科目相关数据
+const subjects = ref<Subject[]>([])
+const selectedSubjectIds = ref<number[]>([])
+
+// 计算属性：将选中的科目转换为字符串
+const subjectsString = computed(() => {
+  return selectedSubjectIds.value
+    .map(id => subjects.value.find(s => s.id === id)?.name)
+    .filter(Boolean)
+    .join(',')
 })
 
 // 性别选项
@@ -42,6 +61,10 @@ const fetchStudentProfile = async () => {
     const response = await userStore.getStudentProfile()
     if (response.success && response.data) {
       Object.assign(studentForm, response.data)
+      // 获取学生信息后，立即获取科目信息
+      if ((response.data as any).id) {
+        await fetchStudentSubjects((response.data as any).id)
+      }
     } else {
       ElMessage.warning(response.message || '获取学生信息失败')
     }
@@ -52,6 +75,56 @@ const fetchStudentProfile = async () => {
   }
 }
 
+// 获取科目列表
+const fetchSubjects = async () => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/public/subjects/active`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      if (result.success && result.data) {
+        subjects.value = result.data.map((subject: any) => ({
+          id: subject.id,
+          name: subject.name
+        }))
+      }
+    }
+  } catch (error) {
+    console.error('获取科目列表失败:', error)
+  }
+}
+
+// 获取学生感兴趣的科目
+const fetchStudentSubjects = async (studentId?: number) => {
+  // 如果没有传入studentId，尝试从studentForm中获取
+  const id = studentId || (studentForm as any).id
+  if (!id) return
+
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/admin/students/${id}/subjects`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${userStore.token}`
+      }
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      if (result.success && result.data) {
+        selectedSubjectIds.value = result.data
+      }
+    }
+  } catch (error) {
+    console.error('获取学生科目失败:', error)
+  }
+}
+
 // 保存学生信息
 const saveProfile = async () => {
   if (!studentForm.realName) {
@@ -59,9 +132,18 @@ const saveProfile = async () => {
     return
   }
 
+  // 更新科目字符串
+  studentForm.subjectsInterested = subjectsString.value
+
   formLoading.value = true
   try {
-    const response = await userStore.updateStudentProfile(studentForm)
+    // 构建包含科目ID的请求数据
+    const requestData = {
+      ...studentForm,
+      subjectIds: selectedSubjectIds.value
+    }
+
+    const response = await userStore.updateStudentProfile(requestData)
     if (response.success) {
       ElMessage.success('保存成功')
       if (response.data) {
@@ -114,8 +196,9 @@ const changePassword = async () => {
 }
 
 // 页面加载时获取数据
-onMounted(() => {
-  fetchStudentProfile()
+onMounted(async () => {
+  await fetchSubjects()
+  await fetchStudentProfile() // 这里会自动调用fetchStudentSubjects
 })
 </script>
 
@@ -172,10 +255,22 @@ onMounted(() => {
                 </el-select>
               </el-form-item>
               <el-form-item label="感兴趣的科目">
-                <el-input
-                  v-model="studentForm.subjectsInterested"
-                  placeholder="请输入感兴趣的科目，用逗号分隔"
-                ></el-input>
+                <el-select
+                  v-model="selectedSubjectIds"
+                  multiple
+                  placeholder="请选择感兴趣的科目"
+                  style="width: 100%"
+                >
+                  <el-option
+                    v-for="subject in subjects"
+                    :key="subject.id"
+                    :label="subject.name"
+                    :value="subject.id"
+                  />
+                </el-select>
+                <div style="margin-top: 5px; color: #909399; font-size: 12px;">
+                  已选择：{{ subjectsString || '暂无' }}
+                </div>
               </el-form-item>
               <el-form-item label="学习目标">
                 <el-input

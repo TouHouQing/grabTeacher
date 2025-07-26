@@ -55,7 +55,7 @@ public interface CourseService {
      * @return 分页课程列表
      */
     Page<CourseResponse> getCourseList(int page, int size, String keyword, Long subjectId,
-                                      Long teacherId, String status, String courseType, String grade, String gender);
+                                      Long teacherId, String status, String courseType, String grade);
     
     /**
      * 获取教师的课程列表

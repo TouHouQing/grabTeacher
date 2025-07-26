@@ -20,6 +20,8 @@ watch(() => route.path, (path: string) => {
     activeMenu.value = 'profile'
   } else if (path.includes('/match')) {
     activeMenu.value = 'match'
+  } else if (path.includes('/bookings')) {
+    activeMenu.value = 'bookings'
   } else {
     activeMenu.value = 'dashboard'
   }

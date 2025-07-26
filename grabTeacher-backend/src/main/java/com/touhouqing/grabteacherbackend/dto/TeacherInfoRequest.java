@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -15,7 +16,10 @@ public class TeacherInfoRequest {
     private String educationBackground;
     private Integer teachingExperience;
     private String specialties;
-    private String subjects;
+
+    @Schema(description = "教学科目ID列表", example = "[1, 2, 3]")
+    private List<Long> subjectIds;
+
     private BigDecimal hourlyRate;
     private String introduction;
     private String videoIntroUrl;

@@ -7,10 +7,14 @@ import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.entity.Admin;
+import com.touhouqing.grabteacherbackend.entity.TeacherSubject;
+import com.touhouqing.grabteacherbackend.entity.StudentSubject;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
+import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.UserMapper;
 import com.touhouqing.grabteacherbackend.mapper.AdminMapper;
+import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
 import com.touhouqing.grabteacherbackend.service.AuthService;
 import com.touhouqing.grabteacherbackend.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -36,8 +40,10 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final UserMapper userMapper;
     private final StudentMapper studentMapper;
+    private final StudentSubjectMapper studentSubjectMapper;
     private final TeacherMapper teacherMapper;
     private final AdminMapper adminMapper; // 新增
+    private final TeacherSubjectMapper teacherSubjectMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
@@ -94,6 +100,15 @@ public class AuthServiceImpl implements AuthService {
                 
                 studentMapper.insert(student);
                 log.info("学生信息创建成功: {}", user.getId());
+
+                // 处理学生感兴趣的科目关联
+                if (registerRequest.getStudentSubjectIds() != null && !registerRequest.getStudentSubjectIds().isEmpty()) {
+                    for (Long subjectId : registerRequest.getStudentSubjectIds()) {
+                        StudentSubject studentSubject = new StudentSubject(student.getId(), subjectId);
+                        studentSubjectMapper.insert(studentSubject);
+                    }
+                    log.info("学生科目关联创建成功: 学生ID={}, 科目数量={}", student.getId(), registerRequest.getStudentSubjectIds().size());
+                }
                 
             } else if ("teacher".equals(registerRequest.getUserType().name())) {
                 Teacher teacher = Teacher.builder()
@@ -102,14 +117,21 @@ public class AuthServiceImpl implements AuthService {
                         .educationBackground(StringUtils.hasText(registerRequest.getEducationBackground()) ? registerRequest.getEducationBackground() : null)
                         .teachingExperience(registerRequest.getTeachingExperience() != null && registerRequest.getTeachingExperience() > 0 ? registerRequest.getTeachingExperience() : null)
                         .specialties(StringUtils.hasText(registerRequest.getSpecialties()) ? registerRequest.getSpecialties() : null)
-                        .subjects(StringUtils.hasText(registerRequest.getSubjects()) ? registerRequest.getSubjects() : null)
                         .hourlyRate(registerRequest.getHourlyRate() != null && registerRequest.getHourlyRate().compareTo(java.math.BigDecimal.ZERO) > 0 ? registerRequest.getHourlyRate() : null)
                         .introduction(StringUtils.hasText(registerRequest.getIntroduction()) ? registerRequest.getIntroduction() : null)
                         .isVerified(false)
                         .isDeleted(false)
                         .build();
-                
+
                 teacherMapper.insert(teacher);
+
+                // 处理教师科目关联
+                if (registerRequest.getSubjectIds() != null && !registerRequest.getSubjectIds().isEmpty()) {
+                    for (Long subjectId : registerRequest.getSubjectIds()) {
+                        TeacherSubject teacherSubject = new TeacherSubject(teacher.getId(), subjectId);
+                        teacherSubjectMapper.insert(teacherSubject);
+                    }
+                }
                 log.info("教师信息创建成功: {}", user.getId());
             }
 

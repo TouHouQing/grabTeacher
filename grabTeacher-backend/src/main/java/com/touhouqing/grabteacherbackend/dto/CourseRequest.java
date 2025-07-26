@@ -44,7 +44,4 @@ public class CourseRequest {
 
     @Schema(description = "课程适用年级", example = "小学一年级,小学二年级")
     private String grade;
-
-    @Schema(description = "适合性别", example = "不限", allowableValues = {"男", "女", "不限"})
-    private String gender = "不限";
 }

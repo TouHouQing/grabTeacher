@@ -3,10 +3,14 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, Check, Close } from '@element-plus/icons-vue'
 import { teacherAPI } from '../../../utils/api'
+import { getApiBaseUrl } from '../../../utils/env'
 
 // 教师列表
 const teacherList = ref([])
 const loading = ref(false)
+
+// 科目列表
+const subjects = ref<{id: number, name: string}[]>([])
 
 // 搜索表单
 const teacherSearchForm = reactive({
@@ -32,7 +36,7 @@ const teacherForm = reactive({
   educationBackground: '',
   teachingExperience: 0,
   specialties: '',
-  subjects: '',
+  subjectIds: [] as number[],
   hourlyRate: 0,
   introduction: '',
   videoIntroUrl: '',
@@ -54,6 +58,41 @@ const genderOptions = [
   { label: '女', value: '女' }
 ]
 
+// 获取科目列表
+const fetchSubjects = async () => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/public/subjects/active`)
+    const result = await response.json()
+    if (result.success) {
+      subjects.value = result.data
+    }
+  } catch (error) {
+    console.error('获取科目列表失败:', error)
+  }
+}
+
+// 获取教师科目名称
+const getTeacherSubjects = async (teacherId: number) => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/admin/teachers/${teacherId}/subjects`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+    const result = await response.json()
+    if (result.success && result.data) {
+      const subjectNames = result.data.map((subjectId: number) => {
+        const subject = subjects.value.find(s => s.id === subjectId)
+        return subject ? subject.name : ''
+      }).filter(name => name)
+      return subjectNames.join(', ')
+    }
+  } catch (error) {
+    console.error('获取教师科目失败:', error)
+  }
+  return ''
+}
+
 // 获取教师列表
 const loadTeacherList = async () => {
   try {
@@ -70,13 +109,21 @@ const loadTeacherList = async () => {
     const result = await teacherAPI.getList(params)
 
     if (result.success && result.data) {
+      let teachers = []
       if (Array.isArray(result.data)) {
-        teacherList.value = result.data
+        teachers = result.data
         teacherPagination.total = result.data.length
       } else if (result.data.records) {
-        teacherList.value = result.data.records
+        teachers = result.data.records
         teacherPagination.total = result.data.total || result.data.records.length
       }
+
+      // 为每个教师获取科目信息
+      for (const teacher of teachers) {
+        teacher.subjects = await getTeacherSubjects(teacher.id)
+      }
+
+      teacherList.value = teachers
     }
   } catch (error: any) {
     console.error('获取教师列表失败:', error)
@@ -111,7 +158,7 @@ const handleAddTeacher = () => {
     educationBackground: '',
     teachingExperience: 0,
     specialties: '',
-    subjects: '',
+    subjectIds: [],
     hourlyRate: 0,
     introduction: '',
     videoIntroUrl: '',
@@ -122,9 +169,26 @@ const handleAddTeacher = () => {
 }
 
 // 编辑教师
-const handleEditTeacher = (teacher: any) => {
+const handleEditTeacher = async (teacher: any) => {
   teacherDialogTitle.value = '编辑教师'
   Object.assign(teacherForm, teacher)
+
+  // 获取教师的科目ID列表
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/admin/teachers/${teacher.id}/subjects`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+    const result = await response.json()
+    if (result.success) {
+      teacherForm.subjectIds = result.data || []
+    }
+  } catch (error) {
+    console.error('获取教师科目失败:', error)
+    teacherForm.subjectIds = []
+  }
+
   teacherDialogVisible.value = true
 }
 
@@ -137,7 +201,7 @@ const saveTeacher = async () => {
       educationBackground: teacherForm.educationBackground,
       teachingExperience: teacherForm.teachingExperience,
       specialties: teacherForm.specialties,
-      subjects: teacherForm.subjects,
+      subjectIds: teacherForm.subjectIds,
       hourlyRate: teacherForm.hourlyRate,
       introduction: teacherForm.introduction,
       videoIntroUrl: teacherForm.videoIntroUrl,
@@ -145,7 +209,7 @@ const saveTeacher = async () => {
       isVerified: teacherForm.isVerified
     }
 
-    let result
+    let result: any
     if (teacherForm.id === 0) {
       result = await teacherAPI.create(teacherData)
     } else {
@@ -219,7 +283,8 @@ const handleTeacherSizeChange = (size: number) => {
   loadTeacherList()
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await fetchSubjects()
   loadTeacherList()
 })
 </script>
@@ -374,7 +439,19 @@ onMounted(() => {
           <el-input v-model="teacherForm.educationBackground" placeholder="请输入教育背景" />
         </el-form-item>
         <el-form-item label="教学科目">
-          <el-input v-model="teacherForm.subjects" placeholder="请输入教学科目，多个科目用逗号分隔" />
+          <el-select
+            v-model="teacherForm.subjectIds"
+            multiple
+            placeholder="请选择教学科目"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="subject in subjects"
+              :key="subject.id"
+              :label="subject.name"
+              :value="subject.id"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="专业特长">
           <el-input v-model="teacherForm.specialties" placeholder="请输入专业特长" />

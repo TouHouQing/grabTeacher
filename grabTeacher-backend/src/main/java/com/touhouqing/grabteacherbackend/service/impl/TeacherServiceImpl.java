@@ -8,14 +8,18 @@ import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherScheduleResponse;
 import com.touhouqing.grabteacherbackend.dto.TimeSlotAvailability;
 import com.touhouqing.grabteacherbackend.entity.Course;
+import com.touhouqing.grabteacherbackend.entity.CourseGrade;
 import com.touhouqing.grabteacherbackend.entity.Schedule;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Subject;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
+import com.touhouqing.grabteacherbackend.entity.TeacherSubject;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseGradeMapper;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
+import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
 import lombok.RequiredArgsConstructor;
@@ -39,8 +43,10 @@ import java.util.stream.Collectors;
 public class TeacherServiceImpl implements TeacherService {
 
     private final TeacherMapper teacherMapper;
+    private final TeacherSubjectMapper teacherSubjectMapper;
     private final SubjectService subjectService;
     private final CourseMapper courseMapper;
+    private final CourseGradeMapper courseGradeMapper;
     private final ScheduleMapper scheduleMapper;
     private final StudentMapper studentMapper;
 
@@ -121,11 +127,21 @@ public class TeacherServiceImpl implements TeacherService {
         if (request.getSpecialties() != null) {
             teacher.setSpecialties(request.getSpecialties());
         }
-        if (request.getSubjects() != null) {
-            teacher.setSubjects(request.getSubjects());
-        }
         if (request.getHourlyRate() != null) {
             teacher.setHourlyRate(request.getHourlyRate());
+        }
+
+        // 更新教师科目关联
+        if (request.getSubjectIds() != null) {
+            // 先删除原有关联
+            teacherSubjectMapper.deleteByTeacherId(teacher.getId());
+            // 添加新的关联
+            if (!request.getSubjectIds().isEmpty()) {
+                for (Long subjectId : request.getSubjectIds()) {
+                    TeacherSubject teacherSubject = new TeacherSubject(teacher.getId(), subjectId);
+                    teacherSubjectMapper.insert(teacherSubject);
+                }
+            }
         }
         if (request.getIntroduction() != null) {
             teacher.setIntroduction(request.getIntroduction());
@@ -144,46 +160,14 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     /**
-     * 匹配教师
+     * 匹配教师 - 优化版本，减少数据库查询次数
      */
     @Override
     public List<TeacherMatchResponse> matchTeachers(TeacherMatchRequest request) {
         log.info("开始匹配教师，请求参数: {}", request);
 
-        // 构建查询条件
-        QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("is_deleted", false);
-        queryWrapper.eq("is_verified", true); // 只匹配已认证的教师
-
-        // 科目匹配 - 通过科目名称匹配
-        if (StringUtils.hasText(request.getSubject())) {
-            // 从科目表中查找科目名称，然后匹配教师的科目字段
-            List<Subject> subjects = subjectService.getAllActiveSubjects();
-            Subject matchedSubject = subjects.stream()
-                    .filter(subject -> subject.getName().equals(request.getSubject()))
-                    .findFirst()
-                    .orElse(null);
-
-            if (matchedSubject != null) {
-                // 使用科目名称进行匹配
-                queryWrapper.like("subjects", matchedSubject.getName());
-            } else {
-                // 如果科目不存在，返回空结果
-                queryWrapper.eq("id", -1); // 强制返回空结果
-            }
-        }
-
-        // 按教学经验排序
-        queryWrapper.orderByDesc("teaching_experience");
-
-        List<Teacher> teachers = teacherMapper.selectList(queryWrapper);
-
-        // 如果指定了年级，进一步过滤
-        if (StringUtils.hasText(request.getGrade())) {
-            teachers = teachers.stream()
-                    .filter(teacher -> hasMatchingGrade(teacher.getId(), request.getGrade()))
-                    .collect(Collectors.toList());
-        }
+        // 使用优化的查询方法
+        List<Teacher> teachers = matchTeachersOptimized(request);
 
         // 转换为响应DTO并计算匹配分数
         List<TeacherMatchResponse> responses = teachers.stream()
@@ -197,17 +181,60 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     /**
+     * 优化的教师匹配查询 - 使用JOIN减少数据库查询次数
+     */
+    private List<Teacher> matchTeachersOptimized(TeacherMatchRequest request) {
+        // 如果同时指定了科目和年级，使用联合查询
+        if (StringUtils.hasText(request.getSubject()) && StringUtils.hasText(request.getGrade())) {
+            return teacherMapper.findTeachersBySubjectAndGrade(request.getSubject(), request.getGrade());
+        }
+
+        // 如果只指定了科目
+        if (StringUtils.hasText(request.getSubject())) {
+            return teacherMapper.findTeachersBySubject(request.getSubject());
+        }
+
+        // 如果只指定了年级
+        if (StringUtils.hasText(request.getGrade())) {
+            return teacherMapper.findTeachersByGrade(request.getGrade());
+        }
+
+        // 如果都没指定，返回所有已认证的教师
+        QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("is_deleted", false);
+        queryWrapper.eq("is_verified", true);
+        queryWrapper.orderByDesc("teaching_experience");
+        return teacherMapper.selectList(queryWrapper);
+    }
+
+    /**
      * 检查教师是否有匹配的年级课程
      */
     private boolean hasMatchingGrade(Long teacherId, String grade) {
+        // 首先获取教师的所有课程
         QueryWrapper<Course> courseQuery = new QueryWrapper<>();
         courseQuery.eq("teacher_id", teacherId);
         courseQuery.eq("is_deleted", false);
         courseQuery.eq("status", "active");
-        courseQuery.like("grade", grade); // 修正：应该查询grade字段而不是gender字段
 
         List<Course> courses = courseMapper.selectList(courseQuery);
-        return !courses.isEmpty();
+        if (courses.isEmpty()) {
+            return false;
+        }
+
+        // 检查这些课程是否有匹配的年级
+        for (Course course : courses) {
+            QueryWrapper<CourseGrade> gradeQuery = new QueryWrapper<>();
+            gradeQuery.eq("course_id", course.getId());
+            gradeQuery.eq("grade", grade);
+
+            List<CourseGrade> courseGrades = courseGradeMapper.selectList(gradeQuery);
+            if (!courseGrades.isEmpty()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -217,7 +244,7 @@ public class TeacherServiceImpl implements TeacherService {
         TeacherMatchResponse response = TeacherMatchResponse.builder()
                 .id(teacher.getId())
                 .name(teacher.getRealName())
-                .subject(getFirstSubject(teacher.getSubjects()))
+                .subject(getFirstSubject(teacher.getId()))
                 .grade(getTeacherGrades(teacher.getId()))
                 .experience(teacher.getTeachingExperience() != null ? teacher.getTeachingExperience() : 0)
                 .description(teacher.getIntroduction())
@@ -244,10 +271,19 @@ public class TeacherServiceImpl implements TeacherService {
         int score = 85; // 基础分数
 
         // 科目匹配加分
-        if (StringUtils.hasText(request.getSubject()) &&
-            StringUtils.hasText(teacher.getSubjects()) &&
-            teacher.getSubjects().contains(request.getSubject())) {
-            score += 10;
+        if (StringUtils.hasText(request.getSubject())) {
+            List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
+            for (Long subjectId : subjectIds) {
+                try {
+                    String subjectName = subjectService.getSubjectById(subjectId).getName();
+                    if (request.getSubject().equals(subjectName)) {
+                        score += 10;
+                        break;
+                    }
+                } catch (Exception e) {
+                    // 忽略异常，继续检查下一个科目
+                }
+            }
         }
 
         // 年级匹配加分
@@ -266,17 +302,23 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     /**
-     * 获取第一个科目
+     * 获取教师的第一个科目名称
      */
-    private String getFirstSubject(String subjects) {
-        if (!StringUtils.hasText(subjects)) {
+    private String getFirstSubject(Long teacherId) {
+        List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacherId);
+        if (subjectIds.isEmpty()) {
             return "";
         }
-        return subjects.split(",")[0].trim();
+        // 获取第一个科目的名称
+        try {
+            return subjectService.getSubjectById(subjectIds.get(0)).getName();
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     /**
-     * 获取教师的年级信息（从课程表获取）
+     * 获取教师的年级信息（从课程年级关联表获取）
      */
     private String getTeacherGrades(Long teacherId) {
         QueryWrapper<Course> courseQuery = new QueryWrapper<>();
@@ -290,7 +332,14 @@ public class TeacherServiceImpl implements TeacherService {
         }
 
         // 获取第一个课程的年级信息
-        return courses.get(0).getGrade(); // grade字段存储年级信息
+        List<CourseGrade> courseGrades = courseGradeMapper.findByCourseId(courses.get(0).getId());
+        if (courseGrades.isEmpty()) {
+            return "";
+        }
+
+        return courseGrades.stream()
+                .map(CourseGrade::getGrade)
+                .collect(Collectors.joining(","));
     }
 
     /**
@@ -307,26 +356,48 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     /**
-     * 获取所有可用的年级选项（从课程表获取）
+     * 获取所有可用的年级选项（从课程年级关联表获取）
      */
     @Override
     public List<String> getAvailableGrades() {
-        // 从courses表中获取所有不同的年级（grade字段）
-        QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
-        queryWrapper.select("DISTINCT grade");
-        queryWrapper.eq("is_deleted", false);
-        queryWrapper.eq("status", "active");
-        queryWrapper.isNotNull("grade");
-        queryWrapper.ne("grade", "");
+        // 从course_grades表中获取所有不同的年级
+        List<String> grades = courseGradeMapper.findAllDistinctGrades();
 
-        List<Course> courses = courseMapper.selectList(queryWrapper);
+        // 收集年级数据
+        Set<String> gradeSet = new HashSet<>();
+        for (String grade : grades) {
+            if (StringUtils.hasText(grade)) {
+                gradeSet.add(grade.trim());
+            }
+        }
 
-        return courses.stream()
-                .map(Course::getGrade)
-                .filter(grade -> StringUtils.hasText(grade))
-                .distinct()
-                .sorted()
-                .collect(Collectors.toList());
+        // 转换为列表并排序
+        List<String> result = new ArrayList<>(gradeSet);
+
+        // 自定义排序：按学段和年级排序
+        result.sort((g1, g2) -> {
+            // 定义年级顺序
+            String[] gradeOrder = {
+                "小学一年级", "小学二年级", "小学三年级", "小学四年级", "小学五年级", "小学六年级",
+                "初中一年级", "初中二年级", "初中三年级",
+                "高中一年级", "高中二年级", "高中三年级"
+            };
+
+            int index1 = Arrays.asList(gradeOrder).indexOf(g1);
+            int index2 = Arrays.asList(gradeOrder).indexOf(g2);
+
+            // 如果都在预定义列表中，按顺序排序
+            if (index1 != -1 && index2 != -1) {
+                return Integer.compare(index1, index2);
+            }
+            // 如果只有一个在预定义列表中，预定义的排在前面
+            if (index1 != -1) return -1;
+            if (index2 != -1) return 1;
+            // 如果都不在预定义列表中，按字典序排序
+            return g1.compareTo(g2);
+        });
+
+        return result;
     }
 
     @Override

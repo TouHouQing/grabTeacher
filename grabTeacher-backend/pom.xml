@@ -16,7 +16,28 @@
     <properties>
         <java.version>17</java.version>
         <mybatis-plus.version>3.5.12</mybatis-plus.version>
+        <!-- 默认激活开发环境 -->
+        <spring.profiles.active>dev</spring.profiles.active>
     </properties>
+
+    <!-- 环境配置 -->
+    <profiles>
+        <profile>
+            <id>dev</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <spring.profiles.active>dev</spring.profiles.active>
+            </properties>
+        </profile>
+        <profile>
+            <id>prod</id>
+            <properties>
+                <spring.profiles.active>prod</spring.profiles.active>
+            </properties>
+        </profile>
+    </profiles>
     <dependencies>
         <dependency>
             <groupId>com.baomidou</groupId>

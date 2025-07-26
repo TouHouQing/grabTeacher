@@ -27,10 +27,7 @@ public class Subject {
     @Schema(description = "科目名称", example = "数学")
     private String name;
 
-    @TableField("grade_levels")
-    @Size(max = 20, message = "年级范围长度不能超过20个字符")
-    @Schema(description = "适用年级范围", example = "小学,初中,高中")
-    private String gradeLevels;
+
 
     @TableField("icon_url")
     @Size(max = 255, message = "图标URL长度不能超过255个字符")

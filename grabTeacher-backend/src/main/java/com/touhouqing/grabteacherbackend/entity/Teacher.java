@@ -35,8 +35,6 @@ public class Teacher {
 
     private String specialties;
 
-    private String subjects;
-
     @TableField("hourly_rate")
     private BigDecimal hourlyRate;
 

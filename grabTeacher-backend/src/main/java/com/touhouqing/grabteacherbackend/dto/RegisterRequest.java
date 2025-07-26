@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -39,7 +40,8 @@ public class RegisterRequest {
 
     // 学生额外信息
     private String gradeLevel;
-    private String subjectsInterested;
+    private String subjectsInterested; // 保留兼容性
+    private List<Long> studentSubjectIds; // 学生感兴趣的科目ID列表
     private String learningGoals;
     private String preferredTeachingStyle;
     private String budgetRange;
@@ -49,7 +51,7 @@ public class RegisterRequest {
     private String educationBackground;
     private Integer teachingExperience;
     private String specialties;
-    private String subjects;
+    private List<Long> subjectIds;
     private BigDecimal hourlyRate;
     private String introduction;
 

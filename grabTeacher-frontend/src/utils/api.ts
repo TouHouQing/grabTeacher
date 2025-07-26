@@ -1,5 +1,7 @@
-// API基础配置
-const API_BASE_URL = 'http://grabteacher.ltd'
+// API基础配置 - 使用环境变量
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+
+console.log('当前API环境:', API_BASE_URL)
 
 // 创建API请求函数
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
@@ -579,4 +581,39 @@ export const rescheduleAPI = {
 
   // 检查是否可以申请调课
   canApply: (scheduleId: number) => apiRequest(`/api/reschedule/can-apply/${scheduleId}`)
+}
+
+// 年级管理API
+export const gradeApi = {
+  // 获取所有年级列表（管理员接口）
+  getAll: () => apiRequest('/api/admin/grades'),
+
+  // 获取所有年级列表（公开接口）
+  getAllPublic: () => apiRequest('/api/public/grades'),
+
+  // 获取年级名称列表（公开接口）
+  getGradeNames: () => apiRequest('/api/public/grades/names'),
+
+  // 根据ID获取年级信息
+  getById: (id: number) => apiRequest(`/api/admin/grades/${id}`),
+
+  // 创建年级
+  create: (data: { gradeName: string; description?: string }) =>
+    apiRequest('/api/admin/grades', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  // 更新年级
+  update: (id: number, data: { gradeName: string; description?: string }) =>
+    apiRequest(`/api/admin/grades/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+  // 删除年级
+  delete: (id: number) =>
+    apiRequest(`/api/admin/grades/${id}`, {
+      method: 'DELETE'
+    })
 }

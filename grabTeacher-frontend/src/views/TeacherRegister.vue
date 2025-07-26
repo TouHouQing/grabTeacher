@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { getApiBaseUrl } from '@/utils/env'
 
 // 扩展注册请求接口
 interface ExtendedRegisterRequest {
@@ -16,7 +17,7 @@ interface ExtendedRegisterRequest {
   educationBackground?: string
   teachingExperience?: number
   specialties?: string
-  subjects?: string
+  subjectIds?: number[]
   hourlyRate?: number
   introduction?: string
   gender?: string
@@ -40,18 +41,16 @@ const registerForm = reactive<ExtendedRegisterRequest>({
   educationBackground: '',
   teachingExperience: 0,
   specialties: '',
-  subjects: '',
+  subjectIds: [],
   hourlyRate: 0,
   introduction: '',
   gender: '不愿透露'
 })
 
-const selectedSubjects = ref<string[]>([])
+const selectedSubjects = ref<number[]>([])
 
-// 计算属性：将选中的科目转换为字符串
-const subjectsString = computed(() => {
-  return selectedSubjects.value.join(',')
-})
+// 科目列表
+const subjects = ref<{id: number, name: string}[]>([])
 
 // 性别选项
 const genderOptions = [
@@ -59,6 +58,19 @@ const genderOptions = [
   { label: '男', value: '男' },
   { label: '女', value: '女' }
 ]
+
+// 获取科目列表
+const fetchSubjects = async () => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/public/subjects/active`)
+    const result = await response.json()
+    if (result.success) {
+      subjects.value = result.data
+    }
+  } catch (error) {
+    console.error('获取科目列表失败:', error)
+  }
+}
 
 const validateForm = (): boolean => {
   if (!registerForm.username || registerForm.username.length < 3 || registerForm.username.length > 50) {
@@ -98,7 +110,7 @@ const handleRegister = async () => {
   }
 
   // 设置可教授科目
-  registerForm.subjects = subjectsString.value
+  registerForm.subjectIds = selectedSubjects.value
 
   // 调试：打印要发送的数据
   console.log('发送的教师注册数据:', JSON.stringify(registerForm, null, 2))
@@ -106,7 +118,7 @@ const handleRegister = async () => {
   loading.value = true
 
   try {
-    const response = await fetch('http://grabteacher.ltd/api/auth/register', {
+    const response = await fetch(`${getApiBaseUrl()}/api/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -135,6 +147,11 @@ const handleRegister = async () => {
     loading.value = false
   }
 }
+
+// 组件挂载时获取科目列表
+onMounted(() => {
+  fetchSubjects()
+})
 </script>
 
 <template>
@@ -264,15 +281,9 @@ const handleRegister = async () => {
               multiple
               class="subjects-select"
             >
-              <option value="数学">数学</option>
-              <option value="语文">语文</option>
-              <option value="英语">英语</option>
-              <option value="物理">物理</option>
-              <option value="化学">化学</option>
-              <option value="生物">生物</option>
-              <option value="历史">历史</option>
-              <option value="地理">地理</option>
-              <option value="政治">政治</option>
+              <option v-for="subject in subjects" :key="subject.id" :value="subject.id">
+                {{ subject.name }}
+              </option>
             </select>
             <small>按住 Ctrl 键可以选择多个科目</small>
           </div>

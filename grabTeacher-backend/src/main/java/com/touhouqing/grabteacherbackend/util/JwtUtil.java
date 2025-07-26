@@ -14,10 +14,10 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    @Value("${JWT_SECRET}")
+    @Value("${jwt.secret}")
     private String jwtSecret;
 
-    @Value("${JWT_EXPIRATION}")
+    @Value("${jwt.expiration}")
     private int jwtExpirationInMs;
 
     // 可选：使用自动生成的密钥

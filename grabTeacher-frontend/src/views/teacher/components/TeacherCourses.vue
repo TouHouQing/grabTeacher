@@ -25,7 +25,6 @@ interface Course {
 interface Subject {
   id: number
   name: string
-  gradeLevels?: string
   iconUrl?: string
   isActive: boolean
 }
@@ -322,7 +321,7 @@ onMounted(() => {
             <el-option
               v-for="subject in subjects"
               :key="subject.id"
-              :label="`${subject.name} (${subject.gradeLevels || '全年级'})`"
+              :label="subject.name"
               :value="subject.id"
             />
           </el-select>
@@ -457,14 +456,9 @@ onMounted(() => {
             <el-option
               v-for="subject in subjects"
               :key="subject.id"
-              :label="`${subject.name} (${subject.gradeLevels || '全年级'})`"
+              :label="subject.name"
               :value="subject.id"
-            >
-              <div style="display: flex; justify-content: space-between;">
-                <span>{{ subject.name }}</span>
-                <span style="color: #8492a6; font-size: 12px;">{{ subject.gradeLevels || '全年级' }}</span>
-              </div>
-            </el-option>
+            />
           </el-select>
         </el-form-item>
 

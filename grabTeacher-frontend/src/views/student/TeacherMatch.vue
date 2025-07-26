@@ -3,7 +3,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import { teacherAPI, subjectAPI, bookingAPI } from '@/utils/api'
+import { teacherAPI, subjectAPI, bookingAPI, gradeApi } from '@/utils/api'
 
 // 声明图片相对路径，使用getImageUrl方法加载
 const teacherImages = {
@@ -241,7 +241,7 @@ const loadSubjects = async () => {
 // 获取年级选项
 const loadGrades = async () => {
   try {
-    const result = await teacherAPI.getAvailableGrades()
+    const result = await gradeApi.getGradeNames()
     if (result.success && result.data) {
       grades.value = result.data
     }

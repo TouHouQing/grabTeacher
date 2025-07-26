@@ -16,14 +16,13 @@ public class JwtConfig {
      * JWT密钥，从环境变量读取，如果环境变量不存在则使用默认值
      * 环境变量名：JWT_SECRET
      */
-    @Value("${JWT_SECRET}")
+    @Value("${jwt.secret}")
     private String jwtSecret;
 
     /**
-     * JWT过期时间（毫秒），从环境变量读取，如果环境变量不存在则使用默认值
-     * 环境变量名：JWT_EXPIRATION
+     * JWT过期时间（毫秒），从配置文件读取
      */
-    @Value("${JWT_EXPIRATION}")
+    @Value("${jwt.expiration}")
     private long jwtExpiration;
 
     @Bean

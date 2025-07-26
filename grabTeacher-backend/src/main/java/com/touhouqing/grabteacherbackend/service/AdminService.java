@@ -85,4 +85,14 @@ public interface AdminService {
      * 审核教师
      */
     void verifyTeacher(Long teacherId, Boolean isVerified);
-} 
+
+    /**
+     * 获取教师科目列表
+     */
+    List<Long> getTeacherSubjects(Long teacherId);
+
+    /**
+     * 获取学生感兴趣的科目列表
+     */
+    List<Long> getStudentSubjects(Long studentId);
+}

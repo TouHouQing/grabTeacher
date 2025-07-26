@@ -40,7 +40,6 @@ public class SubjectServiceImpl implements SubjectService {
 
         Subject subject = Subject.builder()
                 .name(request.getName())
-                .gradeLevels(request.getGradeLevels())
                 .iconUrl(request.getIconUrl())
                 .isActive(request.getIsActive() != null ? request.getIsActive() : true)
                 .isDeleted(false)
@@ -76,7 +75,6 @@ public class SubjectServiceImpl implements SubjectService {
         }
 
         subject.setName(request.getName());
-        subject.setGradeLevels(request.getGradeLevels());
         subject.setIconUrl(request.getIconUrl());
         subject.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
 

@@ -17,9 +17,7 @@ public class SubjectRequest {
     @Schema(description = "科目名称", example = "数学", required = true)
     private String name;
 
-    @Size(max = 20, message = "年级范围长度不能超过20个字符")
-    @Schema(description = "适用年级范围", example = "小学,初中,高中")
-    private String gradeLevels;
+
 
     @Size(max = 255, message = "图标URL长度不能超过255个字符")
     @Schema(description = "科目图标URL", example = "https://example.com/math-icon.png")

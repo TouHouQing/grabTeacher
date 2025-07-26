@@ -167,11 +167,10 @@ public class CourseController {
             @Parameter(description = "教师ID") @RequestParam(required = false) Long teacherId,
             @Parameter(description = "课程状态") @RequestParam(required = false) String status,
             @Parameter(description = "课程类型") @RequestParam(required = false) String courseType,
-            @Parameter(description = "适用年级") @RequestParam(required = false) String grade,
-            @Parameter(description = "适合性别") @RequestParam(required = false) String gender) {
+            @Parameter(description = "适用年级") @RequestParam(required = false) String grade) {
         try {
             Page<CourseResponse> coursePage = courseService.getCourseList(page, size, keyword,
-                    subjectId, teacherId, status, courseType, grade, gender);
+                    subjectId, teacherId, status, courseType, grade);
             
             Map<String, Object> response = new HashMap<>();
             response.put("courses", coursePage.getRecords());

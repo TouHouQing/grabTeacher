@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
-import { courseAPI, subjectAPI, teacherAPI } from '../../utils/api'
+import { courseAPI, subjectAPI, teacherAPI, gradeApi } from '../../utils/api'
 
 // 课程接口定义
 interface Course {
@@ -19,14 +19,12 @@ interface Course {
   status: string
   statusDisplay: string
   grade?: string
-  gender?: string
   createdAt: string
 }
 
 interface Subject {
   id: number
   name: string
-  gradeLevels?: string
   iconUrl?: string
   isActive: boolean
 }
@@ -40,9 +38,12 @@ interface Teacher {
 
 // 响应式数据
 const loading = ref(false)
+const loadingGrades = ref(false)
 const courses = ref<Course[]>([])
 const subjects = ref<Subject[]>([])
 const teachers = ref<Teacher[]>([])
+const availableGrades = ref([])
+const selectedGrades = ref([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const isEditing = ref(false)
@@ -62,8 +63,7 @@ const searchForm = reactive({
   teacherId: null as number | null,
   status: '',
   courseType: '',
-  grade: '',
-  gender: ''
+  grade: ''
 })
 
 // 课程表单
@@ -76,8 +76,7 @@ const courseForm = reactive({
   courseType: 'one_on_one',
   durationMinutes: 120,
   status: 'active',
-  grade: '',
-  gender: '不限'
+  grade: ''
 })
 
 // 表单验证规则
@@ -115,13 +114,6 @@ const statusOptions = [
   { label: '可报名', value: 'active' },
   { label: '已下架', value: 'inactive' },
   { label: '已满员', value: 'full' }
-]
-
-// 性别选项
-const genderOptions = [
-  { label: '不限', value: '不限' },
-  { label: '男', value: '男' },
-  { label: '女', value: '女' }
 ]
 
 // 获取课程列表
@@ -176,6 +168,21 @@ const fetchTeachers = async () => {
   }
 }
 
+// 获取年级列表
+const fetchGrades = async () => {
+  try {
+    loadingGrades.value = true
+    const response = await gradeApi.getAll()
+    if (response.success && response.data) {
+      availableGrades.value = response.data
+    }
+  } catch (error) {
+    console.error('获取年级列表失败:', error)
+  } finally {
+    loadingGrades.value = false
+  }
+}
+
 // 重置表单
 const resetForm = () => {
   courseForm.id = null
@@ -187,7 +194,9 @@ const resetForm = () => {
   courseForm.durationMinutes = 120
   courseForm.status = 'active'
   courseForm.grade = ''
-  courseForm.gender = '不限'
+
+  // 清空选中的年级
+  selectedGrades.value = []
 }
 
 // 打开新增对话框
@@ -209,7 +218,9 @@ const openEditDialog = (course: Course) => {
   courseForm.durationMinutes = course.durationMinutes
   courseForm.status = course.status
   courseForm.grade = course.grade || ''
-  courseForm.gender = course.gender || '不限'
+
+  // 将年级字符串转换为数组
+  selectedGrades.value = course.grade ? course.grade.split(',').map(g => g.trim()) : []
 
   dialogTitle.value = '编辑课程'
   isEditing.value = true
@@ -229,8 +240,7 @@ const saveCourse = async () => {
       courseType: courseForm.courseType,
       durationMinutes: courseForm.durationMinutes,
       status: courseForm.status,
-      grade: courseForm.grade,
-      gender: courseForm.gender
+      grade: selectedGrades.value.join(',') // 将选中的年级转换为逗号分隔的字符串
     }
 
     let response: any
@@ -321,7 +331,6 @@ const resetSearch = () => {
   searchForm.status = ''
   searchForm.courseType = ''
   searchForm.grade = ''
-  searchForm.gender = ''
   pagination.current = 1
   fetchCourses()
 }
@@ -353,6 +362,7 @@ onMounted(() => {
   fetchCourses()
   fetchSubjects()
   fetchTeachers()
+  fetchGrades()
 })
 </script>
 
@@ -389,7 +399,7 @@ onMounted(() => {
             <el-option
               v-for="subject in subjects"
               :key="subject.id"
-              :label="`${subject.name} (${subject.gradeLevels || '全年级'})`"
+              :label="subject.name"
               :value="subject.id"
             />
           </el-select>
@@ -422,16 +432,6 @@ onMounted(() => {
             style="width: 150px"
           />
         </el-form-item>
-        <el-form-item label="性别">
-          <el-select v-model="searchForm.gender" placeholder="选择性别" clearable style="width: 120px">
-            <el-option
-              v-for="option in genderOptions"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </el-select>
-        </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="searchCourses">搜索</el-button>
           <el-button :icon="Refresh" @click="resetSearch">重置</el-button>
@@ -458,11 +458,6 @@ onMounted(() => {
         <el-table-column prop="grade" label="适用年级" width="120" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.grade || '未设置' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="gender" label="适合性别" width="90">
-          <template #default="{ row }">
-            {{ row.gender || '未设置' }}
           </template>
         </el-table-column>
         <el-table-column prop="courseTypeDisplay" label="类型" width="80" />
@@ -554,45 +549,30 @@ onMounted(() => {
             <el-option
               v-for="subject in subjects"
               :key="subject.id"
-              :label="`${subject.name} (${subject.gradeLevels || '全年级'})`"
+              :label="subject.name"
               :value="subject.id"
-            >
-              <div style="display: flex; justify-content: space-between;">
-                <span>{{ subject.name }}</span>
-                <span style="color: #8492a6; font-size: 12px;">{{ subject.gradeLevels || '全年级' }}</span>
-              </div>
-            </el-option>
+            />
           </el-select>
         </el-form-item>
 
         <!-- 年级字段 -->
         <el-form-item label="适用年级" prop="grade" required>
-          <el-input
-            v-model="courseForm.grade"
-            placeholder="请输入适用年级，如：小学一年级,小学二年级"
-            maxlength="100"
-            show-word-limit
-            clearable
+          <el-select
+            v-model="selectedGrades"
+            multiple
+            placeholder="请选择适用年级"
             style="width: 100%;"
-          />
+            :loading="loadingGrades"
+          >
+            <el-option
+              v-for="grade in availableGrades"
+              :key="grade.id"
+              :label="grade.gradeName"
+              :value="grade.gradeName"
+            />
+          </el-select>
           <div style="color: #909399; font-size: 12px; margin-top: 4px;">
-            多个年级请用逗号分隔，如：小学一年级,小学二年级
-          </div>
-        </el-form-item>
-
-        <!-- 性别字段 -->
-        <el-form-item label="适合性别">
-          <el-radio-group v-model="courseForm.gender">
-            <el-radio
-              v-for="option in genderOptions"
-              :key="option.value"
-              :label="option.value"
-            >
-              {{ option.label }}
-            </el-radio>
-          </el-radio-group>
-          <div style="color: #909399; font-size: 12px; margin-top: 4px;">
-            选择课程适合的学生性别
+            可以选择多个年级，系统会自动保存关联关系
           </div>
         </el-form-item>
 
