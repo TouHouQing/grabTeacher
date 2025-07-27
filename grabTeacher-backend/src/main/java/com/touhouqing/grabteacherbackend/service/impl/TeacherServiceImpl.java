@@ -97,7 +97,7 @@ public class TeacherServiceImpl implements TeacherService {
             );
         }
         
-        queryWrapper.orderByDesc("created_at");
+        queryWrapper.orderByDesc("id");
         
         Page<Teacher> result = teacherMapper.selectPage(pageParam, queryWrapper);
         return result.getRecords();

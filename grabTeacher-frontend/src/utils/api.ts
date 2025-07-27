@@ -290,6 +290,22 @@ export const teacherAPI = {
       }
     })
     return apiRequest(`/api/teacher/${teacherId}/availability?${searchParams}`)
+  },
+
+  // 获取公开教师列表（无需认证，供主页使用）
+  getPublicList: (params: {
+    page?: number
+    size?: number
+    subject?: string
+    keyword?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/teacher/list?${searchParams}`)
   }
 }
 

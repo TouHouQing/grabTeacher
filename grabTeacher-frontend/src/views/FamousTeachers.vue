@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { gradeApi } from '../utils/api'
+import { gradeApi, subjectAPI, teacherAPI } from '../utils/api'
+import { ElMessage } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 
 // 定义组件名称
 defineOptions({
@@ -36,105 +38,27 @@ const filter = reactive({
 const availableGrades = ref([])
 const loadingGrades = ref(false)
 
+// 科目相关数据
+const availableSubjects = ref([])
+const loadingSubjects = ref(false)
+
+// 教师相关数据
+const loadingTeachers = ref(false)
+
 // 教师数据
-const teachers = ref([
-  {
-    id: 1, // 添加唯一ID
-    name: '张老师',
-    subject: '数学',
-    grade: '初中',
-    experience: 10,
-    rating: 4.8,
-    description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣，使用多种教学方法帮助学生理解数学概念。',
-    avatar: teacherBoy1,
-    tags: ['趣味教学', '重点突破', '思维导图'],
-    schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00']
-  },
-  {
-    id: 2, // 添加唯一ID
-    name: '李老师',
-    subject: '英语',
-    grade: '初中',
-    experience: 8,
-    rating: 4.9,
-    description: '毕业于英国剑桥大学，拥有TESOL证书，擅长英语口语教学，注重学生的语言应用能力培养。',
-    avatar: teacherBoy2,
-    tags: ['发音纠正', '口语强化', '语法精通'],
-    schedule: ['周二 18:00-20:00', '周四 18:00-20:00', '周日 14:00-16:00']
-  },
-  {
-    id: 3, // 添加唯一ID
-    name: '王老师',
-    subject: '物理',
-    grade: '初中',
-    experience: 12,
-    rating: 4.7,
-    description: '物理学博士，有丰富的教学经验，能将复杂概念简单化，善于通过实验和演示帮助学生理解物理原理。',
-    avatar: teacherBoy3,
-    tags: ['概念解析', '解题技巧', '高考冲刺'],
-    schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00']
-  },
-  {
-    id: 4, // 添加唯一ID
-    name: '刘老师',
-    subject: '化学',
-    grade: '初中',
-    experience: 15,
-    rating: 4.9,
-    description: '化学教育硕士，从事一线教学工作15年，教学方法灵活多样，注重培养学生的实验能力和科学思维。',
-    avatar: teacherGirl1,
-    tags: ['实验教学', '概念讲解', '解题方法'],
-    schedule: ['周二 16:00-18:00', '周五 18:00-20:00', '周日 10:00-12:00']
-  },
-  {
-    id: 5, // 添加唯一ID
-    name: '陈老师',
-    subject: '数学',
-    grade: '初中',
-    experience: 7,
-    rating: 4.6,
-    description: '数学教育专业毕业，擅长启发式教学，能够根据学生的特点制定个性化的学习计划。',
-    avatar: teacherGirl2,
-    tags: ['基础夯实', '思维训练', '难题攻克'],
-    schedule: ['周一 15:00-17:00', '周四 16:00-18:00', '周六 16:00-18:00']
-  },
-  {
-    id: 6, // 添加唯一ID
-    name: '赵老师',
-    subject: '生物',
-    grade: '初中',
-    experience: 9,
-    rating: 4.8,
-    description: '生物学硕士，有丰富的教学经验，擅长将生物学知识与日常生活相结合，让学习更加生动有趣。',
-    avatar: teacherGirl3,
-    tags: ['实验演示', '概念讲解', '考点梳理'],
-    schedule: ['周二 19:00-21:00', '周五 16:00-18:00', '周日 16:00-18:00']
-  },
-  {
-    id: 7, // 添加唯一ID
-    name: '杨老师',
-    subject: '英语',
-    grade: '小学',
-    experience: 5,
-    rating: 4.9,
-    description: '英语专业毕业，有海外留学经验，擅长通过游戏、歌曲等形式激发孩子学习英语的兴趣。',
-    avatar: teacherGirl4,
-    tags: ['趣味教学', '语音纠正', '词汇积累'],
-    schedule: ['周三 15:00-17:00', '周五 15:00-17:00', '周六 10:00-12:00']
-  },
-  {
-    id: 8, // 添加唯一ID
-    name: '周老师',
-    subject: '物理',
-    grade: '初中',
-    experience: 8,
-    rating: 4.7,
-    description: '物理教育专业毕业，擅长实验教学，能够通过实验激发学生的学习兴趣，培养学生的动手能力。',
-    avatar: studentGirl2,
-    tags: ['实验教学', '概念讲解', '题型分析'],
-    schedule: ['周一 17:00-19:00', '周四 17:00-19:00', '周日 14:00-16:00']
-  }
-])
+const teachers = ref([])
+
+// 默认头像数组，用于随机分配给教师
+const defaultAvatars = [
+  teacherBoy1, teacherBoy2, teacherBoy3,
+  teacherGirl1, teacherGirl2, teacherGirl3, teacherGirl4,
+  studentGirl2
+]
+
+// 获取随机头像
+const getRandomAvatar = () => {
+  return defaultAvatars[Math.floor(Math.random() * defaultAvatars.length)]
+}
 
 // 筛选教师
 const filteredTeachers = computed(() => {
@@ -180,9 +104,19 @@ const resetFilter = () => {
   currentPage.value = 1
 }
 
+// 刷新数据
+const refreshData = async () => {
+  await Promise.all([
+    loadGrades(),
+    loadSubjects(),
+    loadTeachers()
+  ])
+  ElMessage.success('数据刷新成功')
+}
+
 // 查看教师详情
 const viewTeacherDetail = (teacherId: number) => {
-  router.push(`/student/teacher-detail/${teacherId}`)
+  router.push(`/teacher-detail/${teacherId}`)
 }
 
 // 获取年级列表
@@ -195,14 +129,92 @@ const loadGrades = async () => {
     }
   } catch (error) {
     console.error('获取年级列表失败:', error)
+    ElMessage.error('获取年级列表失败')
   } finally {
     loadingGrades.value = false
+  }
+}
+
+// 获取科目列表
+const loadSubjects = async () => {
+  try {
+    loadingSubjects.value = true
+    const response = await subjectAPI.getActiveSubjects()
+    if (response.success && response.data) {
+      availableSubjects.value = response.data
+    }
+  } catch (error) {
+    console.error('获取科目列表失败:', error)
+    ElMessage.error('获取科目列表失败')
+  } finally {
+    loadingSubjects.value = false
+  }
+}
+
+// 获取教师列表
+const loadTeachers = async () => {
+  try {
+    loadingTeachers.value = true
+    const response = await teacherAPI.getPublicList({
+      page: 1,
+      size: 100 // 获取更多教师数据
+    })
+    if (response.success && response.data) {
+      // 转换后端数据格式为前端需要的格式
+      const teacherList = Array.isArray(response.data) ? response.data : []
+      teachers.value = teacherList.map((teacher: any, index: number) => {
+        // 处理科目信息
+        const subjects = teacher.subjects ? teacher.subjects.split(',').map((s: string) => s.trim()) : []
+        const primarySubject = subjects[0] || '未设置'
+
+        // 处理特长标签
+        const specialties = teacher.specialties ? teacher.specialties.split(',').map((s: string) => s.trim()).slice(0, 3) : []
+        const defaultTags = ['专业教学', '经验丰富', '认真负责']
+        const tags = specialties.length > 0 ? specialties : defaultTags.slice(0, 2)
+
+        // 生成合理的评分
+        const baseRating = 4.5
+        const experienceBonus = Math.min(teacher.teachingExperience * 0.02, 0.4) // 经验越多评分越高
+        const randomFactor = Math.random() * 0.1
+        const rating = Math.min(baseRating + experienceBonus + randomFactor, 5.0)
+
+        // 根据性别选择合适的头像
+        let avatar = defaultAvatars[index % defaultAvatars.length]
+        if (teacher.gender === 'Male') {
+          const maleAvatars = [teacherBoy1, teacherBoy2, teacherBoy3]
+          avatar = maleAvatars[index % maleAvatars.length]
+        } else if (teacher.gender === 'Female') {
+          const femaleAvatars = [teacherGirl1, teacherGirl2, teacherGirl3, teacherGirl4, studentGirl2]
+          avatar = femaleAvatars[index % femaleAvatars.length]
+        }
+
+        return {
+          id: teacher.id,
+          name: teacher.realName,
+          subject: primarySubject,
+          grade: '初中', // 暂时使用默认值，后续可以从教师的课程中获取
+          experience: teacher.teachingExperience || 0,
+          rating: Math.round(rating * 10) / 10, // 保留一位小数
+          description: teacher.introduction || `${teacher.realName}是一位优秀的${primarySubject}教师，教学经验丰富，深受学生喜爱。`,
+          avatar: avatar,
+          tags: tags,
+          schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'] // 暂时使用默认值
+        }
+      })
+    }
+  } catch (error) {
+    console.error('获取教师列表失败:', error)
+    ElMessage.error('获取教师列表失败')
+  } finally {
+    loadingTeachers.value = false
   }
 }
 
 // 组件挂载时加载数据
 onMounted(() => {
   loadGrades()
+  loadSubjects()
+  loadTeachers()
 })
 </script>
 
@@ -220,12 +232,13 @@ onMounted(() => {
       <div class="filter-section">
         <el-form :inline="true" class="filter-form">
           <el-form-item label="科目">
-            <el-select v-model="filter.subject" placeholder="选择科目" clearable>
-              <el-option label="数学" value="数学" />
-              <el-option label="英语" value="英语" />
-              <el-option label="物理" value="物理" />
-              <el-option label="化学" value="化学" />
-              <el-option label="生物" value="生物" />
+            <el-select v-model="filter.subject" placeholder="选择科目" clearable :loading="loadingSubjects">
+              <el-option
+                v-for="subject in availableSubjects"
+                :key="subject.id"
+                :label="subject.name"
+                :value="subject.name"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="年级">
@@ -248,14 +261,22 @@ onMounted(() => {
           <el-form-item>
             <el-button type="primary" @click="handleFilter">筛选</el-button>
             <el-button @click="resetFilter">重置</el-button>
+            <el-button @click="refreshData" :loading="loadingTeachers || loadingSubjects || loadingGrades">刷新</el-button>
           </el-form-item>
         </el-form>
       </div>
 
       <!-- 教师列表 -->
       <div class="teachers-section">
-        <div class="teachers-grid">
-          <div class="teacher-card" v-for="(teacher, index) in displayTeachers" :key="index">
+        <div v-if="loadingTeachers" class="loading-container">
+          <el-icon class="loading-icon"><Loading /></el-icon>
+          <p>正在加载教师信息...</p>
+        </div>
+        <div v-else-if="displayTeachers.length === 0" class="empty-container">
+          <p>暂无符合条件的教师</p>
+        </div>
+        <div v-else class="teachers-grid">
+          <div class="teacher-card" v-for="teacher in displayTeachers" :key="teacher.id">
             <div class="teacher-avatar">
               <img :src="teacher.avatar" :alt="teacher.name">
               <div class="teacher-rating">
@@ -479,6 +500,40 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   margin-top: 40px;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: #666;
+}
+
+.loading-icon {
+  font-size: 48px;
+  color: #409eff;
+  animation: rotate 2s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.empty-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: #999;
+  font-size: 16px;
 }
 
 @media (max-width: 1200px) {
