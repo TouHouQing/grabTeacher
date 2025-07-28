@@ -18,13 +18,13 @@ public interface BookingService {
     BookingResponseDTO createBookingRequest(BookingRequestDTO request, Long studentUserId);
     
     /**
-     * 审批预约申请（教师操作）
+     * 审批预约申请（管理员操作）
      * @param bookingId 预约申请ID
      * @param approval 审批参数
-     * @param teacherUserId 教师用户ID
+     * @param adminUserId 管理员用户ID
      * @return 预约申请响应数据
      */
-    BookingResponseDTO approveBookingRequest(Long bookingId, BookingApprovalDTO approval, Long teacherUserId);
+    BookingResponseDTO approveBookingRequest(Long bookingId, BookingApprovalDTO approval, Long adminUserId);
     
     /**
      * 取消预约申请（学生操作）
@@ -129,12 +129,5 @@ public interface BookingService {
      */
     Page<BookingResponseDTO> getAdminBookingRequests(int page, int size, String status, String keyword);
     
-    /**
-     * 管理员审批预约申请
-     * @param bookingId 预约申请ID
-     * @param approval 审批参数
-     * @param adminUserId 管理员用户ID
-     * @return 预约申请响应数据
-     */
-    BookingResponseDTO adminApproveBookingRequest(Long bookingId, BookingApprovalDTO approval, Long adminUserId);
+
 }

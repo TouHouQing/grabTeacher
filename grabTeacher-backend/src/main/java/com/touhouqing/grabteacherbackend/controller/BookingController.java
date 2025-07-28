@@ -68,11 +68,11 @@ public class BookingController {
     }
 
     /**
-     * 教师审批预约申请
+     * 管理员审批预约申请
      */
     @PutMapping("/{id}/approve")
-    @PreAuthorize("hasRole('TEACHER')")
-    @Operation(summary = "教师审批预约申请", description = "教师审批学生的预约申请")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "管理员审批预约申请", description = "管理员审批学生的预约申请")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "审批成功",
                     content = @Content(schema = @Schema(implementation = BookingResponseDTO.class))),
@@ -313,35 +313,5 @@ public class BookingController {
         }
     }
 
-    /**
-     * 管理员审批预约申请
-     */
-    @PutMapping("/admin/{id}/approve")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "管理员审批预约申请", description = "管理员审批预约申请")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "审批成功",
-                    content = @Content(schema = @Schema(implementation = BookingResponseDTO.class))),
-            @ApiResponse(responseCode = "400", description = "请求参数错误"),
-            @ApiResponse(responseCode = "401", description = "未授权"),
-            @ApiResponse(responseCode = "403", description = "权限不足"),
-            @ApiResponse(responseCode = "404", description = "预约申请不存在")
-    })
-    public ResponseEntity<com.touhouqing.grabteacherbackend.dto.ApiResponse<BookingResponseDTO>> adminApproveBookingRequest(
-            @Parameter(description = "预约申请ID", required = true) @PathVariable Long id,
-            @Valid @RequestBody BookingApprovalDTO approval,
-            @AuthenticationPrincipal UserPrincipal currentUser) {
-        try {
-            BookingResponseDTO response = bookingService.adminApproveBookingRequest(id, approval, currentUser.getId());
-            return ResponseEntity.ok(com.touhouqing.grabteacherbackend.dto.ApiResponse.success("审批成功", response));
-        } catch (RuntimeException e) {
-            logger.warn("管理员审批预约申请失败: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(com.touhouqing.grabteacherbackend.dto.ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            logger.error("管理员审批预约申请异常: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(com.touhouqing.grabteacherbackend.dto.ApiResponse.error("审批失败"));
-        }
-    }
+
 }

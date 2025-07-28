@@ -1,7 +1,7 @@
 <template>
-  <div class="teacher-booking-management">
+  <div class="admin-booking-management">
     <div class="page-header">
-      <h1>预约管理</h1>
+      <h2>预约管理</h2>
       <div class="header-actions">
         <el-select v-model="statusFilter" placeholder="筛选状态" style="width: 120px; margin-right: 16px;" @change="loadBookings">
           <el-option label="全部" value="" />
@@ -9,6 +9,13 @@
           <el-option label="已通过" value="approved" />
           <el-option label="已拒绝" value="rejected" />
         </el-select>
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索学生或教师姓名"
+          style="width: 200px; margin-right: 16px;"
+          @keyup.enter="loadBookings"
+          clearable
+        />
         <el-button type="primary" @click="loadBookings" :loading="loading">
           <el-icon><Refresh /></el-icon>
           刷新
@@ -62,14 +69,17 @@
       <div class="booking-list">
         <div v-for="booking in bookings" :key="booking.id" class="booking-item" :class="{ 'pending': booking.status === 'pending' }">
           <div class="booking-header">
-            <div class="student-info">
-              <el-avatar :size="48" style="margin-right: 12px;">
-                {{ booking.studentName?.charAt(0) || 'S' }}
-              </el-avatar>
-              <div class="student-details">
-                <div class="student-name">{{ booking.studentName }}</div>
-                <div class="booking-time">{{ formatDateTime(booking.createdAt) }}</div>
+            <div class="booking-info">
+              <div class="student-info">
+                <el-avatar :size="40" style="margin-right: 12px;">
+                  {{ booking.studentName?.charAt(0) || 'S' }}
+                </el-avatar>
+                <div class="info-details">
+                  <div class="student-name">{{ booking.studentName }}</div>
+                  <div class="teacher-name">教师：{{ booking.teacherName }}</div>
+                </div>
               </div>
+              <div class="booking-time">{{ formatDateTime(booking.createdAt) }}</div>
             </div>
             <div class="booking-status">
               <el-tag :type="getStatusTagType(booking.status)" size="large">
@@ -116,33 +126,39 @@
               </div>
 
               <div v-if="booking.adminNotes" class="detail-row">
-                <span class="label">管理员回复：</span>
+                <span class="label">管理员备注：</span>
                 <span class="value admin-notes">{{ booking.adminNotes }}</span>
               </div>
             </div>
 
             <div class="booking-actions">
-              <div class="action-buttons-row">
-                <el-button size="small" @click="viewBookingDetail(booking)">
-                  详情
-                </el-button>
-                <el-button
-                  v-if="booking.status === 'approved'"
-                  type="primary"
-                  size="small"
-                  @click="viewSchedules(booking)"
-                >
-                  查看课表
-                </el-button>
-              </div>
-              <el-alert
+              <el-button size="small" @click="viewBookingDetail(booking)">
+                详情
+              </el-button>
+              <el-button
                 v-if="booking.status === 'pending'"
-                title="预约申请需要管理员审批"
-                type="info"
-                :closable="false"
-                show-icon
-                style="margin-top: 8px;"
-              />
+                type="success"
+                size="small"
+                @click="approveBooking(booking, 'approved')"
+              >
+                通过
+              </el-button>
+              <el-button
+                v-if="booking.status === 'pending'"
+                type="danger"
+                size="small"
+                @click="approveBooking(booking, 'rejected')"
+              >
+                拒绝
+              </el-button>
+              <el-button
+                v-if="booking.status === 'approved'"
+                type="primary"
+                size="small"
+                @click="viewSchedules(booking)"
+              >
+                查看课表
+              </el-button>
             </div>
           </div>
         </div>
@@ -195,78 +211,99 @@
                 {{ getStatusText(selectedBooking.status) }}
               </el-tag>
             </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>教师信息</h3>
+          <div class="detail-grid">
             <div class="detail-item">
-              <label>是否试听：</label>
-              <span>
-                {{ selectedBooking.isTrial ? '是' : '否' }}
-                <el-tag v-if="selectedBooking.isTrial" type="warning" size="small" style="margin-left: 8px;">
-                  {{ selectedBooking.trialDurationMinutes }}分钟
-                </el-tag>
-              </span>
+              <label>教师姓名：</label>
+              <span>{{ selectedBooking.teacherName }}</span>
             </div>
           </div>
         </div>
 
         <div class="detail-section">
-          <h3>课程安排</h3>
+          <h3>预约信息</h3>
           <div class="detail-grid">
             <div class="detail-item">
               <label>预约类型：</label>
               <span>{{ selectedBooking.bookingType === 'single' ? '单次预约' : '周期性预约' }}</span>
             </div>
-            <div class="detail-item">
-              <label>课程类型：</label>
-              <span>{{ selectedBooking.courseTitle || '自定义课程' }}</span>
-            </div>
-          </div>
-
-          <div v-if="selectedBooking.bookingType === 'single'" class="time-info">
-            <div class="time-item">
-              <label>上课日期：</label>
-              <span>{{ selectedBooking.requestedDate }}</span>
-            </div>
-            <div class="time-item">
-              <label>上课时间：</label>
-              <span>{{ selectedBooking.requestedStartTime }} - {{ selectedBooking.requestedEndTime }}</span>
-            </div>
-          </div>
-          <div v-else class="time-info">
-            <div class="time-item">
-              <label>上课时间：</label>
-              <span>{{ formatRecurringTime(selectedBooking.recurringWeekdays, selectedBooking.recurringTimeSlots) || '未设置' }}</span>
-            </div>
-            <div class="time-item">
-              <label>课程周期：</label>
-              <span>{{ selectedBooking.startDate }} 至 {{ selectedBooking.endDate }}</span>
-            </div>
-            <div v-if="selectedBooking.totalTimes" class="time-item">
-              <label>总课程数：</label>
-              <span>{{ selectedBooking.totalTimes }}次</span>
+            <div v-if="selectedBooking.isTrial" class="detail-item">
+              <label>试听课：</label>
+              <el-tag type="warning" size="small">是</el-tag>
             </div>
           </div>
         </div>
 
         <div v-if="selectedBooking.studentRequirements" class="detail-section">
           <h3>学习需求</h3>
-          <div class="requirements-content">
-            {{ selectedBooking.studentRequirements }}
-          </div>
+          <p>{{ selectedBooking.studentRequirements }}</p>
         </div>
 
         <div v-if="selectedBooking.adminNotes" class="detail-section">
-          <h3>管理员回复</h3>
-          <div class="admin-reply-content">
-            {{ selectedBooking.adminNotes }}
-          </div>
+          <h3>管理员备注</h3>
+          <p>{{ selectedBooking.adminNotes }}</p>
         </div>
       </div>
 
       <template #footer>
         <el-button @click="closeDetailModal">关闭</el-button>
+        <el-button
+          v-if="selectedBooking && selectedBooking.status === 'pending'"
+          type="success"
+          @click="approveBooking(selectedBooking, 'approved')"
+        >
+          通过申请
+        </el-button>
+        <el-button
+          v-if="selectedBooking && selectedBooking.status === 'pending'"
+          type="danger"
+          @click="approveBooking(selectedBooking, 'rejected')"
+        >
+          拒绝申请
+        </el-button>
       </template>
     </el-dialog>
 
+    <!-- 审批弹窗 -->
+    <el-dialog
+      v-model="showApprovalModal"
+      :title="approvalForm.status === 'approved' ? '通过申请' : '拒绝申请'"
+      width="500px"
+      :before-close="closeApprovalModal"
+    >
+      <el-form :model="approvalForm" label-width="100px">
+        <el-form-item label="审批结果">
+          <el-tag :type="approvalForm.status === 'approved' ? 'success' : 'danger'" size="large">
+            {{ approvalForm.status === 'approved' ? '通过申请' : '拒绝申请' }}
+          </el-tag>
+        </el-form-item>
+        <el-form-item label="管理员备注">
+          <el-input
+            v-model="approvalForm.adminNotes"
+            type="textarea"
+            :rows="4"
+            :placeholder="approvalForm.status === 'approved' ? '请输入通过理由和相关说明...' : '请输入拒绝理由...'"
+            maxlength="300"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
 
+      <template #footer>
+        <el-button @click="closeApprovalModal">取消</el-button>
+        <el-button
+          :type="approvalForm.status === 'approved' ? 'success' : 'danger'"
+          @click="submitApproval"
+          :loading="approving"
+        >
+          确认{{ approvalForm.status === 'approved' ? '通过' : '拒绝' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -278,8 +315,10 @@ import { bookingAPI } from '@/utils/api'
 
 // 响应式数据
 const loading = ref(false)
+const approving = ref(false)
 const bookings = ref<any[]>([])
 const statusFilter = ref('')
+const searchKeyword = ref('')
 
 // 分页数据
 const pagination = reactive({
@@ -290,16 +329,21 @@ const pagination = reactive({
 
 // 弹窗相关
 const showDetailModal = ref(false)
+const showApprovalModal = ref(false)
 const selectedBooking = ref<any>(null)
 
-// 统计信息
-const bookingStats = computed(() => {
-  const total = bookings.value.length
-  const pending = bookings.value.filter(b => b.status === 'pending').length
-  const approved = bookings.value.filter(b => b.status === 'approved').length
-  const trial = bookings.value.filter(b => b.isTrial).length
+// 审批表单
+const approvalForm = reactive({
+  status: 'approved' as 'approved' | 'rejected',
+  adminNotes: ''
+})
 
-  return { total, pending, approved, trial }
+// 统计信息
+const bookingStats = reactive({
+  total: 0,
+  pending: 0,
+  approved: 0,
+  trial: 0
 })
 
 // 页面加载时获取数据
@@ -311,15 +355,32 @@ onMounted(() => {
 const loadBookings = async () => {
   loading.value = true
   try {
-    const result = await bookingAPI.getTeacherRequests({
+    const result = await bookingAPI.getAdminRequests({
       page: pagination.current,
       size: pagination.size,
-      status: statusFilter.value
+      status: statusFilter.value,
+      keyword: searchKeyword.value
     })
 
     if (result.success && result.data) {
       bookings.value = result.data.records || []
       pagination.total = result.data.total || 0
+      console.log('管理员预约数据:', result.data)
+      console.log('预约列表:', bookings.value)
+      console.log('预约列表长度:', bookings.value.length)
+      if (bookings.value.length > 0) {
+        console.log('第一个预约:', bookings.value[0])
+      }
+
+      // 更新统计信息 - 基于当前页面的数据
+      const currentPageStats = {
+        total: pagination.total,
+        pending: bookings.value.filter(b => b.status === 'pending').length,
+        approved: bookings.value.filter(b => b.status === 'approved').length,
+        trial: bookings.value.filter(b => b.isTrial).length
+      }
+
+      Object.assign(bookingStats, currentPageStats)
     } else {
       ElMessage.error(result.message || '获取预约申请失败')
     }
@@ -328,6 +389,34 @@ const loadBookings = async () => {
     ElMessage.error('获取预约申请失败，请稍后重试')
   } finally {
     loading.value = false
+  }
+}
+
+// 加载统计信息
+const loadStats = async () => {
+  try {
+    // 获取所有状态的统计信息
+    const [totalResult, pendingResult, approvedResult, trialResult] = await Promise.all([
+      bookingAPI.getAdminRequests({ page: 1, size: 1 }),
+      bookingAPI.getAdminRequests({ page: 1, size: 1, status: 'pending' }),
+      bookingAPI.getAdminRequests({ page: 1, size: 1, status: 'approved' }),
+      bookingAPI.getAdminRequests({ page: 1, size: 1000 }) // 获取更多数据来统计试听课
+    ])
+
+    if (totalResult.success) {
+      bookingStats.total = totalResult.data?.total || 0
+    }
+    if (pendingResult.success) {
+      bookingStats.pending = pendingResult.data?.total || 0
+    }
+    if (approvedResult.success) {
+      bookingStats.approved = approvedResult.data?.total || 0
+    }
+    if (trialResult.success && trialResult.data?.records) {
+      bookingStats.trial = trialResult.data.records.filter(b => b.isTrial).length
+    }
+  } catch (error) {
+    console.error('获取统计信息失败:', error)
   }
 }
 
@@ -343,11 +432,54 @@ const closeDetailModal = () => {
   selectedBooking.value = null
 }
 
+// 审批预约
+const approveBooking = (booking: any, status: 'approved' | 'rejected') => {
+  selectedBooking.value = booking
+  approvalForm.status = status
+  approvalForm.adminNotes = ''
+  showApprovalModal.value = true
+}
 
+// 关闭审批弹窗
+const closeApprovalModal = () => {
+  showApprovalModal.value = false
+  approvalForm.adminNotes = ''
+}
+
+// 提交审批
+const submitApproval = async () => {
+  if (!approvalForm.adminNotes.trim()) {
+    ElMessage.warning('请输入管理员备注')
+    return
+  }
+
+  approving.value = true
+  try {
+    const result = await bookingAPI.approve(selectedBooking.value.id, {
+      status: approvalForm.status,
+      adminNotes: approvalForm.adminNotes
+    })
+
+    if (result.success) {
+      ElMessage.success(`预约申请已${approvalForm.status === 'approved' ? '通过' : '拒绝'}`)
+      loadBookings()
+      closeApprovalModal()
+      if (showDetailModal.value) {
+        closeDetailModal()
+      }
+    } else {
+      ElMessage.error(result.message || '审批失败')
+    }
+  } catch (error) {
+    console.error('审批失败:', error)
+    ElMessage.error('审批失败，请稍后重试')
+  } finally {
+    approving.value = false
+  }
+}
 
 // 查看课表
 const viewSchedules = (booking: any) => {
-  // 跳转到课表页面
   ElMessage.info('即将跳转到课表页面...')
 }
 
@@ -385,7 +517,7 @@ const formatRecurringTime = (weekdays: any, timeSlots: any) => {
     timeSlotList = timeSlots.split(',')
   }
 
-  return `每周${weekdayList.join('、')} ${timeSlotList.join('、')}`
+  return `${weekdayList.join('、')} ${timeSlotList.join('、')}`
 }
 
 const getStatusTagType = (status: string) => {
@@ -410,24 +542,20 @@ const getStatusText = (status: string) => {
 </script>
 
 <style scoped>
-.teacher-booking-management {
-  padding: 24px;
-  background-color: #f5f7fa;
-  min-height: 100vh;
+.admin-booking-management {
+  padding: 20px;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
-.page-header h1 {
+.page-header h2 {
   margin: 0;
   color: #303133;
-  font-size: 24px;
-  font-weight: 600;
 }
 
 .header-actions {
@@ -439,17 +567,12 @@ const getStatusText = (status: string) => {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .stat-card {
-  border: none;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
+  position: relative;
+  overflow: hidden;
 }
 
 .stat-card.pending {
@@ -461,106 +584,80 @@ const getStatusText = (status: string) => {
 }
 
 .stat-card.trial {
-  border-left: 4px solid #f56c6c;
-}
-
-.stat-card :deep(.el-card__body) {
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  border-left: 4px solid #409eff;
 }
 
 .stat-content {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
 }
 
 .stat-number {
-  font-size: 28px;
-  font-weight: 700;
-  color: #409eff;
-  line-height: 1;
+  font-size: 32px;
+  font-weight: bold;
+  color: #303133;
   margin-bottom: 8px;
-}
-
-.stat-card.pending .stat-number {
-  color: #e6a23c;
-}
-
-.stat-card.approved .stat-number {
-  color: #67c23a;
-}
-
-.stat-card.trial .stat-number {
-  color: #f56c6c;
 }
 
 .stat-label {
   font-size: 14px;
   color: #909399;
-  font-weight: 500;
 }
 
 .stat-icon {
-  font-size: 32px;
-  color: #409eff;
-  opacity: 0.8;
-}
-
-.stat-card.pending .stat-icon {
-  color: #e6a23c;
-}
-
-.stat-card.approved .stat-icon {
-  color: #67c23a;
-}
-
-.stat-card.trial .stat-icon {
-  color: #f56c6c;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 24px;
+  color: #c0c4cc;
 }
 
 .booking-list-card {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  border: none;
+  margin-bottom: 20px;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-weight: 600;
-  color: #303133;
 }
 
 .booking-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  max-height: 600px;
+  overflow-y: auto;
 }
 
 .booking-item {
   border: 1px solid #ebeef5;
   border-radius: 8px;
-  padding: 20px;
-  background-color: #fff;
-  transition: all 0.3s ease;
+  margin-bottom: 16px;
+  padding: 16px;
+  transition: all 0.3s;
 }
 
 .booking-item:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: #409eff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
 
 .booking-item.pending {
   border-left: 4px solid #e6a23c;
-  background: linear-gradient(90deg, #fdf6ec 0%, #ffffff 20%);
+  background-color: #fdf6ec;
 }
 
 .booking-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+.booking-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
 }
 
 .student-info {
@@ -568,16 +665,20 @@ const getStatusText = (status: string) => {
   align-items: center;
 }
 
-.student-details {
+.info-details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .student-name {
-  font-size: 16px;
   font-weight: 600;
   color: #303133;
+  margin-bottom: 4px;
+}
+
+.teacher-name {
+  font-size: 12px;
+  color: #909399;
 }
 
 .booking-time {
@@ -588,109 +689,81 @@ const getStatusText = (status: string) => {
 .booking-status {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.booking-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 20px;
 }
 
 .booking-details {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .detail-row {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
 }
 
 .detail-row .label {
-  font-weight: 500;
   color: #606266;
   min-width: 80px;
-  flex-shrink: 0;
+  font-weight: 500;
 }
 
 .detail-row .value {
   color: #303133;
-  line-height: 1.5;
+  flex: 1;
 }
 
-.detail-row .value.requirements {
-  background-color: #f0f9ff;
-  padding: 8px 12px;
-  border-radius: 6px;
+.requirements {
+  background-color: #f5f7fa;
+  padding: 8px;
+  border-radius: 4px;
   border-left: 3px solid #409eff;
 }
 
-.detail-row .value.teacher-reply {
-  background-color: #f0f9ff;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border-left: 3px solid #67c23a;
-}
-
 .admin-notes {
-  background-color: #fdf6ec;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border-left: 3px solid #e6a23c;
+  background-color: #f0f9ff;
+  padding: 8px;
+  border-radius: 4px;
+  border-left: 3px solid #67c23a;
 }
 
 .booking-actions {
   display: flex;
-  flex-direction: column;
   gap: 8px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
-.action-buttons-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.empty-state,
-.loading-state {
-  padding: 40px 0;
+.empty-state, .loading-state {
+  padding: 40px;
   text-align: center;
 }
 
 .pagination-wrapper {
-  margin-top: 24px;
   display: flex;
   justify-content: center;
+  margin-top: 20px;
 }
 
 .booking-detail {
-  max-height: 60vh;
+  max-height: 500px;
   overflow-y: auto;
 }
 
 .detail-section {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .detail-section h3 {
-  margin: 0 0 16px 0;
+  margin: 0 0 12px 0;
   color: #303133;
   font-size: 16px;
-  font-weight: 600;
   border-bottom: 1px solid #ebeef5;
   padding-bottom: 8px;
 }
 
 .detail-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
 }
 
 .detail-item {
@@ -699,107 +772,12 @@ const getStatusText = (status: string) => {
 }
 
 .detail-item label {
-  font-weight: 500;
   color: #606266;
   min-width: 80px;
-  margin-right: 8px;
+  font-weight: 500;
 }
 
 .detail-item span {
   color: #303133;
-}
-
-.time-info {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.time-item {
-  display: flex;
-  align-items: center;
-}
-
-.time-item label {
-  font-weight: 500;
-  color: #606266;
-  min-width: 80px;
-  margin-right: 8px;
-}
-
-.time-item span {
-  color: #303133;
-}
-
-.requirements-content,
-.reply-content,
-.admin-reply-content {
-  background-color: #f8f9fa;
-  padding: 16px;
-  border-radius: 8px;
-  border-left: 4px solid #409eff;
-  line-height: 1.6;
-  color: #303133;
-}
-
-.reply-content {
-  border-left-color: #67c23a;
-}
-
-.admin-reply-content {
-  border-left-color: #e6a23c;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .teacher-booking-management {
-    padding: 16px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-
-  .header-actions {
-    justify-content: center;
-  }
-
-  .stats-cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .booking-content {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .booking-actions {
-    flex-direction: row;
-    justify-content: flex-end;
-  }
-
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 480px) {
-  .stats-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .booking-header {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
-  }
-
-  .booking-actions {
-    flex-direction: column;
-    width: 100%;
-  }
 }
 </style>

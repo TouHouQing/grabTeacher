@@ -111,28 +111,22 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
-    public BookingResponseDTO approveBookingRequest(Long bookingId, BookingApprovalDTO approval, Long teacherUserId) {
-        log.info("教师审批预约申请，预约ID: {}, 教师用户ID: {}, 状态: {}", bookingId, teacherUserId, approval.getStatus());
+    public BookingResponseDTO approveBookingRequest(Long bookingId, BookingApprovalDTO approval, Long adminUserId) {
+        log.info("管理员审批预约申请，预约ID: {}, 管理员用户ID: {}, 状态: {}", bookingId, adminUserId, approval.getStatus());
 
         BookingRequest bookingRequest = bookingRequestMapper.selectById(bookingId);
         if (bookingRequest == null) {
             throw new RuntimeException("预约申请不存在");
         }
 
-        // 验证教师权限
-        Teacher teacher = teacherMapper.findByUserId(teacherUserId);
-        if (teacher == null || !teacher.getId().equals(bookingRequest.getTeacherId())) {
-            throw new RuntimeException("无权限操作此预约申请");
-        }
-
         // 更新预约申请状态
         bookingRequest.setStatus(approval.getStatus());
-        bookingRequest.setTeacherReply(approval.getTeacherReply());
+        bookingRequest.setAdminNotes(approval.getAdminNotes());
         bookingRequest.setUpdatedAt(LocalDateTime.now());
 
         if ("approved".equals(approval.getStatus())) {
             bookingRequest.setApprovedAt(LocalDateTime.now());
-            
+
             // 如果是试听课，标记用户已使用试听
             if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
                 Student student = studentMapper.selectById(bookingRequest.getStudentId());
@@ -140,7 +134,7 @@ public class BookingServiceImpl implements BookingService {
                     markTrialUsed(student.getUserId());
                 }
             }
-            
+
             // 生成课程安排
             if ("single".equals(bookingRequest.getBookingType())) {
                 generateSingleSchedule(bookingRequest);
@@ -151,7 +145,7 @@ public class BookingServiceImpl implements BookingService {
 
         bookingRequestMapper.updateById(bookingRequest);
 
-        log.info("预约申请审批完成，ID: {}, 状态: {}", bookingId, approval.getStatus());
+        log.info("管理员预约申请审批完成，ID: {}, 状态: {}", bookingId, approval.getStatus());
         return convertToBookingResponseDTO(bookingRequest);
     }
 
@@ -410,45 +404,7 @@ public class BookingServiceImpl implements BookingService {
         return responsePage;
     }
 
-    @Override
-    @Transactional
-    public BookingResponseDTO adminApproveBookingRequest(Long bookingId, BookingApprovalDTO approval, Long adminUserId) {
-        log.info("管理员审批预约申请，预约ID: {}, 管理员用户ID: {}, 状态: {}", bookingId, adminUserId, approval.getStatus());
 
-        BookingRequest bookingRequest = bookingRequestMapper.selectById(bookingId);
-        if (bookingRequest == null) {
-            throw new RuntimeException("预约申请不存在");
-        }
-
-        // 更新预约申请状态
-        bookingRequest.setStatus(approval.getStatus());
-        bookingRequest.setAdminNotes(approval.getAdminNotes());
-        bookingRequest.setUpdatedAt(LocalDateTime.now());
-
-        if ("approved".equals(approval.getStatus())) {
-            bookingRequest.setApprovedAt(LocalDateTime.now());
-
-            // 如果是试听课，标记用户已使用试听
-            if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
-                Student student = studentMapper.selectById(bookingRequest.getStudentId());
-                if (student != null) {
-                    markTrialUsed(student.getUserId());
-                }
-            }
-
-            // 生成课程安排
-            if ("single".equals(bookingRequest.getBookingType())) {
-                generateSingleSchedule(bookingRequest);
-            } else if ("recurring".equals(bookingRequest.getBookingType())) {
-                generateRecurringSchedules(bookingRequest);
-            }
-        }
-
-        bookingRequestMapper.updateById(bookingRequest);
-
-        log.info("管理员预约申请审批完成，ID: {}, 状态: {}", bookingId, approval.getStatus());
-        return convertToBookingResponseDTO(bookingRequest);
-    }
 
     // ==================== 私有辅助方法 ====================
 

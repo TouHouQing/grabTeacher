@@ -338,7 +338,7 @@ export const bookingAPI = {
     body: JSON.stringify(data)
   }),
 
-  // 教师审批预约申请
+  // 管理员审批预约申请
   approve: (id: number, data: {
     status: 'approved' | 'rejected'
     teacherReply?: string
@@ -433,15 +433,7 @@ export const bookingAPI = {
     return apiRequest(`/api/booking/admin/list?${searchParams}`)
   },
 
-  // 管理员审批预约申请
-  adminApprove: (id: number, data: {
-    status: 'approved' | 'rejected'
-    teacherReply?: string
-    adminNotes?: string
-  }) => apiRequest(`/api/booking/admin/${id}/approve`, {
-    method: 'PUT',
-    body: JSON.stringify(data)
-  })
+
 }
 
 // 课程管理 API

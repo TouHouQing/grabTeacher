@@ -11,6 +11,7 @@ import AdminSubjectManagement from './components/AdminSubjectManagement.vue'
 import AdminCourseManagement from './AdminCourseManagement.vue'
 import AdminGradeManagement from '../../components/AdminGradeManagement.vue'
 import AdminPasswordChange from './components/AdminPasswordChange.vue'
+import AdminBookingManagement from './components/AdminBookingManagement.vue'
 
 // 获取用户信息
 const userStore = useUserStore()
@@ -62,6 +63,10 @@ const handleMenuSelect = (key: string) => {
             <el-icon><Reading /></el-icon>
             <span>课程管理</span>
           </el-menu-item>
+          <el-menu-item index="bookings">
+            <el-icon><Document /></el-icon>
+            <span>预约管理</span>
+          </el-menu-item>
           <el-menu-item index="grades">
             <el-icon><Setting /></el-icon>
             <span>年级管理</span>
@@ -98,6 +103,11 @@ const handleMenuSelect = (key: string) => {
         <!-- 课程管理 -->
         <div v-show="activeMenu === 'courses'" class="content-panel">
           <AdminCourseManagement />
+        </div>
+
+        <!-- 预约管理 -->
+        <div v-show="activeMenu === 'bookings'" class="content-panel">
+          <AdminBookingManagement />
         </div>
 
         <!-- 年级管理 -->
