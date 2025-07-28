@@ -8,7 +8,6 @@ import lombok.Builder;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.NotEmpty;
 import java.util.List;
 
 /**
@@ -24,10 +23,9 @@ public class AvailableTimeRequest {
     @NotNull(message = "教师ID不能为空")
     @Schema(description = "教师ID", example = "1")
     private Long teacherId;
-    
-    @NotEmpty(message = "可上课时间不能为空")
+
     @Valid
-    @Schema(description = "可上课时间安排列表")
+    @Schema(description = "可上课时间安排列表，如果为空或null则表示所有时间都可以上课")
     private List<TimeSlotDTO> availableTimeSlots;
     
     /**

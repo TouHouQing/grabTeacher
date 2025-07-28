@@ -53,13 +53,16 @@ public class TeacherProfileResponse {
     
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     private String gender;
-    
+
+    @Schema(description = "可上课时间安排")
+    private List<TimeSlotDTO> availableTimeSlots;
+
     @Schema(description = "是否已认证", example = "true")
     private Boolean isVerified;
-    
+
     @Schema(description = "是否已删除", example = "false")
     private Boolean isDeleted;
-    
+
     @Schema(description = "删除时间")
     private LocalDateTime deletedAt;
 }

@@ -200,6 +200,27 @@ const handleEditTeacher = async (teacher: any) => {
     teacherForm.subjectIds = []
   }
 
+  // 获取教师的可上课时间
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/available-time/teacher/${teacher.id}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+    const result = await response.json()
+    if (result.success && result.data && result.data.availableTimeSlots) {
+      availableTimeSlots.value = [...result.data.availableTimeSlots]
+      console.log('加载教师可上课时间成功:', result.data.availableTimeSlots)
+    } else {
+      // 如果没有设置可上课时间，清空数组（表示所有时间都可以）
+      availableTimeSlots.value = []
+      console.log('教师未设置可上课时间，默认所有时间可用')
+    }
+  } catch (error) {
+    console.error('获取教师可上课时间失败:', error)
+    availableTimeSlots.value = []
+  }
+
   teacherDialogVisible.value = true
 }
 

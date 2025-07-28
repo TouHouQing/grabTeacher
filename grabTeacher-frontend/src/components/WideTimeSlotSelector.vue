@@ -153,10 +153,17 @@ const totalSelectedSlots = computed(() =>
 
 // 初始化数据
 const initializeData = () => {
+  // 首先清空所有选择
+  weekdays.value.forEach(weekday => {
+    weekday.selected = false
+    weekday.selectedSlots = []
+  })
+
+  // 然后根据 modelValue 设置选择
   if (props.modelValue && props.modelValue.length > 0) {
     weekdays.value.forEach(weekday => {
       const found = props.modelValue.find(item => item.weekday === weekday.value)
-      if (found) {
+      if (found && found.timeSlots && found.timeSlots.length > 0) {
         weekday.selected = true
         weekday.selectedSlots = [...found.timeSlots]
       }

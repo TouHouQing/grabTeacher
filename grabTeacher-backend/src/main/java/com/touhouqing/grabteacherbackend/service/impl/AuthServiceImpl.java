@@ -117,13 +117,18 @@ public class AuthServiceImpl implements AuthService {
                 if (registerRequest.getAvailableTimeSlots() != null && !registerRequest.getAvailableTimeSlots().isEmpty()) {
                     if (TimeSlotUtil.isValidTimeSlots(registerRequest.getAvailableTimeSlots())) {
                         availableTimeSlotsJson = TimeSlotUtil.toJsonString(registerRequest.getAvailableTimeSlots());
+                        log.info("教师注册时设置了可上课时间，时间段数量: {}",
+                                registerRequest.getAvailableTimeSlots().stream()
+                                        .mapToInt(slot -> slot.getTimeSlots() != null ? slot.getTimeSlots().size() : 0)
+                                        .sum());
                     } else {
-                        log.warn("教师注册时提供的可上课时间格式不正确，将使用默认时间");
-                        availableTimeSlotsJson = TimeSlotUtil.toJsonString(TimeSlotUtil.getDefaultTimeSlots());
+                        log.warn("教师注册时提供的可上课时间格式不正确，将设置为所有时间可用");
+                        availableTimeSlotsJson = null; // 格式不正确时设置为null，表示所有时间都可以
                     }
                 } else {
-                    // 如果没有提供可上课时间，使用默认时间
-                    availableTimeSlotsJson = TimeSlotUtil.toJsonString(TimeSlotUtil.getDefaultTimeSlots());
+                    // 如果没有提供可上课时间，设置为null（表示所有时间都可以）
+                    availableTimeSlotsJson = null;
+                    log.info("教师注册时未设置可上课时间，默认所有时间都可以");
                 }
 
                 Teacher teacher = Teacher.builder()

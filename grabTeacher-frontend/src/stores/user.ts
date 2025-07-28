@@ -56,6 +56,10 @@ export interface TeacherInfo {
   introduction?: string
   videoIntroUrl?: string
   gender?: string
+  availableTimeSlots?: {
+    weekday: number
+    timeSlots: string[]
+  }[]
   isVerified?: boolean
 }
 

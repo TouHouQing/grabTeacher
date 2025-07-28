@@ -289,13 +289,19 @@ public class AdminServiceImpl implements AdminService {
         if (request.getAvailableTimeSlots() != null && !request.getAvailableTimeSlots().isEmpty()) {
             if (TimeSlotUtil.isValidTimeSlots(request.getAvailableTimeSlots())) {
                 availableTimeSlotsJson = TimeSlotUtil.toJsonString(request.getAvailableTimeSlots());
+                log.info("管理员为教师设置了可上课时间，时间段数量: {}",
+                        request.getAvailableTimeSlots().stream()
+                                .mapToInt(slot -> slot.getTimeSlots() != null ? slot.getTimeSlots().size() : 0)
+                                .sum());
             } else {
-                // 如果格式不正确，使用默认时间
-                availableTimeSlotsJson = TimeSlotUtil.toJsonString(TimeSlotUtil.getDefaultTimeSlots());
+                // 如果格式不正确，设置为null（表示所有时间都可以）
+                availableTimeSlotsJson = null;
+                log.warn("管理员提供的可上课时间格式不正确，将设置为所有时间可用");
             }
         } else {
-            // 如果没有提供可上课时间，使用默认时间
-            availableTimeSlotsJson = TimeSlotUtil.toJsonString(TimeSlotUtil.getDefaultTimeSlots());
+            // 如果没有提供可上课时间，设置为null（表示所有时间都可以）
+            availableTimeSlotsJson = null;
+            log.info("管理员未为教师设置可上课时间，默认所有时间都可以");
         }
 
         // 只创建教师信息，不创建用户（管理员直接创建教师档案）

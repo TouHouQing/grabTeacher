@@ -57,19 +57,26 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
             throw new RuntimeException("教师不存在");
         }
 
-        // 验证时间安排格式
-        if (!TimeSlotUtil.isValidTimeSlots(request.getAvailableTimeSlots())) {
-            throw new RuntimeException("时间安排格式不正确");
+        // 处理可上课时间
+        if (request.getAvailableTimeSlots() == null || request.getAvailableTimeSlots().isEmpty()) {
+            // 如果没有提供可上课时间或为空，设置为null（表示所有时间都可以）
+            teacher.setAvailableTimeSlots(null);
+            log.info("教师清空可上课时间设置，默认所有时间可用: teacherId={}", teacher.getId());
+        } else {
+            // 验证时间安排格式
+            if (!TimeSlotUtil.isValidTimeSlots(request.getAvailableTimeSlots())) {
+                throw new RuntimeException("时间安排格式不正确");
+            }
+
+            // 转换为JSON并保存
+            String timeSlotsJson = TimeSlotUtil.toJsonString(request.getAvailableTimeSlots());
+            teacher.setAvailableTimeSlots(timeSlotsJson);
+
+            log.info("教师可上课时间更新成功: teacherId={}, totalSlots={}",
+                    teacher.getId(), request.getTotalTimeSlots());
         }
 
-        // 转换为JSON并保存
-        String timeSlotsJson = TimeSlotUtil.toJsonString(request.getAvailableTimeSlots());
-        teacher.setAvailableTimeSlots(timeSlotsJson);
-        
         teacherMapper.updateById(teacher);
-        
-        log.info("教师可上课时间更新成功: teacherId={}, totalSlots={}", 
-                teacher.getId(), request.getTotalTimeSlots());
 
         // 返回更新后的信息
         return getTeacherAvailableTime(request.getTeacherId());

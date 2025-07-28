@@ -77,6 +77,13 @@ const fetchTeacherProfile = async () => {
       if (response.data.subjectIds) {
         selectedSubjectIds.value = [...response.data.subjectIds]
       }
+      // 设置可上课时间
+      if (response.data.availableTimeSlots) {
+        availableTimeSlots.value = [...response.data.availableTimeSlots]
+      } else {
+        // 如果没有设置可上课时间，清空数组（表示所有时间都可以）
+        availableTimeSlots.value = []
+      }
     } else {
       ElMessage.warning(response.message || '获取教师信息失败')
     }

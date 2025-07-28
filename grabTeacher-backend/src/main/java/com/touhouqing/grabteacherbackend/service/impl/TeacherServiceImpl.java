@@ -87,6 +87,12 @@ public class TeacherServiceImpl implements TeacherService {
         // 获取教师的科目ID列表
         List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
 
+        // 解析可上课时间
+        List<TimeSlotDTO> availableTimeSlots = null;
+        if (teacher.getAvailableTimeSlots() != null) {
+            availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
+        }
+
         return TeacherProfileResponse.builder()
                 .id(teacher.getId())
                 .userId(teacher.getUserId())
@@ -99,6 +105,7 @@ public class TeacherServiceImpl implements TeacherService {
                 .introduction(teacher.getIntroduction())
                 .videoIntroUrl(teacher.getVideoIntroUrl())
                 .gender(teacher.getGender())
+                .availableTimeSlots(availableTimeSlots)
                 .isVerified(teacher.getIsVerified())
                 .isDeleted(teacher.getIsDeleted())
                 .deletedAt(teacher.getDeletedAt())
@@ -169,6 +176,27 @@ public class TeacherServiceImpl implements TeacherService {
         }
         if (request.getGender() != null) {
             teacher.setGender(request.getGender());
+        }
+
+        // 处理可上课时间更新
+        if (request.getAvailableTimeSlots() != null) {
+            if (request.getAvailableTimeSlots().isEmpty()) {
+                // 如果传入空列表，表示清空可上课时间，设置为null（表示所有时间都可以）
+                teacher.setAvailableTimeSlots(null);
+                log.info("教师清空可上课时间设置，默认所有时间可用: userId={}", userId);
+            } else {
+                // 验证时间安排格式
+                if (TimeSlotUtil.isValidTimeSlots(request.getAvailableTimeSlots())) {
+                    String timeSlotsJson = TimeSlotUtil.toJsonString(request.getAvailableTimeSlots());
+                    teacher.setAvailableTimeSlots(timeSlotsJson);
+                    log.info("教师更新可上课时间成功: userId={}, totalSlots={}", userId,
+                            request.getAvailableTimeSlots().stream()
+                                    .mapToInt(slot -> slot.getTimeSlots() != null ? slot.getTimeSlots().size() : 0)
+                                    .sum());
+                } else {
+                    throw new RuntimeException("可上课时间格式不正确");
+                }
+            }
         }
 
         teacherMapper.updateById(teacher);

@@ -81,19 +81,20 @@ public class TimeSlotUtil {
     
     /**
      * 验证TimeSlotDTO列表是否有效
+     * 注意：空列表或null被认为是有效的（表示清空时间设置或所有时间都可用）
      */
     public static boolean isValidTimeSlots(List<TimeSlotDTO> timeSlots) {
         if (timeSlots == null || timeSlots.isEmpty()) {
-            return false;
+            return true; // 空列表或null是有效的，表示清空时间设置
         }
-        
+
         for (TimeSlotDTO timeSlot : timeSlots) {
-            if (timeSlot.getWeekday() == null || 
-                timeSlot.getWeekday() < 1 || 
+            if (timeSlot.getWeekday() == null ||
+                timeSlot.getWeekday() < 1 ||
                 timeSlot.getWeekday() > 7) {
                 return false;
             }
-            
+
             if (timeSlot.getTimeSlots() != null) {
                 for (String slot : timeSlot.getTimeSlots()) {
                     if (!isValidTimeSlot(slot)) {
@@ -102,7 +103,7 @@ public class TimeSlotUtil {
                 }
             }
         }
-        
+
         return true;
     }
     

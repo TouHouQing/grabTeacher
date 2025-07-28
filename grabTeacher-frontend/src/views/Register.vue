@@ -112,14 +112,52 @@ onMounted(() => {
   fetchSubjects()
 })
 
-const validateForm = (): boolean => {
+// 检查用户名是否可用
+const checkUsername = async (username: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/auth/check-username?username=${encodeURIComponent(username)}`)
+    const result = await response.json()
+    return result.success && result.data
+  } catch (error) {
+    console.error('检查用户名失败:', error)
+    return false
+  }
+}
+
+// 检查邮箱是否可用
+const checkEmail = async (email: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/auth/check-email?email=${encodeURIComponent(email)}`)
+    const result = await response.json()
+    return result.success && result.data
+  } catch (error) {
+    console.error('检查邮箱失败:', error)
+    return false
+  }
+}
+
+const validateForm = async (): Promise<boolean> => {
   if (!registerForm.username || registerForm.username.length < 3 || registerForm.username.length > 50) {
     errorMessage.value = '用户名长度必须在3-50个字符之间'
     return false
   }
 
+  // 检查用户名是否已被使用
+  const usernameAvailable = await checkUsername(registerForm.username)
+  if (!usernameAvailable) {
+    errorMessage.value = '用户名已被使用，请选择其他用户名'
+    return false
+  }
+
   if (!registerForm.email || !registerForm.email.includes('@')) {
     errorMessage.value = '请输入有效的邮箱地址'
+    return false
+  }
+
+  // 检查邮箱是否已被注册
+  const emailAvailable = await checkEmail(registerForm.email)
+  if (!emailAvailable) {
+    errorMessage.value = '邮箱已被注册，请使用其他邮箱'
     return false
   }
 
@@ -145,7 +183,7 @@ const handleRegister = async () => {
   errorMessage.value = ''
   successMessage.value = ''
 
-  if (!validateForm()) {
+  if (!(await validateForm())) {
     return
   }
 
