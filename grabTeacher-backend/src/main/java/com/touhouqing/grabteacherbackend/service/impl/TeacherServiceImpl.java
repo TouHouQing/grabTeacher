@@ -2,12 +2,15 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.touhouqing.grabteacherbackend.dto.TeacherDetailResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
+import com.touhouqing.grabteacherbackend.dto.TeacherListResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherProfileResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherScheduleResponse;
 import com.touhouqing.grabteacherbackend.dto.TimeSlotAvailability;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.entity.Course;
 import com.touhouqing.grabteacherbackend.entity.CourseGrade;
 import com.touhouqing.grabteacherbackend.entity.Schedule;
@@ -15,12 +18,14 @@ import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Subject;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.entity.TeacherSubject;
+import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseGradeMapper;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
+import com.touhouqing.grabteacherbackend.mapper.UserMapper;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
 import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
@@ -52,6 +57,7 @@ public class TeacherServiceImpl implements TeacherService {
     private final CourseGradeMapper courseGradeMapper;
     private final ScheduleMapper scheduleMapper;
     private final StudentMapper studentMapper;
+    private final UserMapper userMapper;
 
     /**
      * 根据用户ID获取教师信息
@@ -73,6 +79,72 @@ public class TeacherServiceImpl implements TeacherService {
         queryWrapper.eq("id", teacherId);
         queryWrapper.eq("is_deleted", false);
         return teacherMapper.selectOne(queryWrapper);
+    }
+
+    /**
+     * 根据ID获取教师详情（包含用户信息、科目信息、年级信息）
+     */
+    @Override
+    public TeacherDetailResponse getTeacherDetailById(Long teacherId) {
+        // 获取教师基本信息
+        Teacher teacher = getTeacherById(teacherId);
+        if (teacher == null) {
+            return null;
+        }
+
+        // 获取用户信息
+        User user = userMapper.selectById(teacher.getUserId());
+        if (user == null) {
+            return null;
+        }
+
+        // 获取教师的科目ID列表
+        List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
+
+        // 获取科目名称列表
+        List<String> subjects = new ArrayList<>();
+        for (Long subjectId : subjectIds) {
+            try {
+                Subject subject = subjectService.getSubjectById(subjectId);
+                if (subject != null) {
+                    subjects.add(subject.getName());
+                }
+            } catch (Exception e) {
+                log.warn("获取科目信息失败，科目ID: {}", subjectId, e);
+            }
+        }
+
+        // 获取年级信息
+        List<String> grades = getTeacherGradesList(teacher.getId());
+
+        // 解析可上课时间
+        List<TimeSlotDTO> availableTimeSlots = null;
+        if (teacher.getAvailableTimeSlots() != null) {
+            availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
+        }
+
+        return TeacherDetailResponse.builder()
+                .id(teacher.getId())
+                .userId(teacher.getUserId())
+                .realName(teacher.getRealName())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .avatarUrl(user.getAvatarUrl())
+                .educationBackground(teacher.getEducationBackground())
+                .teachingExperience(teacher.getTeachingExperience())
+                .specialties(teacher.getSpecialties())
+                .subjects(subjects)
+                .grades(grades)
+                .hourlyRate(teacher.getHourlyRate())
+                .introduction(teacher.getIntroduction())
+                .videoIntroUrl(teacher.getVideoIntroUrl())
+                .gender(teacher.getGender())
+                .availableTimeSlots(availableTimeSlots)
+                .isVerified(teacher.getIsVerified())
+                .isDeleted(teacher.getIsDeleted())
+                .deletedAt(teacher.getDeletedAt())
+                .build();
     }
 
     /**
@@ -141,6 +213,60 @@ public class TeacherServiceImpl implements TeacherService {
         
         Page<Teacher> result = teacherMapper.selectPage(pageParam, queryWrapper);
         return result.getRecords();
+    }
+
+    /**
+     * 获取教师列表（包含科目信息）
+     */
+    @Override
+    public List<TeacherListResponse> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword) {
+        // 获取教师列表，支持科目和年级筛选
+        List<Teacher> teachers = getFilteredTeacherList(page, size, subject, grade, keyword);
+
+        // 转换为包含科目信息的响应DTO
+        List<TeacherListResponse> responseList = new ArrayList<>();
+        for (Teacher teacher : teachers) {
+            // 获取用户信息
+            User user = userMapper.selectById(teacher.getUserId());
+
+            // 获取教师的科目ID列表
+            List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
+
+            // 获取科目名称列表
+            List<String> subjects = new ArrayList<>();
+            for (Long subjectId : subjectIds) {
+                try {
+                    Subject subjectEntity = subjectService.getSubjectById(subjectId);
+                    if (subjectEntity != null) {
+                        subjects.add(subjectEntity.getName());
+                    }
+                } catch (Exception e) {
+                    log.warn("获取科目信息失败，科目ID: {}", subjectId, e);
+                }
+            }
+
+            // 获取年级信息
+            List<String> grades = getTeacherGradesList(teacher.getId());
+
+            TeacherListResponse response = TeacherListResponse.builder()
+                    .id(teacher.getId())
+                    .realName(teacher.getRealName())
+                    .avatarUrl(user != null ? user.getAvatarUrl() : null)
+                    .educationBackground(teacher.getEducationBackground())
+                    .teachingExperience(teacher.getTeachingExperience())
+                    .specialties(teacher.getSpecialties())
+                    .subjects(subjects)
+                    .grades(grades)
+                    .hourlyRate(teacher.getHourlyRate())
+                    .introduction(teacher.getIntroduction())
+                    .gender(teacher.getGender())
+                    .isVerified(teacher.getIsVerified())
+                    .build();
+
+            responseList.add(response);
+        }
+
+        return responseList;
     }
 
     /**
@@ -403,6 +529,32 @@ public class TeacherServiceImpl implements TeacherService {
         return courseGrades.stream()
                 .map(CourseGrade::getGrade)
                 .collect(Collectors.joining(","));
+    }
+
+    /**
+     * 获取教师的年级信息列表（从课程年级关联表获取）
+     */
+    private List<String> getTeacherGradesList(Long teacherId) {
+        QueryWrapper<Course> courseQuery = new QueryWrapper<>();
+        courseQuery.eq("teacher_id", teacherId);
+        courseQuery.eq("is_deleted", false);
+        courseQuery.eq("status", "active");
+
+        List<Course> courses = courseMapper.selectList(courseQuery);
+        if (courses.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 获取所有课程的年级信息并去重
+        Set<String> gradeSet = new HashSet<>();
+        for (Course course : courses) {
+            List<CourseGrade> courseGrades = courseGradeMapper.findByCourseId(course.getId());
+            for (CourseGrade courseGrade : courseGrades) {
+                gradeSet.add(courseGrade.getGrade());
+            }
+        }
+
+        return new ArrayList<>(gradeSet);
     }
 
     /**
@@ -742,5 +894,106 @@ public class TeacherServiceImpl implements TeacherService {
                (preferredGender.equals("female") && actualGender.equals("女")) ||
                (preferredGender.equals("男") && actualGender.equals("male")) ||
                (preferredGender.equals("女") && actualGender.equals("female"));
+    }
+
+    /**
+     * 获取过滤后的教师列表（支持科目和年级筛选）
+     */
+    private List<Teacher> getFilteredTeacherList(int page, int size, String subject, String grade, String keyword) {
+        // 如果没有年级筛选，使用原有方法
+        if (!StringUtils.hasText(grade)) {
+            return getTeacherList(page, size, subject, keyword);
+        }
+
+        // 有年级筛选时，需要通过课程年级关联表查询
+        Page<Teacher> pageParam = new Page<>(page, size);
+
+        // 构建查询条件
+        QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("t.is_deleted", false);
+        queryWrapper.eq("t.is_verified", true);
+
+        // 添加年级筛选条件
+        queryWrapper.exists("SELECT 1 FROM courses c " +
+                           "INNER JOIN course_grades cg ON c.id = cg.course_id " +
+                           "WHERE c.teacher_id = t.id AND c.is_deleted = 0 AND c.status = 'active' " +
+                           "AND cg.grade = {0}", grade);
+
+        // 添加科目筛选条件
+        if (StringUtils.hasText(subject)) {
+            queryWrapper.exists("SELECT 1 FROM teacher_subjects ts " +
+                               "INNER JOIN subjects s ON ts.subject_id = s.id " +
+                               "WHERE ts.teacher_id = t.id AND s.name = {0} AND s.is_deleted = 0", subject);
+        }
+
+        // 添加关键词筛选条件
+        if (StringUtils.hasText(keyword)) {
+            queryWrapper.and(wrapper -> wrapper
+                    .like("t.real_name", keyword)
+                    .or()
+                    .like("t.specialties", keyword)
+                    .or()
+                    .like("t.introduction", keyword)
+            );
+        }
+
+        queryWrapper.orderByDesc("t.id");
+
+        // 使用原生SQL查询
+        List<Teacher> teachers = teacherMapper.selectList(new QueryWrapper<Teacher>()
+                .eq("is_deleted", false)
+                .eq("is_verified", true)
+                .orderByDesc("id"));
+
+        // 手动过滤年级和科目
+        List<Teacher> filteredTeachers = new ArrayList<>();
+        for (Teacher teacher : teachers) {
+            boolean matchGrade = true;
+            boolean matchSubject = true;
+            boolean matchKeyword = true;
+
+            // 检查年级匹配
+            if (StringUtils.hasText(grade)) {
+                List<String> teacherGrades = getTeacherGradesList(teacher.getId());
+                matchGrade = teacherGrades.contains(grade);
+            }
+
+            // 检查科目匹配
+            if (StringUtils.hasText(subject)) {
+                List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
+                matchSubject = false;
+                for (Long subjectId : subjectIds) {
+                    try {
+                        Subject subjectEntity = subjectService.getSubjectById(subjectId);
+                        if (subjectEntity != null && subject.equals(subjectEntity.getName())) {
+                            matchSubject = true;
+                            break;
+                        }
+                    } catch (Exception e) {
+                        // 忽略异常
+                    }
+                }
+            }
+
+            // 检查关键词匹配
+            if (StringUtils.hasText(keyword)) {
+                matchKeyword = (teacher.getRealName() != null && teacher.getRealName().contains(keyword)) ||
+                              (teacher.getSpecialties() != null && teacher.getSpecialties().contains(keyword)) ||
+                              (teacher.getIntroduction() != null && teacher.getIntroduction().contains(keyword));
+            }
+
+            if (matchGrade && matchSubject && matchKeyword) {
+                filteredTeachers.add(teacher);
+            }
+        }
+
+        // 手动分页
+        int start = (page - 1) * size;
+        int end = Math.min(start + size, filteredTeachers.size());
+        if (start >= filteredTeachers.size()) {
+            return new ArrayList<>();
+        }
+
+        return filteredTeachers.subList(start, end);
     }
 }

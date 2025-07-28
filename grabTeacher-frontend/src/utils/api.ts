@@ -300,6 +300,7 @@ export const teacherAPI = {
     page?: number
     size?: number
     subject?: string
+    grade?: string
     keyword?: string
   }) => {
     const searchParams = new URLSearchParams()

@@ -67,7 +67,7 @@ const filteredTeachers = computed(() => {
     if (filter.subject && teacher.subject !== filter.subject) {
       match = false
     }
-    if (filter.grade && teacher.grade !== filter.grade) {
+    if (filter.grade && !teacher.grade.includes(filter.grade)) {
       match = false
     }
     if (filter.experience) {
@@ -92,16 +92,96 @@ const displayTeachers = computed(() => {
 })
 
 // 筛选方法
-const handleFilter = () => {
+const handleFilter = async () => {
   currentPage.value = 1
+  await loadTeachersWithFilter()
+}
+
+// 转换教师数据格式
+const transformTeacherData = (teacherList: any[]) => {
+  return teacherList.map((teacher: any, index: number) => {
+    // 处理科目信息 - 现在subjects是数组
+    const subjects = Array.isArray(teacher.subjects) ? teacher.subjects : []
+    const primarySubject = subjects.length > 0 ? subjects[0] : '未设置'
+
+    // 处理特长标签
+    const specialties = teacher.specialties ? teacher.specialties.split(',').map((s: string) => s.trim()).slice(0, 3) : []
+    const defaultTags = ['专业教学', '经验丰富', '认真负责']
+    const tags = specialties.length > 0 ? specialties : defaultTags.slice(0, 2)
+
+    // 生成合理的评分
+    const baseRating = 4.5
+    const experienceBonus = Math.min(teacher.teachingExperience * 0.02, 0.4) // 经验越多评分越高
+    const randomFactor = Math.random() * 0.1
+    const rating = Math.min(baseRating + experienceBonus + randomFactor, 5.0)
+
+    // 使用用户头像或根据性别选择合适的默认头像
+    let avatar = teacher.avatarUrl || defaultAvatars[index % defaultAvatars.length]
+    if (!teacher.avatarUrl) {
+      if (teacher.gender === 'Male') {
+        const maleAvatars = [teacherBoy1, teacherBoy2, teacherBoy3]
+        avatar = maleAvatars[index % maleAvatars.length]
+      } else if (teacher.gender === 'Female') {
+        const femaleAvatars = [teacherGirl1, teacherGirl2, teacherGirl3, teacherGirl4, studentGirl2]
+        avatar = femaleAvatars[index % femaleAvatars.length]
+      }
+    }
+
+    return {
+      id: teacher.id,
+      name: teacher.realName,
+      subject: primarySubject,
+      grade: Array.isArray(teacher.grades) && teacher.grades.length > 0 ? teacher.grades.join('、') : '未设置',
+      experience: teacher.teachingExperience || 0,
+      rating: Math.round(rating * 10) / 10, // 保留一位小数
+      description: teacher.introduction || `${teacher.realName}是一位优秀的${primarySubject}教师，教学经验丰富，深受学生喜爱。`,
+      avatar: avatar,
+      tags: tags,
+      schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'], // 暂时使用默认值
+      hourlyRate: teacher.hourlyRate || 0,
+      education: teacher.educationBackground || '暂无信息',
+      specialties: teacher.specialties || '',
+      isVerified: teacher.isVerified || false
+    }
+  })
+}
+
+// 根据筛选条件加载教师数据
+const loadTeachersWithFilter = async () => {
+  try {
+    loadingTeachers.value = true
+    const params: any = {
+      page: 1,
+      size: 100
+    }
+
+    if (filter.subject) {
+      params.subject = filter.subject
+    }
+    if (filter.grade) {
+      params.grade = filter.grade
+    }
+
+    const response = await teacherAPI.getPublicList(params)
+    if (response.success && response.data) {
+      const teacherList = Array.isArray(response.data) ? response.data : []
+      teachers.value = transformTeacherData(teacherList)
+    }
+  } catch (error) {
+    console.error('获取教师列表失败:', error)
+    ElMessage.error('获取教师列表失败')
+  } finally {
+    loadingTeachers.value = false
+  }
 }
 
 // 重置筛选
-const resetFilter = () => {
+const resetFilter = async () => {
   filter.subject = ''
   filter.grade = ''
   filter.experience = ''
   currentPage.value = 1
+  await loadTeachers() // 重新加载所有教师数据
 }
 
 // 刷新数据
@@ -160,47 +240,8 @@ const loadTeachers = async () => {
       size: 100 // 获取更多教师数据
     })
     if (response.success && response.data) {
-      // 转换后端数据格式为前端需要的格式
       const teacherList = Array.isArray(response.data) ? response.data : []
-      teachers.value = teacherList.map((teacher: any, index: number) => {
-        // 处理科目信息
-        const subjects = teacher.subjects ? teacher.subjects.split(',').map((s: string) => s.trim()) : []
-        const primarySubject = subjects[0] || '未设置'
-
-        // 处理特长标签
-        const specialties = teacher.specialties ? teacher.specialties.split(',').map((s: string) => s.trim()).slice(0, 3) : []
-        const defaultTags = ['专业教学', '经验丰富', '认真负责']
-        const tags = specialties.length > 0 ? specialties : defaultTags.slice(0, 2)
-
-        // 生成合理的评分
-        const baseRating = 4.5
-        const experienceBonus = Math.min(teacher.teachingExperience * 0.02, 0.4) // 经验越多评分越高
-        const randomFactor = Math.random() * 0.1
-        const rating = Math.min(baseRating + experienceBonus + randomFactor, 5.0)
-
-        // 根据性别选择合适的头像
-        let avatar = defaultAvatars[index % defaultAvatars.length]
-        if (teacher.gender === 'Male') {
-          const maleAvatars = [teacherBoy1, teacherBoy2, teacherBoy3]
-          avatar = maleAvatars[index % maleAvatars.length]
-        } else if (teacher.gender === 'Female') {
-          const femaleAvatars = [teacherGirl1, teacherGirl2, teacherGirl3, teacherGirl4, studentGirl2]
-          avatar = femaleAvatars[index % femaleAvatars.length]
-        }
-
-        return {
-          id: teacher.id,
-          name: teacher.realName,
-          subject: primarySubject,
-          grade: '初中', // 暂时使用默认值，后续可以从教师的课程中获取
-          experience: teacher.teachingExperience || 0,
-          rating: Math.round(rating * 10) / 10, // 保留一位小数
-          description: teacher.introduction || `${teacher.realName}是一位优秀的${primarySubject}教师，教学经验丰富，深受学生喜爱。`,
-          avatar: avatar,
-          tags: tags,
-          schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'] // 暂时使用默认值
-        }
-      })
+      teachers.value = transformTeacherData(teacherList)
     }
   } catch (error) {
     console.error('获取教师列表失败:', error)

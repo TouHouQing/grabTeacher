@@ -1,6 +1,8 @@
 package com.touhouqing.grabteacherbackend.service;
 
+import com.touhouqing.grabteacherbackend.dto.TeacherDetailResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
+import com.touhouqing.grabteacherbackend.dto.TeacherListResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherProfileResponse;
@@ -24,6 +26,11 @@ public interface TeacherService {
     Teacher getTeacherById(Long teacherId);
 
     /**
+     * 根据ID获取教师详情（包含用户信息、科目信息、年级信息）
+     */
+    TeacherDetailResponse getTeacherDetailById(Long teacherId);
+
+    /**
      * 根据用户ID获取教师详细信息（包含科目信息）
      */
     TeacherProfileResponse getTeacherProfileByUserId(Long userId);
@@ -32,6 +39,11 @@ public interface TeacherService {
      * 获取教师列表
      */
     List<Teacher> getTeacherList(int page, int size, String subject, String keyword);
+
+    /**
+     * 获取教师列表（包含科目信息）
+     */
+    List<TeacherListResponse> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword);
     
     /**
      * 更新教师信息

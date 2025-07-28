@@ -337,22 +337,22 @@ const fetchTeacherDetail = async () => {
       teacher.value = {
         id: teacherData.id,
         name: teacherData.realName,
-        subject: teacherData.subjects ? teacherData.subjects.split(',')[0] : '未设置',
-        grade: '初中', // 暂时使用默认值
+        subject: teacherData.subjects && teacherData.subjects.length > 0 ? teacherData.subjects[0] : '未设置',
+        grade: teacherData.grades && teacherData.grades.length > 0 ? teacherData.grades.join('、') : '未设置',
         experience: teacherData.teachingExperience || 0,
         rating: 4.8, // 暂时使用默认值
         description: teacherData.introduction || '暂无介绍',
         detailedDescription: teacherData.introduction || '暂无详细介绍',
-        avatar: teacherBoy1, // 使用默认头像
-        videoIntro: teacherBoy1v,
+        avatar: teacherData.avatarUrl || teacherBoy1, // 使用用户头像或默认头像
+        videoIntro: teacherData.videoIntroUrl || teacherBoy1v,
         tags: teacherData.specialties ? teacherData.specialties.split(',') : [],
         schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'], // 暂时使用默认值
         gender: teacherData.gender || 'Male',
         teachingStyle: '个性化教学',
         education: teacherData.educationBackground || '暂无信息',
         location: '新加坡',
-        contactPhone: '+65 8888 8888',
-        contactEmail: 'teacher@grabteacher.com',
+        contactPhone: teacherData.phone || '未设置',
+        contactEmail: teacherData.email || '未设置',
         achievements: ['优秀教师奖']
       }
       ElMessage.success(`${teacher.value.name}的详情加载完成`)

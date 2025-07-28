@@ -1,7 +1,9 @@
 package com.touhouqing.grabteacherbackend.controller;
 
 import com.touhouqing.grabteacherbackend.dto.ApiResponse;
+import com.touhouqing.grabteacherbackend.dto.TeacherDetailResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
+import com.touhouqing.grabteacherbackend.dto.TeacherListResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherProfileResponse;
@@ -85,13 +87,14 @@ public class TeacherController {
      * 获取教师列表（公开接口，用于学生浏览）
      */
     @GetMapping("/list")
-    public ResponseEntity<ApiResponse<List<Teacher>>> getTeacherList(
+    public ResponseEntity<ApiResponse<List<TeacherListResponse>>> getTeacherList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String subject,
+            @RequestParam(required = false) String grade,
             @RequestParam(required = false) String keyword) {
         try {
-            List<Teacher> teachers = teacherService.getTeacherList(page, size, subject, keyword);
+            List<TeacherListResponse> teachers = teacherService.getTeacherListWithSubjects(page, size, subject, grade, keyword);
             return ResponseEntity.ok(ApiResponse.success("获取成功", teachers));
         } catch (Exception e) {
             logger.error("获取教师列表异常: ", e);
@@ -104,16 +107,16 @@ public class TeacherController {
      * 获取教师详情（公开接口）
      */
     @GetMapping("/{teacherId}")
-    public ResponseEntity<ApiResponse<Teacher>> getTeacherDetail(@PathVariable Long teacherId) {
+    public ResponseEntity<ApiResponse<TeacherDetailResponse>> getTeacherDetail(@PathVariable Long teacherId) {
         try {
-            Teacher teacher = teacherService.getTeacherById(teacherId);
-            
-            if (teacher == null) {
+            TeacherDetailResponse teacherDetail = teacherService.getTeacherDetailById(teacherId);
+
+            if (teacherDetail == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("教师不存在"));
             }
-            
-            return ResponseEntity.ok(ApiResponse.success("获取成功", teacher));
+
+            return ResponseEntity.ok(ApiResponse.success("获取成功", teacherDetail));
         } catch (Exception e) {
             logger.error("获取教师详情异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
