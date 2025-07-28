@@ -2,6 +2,7 @@ package com.touhouqing.grabteacherbackend.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.touhouqing.grabteacherbackend.entity.CourseGrade;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Param;
@@ -35,6 +36,6 @@ public interface CourseGradeMapper extends BaseMapper<CourseGrade> {
     /**
      * 删除课程的所有年级关联
      */
-    @Select("DELETE FROM course_grades WHERE course_id = #{courseId}")
+    @Delete("DELETE FROM course_grades WHERE course_id = #{courseId}")
     int deleteByCourseId(@Param("courseId") Long courseId);
 }

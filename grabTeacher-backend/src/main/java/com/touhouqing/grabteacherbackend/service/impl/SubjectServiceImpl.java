@@ -3,8 +3,17 @@ package com.touhouqing.grabteacherbackend.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.touhouqing.grabteacherbackend.dto.SubjectRequest;
+import com.touhouqing.grabteacherbackend.entity.BookingRequest;
+import com.touhouqing.grabteacherbackend.entity.Course;
+import com.touhouqing.grabteacherbackend.entity.Schedule;
 import com.touhouqing.grabteacherbackend.entity.Subject;
+import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseGradeMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
+import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
+import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.SubjectMapper;
+import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +30,12 @@ import java.util.List;
 public class SubjectServiceImpl implements SubjectService {
 
     private final SubjectMapper subjectMapper;
+    private final CourseMapper courseMapper;
+    private final CourseGradeMapper courseGradeMapper;
+    private final StudentSubjectMapper studentSubjectMapper;
+    private final TeacherSubjectMapper teacherSubjectMapper;
+    private final BookingRequestMapper bookingRequestMapper;
+    private final ScheduleMapper scheduleMapper;
 
     /**
      * 创建科目
@@ -94,10 +109,59 @@ public class SubjectServiceImpl implements SubjectService {
             throw new RuntimeException("科目不存在");
         }
 
+        // 1. 查询该科目下的所有课程
+        List<Course> courses = courseMapper.findAllBySubjectId(id);
+        log.info("找到科目 {} 下的课程数量: {}", subject.getName(), courses.size());
+
+        // 2. 删除该科目下的所有课程（软删除）
+        for (Course course : courses) {
+            if (!course.getIsDeleted()) {
+                // 2.1 处理该课程的预约申请（软删除）
+                List<BookingRequest> bookingRequests = bookingRequestMapper.findByCourseId(course.getId());
+                for (BookingRequest bookingRequest : bookingRequests) {
+                    if (!bookingRequest.getIsDeleted()) {
+                        bookingRequest.setIsDeleted(true);
+                        bookingRequest.setDeletedAt(LocalDateTime.now());
+                        bookingRequestMapper.updateById(bookingRequest);
+                    }
+                }
+                log.info("删除课程 {} 的 {} 个预约申请", course.getTitle(), bookingRequests.size());
+
+                // 2.2 处理该课程的课程安排（软删除）
+                List<Schedule> schedules = scheduleMapper.findByCourseId(course.getId());
+                for (Schedule schedule : schedules) {
+                    if (!schedule.getIsDeleted()) {
+                        schedule.setIsDeleted(true);
+                        schedule.setDeletedAt(LocalDateTime.now());
+                        scheduleMapper.updateById(schedule);
+                    }
+                }
+                log.info("删除课程 {} 的 {} 个课程安排", course.getTitle(), schedules.size());
+
+                // 2.3 删除课程年级关联
+                courseGradeMapper.deleteByCourseId(course.getId());
+
+                // 2.4 最后删除课程本身（软删除）
+                course.setIsDeleted(true);
+                course.setDeletedAt(LocalDateTime.now());
+                courseMapper.updateById(course);
+                log.info("删除课程: {}", course.getTitle());
+            }
+        }
+
+        // 3. 删除学生科目关联
+        studentSubjectMapper.deleteBySubjectId(id);
+        log.info("删除科目 {} 的学生关联", subject.getName());
+
+        // 4. 删除教师科目关联
+        teacherSubjectMapper.deleteBySubjectId(id);
+        log.info("删除科目 {} 的教师关联", subject.getName());
+
+        // 5. 最后删除科目本身（软删除）
         subject.setIsDeleted(true);
         subject.setDeletedAt(LocalDateTime.now());
         subjectMapper.updateById(subject);
-        log.info("删除科目成功: {}", subject.getName());
+        log.info("删除科目成功: {}，同时删除了 {} 个相关课程", subject.getName(), courses.size());
     }
 
     /**

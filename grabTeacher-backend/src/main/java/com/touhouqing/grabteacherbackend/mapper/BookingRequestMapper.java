@@ -98,4 +98,10 @@ public interface BookingRequestMapper extends BaseMapper<BookingRequest> {
      */
     @Select("SELECT * FROM booking_requests WHERE created_at >= #{dateTime} AND is_deleted = 0 ORDER BY created_at DESC")
     List<BookingRequest> findByCreatedAtAfter(@Param("dateTime") LocalDateTime dateTime);
+
+    /**
+     * 根据课程ID查询预约申请列表
+     */
+    @Select("SELECT * FROM booking_requests WHERE course_id = #{courseId} AND is_deleted = 0 ORDER BY created_at DESC")
+    List<BookingRequest> findByCourseId(@Param("courseId") Long courseId);
 }

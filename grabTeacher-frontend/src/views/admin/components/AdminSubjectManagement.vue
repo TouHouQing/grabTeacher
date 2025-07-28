@@ -139,11 +139,16 @@ const saveSubject = async () => {
 // 删除科目
 const handleDeleteSubject = async (subject: any) => {
   try {
-    await ElMessageBox.confirm(`确定要删除科目"${subject.name}"吗？`, '确认删除', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      `确定要删除科目"${subject.name}"吗？\n\n注意：删除科目将同时删除该科目下的所有课程及相关数据，此操作不可恢复！`,
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: false,
+      }
+    )
 
     const result = await subjectAPI.delete(subject.id)
     if (result.success) {

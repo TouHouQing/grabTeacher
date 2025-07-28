@@ -23,4 +23,10 @@ public interface StudentSubjectMapper extends BaseMapper<StudentSubject> {
      */
     @Delete("DELETE FROM student_subjects WHERE student_id = #{studentId}")
     void deleteByStudentId(@Param("studentId") Long studentId);
+
+    /**
+     * 根据科目ID删除所有学生科目关联
+     */
+    @Delete("DELETE FROM student_subjects WHERE subject_id = #{subjectId}")
+    void deleteBySubjectId(@Param("subjectId") Long subjectId);
 }

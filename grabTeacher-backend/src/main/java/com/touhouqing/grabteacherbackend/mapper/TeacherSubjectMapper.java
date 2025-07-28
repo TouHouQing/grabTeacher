@@ -32,4 +32,10 @@ public interface TeacherSubjectMapper extends BaseMapper<TeacherSubject> {
      */
     @Select("SELECT teacher_id FROM teacher_subjects WHERE subject_id = #{subjectId}")
     List<Long> getTeacherIdsBySubjectId(@Param("subjectId") Long subjectId);
+
+    /**
+     * 根据科目ID删除所有教师科目关联
+     */
+    @Delete("DELETE FROM teacher_subjects WHERE subject_id = #{subjectId}")
+    void deleteBySubjectId(@Param("subjectId") Long subjectId);
 }
