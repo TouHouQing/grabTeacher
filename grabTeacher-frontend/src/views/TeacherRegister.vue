@@ -231,10 +231,13 @@ const handleRegister = async () => {
                   v-model="registerForm.gender"
                   type="radio"
                   :value="option.value"
+                  :name="'gender'"
+                  @change="() => console.log('性别选择:', registerForm.gender)"
                 />
                 <span>{{ option.label }}</span>
               </label>
             </div>
+            <small class="debug-info">当前选择: {{ registerForm.gender }}</small>
           </div>
 
           <div class="form-group">
@@ -409,12 +412,33 @@ const handleRegister = async () => {
   gap: 0.5rem;
   cursor: pointer;
   font-size: 0.9rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.radio-option:hover {
+  background-color: #f5f5f5;
 }
 
 .radio-option input[type="radio"] {
   margin: 0;
-  width: auto;
-  height: auto;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"]:checked + span {
+  color: #667eea;
+  font-weight: 500;
+}
+
+.debug-info {
+  display: block;
+  margin-top: 0.5rem;
+  color: #666;
+  font-size: 0.8rem;
+  font-style: italic;
 }
 
 .form-group small {

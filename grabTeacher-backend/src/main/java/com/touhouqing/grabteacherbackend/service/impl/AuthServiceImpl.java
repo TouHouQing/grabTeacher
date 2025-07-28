@@ -135,6 +135,7 @@ public class AuthServiceImpl implements AuthService {
                         // 注册时不设置收费，由管理员后续设置
                         .hourlyRate(null)
                         .introduction(StringUtils.hasText(registerRequest.getIntroduction()) ? registerRequest.getIntroduction() : null)
+                        .gender(StringUtils.hasText(registerRequest.getGender()) ? registerRequest.getGender() : "不愿透露")
                         .availableTimeSlots(availableTimeSlotsJson)
                         .isVerified(false)
                         .isDeleted(false)
