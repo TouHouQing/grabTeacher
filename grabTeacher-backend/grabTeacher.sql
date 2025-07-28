@@ -736,6 +736,7 @@ CREATE TABLE `teachers` (
   `introduction` text COMMENT '个人介绍和教学理念',
   `video_intro_url` varchar(255) DEFAULT NULL COMMENT '个人介绍视频URL地址',
   `gender` enum('男','女','不愿透露') DEFAULT '不愿透露' COMMENT '性别：男、女、不愿透露',
+  `available_time_slots` json DEFAULT NULL COMMENT '可上课时间安排，JSON格式存储：[{"weekday":1,"timeSlots":["08:00-09:00","10:00-11:00"]},{"weekday":2,"timeSlots":["14:00-15:00"]}]，weekday: 1=周一,2=周二...7=周日',
   `is_verified` tinyint(1) DEFAULT '0' COMMENT '是否已认证：true-已认证，false-未认证',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',

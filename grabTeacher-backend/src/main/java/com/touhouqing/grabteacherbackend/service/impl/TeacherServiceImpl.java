@@ -23,6 +23,8 @@ import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -187,6 +189,7 @@ public class TeacherServiceImpl implements TeacherService {
 
         // 转换为响应DTO并计算匹配分数
         List<TeacherMatchResponse> responses = teachers.stream()
+                .filter(teacher -> matchesGenderPreference(teacher, request)) // 添加性别过滤
                 .map(teacher -> convertToMatchResponse(teacher, request))
                 .sorted(Comparator.comparing(TeacherMatchResponse::getMatchScore).reversed())
                 .limit(request.getLimit() != null ? request.getLimit() : 3)
@@ -257,6 +260,12 @@ public class TeacherServiceImpl implements TeacherService {
      * 将Teacher实体转换为TeacherMatchResponse并计算匹配分数
      */
     private TeacherMatchResponse convertToMatchResponse(Teacher teacher, TeacherMatchRequest request) {
+        // 解析教师的可上课时间
+        List<TimeSlotDTO> availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
+
+        // 生成可读的时间安排描述
+        List<String> scheduleDescriptions = generateScheduleDescriptions(availableTimeSlots);
+
         TeacherMatchResponse response = TeacherMatchResponse.builder()
                 .id(teacher.getId())
                 .name(teacher.getRealName())
@@ -266,16 +275,21 @@ public class TeacherServiceImpl implements TeacherService {
                 .description(teacher.getIntroduction())
                 .avatar(null) // 当前Teacher实体没有avatar字段
                 .tags(parseTagsToList(teacher.getSpecialties()))
-                .schedule(Arrays.asList("周一 18:00-20:00", "周三 18:00-20:00", "周六 10:00-12:00"))
+                .schedule(scheduleDescriptions)
                 .hourlyRate(teacher.getHourlyRate())
                 .educationBackground(teacher.getEducationBackground())
                 .specialties(teacher.getSpecialties())
                 .isVerified(teacher.getIsVerified())
+                .gender(teacher.getGender())
+                .availableTimeSlots(availableTimeSlots)
                 .build();
 
-        // 计算匹配分数
+        // 计算匹配分数和时间匹配度
         int matchScore = calculateMatchScore(teacher, request);
+        int timeMatchScore = calculateTimeMatchScore(availableTimeSlots, request);
+
         response.setMatchScore(matchScore);
+        response.setTimeMatchScore(timeMatchScore);
 
         return response;
     }
@@ -312,6 +326,11 @@ public class TeacherServiceImpl implements TeacherService {
         if (teacher.getTeachingExperience() != null) {
             score += Math.min(teacher.getTeachingExperience(), 10);
         }
+
+        // 时间匹配加分
+        List<TimeSlotDTO> availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
+        int timeMatchScore = calculateTimeMatchScore(availableTimeSlots, request);
+        score += (timeMatchScore / 10); // 时间匹配度转换为分数加成
 
         // 限制最高分为99
         return Math.min(score, 99);
@@ -595,5 +614,105 @@ public class TeacherServiceImpl implements TeacherService {
             "14:00-15:00", "15:00-16:00", "16:00-17:00", "17:00-18:00",
             "18:00-19:00", "19:00-20:00", "20:00-21:00"
         );
+    }
+
+    /**
+     * 生成可读的时间安排描述
+     */
+    private List<String> generateScheduleDescriptions(List<TimeSlotDTO> availableTimeSlots) {
+        List<String> descriptions = new ArrayList<>();
+
+        if (availableTimeSlots == null || availableTimeSlots.isEmpty()) {
+            return Arrays.asList("暂无可用时间");
+        }
+
+        String[] weekdayNames = {"", "周一", "周二", "周三", "周四", "周五", "周六", "周日"};
+
+        for (TimeSlotDTO timeSlot : availableTimeSlots) {
+            if (timeSlot.getTimeSlots() != null && !timeSlot.getTimeSlots().isEmpty()) {
+                String weekdayName = timeSlot.getWeekday() != null &&
+                                   timeSlot.getWeekday() >= 1 && timeSlot.getWeekday() <= 7
+                                   ? weekdayNames[timeSlot.getWeekday()] : "未知";
+
+                for (String slot : timeSlot.getTimeSlots()) {
+                    descriptions.add(weekdayName + " " + slot);
+                }
+            }
+        }
+
+        return descriptions.isEmpty() ? Arrays.asList("暂无可用时间") : descriptions;
+    }
+
+    /**
+     * 计算时间匹配度
+     */
+    private int calculateTimeMatchScore(List<TimeSlotDTO> availableTimeSlots, TeacherMatchRequest request) {
+        if (availableTimeSlots == null || availableTimeSlots.isEmpty()) {
+            return 0;
+        }
+
+        int matchScore = 0;
+        int totalChecks = 0;
+
+        // 检查偏好的星期几
+        if (request.getPreferredWeekdays() != null && !request.getPreferredWeekdays().isEmpty()) {
+            for (Integer preferredWeekday : request.getPreferredWeekdays()) {
+                totalChecks++;
+                for (TimeSlotDTO timeSlot : availableTimeSlots) {
+                    if (preferredWeekday.equals(timeSlot.getWeekday()) &&
+                        timeSlot.getTimeSlots() != null && !timeSlot.getTimeSlots().isEmpty()) {
+                        matchScore += 20; // 星期匹配得20分
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 检查偏好的时间段
+        if (request.getPreferredTimeSlots() != null && !request.getPreferredTimeSlots().isEmpty()) {
+            for (String preferredTimeSlot : request.getPreferredTimeSlots()) {
+                totalChecks++;
+                for (TimeSlotDTO timeSlot : availableTimeSlots) {
+                    if (timeSlot.getTimeSlots() != null && timeSlot.getTimeSlots().contains(preferredTimeSlot)) {
+                        matchScore += 30; // 时间段匹配得30分
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 如果没有具体的时间偏好，给予基础分数
+        if (totalChecks == 0) {
+            return 50; // 基础分数
+        }
+
+        // 计算平均匹配度，限制在0-100之间
+        return Math.min(matchScore / totalChecks, 100);
+    }
+
+    /**
+     * 检查教师是否匹配性别偏好
+     */
+    private boolean matchesGenderPreference(Teacher teacher, TeacherMatchRequest request) {
+        // 如果没有性别偏好，则不过滤
+        if (request.getPreferredGender() == null || request.getPreferredGender().trim().isEmpty()) {
+            return true;
+        }
+
+        // 检查教师性别是否匹配偏好
+        String teacherGender = teacher.getGender();
+        if (teacherGender == null) {
+            return true; // 如果教师性别未设置，则不过滤
+        }
+
+        // 性别匹配逻辑（支持中英文）
+        String preferredGender = request.getPreferredGender().toLowerCase();
+        String actualGender = teacherGender.toLowerCase();
+
+        return preferredGender.equals(actualGender) ||
+               (preferredGender.equals("male") && actualGender.equals("男")) ||
+               (preferredGender.equals("female") && actualGender.equals("女")) ||
+               (preferredGender.equals("男") && actualGender.equals("male")) ||
+               (preferredGender.equals("女") && actualGender.equals("female"));
     }
 }

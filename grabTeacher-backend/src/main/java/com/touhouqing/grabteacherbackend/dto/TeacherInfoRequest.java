@@ -26,4 +26,7 @@ public class TeacherInfoRequest {
 
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     private String gender;
-} 
+
+    @Schema(description = "可上课时间安排")
+    private List<TimeSlotDTO> availableTimeSlots;
+}

@@ -4,6 +4,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, Check, Close } from '@element-plus/icons-vue'
 import { teacherAPI } from '../../../utils/api'
 import { getApiBaseUrl } from '../../../utils/env'
+import WideTimeSlotSelector from '../../../components/WideTimeSlotSelector.vue'
+
+// 时间段接口
+interface TimeSlot {
+  weekday: number
+  timeSlots: string[]
+}
 
 // 教师列表
 const teacherList = ref([])
@@ -43,6 +50,9 @@ const teacherForm = reactive({
   gender: '不愿透露',
   isVerified: false
 })
+
+// 可上课时间
+const availableTimeSlots = ref<TimeSlot[]>([])
 
 // 表单验证规则
 const teacherRules = {
@@ -165,6 +175,7 @@ const handleAddTeacher = () => {
     gender: '不愿透露',
     isVerified: false
   })
+  availableTimeSlots.value = []
   teacherDialogVisible.value = true
 }
 
@@ -206,7 +217,8 @@ const saveTeacher = async () => {
       introduction: teacherForm.introduction,
       videoIntroUrl: teacherForm.videoIntroUrl,
       gender: teacherForm.gender,
-      isVerified: teacherForm.isVerified
+      isVerified: teacherForm.isVerified,
+      availableTimeSlots: availableTimeSlots.value
     }
 
     let result: any
@@ -469,6 +481,12 @@ onMounted(async () => {
         </el-form-item>
         <el-form-item label="认证状态">
           <el-switch v-model="teacherForm.isVerified" active-text="已认证" inactive-text="未认证" />
+        </el-form-item>
+        <el-form-item label="可上课时间">
+          <WideTimeSlotSelector
+            v-model="availableTimeSlots"
+            title="设置可上课时间"
+          />
         </el-form-item>
       </el-form>
       <template #footer>

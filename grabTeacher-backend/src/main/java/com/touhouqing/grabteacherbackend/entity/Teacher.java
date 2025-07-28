@@ -46,6 +46,10 @@ public class Teacher {
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     private String gender;
 
+    @TableField("available_time_slots")
+    @Schema(description = "可上课时间安排", example = "[{\"weekday\":1,\"timeSlots\":[\"08:00-09:00\",\"10:00-11:00\"]},{\"weekday\":2,\"timeSlots\":[\"14:00-15:00\"]}]")
+    private String availableTimeSlots;
+
     @TableField("is_verified")
     @Builder.Default
     private Boolean isVerified = false;

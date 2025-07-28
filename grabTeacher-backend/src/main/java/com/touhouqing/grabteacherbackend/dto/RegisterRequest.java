@@ -54,6 +54,7 @@ public class RegisterRequest {
     private List<Long> subjectIds;
     private BigDecimal hourlyRate;
     private String introduction;
+    private List<TimeSlotDTO> availableTimeSlots;
 
     // 枚举类型
     public enum UserType {

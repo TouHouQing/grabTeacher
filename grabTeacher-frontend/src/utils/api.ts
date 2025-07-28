@@ -244,6 +244,9 @@ export const teacherAPI = {
     preferredTime?: string
     preferredDateStart?: string
     preferredDateEnd?: string
+    preferredWeekdays?: number[]
+    preferredTimeSlots?: string[]
+    preferredGender?: string
     limit?: number
   }) => apiRequest('/api/teacher/match', {
     method: 'POST',

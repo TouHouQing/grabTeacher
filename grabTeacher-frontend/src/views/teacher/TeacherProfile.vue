@@ -2,6 +2,13 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useUserStore, type TeacherInfo, type PasswordChangeRequest } from '../../stores/user'
 import { ElMessage } from 'element-plus'
+import WideTimeSlotSelector from '../../components/WideTimeSlotSelector.vue'
+
+// 时间段接口
+interface TimeSlot {
+  weekday: number
+  timeSlots: string[]
+}
 
 const userStore = useUserStore()
 
@@ -22,6 +29,9 @@ const teacherForm = reactive<TeacherInfo>({
   videoIntroUrl: '',
   gender: '不愿透露'
 })
+
+// 可上课时间
+const availableTimeSlots = ref<TimeSlot[]>([])
 
 // 密码修改表单
 const passwordForm = reactive<PasswordChangeRequest>({
@@ -94,7 +104,8 @@ const saveProfile = async () => {
       specialties: teacherForm.specialties,
       introduction: teacherForm.introduction,
       videoIntroUrl: teacherForm.videoIntroUrl,
-      gender: teacherForm.gender
+      gender: teacherForm.gender,
+      availableTimeSlots: availableTimeSlots.value
     }
 
     const response = await userStore.updateTeacherProfile(formData)
@@ -262,6 +273,12 @@ onMounted(() => {
                   v-model="teacherForm.videoIntroUrl"
                   placeholder="请输入视频链接(可选)"
                 ></el-input>
+              </el-form-item>
+              <el-form-item label="可上课时间">
+                <WideTimeSlotSelector
+                  v-model="availableTimeSlots"
+                  title="设置可上课时间"
+                />
               </el-form-item>
               <el-form-item>
                 <el-button type="primary" @click="saveProfile" :loading="formLoading">

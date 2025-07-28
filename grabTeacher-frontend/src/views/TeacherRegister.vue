@@ -2,6 +2,13 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { getApiBaseUrl } from '@/utils/env'
+import WideTimeSlotSelector from '@/components/WideTimeSlotSelector.vue'
+
+// 时间段接口
+interface TimeSlot {
+  weekday: number
+  timeSlots: string[]
+}
 
 // 扩展注册请求接口
 interface ExtendedRegisterRequest {
@@ -18,6 +25,7 @@ interface ExtendedRegisterRequest {
   specialties?: string
   introduction?: string
   gender?: string
+  availableTimeSlots?: TimeSlot[]
 }
 
 const router = useRouter()
@@ -38,8 +46,12 @@ const registerForm = reactive<ExtendedRegisterRequest>({
   teachingExperience: 0,
   specialties: '',
   introduction: '',
-  gender: '不愿透露'
+  gender: '不愿透露',
+  availableTimeSlots: []
 })
+
+// 可上课时间
+const availableTimeSlots = ref<TimeSlot[]>([])
 
 // 性别选项
 const genderOptions = [
@@ -86,6 +98,9 @@ const handleRegister = async () => {
   if (!validateForm()) {
     return
   }
+
+  // 更新注册表单中的可上课时间
+  registerForm.availableTimeSlots = availableTimeSlots.value
 
   // 调试：打印要发送的数据
   console.log('发送的教师注册数据:', JSON.stringify(registerForm, null, 2))
@@ -263,6 +278,14 @@ const handleRegister = async () => {
               rows="4"
             ></textarea>
           </div>
+        </div>
+
+        <!-- 可上课时间选择 -->
+        <div class="form-section time-selection">
+          <WideTimeSlotSelector
+            v-model="availableTimeSlots"
+            title="设置可上课时间"
+          />
         </div>
 
         <div v-if="errorMessage" class="error-message">
@@ -594,5 +617,16 @@ const handleRegister = async () => {
     padding: 16px;
     font-size: 16px;
   }
+}
+
+/* 时间选择部分样式 */
+.time-selection {
+  margin-top: 20px;
+}
+
+.time-selection :deep(.simple-time-slot-selector) {
+  border: none;
+  padding: 0;
+  background: transparent;
 }
 </style>

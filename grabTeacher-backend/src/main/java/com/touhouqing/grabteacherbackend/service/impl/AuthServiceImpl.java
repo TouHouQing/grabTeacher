@@ -3,6 +3,7 @@ package com.touhouqing.grabteacherbackend.service.impl;
 import com.touhouqing.grabteacherbackend.dto.AuthResponse;
 import com.touhouqing.grabteacherbackend.dto.LoginRequest;
 import com.touhouqing.grabteacherbackend.dto.RegisterRequest;
+import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.entity.User;
@@ -111,6 +112,20 @@ public class AuthServiceImpl implements AuthService {
                 }
                 
             } else if ("teacher".equals(registerRequest.getUserType().name())) {
+                // 处理可上课时间
+                String availableTimeSlotsJson = null;
+                if (registerRequest.getAvailableTimeSlots() != null && !registerRequest.getAvailableTimeSlots().isEmpty()) {
+                    if (TimeSlotUtil.isValidTimeSlots(registerRequest.getAvailableTimeSlots())) {
+                        availableTimeSlotsJson = TimeSlotUtil.toJsonString(registerRequest.getAvailableTimeSlots());
+                    } else {
+                        log.warn("教师注册时提供的可上课时间格式不正确，将使用默认时间");
+                        availableTimeSlotsJson = TimeSlotUtil.toJsonString(TimeSlotUtil.getDefaultTimeSlots());
+                    }
+                } else {
+                    // 如果没有提供可上课时间，使用默认时间
+                    availableTimeSlotsJson = TimeSlotUtil.toJsonString(TimeSlotUtil.getDefaultTimeSlots());
+                }
+
                 Teacher teacher = Teacher.builder()
                         .userId(user.getId())
                         .realName(registerRequest.getRealName())
@@ -120,6 +135,7 @@ public class AuthServiceImpl implements AuthService {
                         // 注册时不设置收费，由管理员后续设置
                         .hourlyRate(null)
                         .introduction(StringUtils.hasText(registerRequest.getIntroduction()) ? registerRequest.getIntroduction() : null)
+                        .availableTimeSlots(availableTimeSlotsJson)
                         .isVerified(false)
                         .isDeleted(false)
                         .build();
@@ -127,7 +143,7 @@ public class AuthServiceImpl implements AuthService {
                 teacherMapper.insert(teacher);
 
                 // 注册时不设置科目关联，由管理员后续设置
-                log.info("教师信息创建成功: {}", user.getId());
+                log.info("教师信息创建成功: {}, 可上课时间已设置", user.getId());
             }
 
             // 生成 JWT token

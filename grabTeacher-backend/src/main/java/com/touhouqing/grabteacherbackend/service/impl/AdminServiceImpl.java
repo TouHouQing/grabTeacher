@@ -10,6 +10,7 @@ import com.touhouqing.grabteacherbackend.entity.TeacherSubject;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
+import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
@@ -283,6 +284,20 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public Teacher addTeacher(TeacherInfoRequest request) {
+        // 处理可上课时间
+        String availableTimeSlotsJson = null;
+        if (request.getAvailableTimeSlots() != null && !request.getAvailableTimeSlots().isEmpty()) {
+            if (TimeSlotUtil.isValidTimeSlots(request.getAvailableTimeSlots())) {
+                availableTimeSlotsJson = TimeSlotUtil.toJsonString(request.getAvailableTimeSlots());
+            } else {
+                // 如果格式不正确，使用默认时间
+                availableTimeSlotsJson = TimeSlotUtil.toJsonString(TimeSlotUtil.getDefaultTimeSlots());
+            }
+        } else {
+            // 如果没有提供可上课时间，使用默认时间
+            availableTimeSlotsJson = TimeSlotUtil.toJsonString(TimeSlotUtil.getDefaultTimeSlots());
+        }
+
         // 只创建教师信息，不创建用户（管理员直接创建教师档案）
         Teacher teacher = Teacher.builder()
                 .userId(null) // 管理员创建的教师可能没有关联用户
@@ -294,6 +309,7 @@ public class AdminServiceImpl implements AdminService {
                 .introduction(request.getIntroduction())
                 .videoIntroUrl(request.getVideoIntroUrl())
                 .gender(request.getGender() != null ? request.getGender() : "不愿透露")
+                .availableTimeSlots(availableTimeSlotsJson)
                 .build();
 
         teacherMapper.insert(teacher);
@@ -326,6 +342,17 @@ public class AdminServiceImpl implements AdminService {
         teacher.setIntroduction(request.getIntroduction());
         teacher.setVideoIntroUrl(request.getVideoIntroUrl());
         teacher.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
+
+        // 更新可上课时间
+        if (request.getAvailableTimeSlots() != null) {
+            if (TimeSlotUtil.isValidTimeSlots(request.getAvailableTimeSlots())) {
+                teacher.setAvailableTimeSlots(TimeSlotUtil.toJsonString(request.getAvailableTimeSlots()));
+            } else {
+                // 如果格式不正确，保持原有时间不变
+                // 可以选择抛出异常或者使用默认时间
+                throw new RuntimeException("可上课时间格式不正确");
+            }
+        }
 
         teacherMapper.updateById(teacher);
 

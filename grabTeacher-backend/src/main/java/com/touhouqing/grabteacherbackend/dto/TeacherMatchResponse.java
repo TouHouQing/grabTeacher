@@ -86,4 +86,19 @@ public class TeacherMatchResponse {
      * 是否已认证
      */
     private Boolean isVerified;
+
+    /**
+     * 教师性别
+     */
+    private String gender;
+
+    /**
+     * 可上课时间安排详情
+     */
+    private List<TimeSlotDTO> availableTimeSlots;
+
+    /**
+     * 时间匹配度 (0-100)
+     */
+    private Integer timeMatchScore;
 }

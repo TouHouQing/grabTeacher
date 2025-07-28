@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled } from '@element-plus/icons-vue'
+import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { teacherAPI, subjectAPI, bookingAPI, gradeApi } from '@/utils/api'
+import SimpleTimePreference from '../../components/SimpleTimePreference.vue'
 
 // 声明图片相对路径，使用getImageUrl方法加载
 const teacherImages = {
@@ -26,7 +27,6 @@ interface Teacher {
   schedule: string[]
   matchScore: number
   gender: string
-  teachingStyle: string
   hourlyRate?: number
   educationBackground?: string
   specialties?: string
@@ -78,11 +78,9 @@ interface AvailableTimeSlot {
 const matchForm = reactive({
   subject: '',
   grade: '',
-  preferredTime: [], // 修改为数组支持多选
-  preferredStartDate: '', // 独立的开始日期
-  preferredEndDate: '', // 独立的结束日期
-  gender: '',
-  teachingStyle: ''
+  preferredWeekdays: [] as number[], // 偏好的星期几
+  preferredTimeSlots: [] as string[], // 偏好的时间段
+  gender: '' // 使用空字符串作为默认值
 })
 
 const loading = ref(false)
@@ -91,6 +89,11 @@ const matchedTeachers = ref<Teacher[]>([])
 const subjects = ref<any[]>([])
 const grades = ref<string[]>([])
 const loadingOptions = ref(false)
+
+// 添加性别选择组件的引用和重置键
+const genderRadioGroupRef = ref()
+const genderResetKey = ref(0)
+const formResetKey = ref(0)
 
 // 新增课表相关数据
 const showScheduleModal = ref(false)
@@ -156,7 +159,7 @@ const router = useRouter()
 const handleMatch = async () => {
   // 验证必填项
   if (!matchForm.subject || !matchForm.grade) {
-    ElMessage.warning('请至少选择科目和年级')
+    ElMessage.warning('请选择科目和年级')
     return
   }
 
@@ -168,63 +171,118 @@ const handleMatch = async () => {
     const matchRequest = {
       subject: matchForm.subject,
       grade: matchForm.grade,
-      preferredTime: matchForm.preferredTime.length > 0 ? matchForm.preferredTime.join(',') : undefined,
-      preferredDateStart: matchForm.preferredStartDate || undefined,
-      preferredDateEnd: matchForm.preferredEndDate || undefined,
+      preferredWeekdays: matchForm.preferredWeekdays.length > 0 ? matchForm.preferredWeekdays : undefined,
+      preferredTimeSlots: matchForm.preferredTimeSlots.length > 0 ? matchForm.preferredTimeSlots : undefined,
+      preferredGender: matchForm.gender || undefined,
       limit: 3
     }
 
     // 调用后端API
-    const result = await teacherAPI.matchTeachers(matchRequest)
+    console.log('发送匹配请求:', matchRequest)
 
-    if (result.success && result.data) {
-      // 转换后端数据格式为前端需要的格式
-      const teachers = result.data.map((teacher: any) => ({
-        id: teacher.id,
-        name: teacher.name,
-        subject: teacher.subject,
-        grade: teacher.grade,
-        experience: teacher.experience,
-        description: teacher.description,
-        avatar: teacher.avatar || teacherImages.teacherBoy1, // 使用默认头像如果没有
-        tags: teacher.tags || [],
-        schedule: teacher.schedule || ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'],
-        matchScore: teacher.matchScore,
-        hourlyRate: teacher.hourlyRate,
-        educationBackground: teacher.educationBackground,
-        specialties: teacher.specialties,
-        isVerified: teacher.isVerified,
-        gender: teacher.gender || 'Male', // 提供默认性别
-        teachingStyle: teacher.teachingStyle || '个性化教学' // 提供默认教学风格
-      }))
+    // 添加超时处理
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('请求超时，请检查后端服务是否正常运行')), 10000)
+    })
 
-      matchedTeachers.value = teachers
-      showResults.value = true
+    const result = await Promise.race([
+      teacherAPI.matchTeachers(matchRequest),
+      timeoutPromise
+    ])
 
-      ElMessage.success(`为您匹配到了 ${teachers.length} 位适合的教师`)
+    // 详细的调试日志
+    console.log('=== 匹配结果调试信息 ===')
+    console.log('完整响应对象:', result)
+    console.log('响应对象的所有键:', Object.keys(result))
+    console.log('result.success:', result.success, '(类型:', typeof result.success, ')')
+    console.log('result.data:', result.data)
+    console.log('result.data 类型:', typeof result.data)
+    console.log('result.data 是否为数组:', Array.isArray(result.data))
+    if (result.data && Array.isArray(result.data)) {
+      console.log('result.data 长度:', result.data.length)
+      console.log('第一个教师数据:', result.data[0])
+    }
+    console.log('=== 调试信息结束 ===')
+
+    // 检查响应格式和数据 - 修复条件判断
+    if (result && result.success === true && result.data && Array.isArray(result.data)) {
+      console.log('进入成功分支，数据长度:', result.data.length)
+
+      if (result.data.length > 0) {
+        console.log('开始转换教师数据')
+
+        // 转换后端数据格式为前端需要的格式
+        const teachers = result.data.map((teacher: any) => ({
+          id: teacher.id,
+          name: teacher.name,
+          subject: teacher.subject,
+          grade: teacher.grade,
+          experience: teacher.experience,
+          description: teacher.description,
+          avatar: teacher.avatar || teacherImages.teacherBoy1, // 使用默认头像如果没有
+          tags: Array.isArray(teacher.tags) ? teacher.tags : [], // 确保 tags 是数组
+          schedule: Array.isArray(teacher.schedule) ? teacher.schedule : ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'],
+          matchScore: teacher.matchScore,
+          hourlyRate: teacher.hourlyRate,
+          educationBackground: teacher.educationBackground,
+          specialties: teacher.specialties,
+          isVerified: teacher.isVerified,
+          gender: teacher.gender || 'Male' // 提供默认性别
+        }))
+
+        console.log('转换后的教师数据:', teachers)
+
+        // 先设置数据，再显示结果
+        matchedTeachers.value = teachers
+
+        // 使用 nextTick 确保数据更新完成后再显示结果
+        nextTick(() => {
+          showResults.value = true
+          ElMessage.success(`为您匹配到了 ${teachers.length} 位适合的教师`)
+        })
+      } else {
+        // 数据为空数组
+        console.log('匹配到空数组')
+        ElMessage.warning('暂未找到符合条件的教师，请尝试调整筛选条件')
+        showResults.value = false
+      }
     } else {
-      ElMessage.error('匹配失败，请稍后重试')
+      // 请求失败或其他错误情况
+      console.log('匹配失败的详细信息:', result)
+      ElMessage.error(result?.message || '匹配失败，请稍后重试')
+      showResults.value = false
     }
   } catch (error) {
     console.error('匹配教师失败:', error)
-    ElMessage.error('匹配失败，请检查网络连接')
+    ElMessage.error(`匹配失败: ${error.message || '请检查网络连接'}`)
   } finally {
     loading.value = false
   }
 }
 
 const resetForm = () => {
-  // 分别处理不同类型的字段
-  matchForm.subject = '';
-  matchForm.grade = '';
-  matchForm.preferredTime = []; // 数组类型单独重置
-  matchForm.preferredStartDate = '';
-  matchForm.preferredEndDate = '';
-  matchForm.gender = '';
-  matchForm.teachingStyle = '';
+  console.log('开始重置表单')
 
-  showResults.value = false;
+  // 重置表单字段
+  matchForm.subject = ''
+  matchForm.grade = ''
+  matchForm.preferredWeekdays = []
+  matchForm.preferredTimeSlots = []
+  matchForm.gender = ''
+
+  // 重置匹配结果和状态
+  showResults.value = false
+  matchedTeachers.value = []
+  loading.value = false
+
+  // 强制重新渲染表单组件
+  formResetKey.value += 1
+
+  console.log('表单重置完成，当前性别值:', matchForm.gender)
+  ElMessage.success('表单已重置')
 }
+
+
 
 // 获取科目选项
 const loadSubjects = async () => {
@@ -1019,7 +1077,7 @@ onMounted(() => {
 
     <div class="match-container">
       <div class="match-form-section">
-        <el-form :model="matchForm" label-position="top" class="match-form">
+        <el-form :model="matchForm" label-position="top" class="match-form" :key="formResetKey">
           <el-form-item label="科目 Subjects" required>
             <el-select v-model="matchForm.subject" placeholder="请选择科目" :loading="loadingOptions">
               <el-option
@@ -1046,72 +1104,29 @@ onMounted(() => {
             </el-select>
           </el-form-item>
 
-          <el-form-item label="期望授课日期 Preferred Date">
-            <div class="date-range-container">
-              <div class="date-input-group">
-                <label class="date-label">开始日期</label>
-                <el-date-picker
-                  v-model="matchForm.preferredStartDate"
-                  type="date"
-                  placeholder="选择开始日期"
-                  :disabled-date="(date) => date < new Date()"
-                  format="YYYY-MM-DD"
-                  value-format="YYYY-MM-DD"
-                  style="width: 100%"
-                />
-              </div>
-              <div class="date-separator">至</div>
-              <div class="date-input-group">
-                <label class="date-label">结束日期</label>
-                <el-date-picker
-                  v-model="matchForm.preferredEndDate"
-                  type="date"
-                  placeholder="选择结束日期"
-                  :disabled-date="(date) => date < new Date() || (matchForm.preferredStartDate && date < new Date(matchForm.preferredStartDate))"
-                  format="YYYY-MM-DD"
-                  value-format="YYYY-MM-DD"
-                  style="width: 100%"
-                />
-              </div>
-            </div>
-          </el-form-item>
 
-          <el-form-item label="期望授课时间 Preferred Time">
-            <el-select
-              v-model="matchForm.preferredTime"
-              multiple
-              placeholder="选择期望授课时间（可多选）"
-              style="width: 100%"
-              collapse-tags
-              collapse-tags-tooltip
-            >
-              <el-option
-                v-for="time in ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00']"
-                :key="time"
-                :label="time"
-                :value="time"
-              />
-            </el-select>
+
+          <el-form-item label="偏好上课时间 Preferred Schedule">
+            <SimpleTimePreference
+              :weekdays="matchForm.preferredWeekdays"
+              :time-slots="matchForm.preferredTimeSlots"
+              @update:weekdays="matchForm.preferredWeekdays = $event"
+              @update:time-slots="matchForm.preferredTimeSlots = $event"
+            />
           </el-form-item>
 
           <el-form-item label="教师性别 Genders">
-            <el-radio-group v-model="matchForm.gender" size="large">
-              <el-radio-button label="Male">
+            <el-radio-group v-model="matchForm.gender" size="large" ref="genderRadioGroupRef">
+              <el-radio label="Male">
                 <el-icon><Male /></el-icon> 男 Male
-              </el-radio-button>
-              <el-radio-button label="Female">
+              </el-radio>
+              <el-radio label="Female">
                 <el-icon><Female /></el-icon> 女 Female
-              </el-radio-button>
+              </el-radio>
             </el-radio-group>
           </el-form-item>
 
-          <el-form-item label="教师授课风格 Teacher's Styles">
-            <el-radio-group v-model="matchForm.teachingStyle" size="large">
-              <el-radio border label="Humorous and Witty Style">幽默风趣型</el-radio>
-              <el-radio border label="Rigorous Teaching Style">严谨教学型</el-radio>
-              <el-radio border label="Both Strict and Benevolent Style">严慈相济型</el-radio>
-            </el-radio-group>
-          </el-form-item>
+
 
           <el-form-item>
             <div class="form-buttons">
@@ -1171,15 +1186,15 @@ onMounted(() => {
                 <el-tag v-for="(tag, i) in teacher.tags" :key="i" size="small" class="teacher-tag" effect="light">{{ tag }}</el-tag>
               </div>
 
-              <div class="selected-time" v-if="(matchForm.preferredStartDate || matchForm.preferredEndDate) || matchForm.preferredTime.length > 0">
+              <div class="selected-time" v-if="matchForm.preferredWeekdays.length > 0 || matchForm.preferredTimeSlots.length > 0">
                 <div class="selected-time-title">您的预约时间：</div>
                 <div class="selected-time-value">
-                  <el-tag v-if="matchForm.preferredStartDate || matchForm.preferredEndDate" type="success">
+                  <el-tag v-if="matchForm.preferredWeekdays.length > 0" type="success">
                     <el-icon><Calendar /></el-icon>
-                    {{ matchForm.preferredStartDate || '未设置' }} 至 {{ matchForm.preferredEndDate || '未设置' }}
+                    星期: {{ matchForm.preferredWeekdays.map(day => ['日', '一', '二', '三', '四', '五', '六'][day]).join(', ') }}
                   </el-tag>
-                  <el-tag v-if="matchForm.preferredTime.length > 0" type="primary" style="margin-left: 8px;">
-                    时间: {{ matchForm.preferredTime.join(', ') }}
+                  <el-tag v-if="matchForm.preferredTimeSlots.length > 0" type="primary" style="margin-left: 8px;">
+                    时间: {{ matchForm.preferredTimeSlots.join(', ') }}
                   </el-tag>
                 </div>
               </div>
@@ -2920,6 +2935,8 @@ h2 {
     margin-bottom: 0;
   }
 }
+
+
 </style>
 
 
