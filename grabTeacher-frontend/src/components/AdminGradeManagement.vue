@@ -45,7 +45,6 @@
               type="danger"
               :icon="Delete"
               @click="deleteGrade(scope.row)"
-              :disabled="scope.row.courseCount > 0"
             >
               删除
             </el-button>
@@ -212,19 +211,21 @@ const submitForm = async () => {
 }
 
 const deleteGrade = async (grade: any) => {
-  if (grade.courseCount > 0) {
-    ElMessage.warning('该年级正在被课程使用，无法删除')
-    return
-  }
-
   try {
+    let confirmMessage = `确定要删除年级"${grade.gradeName}"吗？`
+
+    if (grade.courseCount > 0) {
+      confirmMessage = `确定要删除年级"${grade.gradeName}"吗？\n\n注意：删除年级将同时删除该年级下的 ${grade.courseCount} 个课程及相关数据，此操作不可恢复！`
+    }
+
     await ElMessageBox.confirm(
-      `确定要删除年级"${grade.gradeName}"吗？`,
+      confirmMessage,
       '确认删除',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
-        type: 'warning'
+        type: 'warning',
+        dangerouslyUseHTMLString: false,
       }
     )
 
