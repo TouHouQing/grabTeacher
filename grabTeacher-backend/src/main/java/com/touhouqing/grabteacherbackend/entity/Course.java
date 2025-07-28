@@ -54,8 +54,8 @@ public class Course {
     private Integer durationMinutes;
 
     @Builder.Default
-    @Schema(description = "课程状态", example = "active", allowableValues = {"active", "inactive", "full"})
-    private String status = "active";
+    @Schema(description = "课程状态", example = "pending", allowableValues = {"active", "inactive", "full", "pending"})
+    private String status = "pending";
 
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     @Schema(description = "课程创建时间")
@@ -77,7 +77,7 @@ public class Course {
         this.title = title;
         this.courseType = courseType;
         this.durationMinutes = durationMinutes;
-        this.status = "active";
+        this.status = "pending";
         this.isDeleted = false;
     }
 }

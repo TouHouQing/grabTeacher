@@ -45,7 +45,7 @@ public class CourseResponse {
     @Schema(description = "单次课程时长（分钟）", example = "120")
     private Integer durationMinutes;
 
-    @Schema(description = "课程状态", example = "active", allowableValues = {"active", "inactive", "full"})
+    @Schema(description = "课程状态", example = "pending", allowableValues = {"active", "inactive", "full", "pending"})
     private String status;
 
     @Schema(description = "课程状态显示名称", example = "可报名")
@@ -80,6 +80,8 @@ public class CourseResponse {
                 return "已下架";
             case "full":
                 return "已满员";
+            case "pending":
+                return "待审批";
             default:
                 return status;
         }

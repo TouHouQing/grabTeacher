@@ -93,6 +93,18 @@ public class CourseServiceImpl implements CourseService {
             throw new RuntimeException("无效的课程状态");
         }
 
+        // 确定课程状态：教师创建的课程默认为pending，管理员创建的课程可以直接设置状态
+        String courseStatus;
+        if ("teacher".equals(userType)) {
+            // 教师创建的课程需要审批
+            courseStatus = "pending";
+        } else if ("admin".equals(userType)) {
+            // 管理员创建的课程可以直接设置状态，默认为active
+            courseStatus = request.getStatus() != null ? request.getStatus() : "active";
+        } else {
+            courseStatus = "pending";
+        }
+
         Course course = Course.builder()
                 .teacherId(teacherId)
                 .subjectId(request.getSubjectId())
@@ -100,7 +112,7 @@ public class CourseServiceImpl implements CourseService {
                 .description(request.getDescription())
                 .courseType(request.getCourseType())
                 .durationMinutes(request.getDurationMinutes())
-                .status(request.getStatus() != null ? request.getStatus() : "active")
+                .status(courseStatus)
                 .isDeleted(false)
                 .build();
 
@@ -171,8 +183,17 @@ public class CourseServiceImpl implements CourseService {
         course.setDescription(request.getDescription());
         course.setCourseType(request.getCourseType());
         course.setDurationMinutes(request.getDurationMinutes());
-        if (request.getStatus() != null) {
-            course.setStatus(request.getStatus());
+
+        // 状态更新逻辑：教师编辑课程时状态强制重置为pending，需要重新审批
+        if ("teacher".equals(userType)) {
+            // 教师编辑课程时，无论原状态如何，都重置为pending状态，需要管理员重新审批
+            course.setStatus("pending");
+            log.info("教师编辑课程，状态重置为pending，需要管理员重新审批");
+        } else if ("admin".equals(userType)) {
+            // 管理员可以设置任何状态
+            if (request.getStatus() != null) {
+                course.setStatus(request.getStatus());
+            }
         }
 
         courseMapper.updateById(course);
@@ -241,7 +262,7 @@ public class CourseServiceImpl implements CourseService {
 
     // 辅助方法：验证课程状态
     private boolean isValidCourseStatus(String status) {
-        return "active".equals(status) || "inactive".equals(status) || "full".equals(status);
+        return "active".equals(status) || "inactive".equals(status) || "full".equals(status) || "pending".equals(status);
     }
 
     @Override

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, View, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
-import { courseAPI, subjectAPI } from '@/utils/api'
+import { Plus, Edit, Delete, View, Search, Refresh } from '@element-plus/icons-vue'
+import { courseAPI, subjectAPI, gradeApi } from '@/utils/api'
 
 // 课程接口定义
 interface Course {
@@ -33,6 +33,9 @@ interface Subject {
 const loading = ref(false)
 const courses = ref<Course[]>([])
 const subjects = ref<Subject[]>([])
+const availableGrades = ref<any[]>([])
+const loadingGrades = ref(false)
+const selectedGrades = ref<string[]>([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const isEditing = ref(false)
@@ -74,7 +77,18 @@ const formRules = {
     { type: 'number', min: 1, message: '课程时长必须大于0分钟', trigger: 'blur' }
   ],
   grade: [
-    { required: true, message: '请输入适用年级', trigger: 'blur' }
+    {
+      required: true,
+      message: '请选择适用年级',
+      trigger: 'change',
+      validator: (rule: any, value: any, callback: any) => {
+        if (selectedGrades.value.length === 0) {
+          callback(new Error('请选择适用年级'))
+        } else {
+          callback()
+        }
+      }
+    }
   ]
 }
 
@@ -86,6 +100,7 @@ const courseTypeOptions = [
 
 // 课程状态选项
 const statusOptions = [
+  { label: '待审批', value: 'pending' },
   { label: '可报名', value: 'active' },
   { label: '已下架', value: 'inactive' },
   { label: '已满员', value: 'full' }
@@ -147,6 +162,21 @@ const fetchSubjects = async () => {
   }
 }
 
+// 获取年级列表
+const fetchGrades = async () => {
+  try {
+    loadingGrades.value = true
+    const response = await gradeApi.getAllPublic()
+    if (response.success && response.data) {
+      availableGrades.value = response.data
+    }
+  } catch (error) {
+    console.error('获取年级列表失败:', error)
+  } finally {
+    loadingGrades.value = false
+  }
+}
+
 // 重置表单
 const resetForm = () => {
   courseForm.id = null
@@ -155,8 +185,11 @@ const resetForm = () => {
   courseForm.description = ''
   courseForm.courseType = 'one_on_one'
   courseForm.durationMinutes = 120
-  courseForm.status = 'active'
+  courseForm.status = 'pending' // 教师创建的课程始终为待审批状态
   courseForm.grade = ''
+
+  // 清空选中的年级
+  selectedGrades.value = []
 }
 
 // 打开新增对话框
@@ -175,8 +208,11 @@ const openEditDialog = (course: Course) => {
   courseForm.description = course.description || ''
   courseForm.courseType = course.courseType
   courseForm.durationMinutes = course.durationMinutes
-  courseForm.status = course.status
+  courseForm.status = 'pending' // 教师编辑课程时状态重置为待审批
   courseForm.grade = course.grade || ''
+
+  // 将年级字符串转换为数组
+  selectedGrades.value = course.grade ? course.grade.split(',').map(g => g.trim()) : []
 
   dialogTitle.value = '编辑课程'
   isEditing.value = true
@@ -194,8 +230,8 @@ const saveCourse = async () => {
       description: courseForm.description,
       courseType: courseForm.courseType,
       durationMinutes: courseForm.durationMinutes,
-      status: courseForm.status,
-      grade: courseForm.grade
+      status: 'pending', // 教师创建/编辑的课程始终为待审批状态
+      grade: selectedGrades.value.join(',') // 将选中的年级转换为逗号分隔的字符串
     }
 
     let response
@@ -206,7 +242,10 @@ const saveCourse = async () => {
     }
 
     if (response.success) {
-      ElMessage.success(isEditing.value ? '课程更新成功' : '课程创建成功')
+      const message = isEditing.value
+        ? '课程更新成功，已提交审批，请等待管理员审核'
+        : '课程创建成功，已提交审批，请等待管理员审核'
+      ElMessage.success(message)
       dialogVisible.value = false
       await fetchCourses()
     } else {
@@ -252,25 +291,7 @@ const deleteCourse = async (course: Course) => {
   }
 }
 
-// 更新课程状态
-const updateCourseStatus = async (course: Course, newStatus: string) => {
-  try {
-    loading.value = true
-    const response = await courseAPI.updateStatus(course.id, newStatus)
-
-    if (response.success) {
-      ElMessage.success('状态更新成功')
-      await fetchCourses()
-    } else {
-      ElMessage.error(response.message || '状态更新失败')
-    }
-  } catch (error) {
-    console.error('更新状态失败:', error)
-    ElMessage.error('状态更新失败')
-  } finally {
-    loading.value = false
-  }
-}
+// 教师不能直接更新课程状态，已移除相关功能
 
 // 重置搜索
 const resetSearch = () => {
@@ -286,6 +307,7 @@ const getStatusTagType = (status: string) => {
     case 'active': return 'success'
     case 'inactive': return 'info'
     case 'full': return 'warning'
+    case 'pending': return 'warning'
     default: return 'info'
   }
 }
@@ -294,6 +316,7 @@ const getStatusTagType = (status: string) => {
 onMounted(() => {
   fetchCourses()
   fetchSubjects()
+  fetchGrades()
 })
 </script>
 
@@ -400,6 +423,15 @@ onMounted(() => {
                   <span class="label">创建时间：</span>
                   <span class="value">{{ new Date(course.createdAt).toLocaleDateString() }}</span>
                 </div>
+                <div class="info-item">
+                  <span class="label">状态：</span>
+                  <el-tag :type="getStatusTagType(course.status)" size="small">
+                    {{ course.statusDisplay }}
+                  </el-tag>
+                  <span v-if="course.status === 'pending'" class="status-tip">
+                    （等待管理员审批）
+                  </span>
+                </div>
               </div>
 
               <div v-if="course.description" class="course-description">
@@ -410,24 +442,7 @@ onMounted(() => {
                 <el-button size="small" :icon="Edit" @click="openEditDialog(course)">
                   编辑
                 </el-button>
-                <el-dropdown @command="(status) => updateCourseStatus(course, status)">
-                  <el-button size="small" type="primary">
-                    状态管理<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                  </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="active" :disabled="course.status === 'active'">
-                        设为可报名
-                      </el-dropdown-item>
-                      <el-dropdown-item command="inactive" :disabled="course.status === 'inactive'">
-                        设为已下架
-                      </el-dropdown-item>
-                      <el-dropdown-item command="full" :disabled="course.status === 'full'">
-                        设为已满员
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
+                <!-- 教师不能直接管理课程状态，需要通过管理员审批 -->
                 <el-button size="small" type="danger" :icon="Delete" @click="deleteCourse(course)">
                   删除
                 </el-button>
@@ -463,14 +478,22 @@ onMounted(() => {
         </el-form-item>
 
         <el-form-item label="适用年级" prop="grade">
-          <el-input
-            v-model="courseForm.grade"
-            placeholder="请输入适用年级，如：小学一年级,小学二年级"
-            maxlength="100"
-            show-word-limit
-          />
+          <el-select
+            v-model="selectedGrades"
+            multiple
+            placeholder="请选择适用年级"
+            style="width: 100%;"
+            :loading="loadingGrades"
+          >
+            <el-option
+              v-for="grade in availableGrades"
+              :key="grade.id"
+              :label="grade.gradeName"
+              :value="grade.gradeName"
+            />
+          </el-select>
           <div style="color: #909399; font-size: 12px; margin-top: 4px;">
-            多个年级请用逗号分隔，如：小学一年级,小学二年级
+            可以选择多个年级，系统会自动保存关联关系
           </div>
         </el-form-item>
 
@@ -517,17 +540,7 @@ onMounted(() => {
           <span style="margin-left: 10px; color: #909399;">分钟</span>
         </el-form-item>
 
-        <el-form-item label="课程状态">
-          <el-radio-group v-model="courseForm.status">
-            <el-radio
-              v-for="option in statusOptions"
-              :key="option.value"
-              :label="option.value"
-            >
-              {{ option.label }}
-            </el-radio>
-          </el-radio-group>
-        </el-form-item>
+        <!-- 教师不能选择课程状态，新增和编辑时都会自动设置为待审批状态 -->
       </el-form>
 
       <template #footer>
@@ -648,6 +661,12 @@ onMounted(() => {
   color: #606266;
   font-size: 14px;
   line-height: 1.5;
+}
+
+.status-tip {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 8px;
 }
 
 .course-actions {

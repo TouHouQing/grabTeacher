@@ -111,6 +111,7 @@ const courseTypeOptions = [
 
 // 课程状态选项
 const statusOptions = [
+  { label: '待审批', value: 'pending' },
   { label: '可报名', value: 'active' },
   { label: '已下架', value: 'inactive' },
   { label: '已满员', value: 'full' }
@@ -317,6 +318,48 @@ const updateCourseStatus = async (course: Course, newStatus: string) => {
   }
 }
 
+// 批准课程
+const approveCourse = async (course: Course) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要批准课程"${course.title}"吗？批准后课程将变为可报名状态。`,
+      '确认批准',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'success',
+      }
+    )
+
+    await updateCourseStatus(course, 'active')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('批准课程失败:', error)
+    }
+  }
+}
+
+// 拒绝课程
+const rejectCourse = async (course: Course) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要拒绝课程"${course.title}"吗？拒绝后课程将变为已下架状态。`,
+      '确认拒绝',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+
+    await updateCourseStatus(course, 'inactive')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('拒绝课程失败:', error)
+    }
+  }
+}
+
 // 搜索课程
 const searchCourses = () => {
   pagination.current = 1
@@ -353,6 +396,7 @@ const getStatusTagType = (status: string) => {
     case 'active': return 'success'
     case 'inactive': return 'info'
     case 'full': return 'warning'
+    case 'pending': return 'warning'
     default: return 'info'
   }
 }
@@ -480,24 +524,42 @@ onMounted(() => {
               <el-button size="small" :icon="Edit" @click="openEditDialog(row)">
                 编辑
               </el-button>
-              <el-dropdown @command="(status) => updateCourseStatus(row, status)">
-                <el-button size="small" type="primary">
-                  状态<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+
+              <!-- 待审批状态显示审批按钮 -->
+              <template v-if="row.status === 'pending'">
+                <el-button size="small" type="success" @click="approveCourse(row)">
+                  批准
                 </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="active" :disabled="row.status === 'active'">
-                      设为可报名
-                    </el-dropdown-item>
-                    <el-dropdown-item command="inactive" :disabled="row.status === 'inactive'">
-                      设为已下架
-                    </el-dropdown-item>
-                    <el-dropdown-item command="full" :disabled="row.status === 'full'">
-                      设为已满员
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+                <el-button size="small" type="warning" @click="rejectCourse(row)">
+                  拒绝
+                </el-button>
+              </template>
+
+              <!-- 其他状态显示状态切换下拉菜单 -->
+              <template v-else>
+                <el-dropdown @command="(status) => updateCourseStatus(row, status)">
+                  <el-button size="small" type="primary">
+                    状态<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="active" :disabled="row.status === 'active'">
+                        设为可报名
+                      </el-dropdown-item>
+                      <el-dropdown-item command="inactive" :disabled="row.status === 'inactive'">
+                        设为已下架
+                      </el-dropdown-item>
+                      <el-dropdown-item command="full" :disabled="row.status === 'full'">
+                        设为已满员
+                      </el-dropdown-item>
+                      <el-dropdown-item command="pending" :disabled="row.status === 'pending'">
+                        设为待审批
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </template>
+
               <el-button size="small" type="danger" :icon="Delete" @click="deleteCourse(row)">
                 删除
               </el-button>
