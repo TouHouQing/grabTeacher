@@ -17,11 +17,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-// CORS相关导入已移除，因为CORS处理已移至nginx层
-// import org.springframework.web.cors.CorsConfiguration;
-// import org.springframework.web.cors.CorsConfigurationSource;
-// import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-// import java.util.Arrays;
+import org.springframework.http.HttpMethod;
+// CORS相关导入 - 开发环境需要
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -69,10 +70,11 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.cors(cors -> cors.disable()) // 禁用Spring Security的CORS，让nginx处理
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource())) // 重新启用CORS配置
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // 允许所有OPTIONS请求
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/api/courses/public/**").permitAll()
@@ -102,43 +104,18 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // CORS配置已移至nginx处理，此方法暂时保留但不使用
-    /*
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 使用环境变量配置允许的来源
-        String[] origins = allowedOrigins.split(",");
-        for (int i = 0; i < origins.length; i++) {
-            origins[i] = origins[i].trim();
-        }
-        configuration.setAllowedOrigins(Arrays.asList(origins));
-
-        // 使用环境变量配置允许的方法
-        String[] methods = allowedMethods.split(",");
-        for (int i = 0; i < methods.length; i++) {
-            methods[i] = methods[i].trim();
-        }
-        configuration.setAllowedMethods(Arrays.asList(methods));
-
-        // 使用环境变量配置允许的头部
-        if ("*".equals(allowedHeaders.trim())) {
-            configuration.setAllowedHeaders(Arrays.asList("*"));
-        } else {
-            String[] headers = allowedHeaders.split(",");
-            for (int i = 0; i < headers.length; i++) {
-                headers[i] = headers[i].trim();
-            }
-            configuration.setAllowedHeaders(Arrays.asList(headers));
-        }
-
-        // 使用环境变量配置是否允许凭证
-        configuration.setAllowCredentials(allowCredentials);
+        // 开发环境允许所有来源，生产环境通过nginx处理
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
-    */
 } 
