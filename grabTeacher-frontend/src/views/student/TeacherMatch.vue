@@ -1249,11 +1249,7 @@ onMounted(() => {
                     <div class="course-title">{{ course.title }}</div>
                     <div class="course-details">
                       <el-tag size="small" type="primary">{{ course.subjectName }}</el-tag>
-                      <el-tag size="small" type="info">{{ course.durationMinutes }}分钟</el-tag>
                       <el-tag size="small" type="success" v-if="course.grade">{{ course.grade }}</el-tag>
-                    </div>
-                    <div class="course-description" v-if="course.description">
-                      {{ course.description }}
                     </div>
                   </div>
                 </el-radio>
