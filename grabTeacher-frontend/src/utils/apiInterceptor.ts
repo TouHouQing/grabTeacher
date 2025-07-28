@@ -6,7 +6,7 @@ import router from '@/router'
 export const handleApiResponse = async (response: Response) => {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    
+
     switch (response.status) {
       case 401:
         ElMessage.error('登录已过期，请重新登录')
@@ -26,17 +26,17 @@ export const handleApiResponse = async (response: Response) => {
       default:
         ElMessage.error(errorData.message || `请求失败 (${response.status})`)
     }
-    
+
     throw new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`)
   }
-  
+
   return response.json()
 }
 
 // API错误处理
 export const handleApiError = (error: any, customMessage?: string) => {
   console.error('API请求失败:', error)
-  
+
   if (error.name === 'TypeError' && error.message.includes('fetch')) {
     ElMessage.error('网络连接失败，请检查网络设置')
   } else if (customMessage) {
@@ -44,13 +44,13 @@ export const handleApiError = (error: any, customMessage?: string) => {
   } else {
     ElMessage.error('请求失败，请稍后重试')
   }
-  
+
   throw error
 }
 
 // 统一的API请求方法
 export const apiRequestWithInterceptor = async (endpoint: string, options: RequestInit = {}) => {
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8080')
   const url = `${API_BASE_URL}${endpoint}`
 
   const defaultHeaders = {

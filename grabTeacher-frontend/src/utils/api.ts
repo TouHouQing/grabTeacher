@@ -1,5 +1,5 @@
-// API基础配置 - 使用环境变量
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+// API基础配置 - 使用环境变量，生产环境使用相对路径
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8080')
 
 console.log('当前API环境:', API_BASE_URL)
 

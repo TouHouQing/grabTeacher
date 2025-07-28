@@ -75,8 +75,8 @@ export const useUserStore = defineStore('user', () => {
   const isStudent = computed(() => user.value?.userType === 'student')
   const isAdmin = computed(() => user.value?.userType === 'admin')
 
-  // API 基础配置 - 使用环境变量
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+  // API 基础配置 - 使用环境变量，生产环境使用相对路径
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8080')
 
   // 设置用户信息
   const setUser = (userData: User) => {
