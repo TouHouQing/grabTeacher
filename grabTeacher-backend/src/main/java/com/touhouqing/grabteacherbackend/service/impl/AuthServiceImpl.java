@@ -117,7 +117,8 @@ public class AuthServiceImpl implements AuthService {
                         .educationBackground(StringUtils.hasText(registerRequest.getEducationBackground()) ? registerRequest.getEducationBackground() : null)
                         .teachingExperience(registerRequest.getTeachingExperience() != null && registerRequest.getTeachingExperience() > 0 ? registerRequest.getTeachingExperience() : null)
                         .specialties(StringUtils.hasText(registerRequest.getSpecialties()) ? registerRequest.getSpecialties() : null)
-                        .hourlyRate(registerRequest.getHourlyRate() != null && registerRequest.getHourlyRate().compareTo(java.math.BigDecimal.ZERO) > 0 ? registerRequest.getHourlyRate() : null)
+                        // 注册时不设置收费，由管理员后续设置
+                        .hourlyRate(null)
                         .introduction(StringUtils.hasText(registerRequest.getIntroduction()) ? registerRequest.getIntroduction() : null)
                         .isVerified(false)
                         .isDeleted(false)
@@ -125,13 +126,7 @@ public class AuthServiceImpl implements AuthService {
 
                 teacherMapper.insert(teacher);
 
-                // 处理教师科目关联
-                if (registerRequest.getSubjectIds() != null && !registerRequest.getSubjectIds().isEmpty()) {
-                    for (Long subjectId : registerRequest.getSubjectIds()) {
-                        TeacherSubject teacherSubject = new TeacherSubject(teacher.getId(), subjectId);
-                        teacherSubjectMapper.insert(teacherSubject);
-                    }
-                }
+                // 注册时不设置科目关联，由管理员后续设置
                 log.info("教师信息创建成功: {}", user.getId());
             }
 

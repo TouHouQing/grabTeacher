@@ -78,8 +78,9 @@ interface AvailableTimeSlot {
 const matchForm = reactive({
   subject: '',
   grade: '',
-  preferredTime: '',
-  preferredDateRange: [], // 修改为日期范围
+  preferredTime: [], // 修改为数组支持多选
+  preferredStartDate: '', // 独立的开始日期
+  preferredEndDate: '', // 独立的结束日期
   gender: '',
   teachingStyle: ''
 })
@@ -167,11 +168,9 @@ const handleMatch = async () => {
     const matchRequest = {
       subject: matchForm.subject,
       grade: matchForm.grade,
-      preferredTime: matchForm.preferredTime || undefined,
-      preferredDateStart: matchForm.preferredDateRange && matchForm.preferredDateRange.length > 0
-        ? matchForm.preferredDateRange[0] : undefined,
-      preferredDateEnd: matchForm.preferredDateRange && matchForm.preferredDateRange.length > 1
-        ? matchForm.preferredDateRange[1] : undefined,
+      preferredTime: matchForm.preferredTime.length > 0 ? matchForm.preferredTime.join(',') : undefined,
+      preferredDateStart: matchForm.preferredStartDate || undefined,
+      preferredDateEnd: matchForm.preferredEndDate || undefined,
       limit: 3
     }
 
@@ -218,8 +217,9 @@ const resetForm = () => {
   // 分别处理不同类型的字段
   matchForm.subject = '';
   matchForm.grade = '';
-  matchForm.preferredTime = '';
-  matchForm.preferredDateRange = []; // 数组类型单独重置
+  matchForm.preferredTime = []; // 数组类型单独重置
+  matchForm.preferredStartDate = '';
+  matchForm.preferredEndDate = '';
   matchForm.gender = '';
   matchForm.teachingStyle = '';
 
@@ -844,8 +844,9 @@ const generateMonthlyScheduleData = async () => {
             bookedCount: timeSlots.filter((slot: any) => slot.booked).length
           })
         } else {
+          // 对于不在当月的日期，不显示或显示为空
           weekData.push({
-            day: dayNumber > 0 ? dayNumber : dayNumber + daysInMonth,
+            day: 0, // 设置为0表示不显示
             date: '',
             isCurrentMonth: false,
             timeSlots: [],
@@ -854,7 +855,11 @@ const generateMonthlyScheduleData = async () => {
           })
         }
       }
-      monthlyScheduleData.value.push(weekData)
+
+      // 只有当这一周至少有一个当月日期时才添加到数据中
+      if (weekData.some(day => day.isCurrentMonth)) {
+        monthlyScheduleData.value.push(weekData)
+      }
     }
   } catch (error) {
     console.error('获取教师课表失败:', error)
@@ -894,8 +899,9 @@ const generateDefaultMonthlyScheduleData = () => {
           bookedCount: timeSlots.filter(slot => slot.booked).length
         })
       } else {
+        // 对于不在当月的日期，不显示或显示为空
         weekData.push({
-          day: dayNumber > 0 ? dayNumber : dayNumber + daysInMonth,
+          day: 0, // 设置为0表示不显示
           date: '',
           isCurrentMonth: false,
           timeSlots: [],
@@ -904,7 +910,11 @@ const generateDefaultMonthlyScheduleData = () => {
         })
       }
     }
-    monthlyScheduleData.value.push(weekData)
+
+    // 只有当这一周至少有一个当月日期时才添加到数据中
+    if (weekData.some(day => day.isCurrentMonth)) {
+      monthlyScheduleData.value.push(weekData)
+    }
   }
 }
 
@@ -1037,28 +1047,51 @@ onMounted(() => {
           </el-form-item>
 
           <el-form-item label="期望授课日期 Preferred Date">
-            <el-date-picker
-              v-model="matchForm.preferredDateRange"
-              type="daterange"
-              range-separator="至"
-              start-placeholder="开始日期"
-              end-placeholder="结束日期"
-              :disabled-date="(date) => date < new Date()"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-              style="width: 100%"
-            />
+            <div class="date-range-container">
+              <div class="date-input-group">
+                <label class="date-label">开始日期</label>
+                <el-date-picker
+                  v-model="matchForm.preferredStartDate"
+                  type="date"
+                  placeholder="选择开始日期"
+                  :disabled-date="(date) => date < new Date()"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
+                  style="width: 100%"
+                />
+              </div>
+              <div class="date-separator">至</div>
+              <div class="date-input-group">
+                <label class="date-label">结束日期</label>
+                <el-date-picker
+                  v-model="matchForm.preferredEndDate"
+                  type="date"
+                  placeholder="选择结束日期"
+                  :disabled-date="(date) => date < new Date() || (matchForm.preferredStartDate && date < new Date(matchForm.preferredStartDate))"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
+                  style="width: 100%"
+                />
+              </div>
+            </div>
           </el-form-item>
 
           <el-form-item label="期望授课时间 Preferred Time">
-            <el-time-select
+            <el-select
               v-model="matchForm.preferredTime"
-              start="08:00"
-              step="00:30"
-              end="22:00"
-              placeholder="选择期望授课时间"
+              multiple
+              placeholder="选择期望授课时间（可多选）"
               style="width: 100%"
-            />
+              collapse-tags
+              collapse-tags-tooltip
+            >
+              <el-option
+                v-for="time in ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00']"
+                :key="time"
+                :label="time"
+                :value="time"
+              />
+            </el-select>
           </el-form-item>
 
           <el-form-item label="教师性别 Genders">
@@ -1138,12 +1171,15 @@ onMounted(() => {
                 <el-tag v-for="(tag, i) in teacher.tags" :key="i" size="small" class="teacher-tag" effect="light">{{ tag }}</el-tag>
               </div>
 
-              <div class="selected-time" v-if="matchForm.preferredDateRange && matchForm.preferredDateRange.length === 2 && matchForm.preferredTime">
+              <div class="selected-time" v-if="(matchForm.preferredStartDate || matchForm.preferredEndDate) || matchForm.preferredTime.length > 0">
                 <div class="selected-time-title">您的预约时间：</div>
                 <div class="selected-time-value">
-                  <el-tag type="success">
+                  <el-tag v-if="matchForm.preferredStartDate || matchForm.preferredEndDate" type="success">
                     <el-icon><Calendar /></el-icon>
-                    {{ matchForm.preferredDateRange[0] }} 至 {{ matchForm.preferredDateRange[1] }} {{ matchForm.preferredTime }}
+                    {{ matchForm.preferredStartDate || '未设置' }} 至 {{ matchForm.preferredEndDate || '未设置' }}
+                  </el-tag>
+                  <el-tag v-if="matchForm.preferredTime.length > 0" type="primary" style="margin-left: 8px;">
+                    时间: {{ matchForm.preferredTime.join(', ') }}
                   </el-tag>
                 </div>
               </div>
@@ -1472,12 +1508,12 @@ onMounted(() => {
           <div class="calendar-grid">
             <div v-for="(week, weekIndex) in monthlyScheduleData" :key="weekIndex" class="week-row">
               <div v-for="(day, dayIndex) in week" :key="dayIndex"
-                   :class="['day-cell', { 'other-month': !day.isCurrentMonth, 'clickable': day.isCurrentMonth }]"
-                   @click="showDayDetail(day)">
-                <div class="day-header">
+                   :class="['day-cell', { 'other-month': !day.isCurrentMonth, 'clickable': day.isCurrentMonth, 'empty-day': day.day === 0 }]"
+                   @click="day.isCurrentMonth && day.day > 0 ? showDayDetail(day) : null">
+                <div class="day-header" v-if="day.day > 0">
                   <span class="day-number">{{ day.day }}</span>
                 </div>
-                <div class="day-content" v-if="day.isCurrentMonth">
+                <div class="day-content" v-if="day.isCurrentMonth && day.day > 0">
                   <div class="day-summary">
                     <span class="available-count">{{ day.availableCount }}可用</span>
                     <span class="booked-count">{{ day.bookedCount }}已订</span>
@@ -2834,6 +2870,58 @@ h2 {
     font-size: 11px;
     height: 22px;
     line-height: 20px;
+  }
+}
+
+/* 日期范围选择器样式 */
+.date-range-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  width: 100%;
+}
+
+.date-input-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.date-label {
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.date-separator {
+  font-size: 16px;
+  color: #909399;
+  font-weight: 500;
+  margin-bottom: 8px;
+  padding: 0 8px;
+}
+
+/* 空日期单元格样式 */
+.empty-day {
+  visibility: hidden;
+}
+
+.day-cell.empty-day {
+  pointer-events: none;
+  background: transparent;
+}
+
+/* 响应式优化 - 日期选择器 */
+@media (max-width: 768px) {
+  .date-range-container {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .date-separator {
+    align-self: center;
+    margin-bottom: 0;
   }
 }
 </style>

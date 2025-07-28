@@ -51,6 +51,7 @@ export interface TeacherInfo {
   teachingExperience?: number
   specialties?: string
   subjects?: string
+  subjectIds?: number[]  // 保留用于显示，但不允许修改
   hourlyRate?: number
   introduction?: string
   videoIntroUrl?: string
@@ -305,6 +306,20 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // 获取科目列表
+  const getSubjects = async (): Promise<ApiResponse<{id: number, name: string}[]>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/public/subjects/active`)
+      return await response.json()
+    } catch (error) {
+      console.error('获取科目列表失败:', error)
+      return {
+        success: false,
+        message: '网络错误，请稍后重试',
+      }
+    }
+  }
+
   // 修改密码
   const changePassword = async (data: PasswordChangeRequest): Promise<ApiResponse<string>> => {
     try {
@@ -369,6 +384,7 @@ export const useUserStore = defineStore('user', () => {
     updateStudentProfile,
     getTeacherProfile,
     updateTeacherProfile,
+    getSubjects,
     changePassword,
     adminLogin,
   }

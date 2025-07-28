@@ -3,6 +3,7 @@ package com.touhouqing.grabteacherbackend.service;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponse;
+import com.touhouqing.grabteacherbackend.dto.TeacherProfileResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherScheduleResponse;
 import com.touhouqing.grabteacherbackend.dto.TimeSlotAvailability;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
@@ -21,6 +22,11 @@ public interface TeacherService {
      * 根据ID获取教师信息
      */
     Teacher getTeacherById(Long teacherId);
+
+    /**
+     * 根据用户ID获取教师详细信息（包含科目信息）
+     */
+    TeacherProfileResponse getTeacherProfileByUserId(Long userId);
     
     /**
      * 获取教师列表

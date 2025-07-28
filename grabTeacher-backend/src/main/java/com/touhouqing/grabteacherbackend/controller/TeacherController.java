@@ -4,6 +4,7 @@ import com.touhouqing.grabteacherbackend.dto.ApiResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponse;
+import com.touhouqing.grabteacherbackend.dto.TeacherProfileResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherScheduleResponse;
 import com.touhouqing.grabteacherbackend.dto.TimeSlotAvailability;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
@@ -34,21 +35,21 @@ public class TeacherController {
     private TeacherService teacherService;
 
     /**
-     * 获取教师个人信息
+     * 获取教师个人信息（包含科目信息）
      */
     @GetMapping("/profile")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<ApiResponse<Teacher>> getProfile(Authentication authentication) {
+    public ResponseEntity<ApiResponse<TeacherProfileResponse>> getProfile(Authentication authentication) {
         try {
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-            Teacher teacher = teacherService.getTeacherByUserId(userPrincipal.getId());
-            
-            if (teacher == null) {
+            TeacherProfileResponse teacherProfile = teacherService.getTeacherProfileByUserId(userPrincipal.getId());
+
+            if (teacherProfile == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("教师信息不存在"));
             }
-            
-            return ResponseEntity.ok(ApiResponse.success("获取成功", teacher));
+
+            return ResponseEntity.ok(ApiResponse.success("获取成功", teacherProfile));
         } catch (Exception e) {
             logger.error("获取教师信息异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

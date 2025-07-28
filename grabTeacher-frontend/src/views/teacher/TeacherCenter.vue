@@ -180,7 +180,7 @@ onMounted(() => {
                 <el-icon><Money /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">¥3600</div>
+                <div class="stat-value">$3600</div>
                 <div class="stat-label">本月收入</div>
               </div>
             </div>

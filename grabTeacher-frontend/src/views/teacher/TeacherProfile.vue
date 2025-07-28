@@ -5,6 +5,10 @@ import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
 
+// 科目相关数据
+const subjects = ref<{id: number, name: string}[]>([])
+const selectedSubjectIds = ref<number[]>([])
+
 // 教师信息表单
 const teacherForm = reactive<TeacherInfo>({
   realName: '',
@@ -12,6 +16,7 @@ const teacherForm = reactive<TeacherInfo>({
   teachingExperience: 0,
   specialties: '',
   subjects: '',
+  subjectIds: [],
   hourlyRate: 0,
   introduction: '',
   videoIntroUrl: '',
@@ -37,6 +42,20 @@ const genderOptions = [
   { label: '女', value: '女' }
 ]
 
+// 获取科目列表（用于显示科目名称）
+const fetchSubjects = async () => {
+  try {
+    const response = await userStore.getSubjects()
+    if (response.success && response.data) {
+      subjects.value = response.data
+    } else {
+      ElMessage.warning(response.message || '获取科目列表失败')
+    }
+  } catch (error) {
+    ElMessage.error('获取科目列表失败')
+  }
+}
+
 // 获取教师信息
 const fetchTeacherProfile = async () => {
   loading.value = true
@@ -44,6 +63,10 @@ const fetchTeacherProfile = async () => {
     const response = await userStore.getTeacherProfile()
     if (response.success && response.data) {
       Object.assign(teacherForm, response.data)
+      // 设置选中的科目ID
+      if (response.data.subjectIds) {
+        selectedSubjectIds.value = [...response.data.subjectIds]
+      }
     } else {
       ElMessage.warning(response.message || '获取教师信息失败')
     }
@@ -63,11 +86,26 @@ const saveProfile = async () => {
 
   formLoading.value = true
   try {
-    const response = await userStore.updateTeacherProfile(teacherForm)
+    // 只提交教师可以修改的字段，不包括科目和收费
+    const formData = {
+      realName: teacherForm.realName,
+      educationBackground: teacherForm.educationBackground,
+      teachingExperience: teacherForm.teachingExperience,
+      specialties: teacherForm.specialties,
+      introduction: teacherForm.introduction,
+      videoIntroUrl: teacherForm.videoIntroUrl,
+      gender: teacherForm.gender
+    }
+
+    const response = await userStore.updateTeacherProfile(formData)
     if (response.success) {
       ElMessage.success('保存成功')
       if (response.data) {
         Object.assign(teacherForm, response.data)
+        // 更新选中的科目ID（用于显示）
+        if (response.data.subjectIds) {
+          selectedSubjectIds.value = [...response.data.subjectIds]
+        }
       }
     } else {
       ElMessage.error(response.message || '保存失败')
@@ -77,6 +115,19 @@ const saveProfile = async () => {
   } finally {
     formLoading.value = false
   }
+}
+
+// 获取选中科目的名称
+const getSelectedSubjectNames = () => {
+  if (!selectedSubjectIds.value || selectedSubjectIds.value.length === 0) {
+    return ''
+  }
+
+  const subjectNames = selectedSubjectIds.value
+    .map(id => subjects.value.find(s => s.id === id)?.name)
+    .filter(name => name)
+
+  return subjectNames.join(', ')
 }
 
 // 修改密码
@@ -117,6 +168,7 @@ const changePassword = async () => {
 
 // 页面加载时获取数据
 onMounted(() => {
+  fetchSubjects()
   fetchTeacherProfile()
 })
 </script>
@@ -175,9 +227,12 @@ onMounted(() => {
               </el-form-item>
               <el-form-item label="教授科目">
                 <el-input
-                  v-model="teacherForm.subjects"
-                  placeholder="请输入教授科目，用逗号分隔"
+                  :value="getSelectedSubjectNames()"
+                  readonly
+                  placeholder="暂未设置教授科目（请联系管理员设置）"
+                  style="width: 100%"
                 ></el-input>
+                <small style="color: #999; font-size: 12px;">注：教授科目只能由管理员设置</small>
               </el-form-item>
               <el-form-item label="专业特长">
                 <el-input
@@ -186,13 +241,13 @@ onMounted(() => {
                 ></el-input>
               </el-form-item>
               <el-form-item label="小时收费(元)">
-                <el-input-number
-                  v-model="teacherForm.hourlyRate"
-                  :min="0"
-                  :max="2000"
-                  :step="10"
+                <el-input
+                  :value="teacherForm.hourlyRate ? `¥${teacherForm.hourlyRate}` : '暂未设置收费标准'"
+                  readonly
+                  placeholder="暂未设置收费标准（请联系管理员设置）"
                   style="width: 100%"
-                ></el-input-number>
+                ></el-input>
+                <small style="color: #999; font-size: 12px;">注：收费标准只能由管理员设置</small>
               </el-form-item>
               <el-form-item label="个人介绍">
                 <el-input

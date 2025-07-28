@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponse;
+import com.touhouqing.grabteacherbackend.dto.TeacherProfileResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherScheduleResponse;
 import com.touhouqing.grabteacherbackend.dto.TimeSlotAvailability;
 import com.touhouqing.grabteacherbackend.entity.Course;
@@ -73,6 +74,36 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     /**
+     * 根据用户ID获取教师详细信息（包含科目信息）
+     */
+    public TeacherProfileResponse getTeacherProfileByUserId(Long userId) {
+        Teacher teacher = getTeacherByUserId(userId);
+        if (teacher == null) {
+            return null;
+        }
+
+        // 获取教师的科目ID列表
+        List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
+
+        return TeacherProfileResponse.builder()
+                .id(teacher.getId())
+                .userId(teacher.getUserId())
+                .realName(teacher.getRealName())
+                .educationBackground(teacher.getEducationBackground())
+                .teachingExperience(teacher.getTeachingExperience())
+                .specialties(teacher.getSpecialties())
+                .subjectIds(subjectIds)
+                .hourlyRate(teacher.getHourlyRate())
+                .introduction(teacher.getIntroduction())
+                .videoIntroUrl(teacher.getVideoIntroUrl())
+                .gender(teacher.getGender())
+                .isVerified(teacher.getIsVerified())
+                .isDeleted(teacher.getIsDeleted())
+                .deletedAt(teacher.getDeletedAt())
+                .build();
+    }
+
+    /**
      * 获取教师列表
      */
     @Override
@@ -104,7 +135,7 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     /**
-     * 更新教师信息
+     * 更新教师信息（教师自己更新，不能修改科目和收费）
      */
     @Override
     @Transactional
@@ -114,7 +145,7 @@ public class TeacherServiceImpl implements TeacherService {
             throw new RuntimeException("教师信息不存在");
         }
 
-        // 更新教师信息
+        // 教师只能更新基本信息，不能修改科目和收费
         if (request.getRealName() != null) {
             teacher.setRealName(request.getRealName());
         }
@@ -127,22 +158,7 @@ public class TeacherServiceImpl implements TeacherService {
         if (request.getSpecialties() != null) {
             teacher.setSpecialties(request.getSpecialties());
         }
-        if (request.getHourlyRate() != null) {
-            teacher.setHourlyRate(request.getHourlyRate());
-        }
-
-        // 更新教师科目关联
-        if (request.getSubjectIds() != null) {
-            // 先删除原有关联
-            teacherSubjectMapper.deleteByTeacherId(teacher.getId());
-            // 添加新的关联
-            if (!request.getSubjectIds().isEmpty()) {
-                for (Long subjectId : request.getSubjectIds()) {
-                    TeacherSubject teacherSubject = new TeacherSubject(teacher.getId(), subjectId);
-                    teacherSubjectMapper.insert(teacherSubject);
-                }
-            }
-        }
+        // 注意：教师不能修改 hourlyRate 和 subjectIds
         if (request.getIntroduction() != null) {
             teacher.setIntroduction(request.getIntroduction());
         }
@@ -154,7 +170,7 @@ public class TeacherServiceImpl implements TeacherService {
         }
 
         teacherMapper.updateById(teacher);
-        log.info("更新教师信息成功: userId={}", userId);
+        log.info("教师更新个人信息成功: userId={}", userId);
 
         return teacher;
     }

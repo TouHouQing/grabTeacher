@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
 import { getApiBaseUrl } from '@/utils/env'
 
 // 扩展注册请求接口
@@ -17,14 +16,11 @@ interface ExtendedRegisterRequest {
   educationBackground?: string
   teachingExperience?: number
   specialties?: string
-  subjectIds?: number[]
-  hourlyRate?: number
   introduction?: string
   gender?: string
 }
 
 const router = useRouter()
-const userStore = useUserStore()
 
 const loading = ref(false)
 const errorMessage = ref('')
@@ -41,16 +37,9 @@ const registerForm = reactive<ExtendedRegisterRequest>({
   educationBackground: '',
   teachingExperience: 0,
   specialties: '',
-  subjectIds: [],
-  hourlyRate: 0,
   introduction: '',
   gender: '不愿透露'
 })
-
-const selectedSubjects = ref<number[]>([])
-
-// 科目列表
-const subjects = ref<{id: number, name: string}[]>([])
 
 // 性别选项
 const genderOptions = [
@@ -59,18 +48,7 @@ const genderOptions = [
   { label: '女', value: '女' }
 ]
 
-// 获取科目列表
-const fetchSubjects = async () => {
-  try {
-    const response = await fetch(`${getApiBaseUrl()}/api/public/subjects/active`)
-    const result = await response.json()
-    if (result.success) {
-      subjects.value = result.data
-    }
-  } catch (error) {
-    console.error('获取科目列表失败:', error)
-  }
-}
+
 
 const validateForm = (): boolean => {
   if (!registerForm.username || registerForm.username.length < 3 || registerForm.username.length > 50) {
@@ -109,9 +87,6 @@ const handleRegister = async () => {
     return
   }
 
-  // 设置可教授科目
-  registerForm.subjectIds = selectedSubjects.value
-
   // 调试：打印要发送的数据
   console.log('发送的教师注册数据:', JSON.stringify(registerForm, null, 2))
 
@@ -130,13 +105,12 @@ const handleRegister = async () => {
     console.log('教师注册响应:', result)
 
     if (result.success && result.data) {
-      userStore.setUser(result.data)
-      successMessage.value = '教师注册成功！正在跳转...'
+      successMessage.value = '教师注册成功！请登录您的账号'
 
       setTimeout(() => {
-        // 教师注册成功后跳转到教师中心
-        router.push('/teacher-center')
-      }, 1500)
+        // 教师注册成功后跳转到登录页面
+        router.push('/login')
+      }, 2000)
     } else {
       errorMessage.value = result.message || '注册失败'
     }
@@ -148,10 +122,7 @@ const handleRegister = async () => {
   }
 }
 
-// 组件挂载时获取科目列表
-onMounted(() => {
-  fetchSubjects()
-})
+
 </script>
 
 <template>
@@ -274,39 +245,12 @@ onMounted(() => {
           </div>
 
           <div class="form-group">
-            <label for="subjects">可教授科目</label>
-            <select
-              id="subjects"
-              v-model="selectedSubjects"
-              multiple
-              class="subjects-select"
-            >
-              <option v-for="subject in subjects" :key="subject.id" :value="subject.id">
-                {{ subject.name }}
-              </option>
-            </select>
-            <small>按住 Ctrl 键可以选择多个科目</small>
-          </div>
-
-          <div class="form-group">
             <label for="specialties">专业特长</label>
             <input
               id="specialties"
               v-model="registerForm.specialties"
               type="text"
               placeholder="如：高考数学、竞赛辅导、基础提升等"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="hourlyRate">每小时收费（元）</label>
-            <input
-              id="hourlyRate"
-              v-model.number="registerForm.hourlyRate"
-              type="number"
-              min="0"
-              step="10"
-              placeholder="请输入每小时收费标准"
             />
           </div>
 
