@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh } from '@element-plus/icons-vue'
+import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { teacherAPI, subjectAPI, bookingAPI, gradeApi } from '@/utils/api'
 import ImprovedTimePreference from '../../components/ImprovedTimePreference.vue'
@@ -74,6 +74,7 @@ interface AvailableTimeSlot {
   availableFromDate?: string // 从什么时候开始可用
   conflictEndDate?: string // 冲突结束日期
   conflictReason?: string // 冲突原因
+  isTeacherAvailable?: boolean // 是否在教师可预约时间范围内
 }
 
 const matchForm = reactive({
@@ -369,17 +370,10 @@ const generateYearSchedule = (teacherName: string): TeacherSchedule => {
   }
 }
 
-// 根据星期几返回可用的时间段
+// 根据星期几返回可用的时间段（现在所有天都使用完整的时间段）
 const getTimeSlotsForDay = (dayOfWeek: number): string[] => {
-  // 0 = 周日, 1 = 周一, ..., 6 = 周六
-  const weekdaySlots = ['16:00-17:00', '17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00']
-  const weekendSlots = ['09:00-10:00', '10:00-11:00', '11:00-12:00', '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00']
-
-  if (dayOfWeek === 0 || dayOfWeek === 6) {
-    return weekendSlots
-  } else {
-    return weekdaySlots
-  }
+  // 所有天都使用完整的时间段列表（从早上9点到晚上9点）
+  return getCompleteTimeSlots()
 }
 
 // 获取教师课程列表
@@ -434,31 +428,80 @@ const generateAvailableTimeSlots = async () => {
   if (!currentTeacher.value) return
 
   try {
+    // 首先获取教师的可预约时间设置
+    const teacherAvailableTimeResult = await teacherAPI.getAvailableTime(currentTeacher.value.id)
+    let teacherAvailableSlots: any[] = []
+
+    if (teacherAvailableTimeResult.success && teacherAvailableTimeResult.data && teacherAvailableTimeResult.data.availableTimeSlots) {
+      teacherAvailableSlots = teacherAvailableTimeResult.data.availableTimeSlots
+      console.log('获取教师可预约时间设置:', teacherAvailableSlots)
+    } else {
+      console.log('教师未设置可预约时间，默认所有时间可用')
+    }
+
     // 计算查询时间范围（未来3个月）
     const startDate = new Date().toISOString().split('T')[0]
     const endDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-    // 调用后端API获取真实的时间段可用性
+    // 调用后端API获取时间段冲突情况
     const result = await teacherAPI.checkAvailability(currentTeacher.value.id, {
       startDate,
       endDate
     })
 
-    if (result.success && result.data) {
-      availableTimeSlots.value = result.data.map((item: any) => ({
-        weekday: item.weekday,
-        time: item.timeSlot, // 保持向后兼容
-        timeSlot: item.timeSlot, // 新字段
-        available: item.available,
-        conflictDates: item.conflictDates || [],
-        availableFromDate: item.availableFromDate,
-        conflictEndDate: item.conflictEndDate,
-        conflictReason: item.conflictReason
-      }))
+    // 生成完整的时间段列表，结合教师可预约时间和冲突情况
+    const allTimeSlots: any[] = []
+
+    if (teacherAvailableSlots.length > 0) {
+      // 如果教师设置了可预约时间，只显示这些时间段
+      teacherAvailableSlots.forEach((slot: any) => {
+        if (slot.timeSlots && slot.timeSlots.length > 0) {
+          slot.timeSlots.forEach((timeSlot: string) => {
+            // 查找该时间段的冲突情况
+            const conflictInfo = result.success && result.data ?
+              result.data.find((item: any) => item.weekday === slot.weekday && item.timeSlot === timeSlot) : null
+
+            allTimeSlots.push({
+              weekday: slot.weekday,
+              time: timeSlot,
+              timeSlot: timeSlot,
+              available: conflictInfo ? conflictInfo.available : true,
+              conflictDates: conflictInfo ? (conflictInfo.conflictDates || []) : [],
+              availableFromDate: conflictInfo ? conflictInfo.availableFromDate : undefined,
+              conflictEndDate: conflictInfo ? conflictInfo.conflictEndDate : undefined,
+              conflictReason: conflictInfo ? conflictInfo.conflictReason : undefined,
+              isTeacherAvailable: true // 标记为教师可预约时间
+            })
+          })
+        }
+      })
     } else {
-      // 如果API调用失败，使用默认时间段
-      generateDefaultTimeSlots()
+      // 如果教师未设置可预约时间，显示所有默认时间段
+      const defaultTimeSlots = getCompleteTimeSlots()
+
+      for (let weekday = 1; weekday <= 7; weekday++) {
+        defaultTimeSlots.forEach(timeSlot => {
+          const conflictInfo = result.success && result.data ?
+            result.data.find((item: any) => item.weekday === weekday && item.timeSlot === timeSlot) : null
+
+          allTimeSlots.push({
+            weekday: weekday,
+            time: timeSlot,
+            timeSlot: timeSlot,
+            available: conflictInfo ? conflictInfo.available : true,
+            conflictDates: conflictInfo ? (conflictInfo.conflictDates || []) : [],
+            availableFromDate: conflictInfo ? conflictInfo.availableFromDate : undefined,
+            conflictEndDate: conflictInfo ? conflictInfo.conflictEndDate : undefined,
+            conflictReason: conflictInfo ? conflictInfo.conflictReason : undefined,
+            isTeacherAvailable: true // 默认情况下都可预约
+          })
+        })
+      }
     }
+
+    availableTimeSlots.value = allTimeSlots
+    console.log('生成的可用时间段:', allTimeSlots)
+
   } catch (error) {
     console.error('获取时间段可用性失败:', error)
     // 如果API调用失败，使用默认时间段
@@ -521,7 +564,99 @@ const checkTimeSlotConflicts = (weekday: number, time: string): { conflicts: str
   return { conflicts, availableFromDate, conflictEndDate, conflictReason }
 }
 
-// 自动计算试听课结束时间（固定30分钟）
+// 获取可用的试听课时间段
+const getAvailableTrialTimeSlots = (): string[] => {
+  if (!scheduleForm.trialDate) {
+    return []
+  }
+
+  // 获取试听日期对应的星期几
+  const trialDate = new Date(scheduleForm.trialDate)
+  const weekday = trialDate.getDay() === 0 ? 7 : trialDate.getDay() // 转换为后端格式
+
+  // 获取该星期几的可用时间段
+  const availableSlots = availableTimeSlots.value.filter(slot =>
+    slot.weekday === weekday && slot.isTeacherAvailable !== false
+  )
+
+  if (availableSlots.length === 0) {
+    // 如果没有找到可用时间段，返回完整的时间段列表
+    return getCompleteTimeSlots()
+  }
+
+  // 提取唯一的时间段
+  const uniqueSlots = new Set<string>()
+  availableSlots.forEach(slot => {
+    const timeSlot = slot.timeSlot || slot.time
+    if (timeSlot) {
+      uniqueSlots.add(timeSlot)
+    }
+  })
+
+  return Array.from(uniqueSlots).sort((a, b) => {
+    const timeA = a.split('-')[0]
+    const timeB = b.split('-')[0]
+    return timeA.localeCompare(timeB)
+  })
+}
+
+// 检查试听课时间段是否可用
+const isTrialTimeSlotAvailable = (timeSlot: string): boolean => {
+  if (!scheduleForm.trialDate) {
+    return false
+  }
+
+  const trialDate = new Date(scheduleForm.trialDate)
+  const weekday = trialDate.getDay() === 0 ? 7 : trialDate.getDay()
+
+  return isTimeSlotAvailable(weekday, timeSlot)
+}
+
+// 选择试听课时间段
+const selectTrialTimeSlot = (timeSlot: string) => {
+  if (!isTrialTimeSlotAvailable(timeSlot)) {
+    ElMessage.warning('该时间段教师不可预约，请选择其他时间段')
+    return
+  }
+
+  const [startTime] = timeSlot.split('-')
+  scheduleForm.trialStartTime = startTime
+
+  // 自动计算结束时间（30分钟后）
+  const [hours, minutes] = startTime.split(':').map(Number)
+  const start = new Date()
+  start.setHours(hours, minutes, 0, 0)
+  const end = new Date(start.getTime() + 30 * 60 * 1000)
+
+  const endHours = end.getHours().toString().padStart(2, '0')
+  const endMinutes = end.getMinutes().toString().padStart(2, '0')
+  scheduleForm.trialEndTime = `${endHours}:${endMinutes}`
+}
+
+// 获取当前选择的试听课时间段
+const getTrialTimeSlot = (): string => {
+  if (!scheduleForm.trialStartTime || !scheduleForm.trialEndTime) {
+    return ''
+  }
+  return `${scheduleForm.trialStartTime}-${scheduleForm.trialEndTime}`
+}
+
+// 获取时间段的样式类
+const getTimePeriodClass = (timeSlot: string): string => {
+  const startHour = parseInt(timeSlot.split('-')[0].split(':')[0])
+
+  if (startHour >= 9 && startHour < 12) {
+    return 'morning-slot'
+  } else if (startHour >= 12 && startHour < 18) {
+    return 'afternoon-slot'
+  } else if (startHour >= 18 && startHour <= 21) {
+    return 'evening-slot'
+  }
+
+  return ''
+}
+
+// 自动计算试听课结束时间（固定30分钟）- 保留原函数以防其他地方使用
 const updateTrialEndTime = () => {
   if (scheduleForm.trialStartTime) {
     const [hours, minutes] = scheduleForm.trialStartTime.split(':').map(Number)
@@ -649,18 +784,34 @@ const getWeekdayName = (weekday: number): string => {
   return names[weekday] || '未知'
 }
 
-// 获取唯一的时间段列表
-const getUniqueTimeSlots = (): string[] => {
-  const timeSlots = [
+// 获取完整的时间段列表（从早上9点到晚上9点每小时一个时间段）
+const getCompleteTimeSlots = (): string[] => {
+  return [
     '09:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00',
     '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00',
     '17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00'
   ]
-  return timeSlots
+}
+
+// 获取唯一的时间段列表（基于教师的可预约时间）
+const getUniqueTimeSlots = (): string[] => {
+  // 始终返回完整的时间段列表，让用户可以选择所有时间段
+  // 具体的可用性检查在 isTimeSlotAvailable 函数中进行
+  return getCompleteTimeSlots()
 }
 
 // 选择时间段
 const selectTimeSlot = (time: string) => {
+  // 检查该时间段是否有任何星期几可用
+  const hasAvailableWeekday = [1, 2, 3, 4, 5, 6, 7].some(weekday =>
+    isTimeSlotAvailable(weekday, time)
+  )
+
+  if (!hasAvailableWeekday) {
+    ElMessage.warning('该时间段教师不可预约，请选择其他时间段')
+    return
+  }
+
   if (scheduleForm.selectedTimeSlots.includes(time)) {
     scheduleForm.selectedTimeSlots = scheduleForm.selectedTimeSlots.filter(t => t !== time)
   } else {
@@ -678,10 +829,15 @@ const getWeekdayShort = (weekday: number): string => {
   return names[weekday]
 }
 
-// 判断某个星期几是否可用（检查所有选中的时间段）
+// 判断某个星期几的时间段是否可用
 const isTimeSlotAvailable = (weekday: number, time: string): boolean => {
   const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === time)
-  return slot ? slot.available : true // 默认可用，除非有冲突
+  if (!slot) {
+    // 如果没有找到对应的时间段，说明教师没有设置这个时间为可预约时间
+    return false
+  }
+  // 检查是否在教师可预约时间范围内，并且没有冲突
+  return slot.isTeacherAvailable !== false && slot.available
 }
 
 // 判断某个时间段是否有可用的开始日期
@@ -792,6 +948,58 @@ const hasTimeSlotConflicts = (time: string): boolean => {
     (slot.time || slot.timeSlot) === time &&
     ((slot.conflictDates && slot.conflictDates.length > 0) || slot.availableFromDate)
   )
+}
+
+// 计算时间匹配度
+const calculateTimeMatchScore = (): number => {
+  if (scheduleForm.selectedTimeSlots.length === 0 || scheduleForm.selectedWeekdays.length === 0) {
+    return 0
+  }
+
+  let totalCombinations = 0
+  let availableCombinations = 0
+
+  scheduleForm.selectedTimeSlots.forEach(timeSlot => {
+    scheduleForm.selectedWeekdays.forEach(weekday => {
+      totalCombinations++
+      if (isTimeSlotAvailable(weekday, timeSlot)) {
+        availableCombinations++
+      }
+    })
+  })
+
+  return totalCombinations > 0 ? Math.round((availableCombinations / totalCombinations) * 100) : 0
+}
+
+// 获取匹配度提示信息
+const getMatchScoreInfo = (): { score: number, message: string, type: string } => {
+  const score = calculateTimeMatchScore()
+
+  if (score >= 80) {
+    return {
+      score,
+      message: `匹配度很高 (${score}%)，大部分时间段都可预约`,
+      type: 'success'
+    }
+  } else if (score >= 60) {
+    return {
+      score,
+      message: `匹配度良好 (${score}%)，部分时间段可预约`,
+      type: 'warning'
+    }
+  } else if (score > 0) {
+    return {
+      score,
+      message: `匹配度较低 (${score}%)，建议调整时间选择`,
+      type: 'danger'
+    }
+  } else {
+    return {
+      score,
+      message: '所选时间段教师不可预约，请重新选择',
+      type: 'danger'
+    }
+  }
 }
 
 // 获取冲突摘要
@@ -1031,13 +1239,9 @@ const getWeekdayTemplate = (backendWeekday: number, scheduleData: any) => {
   return []
 }
 
-// 生成默认的某一天时间段数据（保留原函数，但不再使用）
+// 生成默认的某一天时间段数据
 const generateDefaultDayTimeSlots = () => {
-  const timeSlots = [
-    '09:00-10:00', '10:00-11:00', '11:00-12:00',
-    '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00',
-    '18:00-19:00', '19:00-20:00', '20:00-21:00'
-  ]
+  const timeSlots = getCompleteTimeSlots()
 
   return timeSlots.map(time => ({
     timeSlot: time,
@@ -1426,24 +1630,70 @@ onMounted(() => {
             </el-form-item>
 
             <el-form-item label="试听时间">
-              <div style="display: flex; gap: 10px; align-items: center;">
-                <el-time-select
-                  v-model="scheduleForm.trialStartTime"
-                  start="08:00"
-                  step="00:30"
-                  end="21:30"
-                  placeholder="开始时间"
-                  style="width: 120px"
-                  @change="updateTrialEndTime"
-                />
-                <span>至</span>
-                <el-input
-                  v-model="scheduleForm.trialEndTime"
-                  placeholder="自动计算"
-                  readonly
-                  style="width: 120px"
-                />
-                <el-tag type="success" size="small">固定30分钟</el-tag>
+              <div class="form-item-tip">请选择教师可预约的时间段进行试听（30分钟免费体验）</div>
+
+              <!-- 统一的时间段网格布局 -->
+              <div class="trial-time-container">
+                <!-- 时间段标题行 -->
+                <div class="time-periods-header">
+                  <div class="period-header morning">
+                    <el-icon><Sunrise /></el-icon>
+                    <span>上午时段</span>
+                  </div>
+                  <div class="period-header afternoon">
+                    <el-icon><Sunny /></el-icon>
+                    <span>下午时段</span>
+                  </div>
+                  <div class="period-header evening">
+                    <el-icon><Moon /></el-icon>
+                    <span>晚上时段</span>
+                  </div>
+                </div>
+
+                <!-- 统一的时间段网格 -->
+                <div class="trial-time-unified-grid">
+                  <div
+                    v-for="time in getAvailableTrialTimeSlots()"
+                    :key="time"
+                    :class="[
+                      'trial-time-card-unified',
+                      {
+                        'selected': getTrialTimeSlot() === time,
+                        'disabled': !isTrialTimeSlotAvailable(time)
+                      },
+                      getTimePeriodClass(time)
+                    ]"
+                    @click="selectTrialTimeSlot(time)"
+                  >
+                    <div class="time-display">{{ time }}</div>
+                    <div class="time-duration">30分钟</div>
+                    <div class="time-status-indicator">
+                      <el-icon v-if="!isTrialTimeSlotAvailable(time)" class="status-icon disabled"><Lock /></el-icon>
+                      <el-icon v-else-if="getTrialTimeSlot() === time" class="status-icon selected"><Check /></el-icon>
+                      <span v-else class="status-text">可选</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 选择结果显示 -->
+              <div v-if="scheduleForm.trialStartTime && scheduleForm.trialEndTime" class="selected-trial-result">
+                <el-alert
+                  type="success"
+                  :closable="false"
+                  show-icon
+                >
+                  <template #title>
+                    <span class="result-title">已选择试听时间</span>
+                  </template>
+                  <div class="result-content">
+                    <div class="result-time">
+                      <el-icon><Clock /></el-icon>
+                      {{ scheduleForm.trialStartTime }} - {{ scheduleForm.trialEndTime }}
+                    </div>
+                    <div class="result-duration">30分钟免费试听</div>
+                  </div>
+                </el-alert>
               </div>
             </el-form-item>
           </template>
@@ -1511,6 +1761,38 @@ onMounted(() => {
                   </span>
                 </el-checkbox>
               </el-checkbox-group>
+            </div>
+          </el-form-item>
+
+          <!-- 时间匹配度提示 -->
+          <el-form-item v-if="scheduleForm.selectedTimeSlots.length > 0 && scheduleForm.selectedWeekdays.length > 0">
+            <div class="time-match-info">
+              <el-alert
+                :title="getMatchScoreInfo().message"
+                :type="getMatchScoreInfo().type"
+                show-icon
+                :closable="false"
+              >
+                <template #default>
+                  <div class="match-details">
+                    <div class="match-score">
+                      <el-progress
+                        :percentage="getMatchScoreInfo().score"
+                        :color="getMatchScoreInfo().type === 'success' ? '#67c23a' : getMatchScoreInfo().type === 'warning' ? '#e6a23c' : '#f56c6c'"
+                        :stroke-width="8"
+                        text-inside
+                      />
+                    </div>
+                    <div class="match-suggestion" v-if="getMatchScoreInfo().score < 80">
+                      <p>建议：</p>
+                      <ul>
+                        <li v-if="getMatchScoreInfo().score === 0">请选择教师设置的可预约时间段</li>
+                        <li v-else>可以尝试调整时间段选择或联系教师协商时间</li>
+                      </ul>
+                    </div>
+                  </div>
+                </template>
+              </el-alert>
             </div>
           </el-form-item>
 
@@ -3051,6 +3333,275 @@ h2 {
   }
 }
 
+/* 时间匹配度提示样式 */
+.time-match-info {
+  margin: 16px 0;
+}
+
+.match-details {
+  margin-top: 12px;
+}
+
+.match-score {
+  margin-bottom: 12px;
+}
+
+.match-suggestion {
+  font-size: 14px;
+  color: #666;
+}
+
+.match-suggestion p {
+  margin: 0 0 8px 0;
+  font-weight: 500;
+}
+
+.match-suggestion ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.match-suggestion li {
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+/* 试听课时间选择样式 - 统一网格布局 */
+.trial-time-container {
+  margin: 20px 0;
+}
+
+.time-periods-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding: 0 10px;
+}
+
+.period-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8f9fa;
+}
+
+.period-header.morning {
+  background: linear-gradient(135deg, #fff7e6 0%, #ffeaa7 100%);
+  color: #e17055;
+}
+
+.period-header.afternoon {
+  background: linear-gradient(135deg, #e6f3ff 0%, #74b9ff 100%);
+  color: #0984e3;
+}
+
+.period-header.evening {
+  background: linear-gradient(135deg, #f0e6ff 0%, #a29bfe 100%);
+  color: #6c5ce7;
+}
+
+.period-header .el-icon {
+  font-size: 18px;
+}
+
+.trial-time-unified-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 0 10px;
+}
+
+.trial-time-card-unified {
+  border: 2px solid #e4e7ed;
+  border-radius: 12px;
+  padding: 20px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #fff;
+  position: relative;
+  height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.trial-time-card-unified:hover:not(.disabled) {
+  border-color: #409eff;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.15);
+  transform: translateY(-3px);
+}
+
+.trial-time-card-unified.selected {
+  border-color: #67c23a;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%);
+  box-shadow: 0 6px 16px rgba(103, 194, 58, 0.2);
+  transform: translateY(-3px);
+}
+
+.trial-time-card-unified.disabled {
+  border-color: #dcdfe6;
+  background: #f5f7fa;
+  color: #c0c4cc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* 时间段特定样式 */
+.trial-time-card-unified.morning-slot {
+  border-left: 4px solid #e17055;
+}
+
+.trial-time-card-unified.afternoon-slot {
+  border-left: 4px solid #0984e3;
+}
+
+.trial-time-card-unified.evening-slot {
+  border-left: 4px solid #6c5ce7;
+}
+
+.trial-time-card-unified.morning-slot.selected {
+  border-color: #e17055;
+  background: linear-gradient(135deg, #fff7e6 0%, #ffeaa7 100%);
+}
+
+.trial-time-card-unified.afternoon-slot.selected {
+  border-color: #0984e3;
+  background: linear-gradient(135deg, #e6f3ff 0%, #ddeeff 100%);
+}
+
+.trial-time-card-unified.evening-slot.selected {
+  border-color: #6c5ce7;
+  background: linear-gradient(135deg, #f0e6ff 0%, #e6ddff 100%);
+}
+
+.time-display {
+  font-size: 18px;
+  font-weight: 700;
+  color: #303133;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+.time-duration {
+  font-size: 13px;
+  color: #909399;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.time-status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  min-height: 20px;
+}
+
+.status-text {
+  color: #909399;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.status-icon {
+  font-size: 16px;
+}
+
+.status-icon.selected {
+  color: #67c23a;
+}
+
+.status-icon.disabled {
+  color: #c0c4cc;
+}
+
+/* 选中状态的文字颜色 */
+.trial-time-card-unified.selected .time-display {
+  color: #303133;
+  font-weight: 800;
+}
+
+.trial-time-card-unified.selected .time-duration {
+  color: #606266;
+  font-weight: 600;
+}
+
+.trial-time-card-unified.selected .status-text {
+  color: #67c23a;
+  font-weight: 600;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .trial-time-unified-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .trial-time-unified-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .time-periods-header {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .trial-time-card-unified {
+    height: 100px;
+    padding: 16px 12px;
+  }
+
+  .time-display {
+    font-size: 16px;
+  }
+}
+
+.selected-trial-result {
+  margin-top: 24px;
+}
+
+.result-title {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.result-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.result-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #67c23a;
+}
+
+.result-duration {
+  background: #67c23a;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
 
 </style>
 

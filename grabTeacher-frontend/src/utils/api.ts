@@ -298,6 +298,9 @@ export const teacherAPI = {
     return apiRequest(`/api/teacher/${teacherId}/availability?${searchParams}`)
   },
 
+  // 获取教师的可预约时间设置（供学生查看）
+  getAvailableTime: (teacherId: number) => apiRequest(`/api/available-time/teacher/${teacherId}`),
+
   // 获取公开教师列表（无需认证，供主页使用）
   getPublicList: (params: {
     page?: number

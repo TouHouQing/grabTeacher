@@ -6,6 +6,7 @@ import com.touhouqing.grabteacherbackend.dto.*;
 import com.touhouqing.grabteacherbackend.entity.*;
 import com.touhouqing.grabteacherbackend.mapper.*;
 import com.touhouqing.grabteacherbackend.service.BookingService;
+import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -458,6 +459,9 @@ public class BookingServiceImpl implements BookingService {
             if (hasStudentTimeConflict(studentId, request.getRequestedDate(), startTime, endTime)) {
                 throw new RuntimeException("学生在该时间段已有其他安排");
             }
+
+            // 验证单次预约时间是否在教师可预约时间范围内
+            validateSingleBookingTime(request, teacherId);
         } else if ("recurring".equals(request.getBookingType())) {
             // 周期性预约验证
             if (request.getRecurringWeekdays() == null || request.getRecurringWeekdays().isEmpty() ||
@@ -469,6 +473,9 @@ public class BookingServiceImpl implements BookingService {
             if (request.getStartDate().isAfter(request.getEndDate())) {
                 throw new RuntimeException("开始日期不能晚于结束日期");
             }
+
+            // 验证周期性预约时间是否在教师可预约时间范围内
+            validateRecurringBookingTime(request, teacherId);
         }
     }
 
@@ -658,5 +665,129 @@ public class BookingServiceImpl implements BookingService {
                 .sessionNumber(schedule.getSessionNumber())
                 .courseType(courseType)
                 .build();
+    }
+
+    /**
+     * 验证单次预约时间是否在教师可预约时间范围内
+     */
+    private void validateSingleBookingTime(BookingRequestDTO request, Long teacherId) {
+        Teacher teacher = teacherMapper.selectById(teacherId);
+        if (teacher == null) {
+            throw new RuntimeException("教师信息不存在");
+        }
+
+        // 如果教师没有设置可预约时间，则默认所有时间都可以预约
+        if (teacher.getAvailableTimeSlots() == null || teacher.getAvailableTimeSlots().trim().isEmpty()) {
+            log.info("教师未设置可预约时间限制，允许所有时间预约，教师ID: {}", teacherId);
+            return;
+        }
+
+        List<TimeSlotDTO> teacherAvailableSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
+        if (teacherAvailableSlots == null || teacherAvailableSlots.isEmpty()) {
+            log.info("教师可预约时间为空，允许所有时间预约，教师ID: {}", teacherId);
+            return;
+        }
+
+        // 获取预约日期对应的星期几 (1=周一, 7=周日)
+        int weekday = request.getRequestedDate().getDayOfWeek().getValue();
+        String requestedTimeSlot = request.getRequestedStartTime() + "-" + request.getRequestedEndTime();
+
+        // 检查该星期几是否有可预约时间
+        boolean isAvailable = teacherAvailableSlots.stream()
+                .anyMatch(slot -> weekday == slot.getWeekday() &&
+                         slot.getTimeSlots() != null &&
+                         slot.getTimeSlots().stream().anyMatch(time ->
+                             isTimeSlotContained(requestedTimeSlot, time)));
+
+        if (!isAvailable) {
+            String weekdayName = getWeekdayName(weekday);
+            throw new RuntimeException(String.format("教师在%s %s时间段不可预约，请选择其他时间",
+                    weekdayName, requestedTimeSlot));
+        }
+
+        log.info("单次预约时间验证通过，教师ID: {}, 时间: {} {}", teacherId, getWeekdayName(weekday), requestedTimeSlot);
+    }
+
+    /**
+     * 验证周期性预约时间是否在教师可预约时间范围内
+     */
+    private void validateRecurringBookingTime(BookingRequestDTO request, Long teacherId) {
+        Teacher teacher = teacherMapper.selectById(teacherId);
+        if (teacher == null) {
+            throw new RuntimeException("教师信息不存在");
+        }
+
+        // 如果教师没有设置可预约时间，则默认所有时间都可以预约
+        if (teacher.getAvailableTimeSlots() == null || teacher.getAvailableTimeSlots().trim().isEmpty()) {
+            log.info("教师未设置可预约时间限制，允许所有时间预约，教师ID: {}", teacherId);
+            return;
+        }
+
+        List<TimeSlotDTO> teacherAvailableSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
+        if (teacherAvailableSlots == null || teacherAvailableSlots.isEmpty()) {
+            log.info("教师可预约时间为空，允许所有时间预约，教师ID: {}", teacherId);
+            return;
+        }
+
+        List<String> invalidCombinations = new ArrayList<>();
+
+        // 验证每个星期几和时间段的组合
+        for (Integer weekday : request.getRecurringWeekdays()) {
+            for (String timeSlot : request.getRecurringTimeSlots()) {
+                boolean isAvailable = teacherAvailableSlots.stream()
+                        .anyMatch(slot -> weekday.equals(slot.getWeekday()) &&
+                                 slot.getTimeSlots() != null &&
+                                 slot.getTimeSlots().contains(timeSlot));
+
+                if (!isAvailable) {
+                    String weekdayName = getWeekdayName(weekday);
+                    invalidCombinations.add(String.format("%s %s", weekdayName, timeSlot));
+                }
+            }
+        }
+
+        if (!invalidCombinations.isEmpty()) {
+            throw new RuntimeException(String.format("以下时间段教师不可预约：%s，请重新选择时间",
+                    String.join("、", invalidCombinations)));
+        }
+
+        log.info("周期性预约时间验证通过，教师ID: {}, 星期: {}, 时间段: {}",
+                teacherId, request.getRecurringWeekdays(), request.getRecurringTimeSlots());
+    }
+
+    /**
+     * 获取星期几的中文名称
+     */
+    private String getWeekdayName(int weekday) {
+        String[] weekdays = {"", "周一", "周二", "周三", "周四", "周五", "周六", "周日"};
+        return weekday >= 1 && weekday <= 7 ? weekdays[weekday] : "未知";
+    }
+
+    /**
+     * 检查请求的时间段是否在教师可预约时间段内
+     * @param requestedTimeSlot 请求的时间段，格式：HH:mm-HH:mm
+     * @param availableTimeSlot 教师可预约时间段，格式：HH:mm-HH:mm
+     * @return 如果请求时间段完全在可预约时间段内，返回true
+     */
+    private boolean isTimeSlotContained(String requestedTimeSlot, String availableTimeSlot) {
+        if (!TimeSlotUtil.isValidTimeSlot(requestedTimeSlot) || !TimeSlotUtil.isValidTimeSlot(availableTimeSlot)) {
+            return false;
+        }
+
+        try {
+            String[] requestedTimes = requestedTimeSlot.split("-");
+            String[] availableTimes = availableTimeSlot.split("-");
+
+            LocalTime requestedStart = LocalTime.parse(requestedTimes[0]);
+            LocalTime requestedEnd = LocalTime.parse(requestedTimes[1]);
+            LocalTime availableStart = LocalTime.parse(availableTimes[0]);
+            LocalTime availableEnd = LocalTime.parse(availableTimes[1]);
+
+            // 检查请求的时间段是否完全在可预约时间段内
+            return !requestedStart.isBefore(availableStart) && !requestedEnd.isAfter(availableEnd);
+        } catch (Exception e) {
+            log.error("时间段比较失败: requested={}, available={}", requestedTimeSlot, availableTimeSlot, e);
+            return false;
+        }
     }
 }
