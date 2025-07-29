@@ -95,7 +95,7 @@ public class AuthController {
         } catch (RuntimeException e) {
             logger.warn("登录失败: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(401, "邮箱或密码错误"));
+                    .body(ApiResponse.error(401, e.getMessage()));
         } catch (Exception e) {
             logger.error("登录异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -236,7 +236,7 @@ public class AuthController {
         } catch (RuntimeException e) {
             logger.warn("管理员登录失败: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(401, "邮箱或密码错误"));
+                    .body(ApiResponse.error(401, e.getMessage()));
         } catch (Exception e) {
             logger.error("管理员登录异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

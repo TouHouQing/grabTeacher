@@ -164,6 +164,24 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
+     * 判断输入是否为邮箱格式
+     */
+    private boolean isEmailFormat(String input) {
+        return input != null && input.contains("@") && input.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    }
+
+    /**
+     * 根据输入类型生成相应的错误消息
+     */
+    private String getLoginErrorMessage(String input) {
+        if (isEmailFormat(input)) {
+            return "邮箱或密码错误";
+        } else {
+            return "用户名或密码错误";
+        }
+    }
+
+    /**
      * 用户登录
      */
     @Override
@@ -175,7 +193,8 @@ public class AuthServiceImpl implements AuthService {
             User user = userMapper.findByUsernameOrEmail(loginRequest.getUsername());
             if (user == null) {
                 log.warn("登录失败，用户不存在: {}", loginRequest.getUsername());
-                throw new BadCredentialsException("用户名、邮箱或密码错误");
+                String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+                throw new BadCredentialsException(errorMessage);
             }
 
             log.info("找到用户: {}, 状态: {}", user.getEmail(), user.getStatus());
@@ -189,7 +208,8 @@ public class AuthServiceImpl implements AuthService {
             // 验证密码
             if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
                 log.warn("登录失败，密码错误: {}", loginRequest.getUsername());
-                throw new BadCredentialsException("用户名、邮箱或密码错误");
+                String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+                throw new BadCredentialsException(errorMessage);
             }
 
             // 进行身份验证
@@ -220,10 +240,12 @@ public class AuthServiceImpl implements AuthService {
                                   user.getEmail(), user.getUserType(), realName);
         } catch (BadCredentialsException e) {
             log.warn("登录失败，认证错误: {}", e.getMessage());
-            throw new BadCredentialsException("用户名、邮箱或密码错误");
+            // 直接抛出原始异常，保持错误消息
+            throw e;
         } catch (AuthenticationException e) {
             log.warn("登录失败，认证异常: {}", e.getMessage());
-            throw new BadCredentialsException("用户名、邮箱或密码错误");
+            String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+            throw new BadCredentialsException(errorMessage);
         } catch (Exception e) {
             log.error("登录失败，系统错误: {}", e.getMessage(), e);
             throw new RuntimeException("登录失败，请稍后重试");
@@ -242,13 +264,15 @@ public class AuthServiceImpl implements AuthService {
             User user = userMapper.findByUsernameOrEmail(loginRequest.getUsername());
             if (user == null) {
                 log.warn("管理员登录失败，用户不存在: {}", loginRequest.getUsername());
-                throw new BadCredentialsException("用户名、邮箱或密码错误");
+                String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+                throw new BadCredentialsException(errorMessage);
             }
 
             // 检查是否为管理员类型
             if (!"admin".equals(user.getUserType())) {
                 log.warn("登录失败，用户类型不是管理员: {}", loginRequest.getUsername());
-                throw new BadCredentialsException("用户名、邮箱或密码错误");
+                String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+                throw new BadCredentialsException(errorMessage);
             }
 
             log.info("找到管理员用户: {}, 状态: {}", user.getEmail(), user.getStatus());
@@ -262,7 +286,8 @@ public class AuthServiceImpl implements AuthService {
             // 验证密码
             if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
                 log.warn("管理员登录失败，密码错误: {}", loginRequest.getUsername());
-                throw new BadCredentialsException("用户名、邮箱或密码错误");
+                String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+                throw new BadCredentialsException(errorMessage);
             }
 
             // 进行身份验证
@@ -287,10 +312,12 @@ public class AuthServiceImpl implements AuthService {
                                   user.getEmail(), user.getUserType(), realName);
         } catch (BadCredentialsException e) {
             log.warn("管理员登录失败，认证错误: {}", e.getMessage());
-            throw new BadCredentialsException("用户名、邮箱或密码错误");
+            // 直接抛出原始异常，保持错误消息
+            throw e;
         } catch (AuthenticationException e) {
             log.warn("管理员登录失败，认证异常: {}", e.getMessage());
-            throw new BadCredentialsException("用户名、邮箱或密码错误");
+            String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+            throw new BadCredentialsException(errorMessage);
         } catch (Exception e) {
             log.error("管理员登录失败，系统错误: {}", e.getMessage(), e);
             throw new RuntimeException("登录失败，请稍后重试");
