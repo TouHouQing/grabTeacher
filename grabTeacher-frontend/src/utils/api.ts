@@ -186,14 +186,18 @@ export const teacherAPI = {
   // 添加教师
   create: (data: {
     realName: string
+    username?: string
+    email?: string
+    phone?: string
     educationBackground?: string
     teachingExperience?: number
     specialties?: string
-    subjects?: string
+    subjectIds?: number[]
     hourlyRate?: number
     introduction?: string
     videoIntroUrl?: string
     gender?: string
+    availableTimeSlots?: any[]
   }) => apiRequest('/api/admin/teachers', {
     method: 'POST',
     body: JSON.stringify(data)
@@ -202,14 +206,18 @@ export const teacherAPI = {
   // 更新教师
   update: (id: number, data: {
     realName: string
+    username?: string
+    email?: string
+    phone?: string
     educationBackground?: string
     teachingExperience?: number
     specialties?: string
-    subjects?: string
+    subjectIds?: number[]
     hourlyRate?: number
     introduction?: string
     videoIntroUrl?: string
     gender?: string
+    availableTimeSlots?: any[]
   }) => apiRequest(`/api/admin/teachers/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)

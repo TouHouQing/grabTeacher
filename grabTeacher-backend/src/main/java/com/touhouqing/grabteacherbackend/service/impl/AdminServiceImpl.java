@@ -284,6 +284,42 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public Teacher addTeacher(TeacherInfoRequest request) {
+        // 验证必填字段
+        if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
+            throw new RuntimeException("用户名不能为空");
+        }
+        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+            throw new RuntimeException("邮箱不能为空");
+        }
+        if (request.getRealName() == null || request.getRealName().trim().isEmpty()) {
+            throw new RuntimeException("真实姓名不能为空");
+        }
+
+        // 检查用户名是否已存在
+        if (userMapper.existsByUsername(request.getUsername().trim())) {
+            throw new RuntimeException("用户名已被使用");
+        }
+
+        // 检查邮箱是否已存在
+        if (userMapper.existsByEmail(request.getEmail().trim())) {
+            throw new RuntimeException("邮箱已被注册");
+        }
+
+        // 创建用户账号，默认密码为123456
+        User user = User.builder()
+                .username(request.getUsername().trim())
+                .email(request.getEmail().trim())
+                .password(passwordEncoder.encode("123456")) // 默认密码
+                .phone(request.getPhone())
+                .userType("teacher")
+                .status("active")
+                .isDeleted(false)
+                .hasUsedTrial(false)
+                .build();
+
+        userMapper.insert(user);
+        log.info("管理员创建教师用户账号成功: {}, ID: {}", user.getEmail(), user.getId());
+
         // 处理可上课时间
         String availableTimeSlotsJson = null;
         if (request.getAvailableTimeSlots() != null && !request.getAvailableTimeSlots().isEmpty()) {
@@ -304,9 +340,9 @@ public class AdminServiceImpl implements AdminService {
             log.info("管理员未为教师设置可上课时间，默认所有时间都可以");
         }
 
-        // 只创建教师信息，不创建用户（管理员直接创建教师档案）
+        // 创建教师信息，关联到刚创建的用户
         Teacher teacher = Teacher.builder()
-                .userId(null) // 管理员创建的教师可能没有关联用户
+                .userId(user.getId()) // 关联到刚创建的用户
                 .realName(request.getRealName())
                 .educationBackground(request.getEducationBackground())
                 .teachingExperience(request.getTeachingExperience())
@@ -316,9 +352,11 @@ public class AdminServiceImpl implements AdminService {
                 .videoIntroUrl(request.getVideoIntroUrl())
                 .gender(request.getGender() != null ? request.getGender() : "不愿透露")
                 .availableTimeSlots(availableTimeSlotsJson)
+                .isVerified(true) // 管理员添加的教师默认已审核
                 .build();
 
         teacherMapper.insert(teacher);
+        log.info("管理员创建教师档案成功: 教师ID={}, 用户ID={}", teacher.getId(), user.getId());
 
         // 处理教师科目关联
         if (request.getSubjectIds() != null && !request.getSubjectIds().isEmpty()) {
@@ -326,6 +364,7 @@ public class AdminServiceImpl implements AdminService {
                 TeacherSubject teacherSubject = new TeacherSubject(teacher.getId(), subjectId);
                 teacherSubjectMapper.insert(teacherSubject);
             }
+            log.info("教师科目关联创建成功: 教师ID={}, 科目数量={}", teacher.getId(), request.getSubjectIds().size());
         }
 
         return teacher;

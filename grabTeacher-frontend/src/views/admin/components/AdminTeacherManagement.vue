@@ -40,6 +40,9 @@ const teacherDialogTitle = ref('')
 const teacherForm = reactive({
   id: 0,
   realName: '',
+  username: '',
+  email: '',
+  phone: '',
   educationBackground: '',
   teachingExperience: 0,
   specialties: '',
@@ -58,6 +61,14 @@ const availableTimeSlots = ref<TimeSlot[]>([])
 const teacherRules = {
   realName: [
     { required: true, message: '请输入教师姓名', trigger: 'blur' }
+  ],
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 3, max: 50, message: '用户名长度必须在3-50个字符之间', trigger: 'blur' }
+  ],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
   ]
 }
 
@@ -165,6 +176,9 @@ const handleAddTeacher = () => {
   Object.assign(teacherForm, {
     id: 0,
     realName: '',
+    username: '',
+    email: '',
+    phone: '',
     educationBackground: '',
     teachingExperience: 0,
     specialties: '',
@@ -230,6 +244,9 @@ const saveTeacher = async () => {
     loading.value = true
     const teacherData = {
       realName: teacherForm.realName,
+      username: teacherForm.username,
+      email: teacherForm.email,
+      phone: teacherForm.phone,
       educationBackground: teacherForm.educationBackground,
       teachingExperience: teacherForm.teachingExperience,
       specialties: teacherForm.specialties,
@@ -250,7 +267,7 @@ const saveTeacher = async () => {
     }
 
     if (result.success) {
-      ElMessage.success(teacherForm.id === 0 ? '添加成功' : '更新成功')
+      ElMessage.success(teacherForm.id === 0 ? '添加成功，默认密码为123456' : '更新成功')
       teacherDialogVisible.value = false
       await loadTeacherList()
     } else {
@@ -436,6 +453,33 @@ onMounted(async () => {
       :close-on-click-modal="false"
     >
       <el-form :model="teacherForm" :rules="teacherRules" label-width="120px">
+        <!-- 账号信息 -->
+        <el-row :gutter="20" v-if="teacherForm.id === 0">
+          <el-col :span="12">
+            <el-form-item label="用户名" prop="username">
+              <el-input v-model="teacherForm.username" placeholder="请输入用户名" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="邮箱" prop="email">
+              <el-input v-model="teacherForm.email" placeholder="请输入邮箱" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20" v-if="teacherForm.id === 0">
+          <el-col :span="12">
+            <el-form-item label="手机号">
+              <el-input v-model="teacherForm.phone" placeholder="请输入手机号" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="默认密码">
+              <el-input value="123456" disabled placeholder="默认密码为123456" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 基本信息 -->
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="教师姓名" prop="realName">
