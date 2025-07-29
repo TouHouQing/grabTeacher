@@ -8,7 +8,7 @@ import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.entity.Admin;
-import com.touhouqing.grabteacherbackend.entity.TeacherSubject;
+
 import com.touhouqing.grabteacherbackend.entity.StudentSubject;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
@@ -390,21 +390,60 @@ public class AuthServiceImpl implements AuthService {
             if (user == null) {
                 return false;
             }
-            
+
             // 验证当前密码
             if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
                 return false;
             }
-            
+
             // 更新密码
             user.setPassword(passwordEncoder.encode(newPassword));
             user.setUpdatedAt(LocalDateTime.now()); // 显式设置更新时间
             userMapper.updateById(user);
-            
+
             return true;
         } catch (Exception e) {
             log.error("修改密码失败: ", e);
             return false;
         }
     }
-} 
+
+    /**
+     * 更新用户邮箱
+     */
+    @Override
+    @Transactional
+    public boolean updateEmail(Long userId, String newEmail, String currentPassword) {
+        try {
+            User user = userMapper.selectById(userId);
+            if (user == null) {
+                log.warn("用户不存在: userId={}", userId);
+                return false;
+            }
+
+            // 验证当前密码
+            if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+                log.warn("密码验证失败: userId={}", userId);
+                return false;
+            }
+
+            // 检查新邮箱是否已被其他用户使用
+            if (userMapper.existsByEmail(newEmail)) {
+                log.warn("邮箱已被使用: email={}", newEmail);
+                return false;
+            }
+
+            // 更新邮箱
+            String oldEmail = user.getEmail();
+            user.setEmail(newEmail);
+            user.setUpdatedAt(LocalDateTime.now());
+            userMapper.updateById(user);
+
+            log.info("用户邮箱更新成功: userId={}, oldEmail={}, newEmail={}", userId, oldEmail, newEmail);
+            return true;
+        } catch (Exception e) {
+            log.error("更新邮箱失败: userId={}, newEmail={}", userId, newEmail, e);
+            return false;
+        }
+    }
+}

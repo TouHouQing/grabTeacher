@@ -11,6 +11,7 @@ import AdminSubjectManagement from './components/AdminSubjectManagement.vue'
 import AdminCourseManagement from './AdminCourseManagement.vue'
 import AdminGradeManagement from '../../components/AdminGradeManagement.vue'
 import AdminPasswordChange from './components/AdminPasswordChange.vue'
+import AdminEmailChange from './components/AdminEmailChange.vue'
 import AdminBookingManagement from './components/AdminBookingManagement.vue'
 
 // 获取用户信息
@@ -75,6 +76,10 @@ const handleMenuSelect = (key: string) => {
             <el-icon><Lock /></el-icon>
             <span>修改密码</span>
           </el-menu-item>
+          <el-menu-item index="email">
+            <el-icon><User /></el-icon>
+            <span>修改邮箱</span>
+          </el-menu-item>
         </el-menu>
       </div>
 
@@ -118,6 +123,11 @@ const handleMenuSelect = (key: string) => {
         <!-- 修改密码 -->
         <div v-show="activeMenu === 'password'" class="content-panel">
           <AdminPasswordChange />
+        </div>
+
+        <!-- 修改邮箱 -->
+        <div v-show="activeMenu === 'email'" class="content-panel">
+          <AdminEmailChange />
         </div>
       </div>
     </div>

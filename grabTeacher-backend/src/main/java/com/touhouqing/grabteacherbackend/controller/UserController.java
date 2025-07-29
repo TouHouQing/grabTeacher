@@ -2,6 +2,7 @@ package com.touhouqing.grabteacherbackend.controller;
 
 import com.touhouqing.grabteacherbackend.dto.ApiResponse;
 import com.touhouqing.grabteacherbackend.dto.PasswordChangeRequest;
+import com.touhouqing.grabteacherbackend.dto.EmailUpdateRequest;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.AuthService;
@@ -74,16 +75,16 @@ public class UserController {
             }
 
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-            
+
             // 验证新密码和确认密码是否一致
             if (!request.getNewPassword().equals(request.getConfirmPassword())) {
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("新密码和确认密码不一致"));
             }
-            
-            boolean success = authService.changePassword(userPrincipal.getId(), 
+
+            boolean success = authService.changePassword(userPrincipal.getId(),
                     request.getCurrentPassword(), request.getNewPassword());
-            
+
             if (success) {
                 return ResponseEntity.ok(ApiResponse.success("密码修改成功", null));
             } else {
@@ -96,4 +97,36 @@ public class UserController {
                     .body(ApiResponse.error("修改密码失败"));
         }
     }
-} 
+
+    /**
+     * 更新邮箱
+     */
+    @Operation(summary = "更新邮箱", description = "更新当前登录用户的邮箱地址")
+    @PutMapping("/update-email")
+    public ResponseEntity<ApiResponse<String>> updateEmail(
+            @Valid @RequestBody EmailUpdateRequest request,
+            Authentication authentication) {
+        try {
+            if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error(401, "未登录"));
+            }
+
+            UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+
+            boolean success = authService.updateEmail(userPrincipal.getId(),
+                    request.getNewEmail(), request.getCurrentPassword());
+
+            if (success) {
+                return ResponseEntity.ok(ApiResponse.success("邮箱更新成功", null));
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("邮箱更新失败，请检查密码是否正确或邮箱是否已被使用"));
+            }
+        } catch (Exception e) {
+            logger.error("更新邮箱异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("邮箱更新失败"));
+        }
+    }
+}

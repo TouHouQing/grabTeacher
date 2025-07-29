@@ -49,10 +49,18 @@ const passwordForm = reactive<PasswordChangeRequest>({
   confirmPassword: ''
 })
 
+// 邮箱修改表单
+const emailForm = reactive({
+  newEmail: '',
+  currentPassword: ''
+})
+
 // 加载状态
 const loading = ref(false)
 const formLoading = ref(false)
 const passwordLoading = ref(false)
+const emailLoading = ref(false)
+const showEmailDialog = ref(false)
 
 // 获取学生信息
 const fetchStudentProfile = async () => {
@@ -195,6 +203,57 @@ const changePassword = async () => {
   }
 }
 
+// 修改邮箱
+const changeEmail = async () => {
+  if (!emailForm.newEmail || !emailForm.currentPassword) {
+    ElMessage.warning('请填写完整的邮箱信息')
+    return
+  }
+
+  // 简单的邮箱格式验证
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(emailForm.newEmail)) {
+    ElMessage.error('请输入正确的邮箱格式')
+    return
+  }
+
+  if (emailForm.currentPassword.length < 6) {
+    ElMessage.error('密码长度不能少于6位')
+    return
+  }
+
+  emailLoading.value = true
+  try {
+    // 临时使用fetch直接调用API，稍后会在store中添加方法
+    const response = await fetch(`${getApiBaseUrl()}/api/user/update-email`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${userStore.token}`
+      },
+      body: JSON.stringify(emailForm)
+    })
+    const result = await response.json()
+
+    if (result.success) {
+      ElMessage.success('邮箱修改成功')
+      // 清空表单
+      emailForm.newEmail = ''
+      emailForm.currentPassword = ''
+      // 关闭对话框
+      showEmailDialog.value = false
+      // 重新获取用户信息以更新显示
+      await userStore.initializeAuth()
+    } else {
+      ElMessage.error(result.message || '邮箱修改失败')
+    }
+  } catch (error) {
+    ElMessage.error('邮箱修改失败')
+  } finally {
+    emailLoading.value = false
+  }
+}
+
 // 页面加载时获取数据
 onMounted(async () => {
   await fetchSubjects()
@@ -222,7 +281,10 @@ onMounted(async () => {
                 <el-input :value="userStore.user?.username" disabled></el-input>
               </el-form-item>
               <el-form-item label="邮箱">
-                <el-input :value="userStore.user?.email" disabled></el-input>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <el-input :value="userStore.user?.email" disabled style="flex: 1;"></el-input>
+                  <el-button type="text" @click="showEmailDialog = true">修改</el-button>
+                </div>
               </el-form-item>
               <el-form-item label="真实姓名" required>
                 <el-input v-model="studentForm.realName" placeholder="请输入真实姓名"></el-input>
@@ -343,6 +405,38 @@ onMounted(async () => {
         </div>
       </el-tab-pane>
     </el-tabs>
+
+    <!-- 邮箱修改对话框 -->
+    <el-dialog v-model="showEmailDialog" title="修改邮箱" width="400px">
+      <el-form :model="emailForm" label-width="100px">
+        <el-form-item label="当前邮箱">
+          <el-input :value="userStore.user?.email" disabled></el-input>
+        </el-form-item>
+        <el-form-item label="新邮箱">
+          <el-input
+            v-model="emailForm.newEmail"
+            type="email"
+            placeholder="请输入新邮箱地址"
+          ></el-input>
+        </el-form-item>
+        <el-form-item label="当前密码">
+          <el-input
+            v-model="emailForm.currentPassword"
+            type="password"
+            placeholder="请输入当前密码进行验证"
+            show-password
+          ></el-input>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showEmailDialog = false">取消</el-button>
+          <el-button type="primary" @click="changeEmail" :loading="emailLoading">
+            确认修改
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
