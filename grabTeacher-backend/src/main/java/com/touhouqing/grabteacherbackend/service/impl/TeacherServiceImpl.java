@@ -1064,10 +1064,10 @@ public class TeacherServiceImpl implements TeacherService {
             return 0;
         }
 
-        // 如果学生没有时间偏好，给予基础分数
+        // 如果学生没有时间偏好，认为所有时间都匹配，给予满分
         if ((request.getPreferredWeekdays() == null || request.getPreferredWeekdays().isEmpty()) &&
             (request.getPreferredTimeSlots() == null || request.getPreferredTimeSlots().isEmpty())) {
-            return 50;
+            return 100;
         }
 
         int totalScore = 0;
@@ -1113,7 +1113,7 @@ public class TeacherServiceImpl implements TeacherService {
             }
         }
 
-        return maxPossibleScore > 0 ? Math.min((totalScore * 100) / maxPossibleScore, 100) : 50;
+        return maxPossibleScore > 0 ? Math.min((totalScore * 100) / maxPossibleScore, 100) : 100;
     }
 
     /**
