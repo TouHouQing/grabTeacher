@@ -464,45 +464,168 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     /**
-     * 计算匹配分数
+     * 计算匹配分数 - 基于学生填写信息的智能匹配
      */
     private int calculateMatchScore(Teacher teacher, TeacherMatchRequest request) {
-        int score = 85; // 基础分数
+        int totalScore = 0;
 
-        // 科目匹配加分
-        if (StringUtils.hasText(request.getSubject())) {
-            List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
-            for (Long subjectId : subjectIds) {
-                try {
-                    String subjectName = subjectService.getSubjectById(subjectId).getName();
-                    if (request.getSubject().equals(subjectName)) {
-                        score += 10;
-                        break;
-                    }
-                } catch (Exception e) {
-                    // 忽略异常，继续检查下一个科目
+        // 1. 科目匹配 (30分) - 最重要的匹配因素
+        totalScore += calculateSubjectMatchScore(teacher, request);
+
+        // 2. 年级匹配 (25分) - 第二重要的匹配因素
+        totalScore += calculateGradeMatchScore(teacher, request);
+
+        // 3. 时间匹配 (25分) - 基于学生的时间偏好
+        List<TimeSlotDTO> availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
+        totalScore += calculateTimeMatchScore(availableTimeSlots, request) * 25 / 100;
+
+        // 4. 性别匹配 (10分) - 基于学生的性别偏好
+        totalScore += calculateGenderMatchScore(teacher, request);
+
+        // 5. 教学经验加成 (10分) - 经验丰富的教师更受欢迎
+        totalScore += calculateExperienceBonus(teacher);
+
+        // 确保分数在合理范围内 (40-95)，提供更好的区分度
+        return Math.max(40, Math.min(totalScore, 95));
+    }
+
+    /**
+     * 计算科目匹配分数 (0-30分)
+     */
+    private int calculateSubjectMatchScore(Teacher teacher, TeacherMatchRequest request) {
+        if (!StringUtils.hasText(request.getSubject())) {
+            return 20; // 没有科目要求时给予中等分数
+        }
+
+        List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
+        for (Long subjectId : subjectIds) {
+            try {
+                String subjectName = subjectService.getSubjectById(subjectId).getName();
+                if (request.getSubject().equals(subjectName)) {
+                    return 30; // 完全匹配
                 }
+                // 相关科目逻辑
+                if (isRelatedSubject(request.getSubject(), subjectName)) {
+                    return 18; // 相关科目
+                }
+            } catch (Exception e) {
+                log.warn("获取科目信息失败: subjectId={}", subjectId, e);
             }
         }
+        return 5; // 不匹配但给予基础分数
+    }
 
-        // 年级匹配加分
-        if (StringUtils.hasText(request.getGrade()) &&
-            hasMatchingGrade(teacher.getId(), request.getGrade())) {
-            score += 8;
+    /**
+     * 计算年级匹配分数 (0-25分)
+     */
+    private int calculateGradeMatchScore(Teacher teacher, TeacherMatchRequest request) {
+        if (!StringUtils.hasText(request.getGrade())) {
+            return 15; // 没有年级要求时给予中等分数
         }
 
-        // 教学经验加分
-        if (teacher.getTeachingExperience() != null) {
-            score += Math.min(teacher.getTeachingExperience(), 10);
+        if (hasMatchingGrade(teacher.getId(), request.getGrade())) {
+            return 25; // 完全匹配
         }
 
-        // 时间匹配加分
-        List<TimeSlotDTO> availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
-        int timeMatchScore = calculateTimeMatchScore(availableTimeSlots, request);
-        score += (timeMatchScore / 10); // 时间匹配度转换为分数加成
+        // 检查相邻年级
+        if (hasAdjacentGrade(teacher.getId(), request.getGrade())) {
+            return 12; // 相邻年级
+        }
 
-        // 限制最高分为99
-        return Math.min(score, 99);
+        return 3; // 不匹配但给予基础分数
+    }
+
+    /**
+     * 计算性别匹配分数 (0-10分)
+     */
+    private int calculateGenderMatchScore(Teacher teacher, TeacherMatchRequest request) {
+        if (!StringUtils.hasText(request.getPreferredGender())) {
+            return 8; // 没有性别偏好时给予较高分数
+        }
+
+        if (request.getPreferredGender().equals(teacher.getGender())) {
+            return 10; // 性别匹配
+        }
+
+        return 3; // 性别不匹配但给予基础分数
+    }
+
+    /**
+     * 计算教学经验加成分数 (0-10分)
+     */
+    private int calculateExperienceBonus(Teacher teacher) {
+        Integer experience = teacher.getTeachingExperience();
+        if (experience == null || experience <= 0) {
+            return 2; // 新教师给予基础分数
+        }
+
+        // 根据经验年数给分，经验越丰富分数越高
+        if (experience >= 10) {
+            return 10; // 资深教师
+        } else if (experience >= 5) {
+            return 8; // 有经验教师
+        } else if (experience >= 3) {
+            return 6; // 中级教师
+        } else if (experience >= 1) {
+            return 4; // 初级教师
+        } else {
+            return 2; // 新手教师
+        }
+    }
+
+    /**
+     * 判断两个科目是否相关
+     */
+    private boolean isRelatedSubject(String subject1, String subject2) {
+        // 定义相关科目组
+        String[][] relatedGroups = {
+            {"数学", "物理", "化学"}, // 理科组
+            {"语文", "历史", "政治"}, // 文科组
+            {"英语", "日语", "法语"}, // 语言组
+            {"美术", "音乐", "舞蹈"}  // 艺术组
+        };
+
+        for (String[] group : relatedGroups) {
+            boolean hasSubject1 = Arrays.asList(group).contains(subject1);
+            boolean hasSubject2 = Arrays.asList(group).contains(subject2);
+            if (hasSubject1 && hasSubject2) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 检查教师是否教授相邻年级
+     */
+    private boolean hasAdjacentGrade(Long teacherId, String targetGrade) {
+        // 定义年级相邻关系
+        String[][] adjacentGrades = {
+            {"小学一年级", "小学二年级"},
+            {"小学二年级", "小学三年级"},
+            {"小学三年级", "小学四年级"},
+            {"小学四年级", "小学五年级"},
+            {"小学五年级", "小学六年级"},
+            {"小学六年级", "初中一年级"},
+            {"初中一年级", "初中二年级"},
+            {"初中二年级", "初中三年级"},
+            {"初中三年级", "高中一年级"},
+            {"高中一年级", "高中二年级"},
+            {"高中二年级", "高中三年级"}
+        };
+
+        // 获取教师教授的年级
+        List<String> teacherGrades = getTeacherGradesList(teacherId);
+
+        for (String[] pair : adjacentGrades) {
+            if (targetGrade.equals(pair[0]) && teacherGrades.contains(pair[1])) {
+                return true;
+            }
+            if (targetGrade.equals(pair[1]) && teacherGrades.contains(pair[0])) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

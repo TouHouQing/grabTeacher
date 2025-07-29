@@ -229,7 +229,7 @@ const handleMatch = async () => {
           educationBackground: teacher.educationBackground,
           specialties: teacher.specialties,
           isVerified: teacher.isVerified,
-          gender: teacher.gender || 'Male' // 提供默认性别
+          gender: teacher.gender || '不愿透露' // 提供默认性别
         }))
 
         console.log('转换后的教师数据:', teachers)
@@ -1072,6 +1072,18 @@ const getTimeMatchScoreType = (score: number) => {
   return 'danger'
 }
 
+// 判断教师性别是否为男性
+const isMaleTeacher = (gender: string) => {
+  return gender === 'Male' || gender === '男'
+}
+
+// 获取性别显示文本
+const getGenderText = (gender: string) => {
+  if (gender === 'Male' || gender === '男') return '男'
+  if (gender === 'Female' || gender === '女') return '女'
+  return '不愿透露'
+}
+
 // 安全的时间选择更新处理
 const handleWeekdaysUpdate = (weekdays: number[]) => {
   nextTick(() => {
@@ -1218,9 +1230,9 @@ onMounted(() => {
                 <el-tag type="info" effect="plain" class="grade-tag">{{ teacher.grade }}</el-tag>
                 <el-tag type="warning" effect="plain" class="experience-tag">{{ teacher.experience }}年教龄</el-tag>
                 <el-tag type="info" effect="plain" class="gender-tag">
-                  <el-icon v-if="teacher.gender === 'Male'"><Male /></el-icon>
+                  <el-icon v-if="isMaleTeacher(teacher.gender)"><Male /></el-icon>
                   <el-icon v-else><Female /></el-icon>
-                  {{ teacher.gender === 'Male' ? '男' : '女' }}
+                  {{ getGenderText(teacher.gender) }}
                 </el-tag>
                 <!-- 时间匹配度显示 -->
                 <el-tag v-if="teacher.timeMatchScore !== undefined"
