@@ -184,6 +184,19 @@ const totalSelections = computed(() =>
 
 // 监听props变化，初始化数据
 watch(() => [props.weekdays, props.timeSlots], ([newWeekdays, newTimeSlots]) => {
+  // 检查是否真的需要更新（避免不必要的更新）
+  const currentWeekdays = weekdayData.value
+    .filter(day => day.selected && day.timeSlots.length > 0)
+    .map(day => day.value)
+    .sort()
+
+  const newWeekdaysArray = (newWeekdays as number[]).sort()
+
+  // 如果weekdays没有变化，跳过更新
+  if (JSON.stringify(currentWeekdays) === JSON.stringify(newWeekdaysArray)) {
+    return
+  }
+
   // 重置所有数据
   weekdayData.value.forEach(day => {
     day.selected = (newWeekdays as number[]).includes(day.value)
@@ -191,8 +204,8 @@ watch(() => [props.weekdays, props.timeSlots], ([newWeekdays, newTimeSlots]) => 
   })
 }, { immediate: true, deep: true })
 
-// 监听weekdayData变化，发出事件
-watch(weekdayData, () => {
+// 手动发送更新事件的函数
+const emitUpdates = () => {
   const selectedWeekdays = weekdayData.value
     .filter(day => day.selected && day.timeSlots.length > 0)
     .map(day => day.value)
@@ -204,7 +217,7 @@ watch(weekdayData, () => {
 
   emit('update:weekdays', selectedWeekdays)
   emit('update:timeSlots', allTimeSlots)
-}, { deep: true })
+}
 
 // 切换星期几选择
 const toggleWeekday = (weekdayValue: number) => {
@@ -225,6 +238,9 @@ const toggleWeekday = (weekdayValue: number) => {
     selectedWeekday.value = weekday
     timeslotsExpanded.value = true // 自动展开时间段选择
   }
+
+  // 手动发送更新事件
+  emitUpdates()
 }
 
 // 切换时间段选择
@@ -244,6 +260,9 @@ const toggleTimeSlot = (timeSlotValue: string) => {
   } else {
     selectedWeekday.value.selected = true
   }
+
+  // 手动发送更新事件
+  emitUpdates()
 }
 
 // 获取时间段标签
@@ -265,36 +284,66 @@ const toggleTimeslotsExpanded = () => {
 // 快速选择方法
 const selectWorkdayEvening = () => {
   const eveningSlots = ['18:00-18:30', '18:30-19:00', '19:00-19:30', '19:30-20:00', '20:00-20:30', '20:30-21:00']
+
+  // 先更新内部状态
   weekdayData.value.forEach(day => {
     if (day.value >= 1 && day.value <= 5) {
       day.selected = true
       day.timeSlots = [...eveningSlots]
+    } else {
+      day.selected = false
+      day.timeSlots = []
     }
   })
+
   // 自动展开总结区域
   summaryExpanded.value = true
+
+  // 然后发送更新事件
+  const selectedWeekdays = [1, 2, 3, 4, 5]
+  const allTimeSlots = [...eveningSlots]
+  emit('update:weekdays', selectedWeekdays)
+  emit('update:timeSlots', allTimeSlots)
 }
 
 const selectWeekendDay = () => {
   const daySlots = ['09:00-09:30', '09:30-10:00', '10:00-10:30', '10:30-11:00', '14:00-14:30', '14:30-15:00', '15:00-15:30', '15:30-16:00']
+
+  // 先更新内部状态
   weekdayData.value.forEach(day => {
     if (day.value === 6 || day.value === 7) {
       day.selected = true
       day.timeSlots = [...daySlots]
+    } else {
+      day.selected = false
+      day.timeSlots = []
     }
   })
+
   // 自动展开总结区域
   summaryExpanded.value = true
+
+  // 然后发送更新事件
+  const selectedWeekdays = [6, 7]
+  const allTimeSlots = [...daySlots]
+  emit('update:weekdays', selectedWeekdays)
+  emit('update:timeSlots', allTimeSlots)
 }
 
 const clearAll = () => {
+  // 先更新内部状态
   weekdayData.value.forEach(day => {
     day.selected = false
     day.timeSlots = []
   })
+
   selectedWeekday.value = null
   timeslotsExpanded.value = false
   summaryExpanded.value = false
+
+  // 然后发送清空事件
+  emit('update:weekdays', [])
+  emit('update:timeSlots', [])
 }
 </script>
 

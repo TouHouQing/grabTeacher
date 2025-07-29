@@ -1063,6 +1063,39 @@ const formatFullDate = (dateStr: string): string => {
   return `${year}年${month}月${day}日 ${weekday}`
 }
 
+// 安全的时间选择更新处理
+const handleWeekdaysUpdate = (weekdays: number[]) => {
+  nextTick(() => {
+    try {
+      if (Array.isArray(weekdays)) {
+        const filteredWeekdays = weekdays.filter(w => typeof w === 'number')
+        matchForm.preferredWeekdays.splice(0, matchForm.preferredWeekdays.length, ...filteredWeekdays)
+      } else {
+        matchForm.preferredWeekdays.splice(0, matchForm.preferredWeekdays.length)
+      }
+    } catch (error) {
+      console.error('更新星期几选择时发生错误:', error)
+      matchForm.preferredWeekdays.splice(0, matchForm.preferredWeekdays.length)
+    }
+  })
+}
+
+const handleTimeSlotsUpdate = (timeSlots: string[]) => {
+  nextTick(() => {
+    try {
+      if (Array.isArray(timeSlots)) {
+        const filteredTimeSlots = timeSlots.filter(t => typeof t === 'string')
+        matchForm.preferredTimeSlots.splice(0, matchForm.preferredTimeSlots.length, ...filteredTimeSlots)
+      } else {
+        matchForm.preferredTimeSlots.splice(0, matchForm.preferredTimeSlots.length)
+      }
+    } catch (error) {
+      console.error('更新时间段选择时发生错误:', error)
+      matchForm.preferredTimeSlots.splice(0, matchForm.preferredTimeSlots.length)
+    }
+  })
+}
+
 // 组件挂载时初始化数据
 onMounted(() => {
   initOptions()
@@ -1110,8 +1143,8 @@ onMounted(() => {
             <SimpleTimePreference
               :weekdays="matchForm.preferredWeekdays"
               :time-slots="matchForm.preferredTimeSlots"
-              @update:weekdays="matchForm.preferredWeekdays = $event"
-              @update:time-slots="matchForm.preferredTimeSlots = $event"
+              @update:weekdays="handleWeekdaysUpdate"
+              @update:time-slots="handleTimeSlotsUpdate"
             />
           </el-form-item>
 

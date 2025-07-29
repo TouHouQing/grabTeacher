@@ -91,6 +91,10 @@ function updateLangClass() {
           <a href="https://beian.miit.gov.cn" target="_blank" class="icp-link">
             {{ langStore.currentLang === 'zh' ? '津ICP备2025035841' : 'ICP License: 津ICP备2025035841' }}
           </a>
+          <a href="https://beian.mps.gov.cn/#/query/webSearch?code=12011202001012" rel="noreferrer" target="_blank" class="beian-link">
+            <img src="/beian.png" alt="公安备案" class="beian-icon">
+            津公网安备12011202001012号
+          </a>
         </p>
       </div>
     </footer>
@@ -211,6 +215,31 @@ body {
 .footer-content {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 0 20px;
+}
+
+.footer-content p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .footer-content p {
+    font-size: 12px;
+    line-height: 1.8;
+  }
+
+  .icp-link,
+  .beian-link {
+    display: block;
+    margin: 8px 0 0 0;
+  }
+
+  .beian-icon {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 .icp-link {
@@ -223,6 +252,27 @@ body {
 .icp-link:hover {
   color: #ecf0f1;
   text-decoration: underline;
+}
+
+.beian-link {
+  color: #bdc3c7;
+  text-decoration: none;
+  margin-left: 10px;
+  transition: color 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.beian-link:hover {
+  color: #ecf0f1;
+  text-decoration: underline;
+}
+
+.beian-icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
 }
 
 .auth-buttons {
