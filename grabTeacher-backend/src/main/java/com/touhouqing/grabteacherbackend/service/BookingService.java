@@ -91,6 +91,12 @@ public interface BookingService {
      * @param userId 用户ID
      */
     void markTrialUsed(Long userId);
+
+    /**
+     * 恢复用户试听课使用记录（设置为未使用）
+     * @param userId 用户ID
+     */
+    void resetTrialUsage(Long userId);
     
     /**
      * 检查教师在指定时间是否有冲突

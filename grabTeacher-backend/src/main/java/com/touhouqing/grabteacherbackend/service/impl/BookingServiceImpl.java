@@ -68,6 +68,11 @@ public class BookingServiceImpl implements BookingService {
             if (!canUseFreeTrial(studentUserId)) {
                 throw new RuntimeException("您已使用过免费试听课，无法再次申请");
             }
+
+            // 申请试听课时立即标记为已使用
+            markTrialUsed(studentUserId);
+            log.info("学生申请试听课，立即标记为已使用，用户ID: {}", studentUserId);
+
             // 试听课固定30分钟，强制设置时长
             request.setTrialDurationMinutes(30);
 
@@ -127,12 +132,9 @@ public class BookingServiceImpl implements BookingService {
         if ("approved".equals(approval.getStatus())) {
             bookingRequest.setApprovedAt(LocalDateTime.now());
 
-            // 如果是试听课，标记用户已使用试听
+            // 审核通过时，试听课使用记录保持不变（申请时已标记）
             if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
-                Student student = studentMapper.selectById(bookingRequest.getStudentId());
-                if (student != null) {
-                    markTrialUsed(student.getUserId());
-                }
+                log.info("试听课审核通过，保持已使用状态，预约ID: {}", bookingId);
             }
 
             // 生成课程安排
@@ -140,6 +142,15 @@ public class BookingServiceImpl implements BookingService {
                 generateSingleSchedule(bookingRequest);
             } else if ("recurring".equals(bookingRequest.getBookingType())) {
                 generateRecurringSchedules(bookingRequest);
+            }
+        } else if ("rejected".equals(approval.getStatus())) {
+            // 如果是试听课且审核被拒绝，恢复试听课使用记录
+            if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
+                Student student = studentMapper.selectById(bookingRequest.getStudentId());
+                if (student != null) {
+                    resetTrialUsage(student.getUserId());
+                    log.info("试听课审核拒绝，恢复试听课使用记录，用户ID: {}", student.getUserId());
+                }
             }
         }
 
@@ -167,6 +178,12 @@ public class BookingServiceImpl implements BookingService {
         // 只有待处理状态的申请可以取消
         if (!"pending".equals(bookingRequest.getStatus())) {
             throw new RuntimeException("只有待处理状态的申请可以取消");
+        }
+
+        // 如果是试听课申请被取消，恢复试听课使用记录
+        if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
+            resetTrialUsage(studentUserId);
+            log.info("试听课申请取消，恢复试听课使用记录，用户ID: {}", studentUserId);
         }
 
         bookingRequest.setStatus("cancelled");
@@ -283,6 +300,18 @@ public class BookingServiceImpl implements BookingService {
             user.setTrialUsedAt(LocalDateTime.now());
             userMapper.updateById(user);
             log.info("标记用户已使用免费试听，用户ID: {}", userId);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void resetTrialUsage(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user != null) {
+            user.setHasUsedTrial(false);
+            user.setTrialUsedAt(null);
+            userMapper.updateById(user);
+            log.info("恢复用户试听课使用记录，用户ID: {}", userId);
         }
     }
 
