@@ -68,6 +68,9 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
                 throw new RuntimeException("时间安排格式不正确");
             }
 
+            // TODO: 添加时间冲突验证
+            // 可以在这里调用 TimeValidationService 来验证时间设置是否与现有课程冲突
+
             // 转换为JSON并保存
             String timeSlotsJson = TimeSlotUtil.toJsonString(request.getAvailableTimeSlots());
             teacher.setAvailableTimeSlots(timeSlotsJson);

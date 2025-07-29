@@ -4,7 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { teacherAPI, subjectAPI, bookingAPI, gradeApi } from '@/utils/api'
-import SimpleTimePreference from '../../components/SimpleTimePreference.vue'
+import ImprovedTimePreference from '../../components/ImprovedTimePreference.vue'
 
 // 声明图片相对路径，使用getImageUrl方法加载
 const teacherImages = {
@@ -31,6 +31,7 @@ interface Teacher {
   educationBackground?: string
   specialties?: string
   isVerified?: boolean
+  timeMatchScore?: number // 时间匹配度
 }
 
 // 新增课表相关接口
@@ -223,6 +224,7 @@ const handleMatch = async () => {
           tags: Array.isArray(teacher.tags) ? teacher.tags : [], // 确保 tags 是数组
           schedule: Array.isArray(teacher.schedule) ? teacher.schedule : ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'],
           matchScore: teacher.matchScore,
+          timeMatchScore: teacher.timeMatchScore, // 时间匹配度
           hourlyRate: teacher.hourlyRate,
           educationBackground: teacher.educationBackground,
           specialties: teacher.specialties,
@@ -1063,6 +1065,13 @@ const formatFullDate = (dateStr: string): string => {
   return `${year}年${month}月${day}日 ${weekday}`
 }
 
+// 获取时间匹配度标签类型
+const getTimeMatchScoreType = (score: number) => {
+  if (score >= 80) return 'success'
+  if (score >= 60) return 'warning'
+  return 'danger'
+}
+
 // 安全的时间选择更新处理
 const handleWeekdaysUpdate = (weekdays: number[]) => {
   nextTick(() => {
@@ -1140,7 +1149,7 @@ onMounted(() => {
 
 
           <el-form-item label="偏好上课时间 Preferred Schedule">
-            <SimpleTimePreference
+            <ImprovedTimePreference
               :weekdays="matchForm.preferredWeekdays"
               :time-slots="matchForm.preferredTimeSlots"
               @update:weekdays="handleWeekdaysUpdate"
@@ -1212,6 +1221,14 @@ onMounted(() => {
                   <el-icon v-if="teacher.gender === 'Male'"><Male /></el-icon>
                   <el-icon v-else><Female /></el-icon>
                   {{ teacher.gender === 'Male' ? '男' : '女' }}
+                </el-tag>
+                <!-- 时间匹配度显示 -->
+                <el-tag v-if="teacher.timeMatchScore !== undefined"
+                        :type="getTimeMatchScoreType(teacher.timeMatchScore)"
+                        effect="plain"
+                        class="time-match-tag">
+                  <el-icon><Calendar /></el-icon>
+                  时间匹配 {{ teacher.timeMatchScore }}%
                 </el-tag>
               </div>
               <p class="teacher-description">{{ teacher.description }}</p>
