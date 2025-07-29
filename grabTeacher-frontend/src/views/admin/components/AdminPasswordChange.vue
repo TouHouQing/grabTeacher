@@ -13,6 +13,12 @@ const passwordForm = reactive<PasswordChangeRequest>({
   confirmPassword: ''
 })
 
+// 邮箱修改表单
+const emailForm = reactive({
+  newEmail: '',
+  currentPassword: ''
+})
+
 // 表单验证规则
 const passwordRules = {
   currentPassword: [
@@ -37,7 +43,21 @@ const passwordRules = {
   ]
 }
 
+// 邮箱修改验证规则
+const emailRules = {
+  newEmail: [
+    { required: true, message: '请输入新邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+  ],
+  currentPassword: [
+    { required: true, message: '请输入当前密码', trigger: 'blur' },
+    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+  ]
+}
+
 const passwordFormRef = ref()
+const emailFormRef = ref()
+const emailLoading = ref(false)
 
 // 修改密码
 const changePassword = async () => {
@@ -65,20 +85,73 @@ const changePassword = async () => {
   }
 }
 
-// 重置表单
-const resetForm = () => {
+// 修改邮箱
+const changeEmail = async () => {
+  try {
+    await emailFormRef.value.validate()
+    emailLoading.value = true
+
+    // 调用邮箱更新API
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/user/update-email`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${userStore.token}`
+      },
+      body: JSON.stringify(emailForm)
+    })
+    const result = await response.json()
+
+    if (result.success) {
+      ElMessage.success('邮箱修改成功')
+      // 重置表单
+      emailForm.newEmail = ''
+      emailForm.currentPassword = ''
+      emailFormRef.value.resetFields()
+      // 重新获取用户信息以更新显示
+      await userStore.initializeAuth()
+    } else {
+      ElMessage.error(result.message || '邮箱修改失败')
+    }
+  } catch (error: any) {
+    console.error('修改邮箱失败:', error)
+    if (error.message) {
+      ElMessage.error(error.message)
+    } else {
+      ElMessage.error('修改邮箱失败')
+    }
+  } finally {
+    emailLoading.value = false
+  }
+}
+
+// 重置密码表单
+const resetPasswordForm = () => {
   passwordForm.currentPassword = ''
   passwordForm.newPassword = ''
   passwordForm.confirmPassword = ''
   passwordFormRef.value?.resetFields()
 }
+
+// 重置邮箱表单
+const resetEmailForm = () => {
+  emailForm.newEmail = ''
+  emailForm.currentPassword = ''
+  emailFormRef.value?.resetFields()
+}
 </script>
 
 <template>
-  <div class="password-change">
-    <h3>修改密码</h3>
+  <div class="account-settings">
+    <h3>账户设置</h3>
 
-    <el-card class="password-card" shadow="never">
+    <!-- 修改密码 -->
+    <el-card class="settings-card" shadow="never">
+      <template #header>
+        <div class="card-header">
+          <span>修改密码</span>
+        </div>
+      </template>
       <el-form
         ref="passwordFormRef"
         :model="passwordForm"
@@ -120,7 +193,53 @@ const resetForm = () => {
           <el-button type="primary" @click="changePassword" :loading="loading">
             修改密码
           </el-button>
-          <el-button @click="resetForm">重置</el-button>
+          <el-button @click="resetPasswordForm">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <!-- 修改邮箱 -->
+    <el-card class="settings-card" shadow="never" style="margin-top: 20px;">
+      <template #header>
+        <div class="card-header">
+          <span>修改邮箱</span>
+        </div>
+      </template>
+      <el-form
+        ref="emailFormRef"
+        :model="emailForm"
+        :rules="emailRules"
+        label-width="120px"
+        style="max-width: 500px"
+      >
+        <el-form-item label="当前邮箱">
+          <el-input :value="userStore.user?.email" disabled />
+        </el-form-item>
+
+        <el-form-item label="新邮箱" prop="newEmail">
+          <el-input
+            v-model="emailForm.newEmail"
+            type="email"
+            placeholder="请输入新邮箱地址"
+            autocomplete="email"
+          />
+        </el-form-item>
+
+        <el-form-item label="当前密码" prop="currentPassword">
+          <el-input
+            v-model="emailForm.currentPassword"
+            type="password"
+            placeholder="请输入当前密码进行验证"
+            show-password
+            autocomplete="current-password"
+          />
+        </el-form-item>
+
+        <el-form-item>
+          <el-button type="primary" @click="changeEmail" :loading="emailLoading">
+            修改邮箱
+          </el-button>
+          <el-button @click="resetEmailForm">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -140,20 +259,25 @@ const resetForm = () => {
 </template>
 
 <style scoped>
-.password-change {
+.account-settings {
   padding: 20px;
   padding-top: 5px; /* 增加顶部间距，避免被导航栏遮挡 */
 }
 
-.password-change h3 {
+.account-settings h3 {
   margin: 0 0 20px 0;
   color: #303133;
   font-size: 20px;
   font-weight: 600;
 }
 
-.password-card {
+.settings-card {
   margin-bottom: 20px;
+}
+
+.card-header {
+  font-weight: 600;
+  color: #303133;
 }
 
 .security-tips {
