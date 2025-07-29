@@ -104,20 +104,21 @@ const loadStudentSchedules = async () => {
 
 // 将课程安排转换为课程列表
 const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => {
-  // 按课程ID分组
+  // 按预约申请ID分组（每个预约申请对应一个课程系列）
   const courseGroups = new Map<number, CourseSchedule[]>()
 
   scheduleList.forEach(schedule => {
-    if (!courseGroups.has(schedule.courseId)) {
-      courseGroups.set(schedule.courseId, [])
+    const groupKey = schedule.bookingRequestId
+    if (!courseGroups.has(groupKey)) {
+      courseGroups.set(groupKey, [])
     }
-    courseGroups.get(schedule.courseId)!.push(schedule)
+    courseGroups.get(groupKey)!.push(schedule)
   })
 
   // 转换为Course对象
   const courseList: Course[] = []
 
-  courseGroups.forEach((scheduleGroup, courseId) => {
+  courseGroups.forEach((scheduleGroup, bookingRequestId) => {
     const firstSchedule = scheduleGroup[0]
     const completedCount = scheduleGroup.filter(s => s.status === 'completed').length
     const totalCount = firstSchedule.totalTimes || scheduleGroup.length
@@ -143,7 +144,7 @@ const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => 
     }
 
     courseList.push({
-      id: courseId,
+      id: bookingRequestId,
       title: firstSchedule.courseTitle,
       teacher: firstSchedule.teacherName,
       teacherAvatar: '@/assets/pictures/teacherBoy1.jpeg', // 默认头像

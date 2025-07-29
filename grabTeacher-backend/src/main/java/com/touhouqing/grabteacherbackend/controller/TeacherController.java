@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/teacher")
@@ -187,6 +188,24 @@ public class TeacherController {
             return ResponseEntity.ok(ApiResponse.success("获取时间段可用性成功", availability));
         } catch (Exception e) {
             logger.error("检查教师时间段可用性异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("获取失败"));
+        }
+    }
+
+    /**
+     * 获取教师控制台统计数据
+     */
+    @GetMapping("/statistics")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics(Authentication authentication) {
+        try {
+            UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+            Map<String, Object> statistics = teacherService.getTeacherStatistics(userPrincipal.getId());
+
+            return ResponseEntity.ok(ApiResponse.success("获取成功", statistics));
+        } catch (Exception e) {
+            logger.error("获取教师统计数据异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("获取失败"));
         }

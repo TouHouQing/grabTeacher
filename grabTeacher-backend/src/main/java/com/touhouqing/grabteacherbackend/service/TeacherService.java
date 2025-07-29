@@ -12,6 +12,7 @@ import com.touhouqing.grabteacherbackend.entity.Teacher;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 public interface TeacherService {
     
@@ -78,4 +79,11 @@ public interface TeacherService {
      * @return 时间段可用性列表
      */
     List<TimeSlotAvailability> checkTeacherAvailability(Long teacherId, LocalDate startDate, LocalDate endDate, List<String> timeSlots);
+
+    /**
+     * 获取教师控制台统计数据
+     * @param userId 教师用户ID
+     * @return 统计数据
+     */
+    Map<String, Object> getTeacherStatistics(Long userId);
 }

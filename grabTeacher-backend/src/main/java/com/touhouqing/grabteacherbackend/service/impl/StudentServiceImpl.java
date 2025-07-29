@@ -4,9 +4,19 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.StudentSubject;
+import com.touhouqing.grabteacherbackend.entity.BookingRequest;
+import com.touhouqing.grabteacherbackend.entity.Schedule;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
+import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
+import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.service.StudentService;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,6 +29,8 @@ public class StudentServiceImpl implements StudentService {
 
     private final StudentMapper studentMapper;
     private final StudentSubjectMapper studentSubjectMapper;
+    private final BookingRequestMapper bookingRequestMapper;
+    private final ScheduleMapper scheduleMapper;
 
     /**
      * 根据用户ID获取学生信息
@@ -84,5 +96,62 @@ public class StudentServiceImpl implements StudentService {
         log.info("更新学生信息成功: userId={}", userId);
 
         return student;
+    }
+
+    /**
+     * 获取学生控制台统计数据
+     */
+    @Override
+    public Map<String, Object> getStudentStatistics(Long userId) {
+        Map<String, Object> statistics = new HashMap<>();
+
+        // 获取学生信息
+        Student student = getStudentByUserId(userId);
+        if (student == null) {
+            throw new RuntimeException("学生信息不存在");
+        }
+
+        // 1. 进行中的课程数 - 按预约申请ID去重统计，而不是按课时数统计
+        // 查询状态为progressing的所有课程安排
+        List<Schedule> progressingSchedules = scheduleMapper.selectList(
+            new QueryWrapper<Schedule>()
+                .eq("student_id", student.getId())
+                .eq("status", "progressing")
+                .eq("is_deleted", false)
+        );
+
+        // 按预约申请ID去重统计（同一个预约申请的多个课时算作一个课程）
+        log.info("查询到的进行中课程安排数量: {}", progressingSchedules.size());
+
+        Set<Long> uniqueBookingRequestIds = progressingSchedules.stream()
+            .map(Schedule::getBookingRequestId)
+            .filter(bookingRequestId -> bookingRequestId != null)
+            .collect(java.util.stream.Collectors.toSet());
+
+        log.info("去重后的预约申请ID集合: {}", uniqueBookingRequestIds);
+
+        Long progressingCourses = (long) uniqueBookingRequestIds.size();
+
+        // 2. 待审批预约数 - 查询状态为pending的预约申请
+        QueryWrapper<BookingRequest> bookingWrapper = new QueryWrapper<>();
+        bookingWrapper.eq("student_id", student.getId());
+        bookingWrapper.eq("status", "pending");
+        bookingWrapper.eq("is_deleted", false);
+        Long pendingBookings = bookingRequestMapper.selectCount(bookingWrapper);
+
+        // 3. 完成课程数 - 查询状态为completed的课程安排
+        QueryWrapper<Schedule> completedWrapper = new QueryWrapper<>();
+        completedWrapper.eq("student_id", student.getId());
+        completedWrapper.eq("status", "completed");
+        completedWrapper.eq("is_deleted", false);
+        Long completedCourses = scheduleMapper.selectCount(completedWrapper);
+
+        statistics.put("progressingCourses", progressingCourses != null ? progressingCourses.intValue() : 0);
+        statistics.put("pendingBookings", pendingBookings != null ? pendingBookings.intValue() : 0);
+        statistics.put("completedCourses", completedCourses != null ? completedCourses.intValue() : 0);
+
+        log.info("获取学生统计数据成功: userId={}, statistics={}", userId, statistics);
+
+        return statistics;
     }
 }

@@ -19,6 +19,8 @@ import com.touhouqing.grabteacherbackend.entity.Subject;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.entity.TeacherSubject;
 import com.touhouqing.grabteacherbackend.entity.User;
+import com.touhouqing.grabteacherbackend.entity.BookingRequest;
+import com.touhouqing.grabteacherbackend.entity.RescheduleRequest;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseGradeMapper;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
@@ -26,6 +28,8 @@ import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.UserMapper;
+import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
+import com.touhouqing.grabteacherbackend.mapper.RescheduleRequestMapper;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
 import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
@@ -58,6 +62,8 @@ public class TeacherServiceImpl implements TeacherService {
     private final ScheduleMapper scheduleMapper;
     private final StudentMapper studentMapper;
     private final UserMapper userMapper;
+    private final BookingRequestMapper bookingRequestMapper;
+    private final RescheduleRequestMapper rescheduleRequestMapper;
 
     /**
      * 根据用户ID获取教师信息
@@ -995,5 +1001,51 @@ public class TeacherServiceImpl implements TeacherService {
         }
 
         return filteredTeachers.subList(start, end);
+    }
+
+    /**
+     * 获取教师控制台统计数据
+     */
+    @Override
+    public Map<String, Object> getTeacherStatistics(Long userId) {
+        Map<String, Object> statistics = new HashMap<>();
+
+        // 获取教师信息
+        Teacher teacher = getTeacherByUserId(userId);
+        if (teacher == null) {
+            throw new RuntimeException("教师信息不存在");
+        }
+
+        // 1. 调课申请数 - 使用mapper中的专用方法统计
+        int rescheduleRequestsCount = rescheduleRequestMapper.countPendingByTeacherId(teacher.getId());
+
+        // 2. 总课程数 - 查询教师的所有课程
+        QueryWrapper<Course> courseWrapper = new QueryWrapper<>();
+        courseWrapper.eq("teacher_id", teacher.getId());
+        courseWrapper.eq("is_deleted", false);
+        Long totalCourses = courseMapper.selectCount(courseWrapper);
+
+        // 3. 即将上课数 - 查询状态为progressing的课程安排
+        QueryWrapper<Schedule> upcomingWrapper = new QueryWrapper<>();
+        upcomingWrapper.eq("teacher_id", teacher.getId());
+        upcomingWrapper.eq("status", "progressing");
+        upcomingWrapper.eq("is_deleted", false);
+        Long upcomingClasses = scheduleMapper.selectCount(upcomingWrapper);
+
+        // 4. 预约申请数 - 查询状态为pending的预约申请
+        QueryWrapper<BookingRequest> bookingWrapper = new QueryWrapper<>();
+        bookingWrapper.eq("teacher_id", teacher.getId());
+        bookingWrapper.eq("status", "pending");
+        bookingWrapper.eq("is_deleted", false);
+        Long bookingRequests = bookingRequestMapper.selectCount(bookingWrapper);
+
+        statistics.put("rescheduleRequests", rescheduleRequestsCount);
+        statistics.put("totalCourses", totalCourses != null ? totalCourses.intValue() : 0);
+        statistics.put("upcomingClasses", upcomingClasses != null ? upcomingClasses.intValue() : 0);
+        statistics.put("bookingRequests", bookingRequests != null ? bookingRequests.intValue() : 0);
+
+        log.info("获取教师统计数据成功: userId={}, statistics={}", userId, statistics);
+
+        return statistics;
     }
 }

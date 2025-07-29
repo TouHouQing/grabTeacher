@@ -2,10 +2,9 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { HomeFilled, Connection, Document, Reading, ChatLineRound, User, Clock } from '@element-plus/icons-vue'
+import { HomeFilled, Connection, Document, Reading, User, Clock } from '@element-plus/icons-vue'
 import StudentCourses from './components/StudentCourses.vue'
-import StudentMessages from './components/StudentMessages.vue'
-import { bookingAPI } from '../../utils/api'
+import { bookingAPI, studentAPI } from '../../utils/api'
 import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
@@ -13,6 +12,14 @@ const route = useRoute()
 const activeMenu = ref('dashboard')
 const upcomingCourses = ref<UpcomingCourse[]>([])
 const loading = ref(false)
+
+// 统计数据
+const statistics = ref({
+  progressingCourses: 0,
+  pendingBookings: 0,
+  completedCourses: 0
+})
+const statsLoading = ref(false)
 
 // 根据当前路由设置激活菜单
 watch(() => route.path, (path: string) => {
@@ -106,9 +113,33 @@ const enterClassroom = (scheduleId: number) => {
   window.open(`/classroom/${scheduleId}`, '_blank')
 }
 
+// 获取统计数据
+const loadStatistics = async () => {
+  try {
+    statsLoading.value = true
+    const result = await studentAPI.getStatistics()
+
+    if (result.success && result.data) {
+      statistics.value = {
+        progressingCourses: result.data.progressingCourses || 0,
+        pendingBookings: result.data.pendingBookings || 0,
+        completedCourses: result.data.completedCourses || 0
+      }
+    } else {
+      ElMessage.error(result.message || '获取统计数据失败')
+    }
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+    ElMessage.error('获取统计数据失败，请稍后重试')
+  } finally {
+    statsLoading.value = false
+  }
+}
+
 // 页面加载时获取数据
 onMounted(() => {
   loadUpcomingCourses()
+  loadStatistics()
 })
 </script>
 
@@ -149,10 +180,7 @@ onMounted(() => {
               <span>我的课程</span>
             </el-menu-item>
 
-            <el-menu-item index="messages">
-              <el-icon><ChatLineRound /></el-icon>
-              <span>消息中心</span>
-            </el-menu-item>
+
             <el-menu-item index="profile" @click="$router.push('/student-center/profile')">
               <el-icon><User /></el-icon>
               <span>个人资料</span>
@@ -169,7 +197,7 @@ onMounted(() => {
                 <el-icon><Reading /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">2</div>
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.progressingCourses }}</div>
                 <div class="stat-label">进行中的课程</div>
               </div>
             </div>
@@ -178,8 +206,8 @@ onMounted(() => {
                 <el-icon><Document /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">3</div>
-                <div class="stat-label">我的预约</div>
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.pendingBookings }}</div>
+                <div class="stat-label">待审批预约</div>
               </div>
             </div>
             <div class="stat-card">
@@ -187,17 +215,8 @@ onMounted(() => {
                 <el-icon><Reading /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">5</div>
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.completedCourses }}</div>
                 <div class="stat-label">完成课程</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">
-                <el-icon><Clock /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">18</div>
-                <div class="stat-label">学习小时</div>
               </div>
             </div>
           </div>
@@ -210,8 +229,8 @@ onMounted(() => {
                 智能匹配教师
               </el-button>
 
-              <el-button type="warning" @click="activeMenu = 'messages'">
-                <el-icon><ChatLineRound /></el-icon>
+              <el-button type="warning" @click="$router.push('/student-center/match')">
+                <el-icon><Connection /></el-icon>
                 联系客服
               </el-button>
             </div>
@@ -244,9 +263,7 @@ onMounted(() => {
           <StudentCourses />
         </div>
 
-        <div v-else-if="activeMenu === 'messages'">
-          <StudentMessages />
-        </div>
+
         <div v-else>
           <router-view></router-view>
         </div>
@@ -327,7 +344,7 @@ onMounted(() => {
 
 .dashboard-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   margin-bottom: 30px;
 }

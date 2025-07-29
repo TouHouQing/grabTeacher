@@ -154,7 +154,10 @@ export const studentAPI = {
   // 删除学生
   delete: (id: number) => apiRequest(`/api/admin/students/${id}`, {
     method: 'DELETE'
-  })
+  }),
+
+  // 获取学生统计数据
+  getStatistics: () => apiRequest('/api/student/statistics')
 }
 
 // 教师管理 API
@@ -310,7 +313,10 @@ export const teacherAPI = {
       }
     })
     return apiRequest(`/api/teacher/list?${searchParams}`)
-  }
+  },
+
+  // 获取教师统计数据
+  getStatistics: () => apiRequest('/api/teacher/statistics')
 }
 
 // 管理员统计 API

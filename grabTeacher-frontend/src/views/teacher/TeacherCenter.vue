@@ -2,9 +2,9 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { bookingAPI } from '../../utils/api'
+import { bookingAPI, teacherAPI } from '../../utils/api'
 import { ElMessage } from 'element-plus'
-import TeacherMessages from './components/TeacherMessages.vue'
+
 
 import {
   HomeFilled,
@@ -12,7 +12,6 @@ import {
   Calendar,
   Reading,
   User,
-  ChatLineRound,
   Money,
   Setting,
   VideoCamera
@@ -36,6 +35,15 @@ const activeMenu = ref('dashboard')
 const todayCourses = ref<ScheduleItem[]>([])
 const loading = ref(false)
 
+// 统计数据
+const statistics = ref({
+  rescheduleRequests: 0,
+  totalCourses: 0,
+  upcomingClasses: 0,
+  bookingRequests: 0
+})
+const statsLoading = ref(false)
+
 // 根据当前路由设置激活菜单
 watch(() => route.path, (path: string) => {
   if (path.includes('/profile')) {
@@ -48,8 +56,7 @@ watch(() => route.path, (path: string) => {
     activeMenu.value = 'bookings'
   } else if (path.includes('/reschedule')) {
     activeMenu.value = 'reschedule'
-  } else if (path.includes('/messages')) {
-    activeMenu.value = 'messages'
+
   } else {
     activeMenu.value = 'dashboard'
   }
@@ -95,9 +102,34 @@ const formatTimeRange = (startTime: string, endTime: string) => {
   return `${startTime}-${endTime}`
 }
 
+// 获取统计数据
+const loadStatistics = async () => {
+  try {
+    statsLoading.value = true
+    const result = await teacherAPI.getStatistics()
+
+    if (result.success && result.data) {
+      statistics.value = {
+        rescheduleRequests: result.data.rescheduleRequests || 0,
+        totalCourses: result.data.totalCourses || 0,
+        upcomingClasses: result.data.upcomingClasses || 0,
+        bookingRequests: result.data.bookingRequests || 0
+      }
+    } else {
+      ElMessage.error(result.message || '获取统计数据失败')
+    }
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+    ElMessage.error('获取统计数据失败，请稍后重试')
+  } finally {
+    statsLoading.value = false
+  }
+}
+
 // 组件挂载时获取数据
 onMounted(() => {
   fetchUpcomingCourses()
+  loadStatistics()
 })
 </script>
 
@@ -142,10 +174,7 @@ onMounted(() => {
               <el-icon><Calendar /></el-icon>
               <span>调课管理</span>
             </el-menu-item>
-            <el-menu-item index="messages">
-              <el-icon><ChatLineRound /></el-icon>
-              <span>消息中心</span>
-            </el-menu-item>
+
             <el-menu-item index="profile" @click="$router.push('/teacher-center/profile')">
               <el-icon><Setting /></el-icon>
               <span>个人设置</span>
@@ -159,29 +188,38 @@ onMounted(() => {
           <div class="dashboard-stats">
             <div class="stat-card">
               <div class="stat-icon">
-                <el-icon><User /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">2</div>
-                <div class="stat-label">我的学生</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">
                 <el-icon><Calendar /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">{{ todayCourses.length }}</div>
-                <div class="stat-label">即将开始</div>
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.rescheduleRequests }}</div>
+                <div class="stat-label">调课申请数</div>
               </div>
             </div>
             <div class="stat-card">
               <div class="stat-icon">
-                <el-icon><Money /></el-icon>
+                <el-icon><Reading /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">$3600</div>
-                <div class="stat-label">本月收入</div>
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.totalCourses }}</div>
+                <div class="stat-label">总课程数</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">
+                <el-icon><VideoCamera /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.upcomingClasses }}</div>
+                <div class="stat-label">即将上课数</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">
+                <el-icon><DocumentChecked /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.bookingRequests }}</div>
+                <div class="stat-label">预约申请数</div>
               </div>
             </div>
           </div>
@@ -247,9 +285,7 @@ onMounted(() => {
             </el-button>
           </div>
         </div>
-        <div v-else-if="activeMenu === 'messages'">
-          <TeacherMessages />
-        </div>
+
         <div v-else>
           <router-view></router-view>
         </div>
