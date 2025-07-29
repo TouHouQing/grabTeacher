@@ -149,28 +149,18 @@ const summaryExpanded = ref(false)
 const timeslotsExpanded = ref(false)
 
 const timeSlotOptions = [
-  { value: '08:00-08:30', label: '08:00', range: '' },
-  { value: '08:30-09:00', label: '08:30', range: '' },
-  { value: '09:00-09:30', label: '09:00', range: '' },
-  { value: '09:30-10:00', label: '09:30', range: '' },
-  { value: '10:00-10:30', label: '10:00', range: '' },
-  { value: '10:30-11:00', label: '10:30', range: '' },
-  { value: '11:00-11:30', label: '11:00', range: '' },
-  { value: '11:30-12:00', label: '11:30', range: '' },
-  { value: '14:00-14:30', label: '14:00', range: '' },
-  { value: '14:30-15:00', label: '14:30', range: '' },
-  { value: '15:00-15:30', label: '15:00', range: '' },
-  { value: '15:30-16:00', label: '15:30', range: '' },
-  { value: '16:00-16:30', label: '16:00', range: '' },
-  { value: '16:30-17:00', label: '16:30', range: '' },
-  { value: '17:00-17:30', label: '17:00', range: '' },
-  { value: '17:30-18:00', label: '17:30', range: '' },
-  { value: '18:00-18:30', label: '18:00', range: '' },
-  { value: '18:30-19:00', label: '18:30', range: '' },
-  { value: '19:00-19:30', label: '19:00', range: '' },
-  { value: '19:30-20:00', label: '19:30', range: '' },
-  { value: '20:00-20:30', label: '20:00', range: '' },
-  { value: '20:30-21:00', label: '20:30', range: '' }
+  { value: '09:00-10:00', label: '09:00', range: '' },
+  { value: '10:00-11:00', label: '10:00', range: '' },
+  { value: '11:00-12:00', label: '11:00', range: '' },
+  { value: '12:00-13:00', label: '12:00', range: '' },
+  { value: '13:00-14:00', label: '13:00', range: '' },
+  { value: '14:00-15:00', label: '14:00', range: '' },
+  { value: '15:00-16:00', label: '15:00', range: '' },
+  { value: '16:00-17:00', label: '16:00', range: '' },
+  { value: '17:00-18:00', label: '17:00', range: '' },
+  { value: '18:00-19:00', label: '18:00', range: '' },
+  { value: '19:00-20:00', label: '19:00', range: '' },
+  { value: '20:00-21:00', label: '20:00', range: '' }
 ]
 
 // 计算属性
@@ -283,7 +273,7 @@ const toggleTimeslotsExpanded = () => {
 
 // 快速选择方法
 const selectWorkdayEvening = () => {
-  const eveningSlots = ['18:00-18:30', '18:30-19:00', '19:00-19:30', '19:30-20:00', '20:00-20:30', '20:30-21:00']
+  const eveningSlots = ['18:00-19:00', '19:00-20:00', '20:00-21:00']
 
   // 先更新内部状态
   weekdayData.value.forEach(day => {
@@ -307,7 +297,7 @@ const selectWorkdayEvening = () => {
 }
 
 const selectWeekendDay = () => {
-  const daySlots = ['09:00-09:30', '09:30-10:00', '10:00-10:30', '10:30-11:00', '14:00-14:30', '14:30-15:00', '15:00-15:30', '15:30-16:00']
+  const daySlots = ['09:00-10:00', '10:00-11:00', '11:00-12:00', '14:00-15:00', '15:00-16:00', '16:00-17:00']
 
   // 先更新内部状态
   weekdayData.value.forEach(day => {

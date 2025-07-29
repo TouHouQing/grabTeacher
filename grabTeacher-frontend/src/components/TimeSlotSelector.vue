@@ -4,15 +4,15 @@
       <h3>{{ title }}</h3>
       <p class="description">{{ description }}</p>
     </div>
-    
+
     <div class="weekdays-container">
-      <div 
-        v-for="weekday in weekdays" 
+      <div
+        v-for="weekday in weekdays"
         :key="weekday.value"
         class="weekday-section"
       >
         <div class="weekday-header">
-          <el-checkbox 
+          <el-checkbox
             v-model="weekday.selected"
             @change="onWeekdayChange(weekday)"
             class="weekday-checkbox"
@@ -20,9 +20,9 @@
             {{ weekday.label }}
           </el-checkbox>
         </div>
-        
+
         <div v-if="weekday.selected" class="time-slots-grid">
-          <el-checkbox-group 
+          <el-checkbox-group
             v-model="weekday.selectedSlots"
             @change="onTimeSlotsChange"
             class="time-slots-group"
@@ -39,7 +39,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="summary-section">
       <div class="summary-header">
         <h4>已选择的时间安排</h4>
@@ -47,7 +47,7 @@
           清空所有
         </el-button>
       </div>
-      
+
       <div class="selected-summary">
         <div v-if="selectedSummary.length === 0" class="no-selection">
           暂未选择任何时间
@@ -64,7 +64,7 @@
           </el-tag>
         </div>
       </div>
-      
+
       <div class="summary-stats">
         <span class="stat-item">
           总计: {{ totalSelectedSlots }} 个时间段
@@ -130,9 +130,9 @@ const weekdays = ref<WeekdayOption[]>([
 
 // 时间段选项
 const timeSlots = [
-  '08:00-09:00', '09:00-10:00', '10:00-11:00', '11:00-12:00',
-  '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00',
-  '18:00-19:00', '19:00-20:00', '20:00-21:00'
+  '09:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00',
+  '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00',
+  '17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00'
 ]
 
 // 初始化数据
@@ -178,7 +178,7 @@ const emitChange = () => {
       weekday: weekday.value,
       timeSlots: [...weekday.selectedSlots]
     }))
-  
+
   emit('update:modelValue', result)
   emit('change', result)
 }
@@ -186,7 +186,7 @@ const emitChange = () => {
 // 计算属性
 const selectedSummary = computed(() => {
   const summary: Array<{ weekdayName: string; timeSlot: string; weekday: number }> = []
-  
+
   weekdays.value.forEach(weekday => {
     if (weekday.selected && weekday.selectedSlots.length > 0) {
       weekday.selectedSlots.forEach(slot => {
@@ -198,17 +198,17 @@ const selectedSummary = computed(() => {
       })
     }
   })
-  
+
   return summary
 })
 
 const totalSelectedSlots = computed(() => selectedSummary.value.length)
 
-const weekdaySlots = computed(() => 
+const weekdaySlots = computed(() =>
   selectedSummary.value.filter(item => item.weekday >= 1 && item.weekday <= 5).length
 )
 
-const weekendSlots = computed(() => 
+const weekendSlots = computed(() =>
   selectedSummary.value.filter(item => item.weekday === 6 || item.weekday === 7).length
 )
 

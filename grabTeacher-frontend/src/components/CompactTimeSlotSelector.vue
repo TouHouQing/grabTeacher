@@ -113,30 +113,20 @@ const weekdays = ref<WeekdayOption[]>([
   { value: 7, label: '周日', selected: false, selectedSlots: [] }
 ])
 
-// 完整的时间段选项（8:00-21:00，每半小时）
+// 完整的时间段选项（9:00-21:00，每小时）
 const timeSlots = [
-  { value: '08:00-08:30', display: '8:00', period: '上午' },
-  { value: '08:30-09:00', display: '8:30', period: '上午' },
-  { value: '09:00-09:30', display: '9:00', period: '上午' },
-  { value: '09:30-10:00', display: '9:30', period: '上午' },
-  { value: '10:00-10:30', display: '10:00', period: '上午' },
-  { value: '10:30-11:00', display: '10:30', period: '上午' },
-  { value: '11:00-11:30', display: '11:00', period: '上午' },
-  { value: '11:30-12:00', display: '11:30', period: '上午' },
-  { value: '14:00-14:30', display: '2:00', period: '下午' },
-  { value: '14:30-15:00', display: '2:30', period: '下午' },
-  { value: '15:00-15:30', display: '3:00', period: '下午' },
-  { value: '15:30-16:00', display: '3:30', period: '下午' },
-  { value: '16:00-16:30', display: '4:00', period: '下午' },
-  { value: '16:30-17:00', display: '4:30', period: '下午' },
-  { value: '17:00-17:30', display: '5:00', period: '下午' },
-  { value: '17:30-18:00', display: '5:30', period: '下午' },
-  { value: '18:00-18:30', display: '6:00', period: '晚上' },
-  { value: '18:30-19:00', display: '6:30', period: '晚上' },
-  { value: '19:00-19:30', display: '7:00', period: '晚上' },
-  { value: '19:30-20:00', display: '7:30', period: '晚上' },
-  { value: '20:00-20:30', display: '8:00', period: '晚上' },
-  { value: '20:30-21:00', display: '8:30', period: '晚上' }
+  { value: '09:00-10:00', display: '9:00', period: '' },
+  { value: '10:00-11:00', display: '10:00', period: '' },
+  { value: '11:00-12:00', display: '11:00', period: '' },
+  { value: '12:00-13:00', display: '12:00', period: '' },
+  { value: '13:00-14:00', display: '13:00', period: '' },
+  { value: '14:00-15:00', display: '14:00', period: '' },
+  { value: '15:00-16:00', display: '15:00', period: '' },
+  { value: '16:00-17:00', display: '16:00', period: '' },
+  { value: '17:00-18:00', display: '17:00', period: '' },
+  { value: '18:00-19:00', display: '18:00', period: '' },
+  { value: '19:00-20:00', display: '19:00', period: '' },
+  { value: '20:00-21:00', display: '20:00', period: '' }
 ]
 
 // 当前选中的星期几

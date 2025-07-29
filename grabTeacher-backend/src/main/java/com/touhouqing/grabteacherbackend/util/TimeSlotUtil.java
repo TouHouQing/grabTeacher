@@ -113,11 +113,13 @@ public class TimeSlotUtil {
     public static List<TimeSlotDTO> getDefaultTimeSlots() {
         List<TimeSlotDTO> defaultSlots = new ArrayList<>();
 
-        // 工作日晚上时间 (1=周一, 2=周二, ..., 5=周五)
+        // 工作日时间 (1=周一, 2=周二, ..., 5=周五)
         for (int weekday = 1; weekday <= 5; weekday++) {
             defaultSlots.add(TimeSlotDTO.builder()
                 .weekday(weekday)
-                .timeSlots(List.of("18:00-19:00", "19:00-20:00", "20:00-21:00"))
+                .timeSlots(List.of("09:00-10:00", "10:00-11:00", "11:00-12:00", "12:00-13:00",
+                                 "13:00-14:00", "14:00-15:00", "15:00-16:00", "16:00-17:00",
+                                 "17:00-18:00", "18:00-19:00", "19:00-20:00", "20:00-21:00"))
                 .build());
         }
 
@@ -125,7 +127,9 @@ public class TimeSlotUtil {
         for (int weekday = 6; weekday <= 7; weekday++) {
             defaultSlots.add(TimeSlotDTO.builder()
                 .weekday(weekday)
-                .timeSlots(List.of("09:00-10:00", "10:00-11:00", "14:00-15:00", "15:00-16:00", "16:00-17:00"))
+                .timeSlots(List.of("09:00-10:00", "10:00-11:00", "11:00-12:00", "12:00-13:00",
+                                 "13:00-14:00", "14:00-15:00", "15:00-16:00", "16:00-17:00",
+                                 "17:00-18:00", "18:00-19:00", "19:00-20:00", "20:00-21:00"))
                 .build());
         }
 

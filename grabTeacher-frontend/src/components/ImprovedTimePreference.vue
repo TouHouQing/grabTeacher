@@ -1,107 +1,111 @@
 <template>
   <div class="improved-time-preference">
-    <div class="time-preference-header">
-      <h4>选择您的偏好上课时间</h4>
-      <p class="description">请选择您希望上课的时间段，系统将为您匹配相应时间可用的教师</p>
-    </div>
-
-    <!-- 时间段选择 -->
-    <div class="time-slots-section">
-      <h5>偏好时间段</h5>
-      <div class="time-slots-grid">
-        <div
-          v-for="timeSlot in availableTimeSlots"
-          :key="timeSlot"
-          :class="[
-            'time-slot-card',
-            {
-              'selected': selectedTimeSlots.includes(timeSlot),
-              'morning': isMorningSlot(timeSlot),
-              'afternoon': isAfternoonSlot(timeSlot),
-              'evening': isEveningSlot(timeSlot)
-            }
-          ]"
-          @click="toggleTimeSlot(timeSlot)"
-        >
-          <div class="time-slot-time">{{ timeSlot }}</div>
-          <div class="time-slot-period">{{ getTimePeriod(timeSlot) }}</div>
-        </div>
+    <div class="time-preference-header" @click="toggleExpanded">
+      <div class="header-content">
+        <h4>选择您的偏好上课时间</h4>
+        <el-icon class="expand-icon" :class="{ 'expanded': isExpanded }">
+          <ArrowDown />
+        </el-icon>
       </div>
+      <p class="description" v-show="isExpanded">请选择您希望上课的时间段，系统将为您匹配相应时间可用的教师</p>
     </div>
 
-    <!-- 星期几选择 -->
-    <div class="weekdays-section" v-if="selectedTimeSlots.length > 0">
-      <h5>偏好星期几</h5>
-      <div class="weekdays-grid">
-        <div
-          v-for="(weekday, index) in weekdayOptions"
-          :key="index"
-          :class="[
-            'weekday-card',
-            {
-              'selected': selectedWeekdays.includes(index),
-              'weekend': index === 0 || index === 6
-            }
-          ]"
-          @click="toggleWeekday(index)"
-        >
-          <div class="weekday-name">{{ weekday.name }}</div>
-          <div class="weekday-short">{{ weekday.short }}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 选择预览 -->
-    <div class="selection-preview" v-if="selectedTimeSlots.length > 0 || selectedWeekdays.length > 0">
-      <h5>您的选择预览</h5>
-      <div class="preview-content">
-        <div class="preview-item" v-if="selectedTimeSlots.length > 0">
-          <span class="preview-label">时间段：</span>
-          <div class="preview-tags">
-            <el-tag
-              v-for="timeSlot in selectedTimeSlots"
-              :key="timeSlot"
-              type="primary"
-              size="small"
-              closable
-              @close="removeTimeSlot(timeSlot)"
-            >
-              {{ timeSlot }}
-            </el-tag>
-          </div>
-        </div>
-        <div class="preview-item" v-if="selectedWeekdays.length > 0">
-          <span class="preview-label">星期几：</span>
-          <div class="preview-tags">
-            <el-tag
-              v-for="weekdayIndex in selectedWeekdays"
-              :key="weekdayIndex"
-              type="success"
-              size="small"
-              closable
-              @close="removeWeekday(weekdayIndex)"
-            >
-              {{ weekdayOptions[weekdayIndex].name }}
-            </el-tag>
+    <!-- 可折叠内容 -->
+    <div class="collapsible-content" v-show="isExpanded">
+      <!-- 时间段选择 -->
+      <div class="time-slots-section">
+        <h5>偏好时间段</h5>
+        <div class="time-slots-grid">
+          <div
+            v-for="timeSlot in availableTimeSlots"
+            :key="timeSlot"
+            :class="[
+              'time-slot-card',
+              {
+                'selected': selectedTimeSlots.includes(timeSlot)
+              }
+            ]"
+            @click="toggleTimeSlot(timeSlot)"
+          >
+            <div class="time-slot-time">{{ timeSlot }}</div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 匹配度提示 -->
-    <div class="match-tips" v-if="selectedTimeSlots.length > 0 || selectedWeekdays.length > 0">
-      <el-alert
-        :title="getMatchTip()"
-        type="info"
-        show-icon
-        :closable="false"
-      />
+      <!-- 星期几选择 -->
+      <div class="weekdays-section" v-if="selectedTimeSlots.length > 0">
+        <h5>偏好星期几</h5>
+        <div class="weekdays-grid">
+          <div
+            v-for="(weekday, index) in weekdayOptions"
+            :key="index"
+            :class="[
+              'weekday-card',
+              {
+                'selected': selectedWeekdays.includes(index),
+                'weekend': index === 0 || index === 6
+              }
+            ]"
+            @click="toggleWeekday(index)"
+          >
+            <div class="weekday-name">{{ weekday.name }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 选择预览 -->
+      <div class="selection-preview" v-if="selectedTimeSlots.length > 0 || selectedWeekdays.length > 0">
+        <h5>您的选择预览</h5>
+        <div class="preview-content">
+          <div class="preview-item" v-if="selectedTimeSlots.length > 0">
+            <span class="preview-label">时间段：</span>
+            <div class="preview-tags">
+              <el-tag
+                v-for="timeSlot in selectedTimeSlots"
+                :key="timeSlot"
+                type="primary"
+                size="small"
+                closable
+                @close="removeTimeSlot(timeSlot)"
+              >
+                {{ timeSlot }}
+              </el-tag>
+            </div>
+          </div>
+          <div class="preview-item" v-if="selectedWeekdays.length > 0">
+            <span class="preview-label">星期几：</span>
+            <div class="preview-tags">
+              <el-tag
+                v-for="weekdayIndex in selectedWeekdays"
+                :key="weekdayIndex"
+                type="success"
+                size="small"
+                closable
+                @close="removeWeekday(weekdayIndex)"
+              >
+                {{ weekdayOptions[weekdayIndex].name }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 匹配度提示 -->
+      <div class="match-tips" v-if="selectedTimeSlots.length > 0 || selectedWeekdays.length > 0">
+        <el-alert
+          :title="getMatchTip()"
+          type="info"
+          show-icon
+          :closable="false"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
+import { ArrowDown } from '@element-plus/icons-vue'
 
 // Props
 interface Props {
@@ -123,26 +127,31 @@ const emit = defineEmits<{
 // 响应式数据
 const selectedWeekdays = ref<number[]>([...props.weekdays])
 const selectedTimeSlots = ref<string[]>([...props.timeSlots])
+const isExpanded = ref(false) // 默认收起
 
-// 可用时间段
+// 可用时间段 - 修改为9:00-21:00，以1小时为单位
 const availableTimeSlots = [
-  '09:00-10:00', '10:00-11:00', '11:00-12:00',
-  '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00',
-  '18:00-19:00', '19:00-20:00', '20:00-21:00'
+  '09:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00',
+  '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00',
+  '17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00'
 ]
 
 // 星期几选项
 const weekdayOptions = [
-  { name: '周日', short: '日' },
-  { name: '周一', short: '一' },
-  { name: '周二', short: '二' },
-  { name: '周三', short: '三' },
-  { name: '周四', short: '四' },
-  { name: '周五', short: '五' },
-  { name: '周六', short: '六' }
+  { name: '周一'},
+  { name: '周二'},
+  { name: '周三'},
+  { name: '周四'},
+  { name: '周五'},
+  { name: '周六'},
+  { name: '周日'}
 ]
 
 // 方法
+const toggleExpanded = () => {
+  isExpanded.value = !isExpanded.value
+}
+
 const toggleTimeSlot = (timeSlot: string) => {
   const index = selectedTimeSlots.value.indexOf(timeSlot)
   if (index > -1) {
@@ -175,29 +184,6 @@ const removeWeekday = (weekdayIndex: number) => {
   }
 }
 
-// 判断时间段类型
-const isMorningSlot = (timeSlot: string) => {
-  const hour = parseInt(timeSlot.split(':')[0])
-  return hour >= 9 && hour < 12
-}
-
-const isAfternoonSlot = (timeSlot: string) => {
-  const hour = parseInt(timeSlot.split(':')[0])
-  return hour >= 14 && hour < 18
-}
-
-const isEveningSlot = (timeSlot: string) => {
-  const hour = parseInt(timeSlot.split(':')[0])
-  return hour >= 18
-}
-
-const getTimePeriod = (timeSlot: string) => {
-  if (isMorningSlot(timeSlot)) return '上午'
-  if (isAfternoonSlot(timeSlot)) return '下午'
-  if (isEveningSlot(timeSlot)) return '晚上'
-  return ''
-}
-
 const getMatchTip = () => {
   const timeCount = selectedTimeSlots.value.length
   const dayCount = selectedWeekdays.value.length
@@ -213,20 +199,20 @@ const getMatchTip = () => {
 }
 
 // 监听变化并发出事件
-watch(selectedWeekdays, (newWeekdays) => {
+watch(selectedWeekdays, (newWeekdays: number[]) => {
   emit('update:weekdays', [...newWeekdays])
 }, { deep: true })
 
-watch(selectedTimeSlots, (newTimeSlots) => {
+watch(selectedTimeSlots, (newTimeSlots: string[]) => {
   emit('update:time-slots', [...newTimeSlots])
 }, { deep: true })
 
 // 监听props变化
-watch(() => props.weekdays, (newWeekdays) => {
+watch(() => props.weekdays, (newWeekdays: number[]) => {
   selectedWeekdays.value = [...newWeekdays]
 })
 
-watch(() => props.timeSlots, (newTimeSlots) => {
+watch(() => props.timeSlots, (newTimeSlots: string[]) => {
   selectedTimeSlots.value = [...newTimeSlots]
 })
 </script>
@@ -237,24 +223,60 @@ watch(() => props.timeSlots, (newTimeSlots) => {
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e9ecef;
+  min-height: 120px;
+  width: 100%;
 }
 
 .time-preference-header {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.header-content:hover {
+  border-color: #007bff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
 }
 
 .time-preference-header h4 {
-  margin: 0 0 8px 0;
+  margin: 0;
   color: #2c3e50;
   font-size: 16px;
   font-weight: 600;
 }
 
+.expand-icon {
+  transition: transform 0.2s ease;
+  color: #6c757d;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
 .description {
-  margin: 0;
+  margin: 8px 0 0 0;
   color: #6c757d;
   font-size: 14px;
   line-height: 1.5;
+  padding: 0 16px;
+}
+
+.collapsible-content {
+  margin-top: 16px;
 }
 
 .time-slots-section,
@@ -296,30 +318,9 @@ watch(() => props.timeSlots, (newTimeSlots) => {
   background: #e7f3ff;
 }
 
-.time-slot-card.morning.selected {
-  border-color: #28a745;
-  background: #e8f5e8;
-}
-
-.time-slot-card.afternoon.selected {
-  border-color: #ffc107;
-  background: #fff8e1;
-}
-
-.time-slot-card.evening.selected {
-  border-color: #6f42c1;
-  background: #f3e8ff;
-}
-
 .time-slot-time {
   font-weight: 600;
   color: #2c3e50;
-  margin-bottom: 4px;
-}
-
-.time-slot-period {
-  font-size: 12px;
-  color: #6c757d;
 }
 
 .weekdays-grid {
@@ -362,11 +363,6 @@ watch(() => props.timeSlots, (newTimeSlots) => {
   color: #2c3e50;
   margin-bottom: 2px;
   font-size: 14px;
-}
-
-.weekday-short {
-  font-size: 12px;
-  color: #6c757d;
 }
 
 .selection-preview {
