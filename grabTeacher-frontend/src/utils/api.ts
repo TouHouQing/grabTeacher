@@ -521,7 +521,48 @@ export const courseAPI = {
   // 更新课程状态
   updateStatus: (id: number, status: string) => apiRequest(`/api/courses/${id}/status?status=${status}`, {
     method: 'PATCH'
-  })
+  }),
+
+  // 获取公开课程列表（最新课程页面使用）
+  getPublicLatestCourses: (params: {
+    page?: number
+    size?: number
+    subjectId?: number
+    grade?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/public/courses/latest?${searchParams}`)
+  },
+
+  // 获取公开课程列表
+  getPublicCourses: (params: {
+    page?: number
+    size?: number
+    keyword?: string
+    subjectId?: number
+    teacherId?: number
+    courseType?: string
+    grade?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/public/courses?${searchParams}`)
+  },
+
+  // 获取活跃课程列表（公开接口）
+  getPublicActiveCourses: () => apiRequest('/api/public/courses/active'),
+
+  // 获取课程详情（公开接口）
+  getPublicCourseById: (id: number) => apiRequest(`/api/public/courses/${id}`)
 }
 
 // 调课管理 API

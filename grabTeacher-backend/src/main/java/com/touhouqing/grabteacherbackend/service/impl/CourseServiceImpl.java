@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -293,8 +294,17 @@ public class CourseServiceImpl implements CourseService {
             queryWrapper.eq("course_type", courseType);
         }
 
+        // 如果有年级筛选条件，需要通过关联表查询
         if (StringUtils.hasText(grade)) {
-            queryWrapper.like("grade", grade);
+            // 先从course_grades表中查询符合年级条件的课程ID
+            List<Long> courseIds = courseGradeMapper.findCourseIdsByGrade(grade);
+            if (courseIds.isEmpty()) {
+                // 如果没有找到符合条件的课程，返回空结果
+                Page<CourseResponse> emptyPage = new Page<>(page, size, 0);
+                emptyPage.setRecords(new ArrayList<>());
+                return emptyPage;
+            }
+            queryWrapper.in("id", courseIds);
         }
 
         queryWrapper.orderByDesc("created_at");

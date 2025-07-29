@@ -1,171 +1,216 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import {
+  Timer,
+  User,
+  Star,
+  Calendar,
+  Refresh,
+  Promotion,
+  GoodsFilled,
+  Present,
+  Reading,
+  School
+} from '@element-plus/icons-vue'
+import { courseAPI, subjectAPI, gradeApi } from '@/utils/api'
+
+// 课程接口定义
+interface Course {
+  id: number
+  teacherId: number
+  teacherName: string
+  subjectId: number
+  subjectName: string
+  title: string
+  description?: string
+  courseType: string
+  courseTypeDisplay: string
+  durationMinutes: number
+  status: string
+  statusDisplay: string
+  grade?: string
+  createdAt: string
+}
+
+// 科目接口定义
+interface Subject {
+  id: number
+  name: string
+  iconUrl?: string
+  isActive: boolean
+}
+
+// 年级接口定义
+interface Grade {
+  id: number
+  gradeName: string
+  description?: string
+}
 
 // 搜索过滤条件
 const filter = reactive({
   subject: '',
-  grade: '',
-  level: ''
+  grade: ''
 })
 
 // 分页参数
 const currentPage = ref(1)
 const pageSize = ref(6)
+const total = ref(0)
 
-// 最新课程数据（用时间排序，最近的在前面）
-const courses = [
-  {
-    id: 1,
-    title: '初中物理 - 电磁学深入',
-    teacher: '王老师',
-    teacherAvatar: '@/assets/pictures/teacherGirl4.jpeg',
-    description: '本课程深入讲解电磁感应、电磁波等初中物理重点知识，结合最新高考真题，帮助学生系统掌握电磁学知识体系。',
-    image: '@/assets/pictures/physics1.jpeg',
-    duration: '25课时',
-    students: 42,
-    rating: 5.0,
-    price: 2100,
-    subject: '物理',
-    grade: '初中',
-    level: '进阶',
-    isHot: true,
-    isNew: true,
-    releaseDate: '2023-07-01',
-    tags: ['电磁学', '中考重点', '最新']
-  },
-  {
-    id: 2,
-    title: '初中化学 - 无机化合物专题',
-    teacher: '刘老师',
-    teacherAvatar: '@/assets/pictures/teacherGirl3.jpeg',
-    description: '系统讲解无机化学基础，深入浅出地介绍无机化合物的性质与反应。',
-    image: '@/assets/pictures/chemistry1.jpeg',
-    duration: '20课时',
-    students: 35,
-    rating: 4.9,
-    price: 1800,
-    subject: '化学',
-    grade: '初中',
-    level: '入门',
-    isHot: false,
-    isNew: true,
-    releaseDate: '2023-06-28',
-    tags: ['无机化学', '化学反应', '最新']
-  },
-  {
-    id: 3,
-    title: '初中数学 - 几何证明入门',
-    teacher: '李老师',
-    teacherAvatar: '@/assets/pictures/teacherGirl2.jpeg',
-    description: '本课程从基础开始，教授初中几何证明的基本方法，包括三角形全等、相似、勾股定理等常用证明技巧。',
-    image: '@/assets/pictures/math1.jpeg',
-    duration: '18课时',
-    students: 68,
-    rating: 4.8,
-    price: 1500,
-    subject: '数学',
-    grade: '初中',
-    level: '入门',
-    isHot: true,
-    isNew: true,
-    releaseDate: '2023-06-25',
-    tags: ['几何', '证明', '中考']
-  },
-  {
-    id: 4,
-    title: '小学英语 - 情景对话进阶',
-    teacher: '杨老师',
-    teacherAvatar: '@/assets/pictures/teacherGirl1.jpeg',
-    description: '通过日常生活情景对话，提高小学生英语口语表达能力，课程生动有趣，配合多媒体教学资源。',
-    image: '@/assets/pictures/english1.jpeg',
-    duration: '15课时',
-    students: 82,
-    rating: 5.0,
-    price: 1200,
-    subject: '英语',
-    grade: '小学',
-    level: '进阶',
-    isHot: false,
-    isNew: true,
-    releaseDate: '2023-06-20',
-    tags: ['口语', '对话', '情景教学']
-  },
-  {
-    id: 5,
-    title: '初中生物 - 生物学前沿',
-    teacher: '赵老师',
-    teacherAvatar: '@/assets/pictures/teacherBoy1.jpeg',
-    description: '结合最新生物技术发展，讲解遗传学知识，从DNA到基因编辑，让学生了解现代生物科技与生物学前沿。',
-    image: '@/assets/pictures/biology1.jpeg',
-    duration: '22课时',
-    students: 48,
-    rating: 4.9,
-    price: 1950,
-    subject: '生物',
-    grade: '初中',
-    level: '高级',
-    isHot: true,
-    isNew: true,
-    releaseDate: '2023-06-15',
-    tags: ['遗传学', '基因', '前沿科技']
-  },
-  {
-    id: 6,
-    title: '初中历史 - 中国古代文明',
-    teacher: '陈老师',
-    teacherAvatar: '@/assets/pictures/teacherBoy2.jpeg',
-    description: '带领学生领略中国古代文明的辉煌，从夏商周到明清，系统讲解中国历史发展脉络，深入浅出，图文并茂。',
-    image: '@/assets/pictures/history1.jpeg',
-    duration: '24课时',
-    students: 56,
-    rating: 4.8,
-    price: 1600,
-    subject: '历史',
-    grade: '初中',
-    level: '入门',
-    isHot: false,
-    isNew: true,
-    releaseDate: '2023-06-10',
-    tags: ['中国历史', '古代文明', '文化']
+// 数据状态
+const loading = ref(false)
+const courses = ref<Course[]>([])
+const subjects = ref<Subject[]>([])
+const grades = ref<Grade[]>([])
+
+// 获取课程列表
+const fetchCourses = async () => {
+  try {
+    loading.value = true
+    const params: any = {
+      page: currentPage.value,
+      size: pageSize.value
+    }
+
+    // 添加筛选条件
+    if (filter.subject) {
+      const selectedSubject = subjects.value.find(s => s.name === filter.subject)
+      if (selectedSubject) {
+        params.subjectId = selectedSubject.id
+      }
+    }
+
+    if (filter.grade) {
+      params.grade = filter.grade
+    }
+
+    const response = await courseAPI.getPublicLatestCourses(params)
+    if (response.success && response.data) {
+      courses.value = response.data.courses || []
+      total.value = response.data.total || 0
+    } else {
+      ElMessage.error(response.message || '获取课程列表失败')
+    }
+  } catch (error) {
+    console.error('获取课程列表失败:', error)
+    ElMessage.error('获取课程列表失败')
+  } finally {
+    loading.value = false
   }
-]
+}
 
-// 筛选课程
-const filteredCourses = computed(() => {
-  return courses.filter(course => {
-    let match = true
-    if (filter.subject && course.subject !== filter.subject) {
-      match = false
+// 获取科目列表
+const fetchSubjects = async () => {
+  try {
+    const response = await subjectAPI.getActiveSubjects()
+    if (response.success) {
+      subjects.value = response.data || []
     }
-    if (filter.grade && course.grade !== filter.grade) {
-      match = false
-    }
-    if (filter.level && course.level !== filter.level) {
-      match = false
-    }
-    return match
-  })
-})
+  } catch (error) {
+    console.error('获取科目列表失败:', error)
+  }
+}
 
-// 分页显示课程
-const displayCourses = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filteredCourses.value.slice(start, end)
-})
+// 获取年级列表
+const fetchGrades = async () => {
+  try {
+    const response = await gradeApi.getAllPublic()
+    if (response.success) {
+      grades.value = response.data || []
+    }
+  } catch (error) {
+    console.error('获取年级列表失败:', error)
+  }
+}
 
 // 筛选方法
 const handleFilter = () => {
   currentPage.value = 1
+  fetchCourses()
 }
 
 // 重置筛选
 const resetFilter = () => {
   filter.subject = ''
   filter.grade = ''
-  filter.level = ''
   currentPage.value = 1
+  fetchCourses()
 }
+
+// 分页变化处理
+const handlePageChange = () => {
+  fetchCourses()
+}
+
+// 页面大小变化处理
+const handleSizeChange = () => {
+  currentPage.value = 1
+  fetchCourses()
+}
+
+// 格式化时长显示
+const formatDuration = (minutes: number) => {
+  if (minutes < 60) {
+    return `${minutes}分钟`
+  } else {
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+    return remainingMinutes > 0 ? `${hours}小时${remainingMinutes}分钟` : `${hours}小时`
+  }
+}
+
+// 格式化日期显示
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-CN')
+}
+
+// 判断是否为最新课程（7天内创建的）
+const isNewCourse = (createdAt: string) => {
+  const courseDate = new Date(createdAt)
+  const now = new Date()
+  const diffTime = now.getTime() - courseDate.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays <= 7
+}
+
+// 获取默认课程图片
+const getDefaultCourseImage = (subjectName: string) => {
+  const imageMap = {
+    '数学': '@/assets/pictures/math1.jpeg',
+    '英语': '@/assets/pictures/english1.jpeg',
+    '物理': '@/assets/pictures/physics1.jpeg',
+    '化学': '@/assets/pictures/chemistry1.jpeg',
+    '生物': '@/assets/pictures/biology1.jpeg',
+    '历史': '@/assets/pictures/history1.jpeg',
+    '地理': '@/assets/pictures/courseBackground1.jpeg',
+    '政治': '@/assets/pictures/courseBackground1.jpeg',
+    '语文': '@/assets/pictures/courseBackground1.jpeg'
+  }
+  return imageMap[subjectName] || '@/assets/pictures/courseBackground1.jpeg'
+}
+
+// 获取默认教师头像
+const getDefaultTeacherAvatar = () => {
+  const avatars = [
+    '@/assets/pictures/teacherGirl1.jpeg',
+    '@/assets/pictures/teacherGirl2.jpeg',
+    '@/assets/pictures/teacherGirl3.jpeg',
+    '@/assets/pictures/teacherGirl4.jpeg',
+    '@/assets/pictures/teacherBoy1.jpeg',
+    '@/assets/pictures/teacherBoy2.jpeg'
+  ]
+  return avatars[Math.floor(Math.random() * avatars.length)]
+}
+
+// 组件挂载时获取数据
+onMounted(() => {
+  fetchSubjects()
+  fetchGrades()
+  fetchCourses()
+})
 </script>
 
 <template>
@@ -183,29 +228,26 @@ const resetFilter = () => {
         <el-form :inline="true" class="filter-form">
           <el-form-item label="科目">
             <el-select v-model="filter.subject" placeholder="选择科目" clearable>
-              <el-option label="数学" value="数学" />
-              <el-option label="英语" value="英语" />
-              <el-option label="物理" value="物理" />
-              <el-option label="化学" value="化学" />
-              <el-option label="生物" value="生物" />
-              <el-option label="历史" value="历史" />
+              <el-option
+                v-for="subject in subjects"
+                :key="subject.id"
+                :label="subject.name"
+                :value="subject.name"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="年级">
             <el-select v-model="filter.grade" placeholder="选择年级" clearable>
-              <el-option label="小学" value="小学" />
-              <el-option label="初中" value="初中" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="难度">
-            <el-select v-model="filter.level" placeholder="课程难度" clearable>
-              <el-option label="入门" value="入门" />
-              <el-option label="进阶" value="进阶" />
-              <el-option label="高级" value="高级" />
+              <el-option
+                v-for="grade in grades"
+                :key="grade.id"
+                :label="grade.gradeName"
+                :value="grade.gradeName"
+              />
             </el-select>
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="handleFilter">筛选</el-button>
+            <el-button type="primary" @click="handleFilter" :loading="loading">筛选</el-button>
             <el-button @click="resetFilter">重置</el-button>
           </el-form-item>
         </el-form>
@@ -220,59 +262,69 @@ const resetFilter = () => {
       </div>
 
       <!-- 课程列表 -->
-      <div class="courses-section">
-        <div class="courses-grid">
-          <div class="course-card" v-for="(course, index) in displayCourses" :key="index">
+      <div class="courses-section" v-loading="loading">
+        <div class="courses-grid" v-if="courses.length > 0">
+          <div class="course-card" v-for="course in courses" :key="course.id">
             <div class="course-image">
-              <img :src="$getImageUrl(course.image)" :alt="course.title">
-              <div class="course-badge new" v-if="course.isNew">最新</div>
-              <div class="course-badge hot" v-if="course.isHot">热门</div>
+              <img :src="$getImageUrl(getDefaultCourseImage(course.subjectName))" :alt="course.title">
+              <div class="course-badge new" v-if="isNewCourse(course.createdAt)">最新</div>
+              <div class="course-badge status" :class="course.status">{{ course.statusDisplay }}</div>
             </div>
             <div class="course-info">
               <h3>{{ course.title }}</h3>
               <div class="course-teacher">
-                <img :src="$getImageUrl(course.teacherAvatar)" :alt="course.teacher">
-                <span>{{ course.teacher }}</span>
+                <img :src="$getImageUrl(getDefaultTeacherAvatar())" :alt="course.teacherName">
+                <span>{{ course.teacherName }}</span>
               </div>
-              <p class="course-description">{{ course.description }}</p>
+              <p class="course-description">{{ course.description || '暂无课程描述' }}</p>
               <div class="course-meta">
                 <div class="meta-item">
                   <el-icon><Timer /></el-icon>
-                  <span>{{ course.duration }}</span>
+                  <span>{{ formatDuration(course.durationMinutes) }}</span>
                 </div>
                 <div class="meta-item">
-                  <el-icon><User /></el-icon>
-                  <span>{{ course.students }}人学习</span>
+                  <el-icon><Reading /></el-icon>
+                  <span>{{ course.subjectName }}</span>
                 </div>
                 <div class="meta-item">
-                  <el-icon><Star /></el-icon>
-                  <span>{{ course.rating }}分</span>
+                  <el-icon><School /></el-icon>
+                  <span>{{ course.courseTypeDisplay }}</span>
                 </div>
                 <div class="meta-item">
                   <el-icon><Calendar /></el-icon>
-                  <span>{{ course.releaseDate }}</span>
+                  <span>{{ formatDate(course.createdAt) }}</span>
                 </div>
               </div>
-              <div class="course-tags">
-                <el-tag v-for="(tag, i) in course.tags" :key="i" size="small" class="course-tag">{{ tag }}</el-tag>
+              <div class="course-tags" v-if="course.grade">
+                <el-tag size="small" class="course-tag">{{ course.grade }}</el-tag>
+                <el-tag size="small" class="course-tag" type="success">{{ course.subjectName }}</el-tag>
               </div>
               <div class="course-actions">
-                <span class="course-price">￥{{ course.price }}</span>
-                <el-button type="primary" size="small">立即报名</el-button>
-                <el-button type="info" size="small" plain>免费试听</el-button>
+                <span class="course-status">{{ course.statusDisplay }}</span>
+                <el-button type="primary" size="small" :disabled="course.status !== 'active'">立即报名</el-button>
+                <el-button type="info" size="small" plain>查看详情</el-button>
               </div>
             </div>
           </div>
         </div>
 
+        <!-- 空状态 -->
+        <div v-else-if="!loading" class="empty-state">
+          <el-empty description="暂无课程数据">
+            <el-button type="primary" @click="fetchCourses">刷新</el-button>
+          </el-empty>
+        </div>
+
         <!-- 分页 -->
-        <div class="pagination">
+        <div class="pagination" v-if="total > 0">
           <el-pagination
-            v-model:current-page="currentPage"
-            v-model:page-size="pageSize"
+            :current-page="currentPage"
+            :page-size="pageSize"
             :page-sizes="[6, 12, 24]"
             layout="total, sizes, prev, pager, next, jumper"
-            :total="filteredCourses.length"
+            :total="total"
+            @current-change="handlePageChange"
+            @size-change="handleSizeChange"
           />
         </div>
       </div>
@@ -468,6 +520,26 @@ export default {
   right: 70px;
 }
 
+.course-badge.status {
+  right: 15px;
+}
+
+.course-badge.status.active {
+  background-color: #67c23a;
+}
+
+.course-badge.status.inactive {
+  background-color: #909399;
+}
+
+.course-badge.status.full {
+  background-color: #f56c6c;
+}
+
+.course-badge.status.pending {
+  background-color: #e6a23c;
+}
+
 .course-info {
   padding: 20px;
 }
@@ -546,6 +618,17 @@ export default {
   font-size: 20px;
   color: #f56c6c;
   font-weight: bold;
+}
+
+.course-status {
+  font-size: 16px;
+  color: #67c23a;
+  font-weight: bold;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
 }
 
 .pagination {
