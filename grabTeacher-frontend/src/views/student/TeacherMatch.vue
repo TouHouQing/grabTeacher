@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock } from '@element-plus/icons-vue'
+import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock, Close, Warning, SuccessFilled } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { teacherAPI, subjectAPI, bookingAPI, gradeApi } from '@/utils/api'
 import ImprovedTimePreference from '../../components/ImprovedTimePreference.vue'
@@ -1764,35 +1764,96 @@ onMounted(() => {
             </div>
           </el-form-item>
 
-          <!-- 时间匹配度提示 -->
+          <!-- 时间匹配度提示 - 重新设计 -->
           <el-form-item v-if="scheduleForm.selectedTimeSlots.length > 0 && scheduleForm.selectedWeekdays.length > 0">
-            <div class="time-match-info">
-              <el-alert
-                :title="getMatchScoreInfo().message"
-                :type="getMatchScoreInfo().type"
-                show-icon
-                :closable="false"
-              >
-                <template #default>
-                  <div class="match-details">
-                    <div class="match-score">
+            <div class="enhanced-match-info">
+              <!-- 匹配度卡片 -->
+              <div class="match-score-card" :class="getMatchScoreInfo().type">
+                <div class="match-header">
+                  <div class="match-icon">
+                    <el-icon v-if="getMatchScoreInfo().type === 'success'"><Check /></el-icon>
+                    <el-icon v-else-if="getMatchScoreInfo().type === 'warning'"><InfoFilled /></el-icon>
+                    <el-icon v-else><Close /></el-icon>
+                  </div>
+                  <div class="match-title">
+                    <h4>时间匹配度分析</h4>
+                    <span class="match-subtitle">基于您选择的时间段和星期</span>
+                  </div>
+                </div>
+
+                <div class="match-content">
+                  <!-- 匹配度环形进度 -->
+                  <div class="match-progress-section">
+                    <div class="circular-progress">
                       <el-progress
+                        type="circle"
                         :percentage="getMatchScoreInfo().score"
-                        :color="getMatchScoreInfo().type === 'success' ? '#67c23a' : getMatchScoreInfo().type === 'warning' ? '#e6a23c' : '#f56c6c'"
+                        :width="120"
                         :stroke-width="8"
-                        text-inside
-                      />
+                        :color="getMatchScoreInfo().type === 'success' ? '#67c23a' : getMatchScoreInfo().type === 'warning' ? '#e6a23c' : '#f56c6c'"
+                      >
+                        <template #default="{ percentage }">
+                          <div class="progress-content">
+                            <div class="percentage">{{ percentage }}%</div>
+                            <div class="progress-label">匹配度</div>
+                          </div>
+                        </template>
+                      </el-progress>
                     </div>
-                    <div class="match-suggestion" v-if="getMatchScoreInfo().score < 80">
-                      <p>建议：</p>
-                      <ul>
-                        <li v-if="getMatchScoreInfo().score === 0">请选择教师设置的可预约时间段</li>
-                        <li v-else>可以尝试调整时间段选择或联系教师协商时间</li>
-                      </ul>
+
+                    <div class="match-stats">
+                      <div class="stat-item">
+                        <div class="stat-number">{{ scheduleForm.selectedTimeSlots.length }}</div>
+                        <div class="stat-label">选择时段</div>
+                      </div>
+                      <div class="stat-item">
+                        <div class="stat-number">{{ scheduleForm.selectedWeekdays.length }}</div>
+                        <div class="stat-label">选择天数</div>
+                      </div>
+                      <div class="stat-item">
+                        <div class="stat-number">{{ Math.round((getMatchScoreInfo().score / 100) * scheduleForm.selectedTimeSlots.length * scheduleForm.selectedWeekdays.length) }}</div>
+                        <div class="stat-label">可用组合</div>
+                      </div>
                     </div>
                   </div>
-                </template>
-              </el-alert>
+
+                  <!-- 匹配度描述和建议 -->
+                  <div class="match-description">
+                    <div class="description-text">
+                      <el-icon class="desc-icon"><Calendar /></el-icon>
+                      <span>{{ getMatchScoreInfo().message }}</span>
+                    </div>
+
+                    <div v-if="getMatchScoreInfo().score < 80" class="match-suggestions">
+                      <div class="suggestions-title">
+                        <el-icon><InfoFilled /></el-icon>
+                        <span>优化建议</span>
+                      </div>
+                      <div class="suggestions-list">
+                        <div v-if="getMatchScoreInfo().score === 0" class="suggestion-item">
+                          <el-icon class="suggestion-icon"><Warning /></el-icon>
+                          <span>当前选择的时间段教师不可预约，请重新选择时间</span>
+                        </div>
+                        <div v-else class="suggestion-item">
+                          <el-icon class="suggestion-icon"><Clock /></el-icon>
+                          <span>可以尝试调整时间段选择，或联系教师协商其他可用时间</span>
+                        </div>
+                        <div v-if="getMatchScoreInfo().score > 0 && getMatchScoreInfo().score < 60" class="suggestion-item">
+                          <el-icon class="suggestion-icon"><Refresh /></el-icon>
+                          <span>建议选择更多教师可用的时间段以提高匹配度</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div v-else class="match-success-info">
+                      <div class="success-message">
+                        <el-icon class="success-icon"><SuccessFilled /></el-icon>
+                        <span>时间安排非常合适，可以直接提交预约申请！</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </el-form-item>
 
@@ -3364,6 +3425,254 @@ h2 {
 .match-suggestion li {
   margin: 4px 0;
   line-height: 1.4;
+}
+
+/* 增强的匹配度信息样式 */
+.enhanced-match-info {
+  margin: 24px 0;
+}
+
+.match-score-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 2px solid #f0f0f0;
+  transition: all 0.3s ease;
+}
+
+.match-score-card.success {
+  border-color: #67c23a;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%);
+}
+
+.match-score-card.warning {
+  border-color: #e6a23c;
+  background: linear-gradient(135deg, #fffbf0 0%, #fef7e6 100%);
+}
+
+.match-score-card.danger {
+  border-color: #f56c6c;
+  background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%);
+}
+
+.match-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f5f5f5;
+}
+
+.match-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.match-score-card.success .match-icon {
+  background: #67c23a;
+  color: white;
+}
+
+.match-score-card.warning .match-icon {
+  background: #e6a23c;
+  color: white;
+}
+
+.match-score-card.danger .match-icon {
+  background: #f56c6c;
+  color: white;
+}
+
+.match-title h4 {
+  margin: 0 0 4px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.match-subtitle {
+  font-size: 14px;
+  color: #909399;
+  font-weight: 500;
+}
+
+.match-content {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.match-progress-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.circular-progress {
+  position: relative;
+}
+
+.progress-content {
+  text-align: center;
+}
+
+.percentage {
+  font-size: 24px;
+  font-weight: 700;
+  color: #303133;
+  line-height: 1;
+}
+
+.progress-label {
+  font-size: 12px;
+  color: #909399;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.match-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  border: 1px solid #f0f0f0;
+  min-width: 80px;
+}
+
+.stat-number {
+  font-size: 20px;
+  font-weight: 700;
+  color: #409eff;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #909399;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.match-description {
+  flex: 1;
+}
+
+.description-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  border: 1px solid #f0f0f0;
+}
+
+.desc-icon {
+  font-size: 18px;
+  color: #409eff;
+}
+
+.match-suggestions {
+  margin-top: 16px;
+}
+
+.suggestions-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 12px;
+}
+
+.suggestions-title .el-icon {
+  font-size: 18px;
+  color: #e6a23c;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  border-left: 4px solid #e6a23c;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.suggestion-icon {
+  font-size: 16px;
+  color: #e6a23c;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.match-success-info {
+  margin-top: 16px;
+}
+
+.success-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  background: rgba(103, 194, 58, 0.1);
+  border-radius: 12px;
+  border: 2px solid #67c23a;
+  font-size: 16px;
+  font-weight: 600;
+  color: #67c23a;
+}
+
+.success-icon {
+  font-size: 20px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .match-content {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .match-stats {
+    justify-content: center;
+  }
+
+  .stat-item {
+    min-width: 70px;
+    padding: 10px 12px;
+  }
+
+  .stat-number {
+    font-size: 18px;
+  }
 }
 
 /* 试听课时间选择样式 - 统一网格布局 */
