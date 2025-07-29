@@ -466,30 +466,12 @@ const generateAvailableTimeSlots = async () => {
   }
 }
 
-// 生成默认时间段（作为备用）
+// 生成默认时间段（作为备用）- 当API调用失败时不显示任何时间段
 const generateDefaultTimeSlots = () => {
+  // 当API调用失败时，不生成任何默认时间段
+  // 这样可以避免显示教师实际上不可用的时间段
   availableTimeSlots.value = []
-
-  const weekdays = [1, 2, 3, 4, 5, 6, 0] // 周一到周日
-  const timeSlots = [
-    '09:00-10:00', '10:00-11:00', '11:00-12:00',
-    '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00',
-    '18:00-19:00', '19:00-20:00', '20:00-21:00'
-  ]
-
-  weekdays.forEach(weekday => {
-    timeSlots.forEach(time => {
-      availableTimeSlots.value.push({
-        weekday,
-        time,
-        available: true, // 默认都可用
-        conflictDates: [],
-        availableFromDate: undefined,
-        conflictEndDate: undefined,
-        conflictReason: undefined
-      })
-    })
-  })
+  console.warn('无法获取教师可用时间段，课表为空。请检查网络连接或联系管理员。')
 }
 
 // 检查时间段冲突
@@ -663,8 +645,8 @@ const calculateEndDate = () => {
 
 // 获取星期几的中文名称
 const getWeekdayName = (weekday: number): string => {
-  const names = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  return names[weekday]
+  const names = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  return names[weekday] || '未知'
 }
 
 // 获取唯一的时间段列表
@@ -859,7 +841,13 @@ const generateMonthlyScheduleData = async () => {
   const year = currentYear.value
   const month = currentMonth.value
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const firstDay = new Date(year, month, 1).getDay()
+  const firstDayRaw = new Date(year, month, 1).getDay() // JavaScript格式：0=周日, 1=周一...6=周六
+
+  // 头部定义是 [1, 2, 3, 4, 5, 6, 0]，对应 [周一, 周二, 周三, 周四, 周五, 周六, 周日]
+  // 需要将JavaScript的getDay()结果映射到我们的列索引
+  // JavaScript: 0=周日, 1=周一, 2=周二, 3=周三, 4=周四, 5=周五, 6=周六
+  // 我们的列:   6=周日, 0=周一, 1=周二, 2=周三, 3=周四, 4=周五, 5=周六
+  const firstDay = firstDayRaw === 0 ? 6 : firstDayRaw - 1
 
   monthlyScheduleData.value = []
 
@@ -876,9 +864,16 @@ const generateMonthlyScheduleData = async () => {
 
     let scheduleData: any = {}
     if (result.success && result.data) {
-      // 将课表数据按日期分组
+      // 将课表数据按日期分组，保留完整的日程信息
       result.data.daySchedules.forEach((daySchedule: any) => {
-        scheduleData[daySchedule.date] = daySchedule.timeSlots
+        scheduleData[daySchedule.date] = {
+          timeSlots: daySchedule.timeSlots,
+          availableCount: daySchedule.availableCount,
+          bookedCount: daySchedule.bookedCount,
+          dayOfWeek: daySchedule.dayOfWeek
+        }
+
+
       })
     }
 
@@ -889,20 +884,61 @@ const generateMonthlyScheduleData = async () => {
         const dayNumber = week * 7 + day - firstDay + 1
 
         if (dayNumber > 0 && dayNumber <= daysInMonth) {
+          // 使用本地时间格式化日期，避免时区问题
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`
           const date = new Date(year, month, dayNumber)
-          const dateStr = date.toISOString().split('T')[0]
+          const actualWeekday = date.getDay() // JavaScript格式：0=周日, 1=周一...6=周六
+          const backendWeekday = actualWeekday === 0 ? 7 : actualWeekday // 转换为后端格式
 
-          // 获取该日的真实时间段数据
-          const timeSlots = scheduleData[dateStr] || generateDefaultDayTimeSlots()
+          // 首先检查是否有该具体日期的数据（可能包含预订信息）
+          const specificDateData = scheduleData[dateStr]
 
-          weekData.push({
-            day: dayNumber,
-            date: dateStr,
-            isCurrentMonth: true,
-            timeSlots: timeSlots,
-            availableCount: timeSlots.filter((slot: any) => slot.available).length,
-            bookedCount: timeSlots.filter((slot: any) => slot.booked).length
-          })
+          if (specificDateData) {
+            // 使用具体日期的数据（包含预订信息）
+            weekData.push({
+              day: dayNumber,
+              date: dateStr,
+              isCurrentMonth: true,
+              timeSlots: specificDateData.timeSlots,
+              availableCount: specificDateData.availableCount,
+              bookedCount: specificDateData.bookedCount
+            })
+          } else {
+            // 如果没有具体日期的数据，根据星期几生成基础时间段
+            const weekdayTemplate = getWeekdayTemplate(backendWeekday, scheduleData)
+
+            if (weekdayTemplate && weekdayTemplate.length > 0) {
+              // 根据星期几模板生成可用时间段
+              const timeSlots = weekdayTemplate.map(slot => ({
+                timeSlot: slot.timeSlot,
+                available: true,  // 默认可用
+                booked: false,
+                studentName: null,
+                courseTitle: null,
+                status: null,
+                isTrial: false
+              }))
+
+              weekData.push({
+                day: dayNumber,
+                date: dateStr,
+                isCurrentMonth: true,
+                timeSlots: timeSlots,
+                availableCount: timeSlots.length,
+                bookedCount: 0
+              })
+            } else {
+              // 如果老师在这一天不排课，显示完全空的数据
+              weekData.push({
+                day: dayNumber,
+                date: dateStr,
+                isCurrentMonth: true,
+                timeSlots: [],
+                availableCount: 0,
+                bookedCount: 0
+              })
+            }
+          }
         } else {
           // 对于不在当月的日期，不显示或显示为空
           weekData.push({
@@ -933,7 +969,9 @@ const generateDefaultMonthlyScheduleData = () => {
   const year = currentYear.value
   const month = currentMonth.value
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const firstDay = new Date(year, month, 1).getDay()
+  const firstDayRaw = new Date(year, month, 1).getDay()
+  // 转换为周一开始的格式：周日(0)变为6，周一(1)变为0，...，周六(6)变为5
+  const firstDay = firstDayRaw === 0 ? 6 : firstDayRaw - 1
 
   monthlyScheduleData.value = []
 
@@ -978,7 +1016,22 @@ const generateDefaultMonthlyScheduleData = () => {
   }
 }
 
-// 生成默认的某一天时间段数据
+// 获取某个星期几的时间段模板
+const getWeekdayTemplate = (backendWeekday: number, scheduleData: any) => {
+  // 从已有数据中找到这个星期几的时间段模板
+  const templateData = Object.values(scheduleData).find((dayData: any) =>
+    dayData.dayOfWeek === backendWeekday
+  ) as any
+
+  if (templateData && templateData.timeSlots.length > 0) {
+    // 返回时间段模板
+    return templateData.timeSlots
+  }
+
+  return []
+}
+
+// 生成默认的某一天时间段数据（保留原函数，但不再使用）
 const generateDefaultDayTimeSlots = () => {
   const timeSlots = [
     '09:00-10:00', '10:00-11:00', '11:00-12:00',
@@ -1253,7 +1306,7 @@ onMounted(() => {
                 <div class="selected-time-value">
                   <el-tag v-if="matchForm.preferredWeekdays.length > 0" type="success">
                     <el-icon><Calendar /></el-icon>
-                    星期: {{ matchForm.preferredWeekdays.map(day => ['日', '一', '二', '三', '四', '五', '六'][day]).join(', ') }}
+                    星期: {{ matchForm.preferredWeekdays.map(day => getWeekdayName(day)).join(', ') }}
                   </el-tag>
                   <el-tag v-if="matchForm.preferredTimeSlots.length > 0" type="primary" style="margin-left: 8px;">
                     时间: {{ matchForm.preferredTimeSlots.join(', ') }}
@@ -1444,7 +1497,7 @@ onMounted(() => {
             <div class="weekday-selection">
               <el-checkbox-group v-model="scheduleForm.selectedWeekdays">
                 <el-checkbox
-                  v-for="weekday in [1, 2, 3, 4, 5, 6, 0]"
+                  v-for="weekday in [1, 2, 3, 4, 5, 6, 7]"
                   :key="weekday"
                   :label="weekday"
                   :disabled="!isWeekdayAvailableForAllSlots(weekday)"
@@ -1573,7 +1626,7 @@ onMounted(() => {
 
         <div class="monthly-calendar">
           <div class="week-header">
-            <div v-for="day in [0, 1, 2, 3, 4, 5, 6]" :key="day" class="week-header-day">
+            <div v-for="day in [1, 2, 3, 4, 5, 6, 0]" :key="day" class="week-header-day">
               {{ getDayName(day) }}
             </div>
           </div>

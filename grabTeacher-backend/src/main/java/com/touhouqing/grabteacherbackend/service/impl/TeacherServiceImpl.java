@@ -344,13 +344,9 @@ public class TeacherServiceImpl implements TeacherService {
     public List<TeacherMatchResponse> matchTeachers(TeacherMatchRequest request) {
         log.info("开始匹配教师，请求参数: {}", request);
 
-        // 转换前端星期几格式为后端格式
+        // 前端现在直接发送1-7格式，不需要转换
         if (request.getPreferredWeekdays() != null && !request.getPreferredWeekdays().isEmpty()) {
-            List<Integer> convertedWeekdays = request.getPreferredWeekdays().stream()
-                .map(TimeSlotUtil::convertFrontendWeekdayToBackend)
-                .collect(Collectors.toList());
-            request.setPreferredWeekdays(convertedWeekdays);
-            log.info("转换后的星期几偏好: {}", convertedWeekdays);
+            log.info("学生偏好星期几（无需转换）: {}", request.getPreferredWeekdays());
         }
 
         // 使用优化的查询方法
@@ -454,8 +450,10 @@ public class TeacherServiceImpl implements TeacherService {
                 .build();
 
         // 计算匹配分数和时间匹配度
+        log.info("正在计算教师 {} (ID: {}) 的匹配分数", teacher.getRealName(), teacher.getId());
         int matchScore = calculateMatchScore(teacher, request);
         int timeMatchScore = calculateTimeMatchScore(availableTimeSlots, request);
+        log.info("教师 {} 的匹配分数: 总分={}, 时间匹配度={}", teacher.getRealName(), matchScore, timeMatchScore);
 
         response.setMatchScore(matchScore);
         response.setTimeMatchScore(timeMatchScore);
@@ -781,9 +779,19 @@ public class TeacherServiceImpl implements TeacherService {
             int availableCount = (int) timeSlots.stream().filter(TeacherScheduleResponse.TimeSlotInfo::getAvailable).count();
             int bookedCount = (int) timeSlots.stream().filter(TeacherScheduleResponse.TimeSlotInfo::getBooked).count();
 
+            // 调试日志
+            if (currentDate.getDayOfWeek().getValue() == 4) { // 只记录周四的数据
+                log.info("=== 周四课表调试 ===");
+                log.info("日期: {}, 星期几: {}", currentDate, currentDate.getDayOfWeek().getValue());
+                log.info("教师ID: {}, 生成的时间段数量: {}", teacherId, timeSlots.size());
+                log.info("时间段详情: {}", timeSlots);
+                log.info("可用数量: {}, 已订数量: {}", availableCount, bookedCount);
+                log.info("==================");
+            }
+
             TeacherScheduleResponse.DaySchedule daySchedule = TeacherScheduleResponse.DaySchedule.builder()
                     .date(currentDate)
-                    .dayOfWeek(currentDate.getDayOfWeek().getValue() % 7) // 转换为0=周日格式
+                    .dayOfWeek(currentDate.getDayOfWeek().getValue()) // 使用ISO标准：1=周一, 7=周日
                     .timeSlots(timeSlots)
                     .availableCount(availableCount)
                     .bookedCount(bookedCount)
@@ -1057,45 +1065,79 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     /**
-     * 计算时间匹配度 - 改进版本
+     * 计算时间匹配度 - 修复版本，正确处理星期几和时间段的匹配
      */
     private int calculateTimeMatchScore(List<TimeSlotDTO> availableTimeSlots, TeacherMatchRequest request) {
+        log.info("=== 开始计算时间匹配度 ===");
+        log.info("教师可用时间段: {}", availableTimeSlots);
+        log.info("学生偏好星期几: {}", request.getPreferredWeekdays());
+        log.info("学生偏好时间段: {}", request.getPreferredTimeSlots());
+
         if (availableTimeSlots == null || availableTimeSlots.isEmpty()) {
+            log.info("教师没有可用时间段，返回0分");
             return 0;
         }
 
         // 如果学生没有时间偏好，认为所有时间都匹配，给予满分
         if ((request.getPreferredWeekdays() == null || request.getPreferredWeekdays().isEmpty()) &&
             (request.getPreferredTimeSlots() == null || request.getPreferredTimeSlots().isEmpty())) {
+            log.info("学生没有时间偏好，返回满分100");
             return 100;
         }
+
+
 
         int totalScore = 0;
         int maxPossibleScore = 0;
 
-        // 处理时间段匹配
+        // 处理时间段匹配 - 必须同时匹配星期几和时间段
         if (request.getPreferredTimeSlots() != null && !request.getPreferredTimeSlots().isEmpty()) {
+            // 获取学生偏好的星期几
+            Set<Integer> studentPreferredWeekdays = new HashSet<>();
+            if (request.getPreferredWeekdays() != null && !request.getPreferredWeekdays().isEmpty()) {
+                studentPreferredWeekdays.addAll(request.getPreferredWeekdays());
+            }
+
             for (String preferredTimeSlot : request.getPreferredTimeSlots()) {
                 maxPossibleScore += 100; // 每个偏好时间段最高100分
-
                 int bestMatchScore = 0;
 
+                log.info("检查学生偏好时间段: {}", preferredTimeSlot);
+
+                // 遍历教师的所有可用时间段
                 for (TimeSlotDTO teacherSlot : availableTimeSlots) {
-                    if (teacherSlot.getTimeSlots() != null) {
+                    log.info("检查教师时间段 - 星期{}: {}", teacherSlot.getWeekday(), teacherSlot.getTimeSlots());
+
+                    if (teacherSlot.getTimeSlots() != null && !teacherSlot.getTimeSlots().isEmpty()) {
+                        // 如果学生指定了星期几偏好，必须严格匹配星期几
+                        if (!studentPreferredWeekdays.isEmpty() &&
+                            !studentPreferredWeekdays.contains(teacherSlot.getWeekday())) {
+                            log.info("星期几不匹配，跳过 - 学生偏好: {}, 教师星期: {}",
+                                   studentPreferredWeekdays, teacherSlot.getWeekday());
+                            continue; // 星期几不匹配，跳过
+                        }
+
+                        // 如果学生没有指定星期几偏好，但选择了时间段，则降低匹配度
+                        // 这种情况下，我们认为学生对星期几没有明确要求，但仍然需要时间段匹配
+                        int weekdayMatchPenalty = studentPreferredWeekdays.isEmpty() ? 20 : 0; // 没有指定星期几时扣20分
+
+                        // 检查时间段匹配
                         for (String teacherTimeSlot : teacherSlot.getTimeSlots()) {
-                            // 计算时间重叠度
                             int overlapScore = TimeSlotUtil.calculateTimeOverlapScore(preferredTimeSlot, teacherTimeSlot);
+                            log.info("时间重叠计算: {} vs {} = {}分", preferredTimeSlot, teacherTimeSlot, overlapScore);
 
-                            // 检查星期几是否匹配
-                            if (request.getPreferredWeekdays() != null &&
-                                request.getPreferredWeekdays().contains(teacherSlot.getWeekday())) {
-                                overlapScore = Math.min(100, overlapScore + 20); // 星期几匹配加分，但不超过100
+                            // 如果有重叠，这就是一个有效匹配
+                            if (overlapScore > 0) {
+                                // 应用星期几匹配惩罚
+                                int adjustedScore = Math.max(0, overlapScore - weekdayMatchPenalty);
+                                bestMatchScore = Math.max(bestMatchScore, adjustedScore);
+                                log.info("调整后匹配分数: {} (原始: {}, 星期几惩罚: {})",
+                                       adjustedScore, overlapScore, weekdayMatchPenalty);
                             }
-
-                            bestMatchScore = Math.max(bestMatchScore, overlapScore);
                         }
                     }
                 }
+                log.info("时间段 {} 的最终匹配分数: {}", preferredTimeSlot, bestMatchScore);
                 totalScore += bestMatchScore;
             }
         } else if (request.getPreferredWeekdays() != null && !request.getPreferredWeekdays().isEmpty()) {
@@ -1113,7 +1155,14 @@ public class TeacherServiceImpl implements TeacherService {
             }
         }
 
-        return maxPossibleScore > 0 ? Math.min((totalScore * 100) / maxPossibleScore, 100) : 100;
+        int finalScore = maxPossibleScore > 0 ? Math.min((totalScore * 100) / maxPossibleScore, 100) : 100;
+
+        // 详细调试日志
+        log.info("=== 时间匹配计算结果 ===");
+        log.info("总分: {}, 最大可能分数: {}, 最终得分: {}", totalScore, maxPossibleScore, finalScore);
+        log.info("========================");
+
+        return finalScore;
     }
 
     /**

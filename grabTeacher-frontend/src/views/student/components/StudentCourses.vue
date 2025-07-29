@@ -305,8 +305,8 @@ const canReschedule = (dateStr: string): boolean => {
 
 // 获取星期几的中文名称
 const getWeekdayName = (weekday: number): string => {
-  const names = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  return names[weekday]
+  const names = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  return names[weekday] || '未知'
 }
 
 // 提交调课申请

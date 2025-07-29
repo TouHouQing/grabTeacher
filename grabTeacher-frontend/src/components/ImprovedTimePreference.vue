@@ -42,8 +42,8 @@
             :class="[
               'weekday-card',
               {
-                'selected': selectedWeekdays.includes(index),
-                'weekend': index === 0 || index === 6
+                'selected': selectedWeekdays.includes(index + 1),
+                'weekend': index === 5 || index === 6
               }
             ]"
             @click="toggleWeekday(index)"
@@ -76,14 +76,14 @@
             <span class="preview-label">星期几：</span>
             <div class="preview-tags">
               <el-tag
-                v-for="weekdayIndex in selectedWeekdays"
-                :key="weekdayIndex"
+                v-for="weekdayValue in selectedWeekdays"
+                :key="weekdayValue"
                 type="success"
                 size="small"
                 closable
-                @close="removeWeekday(weekdayIndex)"
+                @close="removeWeekday(weekdayValue)"
               >
-                {{ weekdayOptions[weekdayIndex].name }}
+                {{ weekdayOptions[weekdayValue - 1].name }}
               </el-tag>
             </div>
           </div>
@@ -162,11 +162,13 @@ const toggleTimeSlot = (timeSlot: string) => {
 }
 
 const toggleWeekday = (weekdayIndex: number) => {
-  const index = selectedWeekdays.value.indexOf(weekdayIndex)
+  // 将数组索引转换为后端使用的星期几数字 (周一=1, 周二=2, ..., 周日=7)
+  const weekdayValue = weekdayIndex + 1
+  const index = selectedWeekdays.value.indexOf(weekdayValue)
   if (index > -1) {
     selectedWeekdays.value.splice(index, 1)
   } else {
-    selectedWeekdays.value.push(weekdayIndex)
+    selectedWeekdays.value.push(weekdayValue)
   }
 }
 
@@ -178,6 +180,7 @@ const removeTimeSlot = (timeSlot: string) => {
 }
 
 const removeWeekday = (weekdayIndex: number) => {
+  // weekdayIndex 这里实际上是后端的星期几值 (1-7)，直接使用
   const index = selectedWeekdays.value.indexOf(weekdayIndex)
   if (index > -1) {
     selectedWeekdays.value.splice(index, 1)
