@@ -653,7 +653,7 @@ public class TeacherServiceImpl implements TeacherService {
             List<Schedule> daySchedules_raw = schedulesByDate.getOrDefault(currentDate, new ArrayList<>());
 
             // 生成该日的时间段信息
-            List<TeacherScheduleResponse.TimeSlotInfo> timeSlots = generateTimeSlots(daySchedules_raw, currentDate);
+            List<TeacherScheduleResponse.TimeSlotInfo> timeSlots = generateTimeSlots(teacherId, daySchedules_raw, currentDate);
 
             int availableCount = (int) timeSlots.stream().filter(TeacherScheduleResponse.TimeSlotInfo::getAvailable).count();
             int bookedCount = (int) timeSlots.stream().filter(TeacherScheduleResponse.TimeSlotInfo::getBooked).count();
@@ -681,22 +681,53 @@ public class TeacherServiceImpl implements TeacherService {
 
     @Override
     public List<TimeSlotAvailability> checkTeacherAvailability(Long teacherId, LocalDate startDate, LocalDate endDate, List<String> timeSlots) {
-        // 如果没有指定时间段，使用默认时间段
-        if (timeSlots == null || timeSlots.isEmpty()) {
-            timeSlots = getDefaultTimeSlots();
-        }
-
         List<TimeSlotAvailability> availabilities = new ArrayList<>();
 
-        // 检查每个星期几和时间段的组合
-        // 使用ISO标准：1=周一, 2=周二, ..., 7=周日
-        for (int weekday = 1; weekday <= 7; weekday++) {
-            for (String timeSlot : timeSlots) {
-                TimeSlotAvailability availability = checkWeekdayTimeSlotAvailability(
-                    teacherId, weekday, timeSlot, startDate, endDate);
-                // 转换为前端格式返回
-                availability.setWeekday(TimeSlotUtil.convertBackendWeekdayToFrontend(weekday));
-                availabilities.add(availability);
+        // 获取教师设置的可上课时间
+        Teacher teacher = teacherMapper.selectById(teacherId);
+        if (teacher == null) {
+            return availabilities;
+        }
+
+        List<TimeSlotDTO> teacherAvailableSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
+
+        // 如果教师没有设置可上课时间，返回所有时间段为不可用
+        if (teacherAvailableSlots.isEmpty()) {
+            // 如果没有指定时间段，使用默认时间段
+            if (timeSlots == null || timeSlots.isEmpty()) {
+                timeSlots = getDefaultTimeSlots();
+            }
+
+            // 所有时间段都标记为不可用，因为教师没有设置可上课时间
+            for (int weekday = 1; weekday <= 7; weekday++) {
+                for (String timeSlot : timeSlots) {
+                    TimeSlotAvailability availability = TimeSlotAvailability.builder()
+                            .weekday(TimeSlotUtil.convertBackendWeekdayToFrontend(weekday))
+                            .timeSlot(timeSlot)
+                            .available(false)
+                            .availabilityRate(0.0)
+                            .conflictDates(new ArrayList<>())
+                            .conflictReason("教师未设置可上课时间")
+                            .description("教师未设置该时间段为可上课时间")
+                            .build();
+                    availabilities.add(availability);
+                }
+            }
+        } else {
+            // 只检查教师设置的可上课时间段
+            for (TimeSlotDTO teacherSlot : teacherAvailableSlots) {
+                int weekday = teacherSlot.getWeekday();
+                List<String> slotTimes = teacherSlot.getTimeSlots();
+
+                if (slotTimes != null) {
+                    for (String timeSlot : slotTimes) {
+                        TimeSlotAvailability availability = checkWeekdayTimeSlotAvailability(
+                            teacherId, weekday, timeSlot, startDate, endDate);
+                        // 转换为前端格式返回
+                        availability.setWeekday(TimeSlotUtil.convertBackendWeekdayToFrontend(weekday));
+                        availabilities.add(availability);
+                    }
+                }
             }
         }
 
@@ -704,10 +735,20 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     /**
-     * 生成时间段信息
+     * 生成时间段信息 - 根据教师设置的可上课时间和实际课表安排
      */
-    private List<TeacherScheduleResponse.TimeSlotInfo> generateTimeSlots(List<Schedule> daySchedules, LocalDate date) {
-        List<String> allTimeSlots = getDefaultTimeSlots();
+    private List<TeacherScheduleResponse.TimeSlotInfo> generateTimeSlots(Long teacherId, List<Schedule> daySchedules, LocalDate date) {
+        // 获取该日期对应的星期几（ISO标准：1=周一, 7=周日）
+        int weekday = date.getDayOfWeek().getValue();
+
+        // 获取教师设置的可上课时间段
+        List<String> availableTimeSlots = getTeacherAvailableTimeSlotsForWeekday(teacherId, weekday);
+
+        // 如果教师没有设置可上课时间，返回空列表（不显示任何时间段）
+        if (availableTimeSlots.isEmpty()) {
+            return new ArrayList<>();
+        }
+
         List<TeacherScheduleResponse.TimeSlotInfo> timeSlots = new ArrayList<>();
 
         // 将已有课程按时间段分组
@@ -717,8 +758,8 @@ public class TeacherServiceImpl implements TeacherService {
             scheduleByTimeSlot.put(timeSlot, schedule);
         }
 
-        // 生成所有时间段的信息
-        for (String timeSlot : allTimeSlots) {
+        // 只生成教师可上课时间段的信息
+        for (String timeSlot : availableTimeSlots) {
             String[] times = timeSlot.split("-");
             LocalTime startTime = LocalTime.parse(times[0]);
             LocalTime endTime = LocalTime.parse(times[1]);
@@ -764,6 +805,23 @@ public class TeacherServiceImpl implements TeacherService {
         String[] times = timeSlot.split("-");
         LocalTime startTime = LocalTime.parse(times[0]);
         LocalTime endTime = LocalTime.parse(times[1]);
+
+        // 首先检查教师是否设置了该时间段为可上课时间
+        List<String> teacherAvailableSlots = getTeacherAvailableTimeSlotsForWeekday(teacherId, weekday);
+        boolean isTeacherAvailable = teacherAvailableSlots.isEmpty() || teacherAvailableSlots.contains(timeSlot);
+
+        // 如果教师没有设置该时间段为可上课时间，直接返回不可用
+        if (!isTeacherAvailable) {
+            return TimeSlotAvailability.builder()
+                    .weekday(weekday)
+                    .timeSlot(timeSlot)
+                    .available(false)
+                    .availabilityRate(0.0)
+                    .conflictDates(new ArrayList<>())
+                    .conflictReason("教师未设置该时间段为可上课时间")
+                    .description("教师未在该时间段设置为可上课时间")
+                    .build();
+        }
 
         List<String> conflictDates = new ArrayList<>();
         LocalDate currentDate = startDate;
@@ -817,6 +875,35 @@ public class TeacherServiceImpl implements TeacherService {
             "14:00-15:00", "15:00-16:00", "16:00-17:00", "17:00-18:00",
             "18:00-19:00", "19:00-20:00", "20:00-21:00"
         );
+    }
+
+    /**
+     * 获取教师在指定星期几的可上课时间段
+     * @param teacherId 教师ID
+     * @param weekday 星期几（ISO标准：1=周一, 7=周日）
+     * @return 该星期几的可上课时间段列表
+     */
+    private List<String> getTeacherAvailableTimeSlotsForWeekday(Long teacherId, int weekday) {
+        if (teacherId == null) {
+            return new ArrayList<>();
+        }
+
+        Teacher teacher = teacherMapper.selectById(teacherId);
+        if (teacher == null || teacher.getAvailableTimeSlots() == null) {
+            return new ArrayList<>();
+        }
+
+        // 解析教师的可上课时间设置
+        List<TimeSlotDTO> availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
+
+        // 查找指定星期几的时间段
+        for (TimeSlotDTO timeSlotDTO : availableTimeSlots) {
+            if (timeSlotDTO.getWeekday() != null && timeSlotDTO.getWeekday() == weekday) {
+                return timeSlotDTO.getTimeSlots() != null ? timeSlotDTO.getTimeSlots() : new ArrayList<>();
+            }
+        }
+
+        return new ArrayList<>();
     }
 
     /**
