@@ -10,6 +10,13 @@ interface Subject {
   name: string
 }
 
+// 年级接口
+interface Grade {
+  id: number
+  gradeName: string
+  description?: string
+}
+
 const userStore = useUserStore()
 
 // 学生信息表单
@@ -26,6 +33,9 @@ const studentForm = reactive<StudentInfo>({
 // 科目相关数据
 const subjects = ref<Subject[]>([])
 const selectedSubjectIds = ref<number[]>([])
+
+// 年级相关数据
+const grades = ref<Grade[]>([])
 
 // 计算属性：将选中的科目转换为字符串
 const subjectsString = computed(() => {
@@ -104,6 +114,31 @@ const fetchSubjects = async () => {
     }
   } catch (error) {
     console.error('获取科目列表失败:', error)
+  }
+}
+
+// 获取年级列表
+const fetchGrades = async () => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/public/grades`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      if (result.success && result.data) {
+        grades.value = result.data.map((grade: any) => ({
+          id: grade.id,
+          gradeName: grade.gradeName,
+          description: grade.description
+        }))
+      }
+    }
+  } catch (error) {
+    console.error('获取年级列表失败:', error)
   }
 }
 
@@ -257,6 +292,7 @@ const changeEmail = async () => {
 // 页面加载时获取数据
 onMounted(async () => {
   await fetchSubjects()
+  await fetchGrades()
   await fetchStudentProfile() // 这里会自动调用fetchStudentSubjects
 })
 </script>
@@ -302,18 +338,12 @@ onMounted(async () => {
               </el-form-item>
               <el-form-item label="年级">
                 <el-select v-model="studentForm.gradeLevel" placeholder="请选择年级" style="width: 100%">
-                  <el-option label="小学一年级" value="小学一年级"></el-option>
-                  <el-option label="小学二年级" value="小学二年级"></el-option>
-                  <el-option label="小学三年级" value="小学三年级"></el-option>
-                  <el-option label="小学四年级" value="小学四年级"></el-option>
-                  <el-option label="小学五年级" value="小学五年级"></el-option>
-                  <el-option label="小学六年级" value="小学六年级"></el-option>
-                  <el-option label="初一" value="初一"></el-option>
-                  <el-option label="初二" value="初二"></el-option>
-                  <el-option label="初三" value="初三"></el-option>
-                  <el-option label="高一" value="高一"></el-option>
-                  <el-option label="高二" value="高二"></el-option>
-                  <el-option label="高三" value="高三"></el-option>
+                  <el-option
+                    v-for="grade in grades"
+                    :key="grade.id"
+                    :label="grade.gradeName"
+                    :value="grade.gradeName"
+                  ></el-option>
                 </el-select>
               </el-form-item>
               <el-form-item label="感兴趣的科目">

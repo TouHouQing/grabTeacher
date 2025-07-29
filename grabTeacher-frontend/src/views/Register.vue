@@ -52,8 +52,16 @@ interface Subject {
   name: string
 }
 
+// 年级相关数据
+interface Grade {
+  id: number
+  gradeName: string
+  description?: string
+}
+
 const subjects = ref<Subject[]>([])
 const selectedSubjectIds = ref<number[]>([])
+const grades = ref<Grade[]>([])
 
 // 计算属性：将选中的科目转换为字符串（保持兼容性）
 const subjectsString = computed(() => {
@@ -106,10 +114,41 @@ const fetchSubjects = async () => {
   }
 }
 
-// 组件挂载时获取科目列表
+// 获取年级列表
+const fetchGrades = async () => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/public/grades`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      if (result.success && result.data) {
+        grades.value = result.data.map((grade: any) => ({
+          id: grade.id,
+          gradeName: grade.gradeName,
+          description: grade.description
+        }))
+      }
+    }
+  } catch (error) {
+    console.error('获取年级列表失败:', error)
+    // 如果获取失败，使用默认年级列表
+    grades.value = [
+      { id: 1, gradeName: '小学', description: '小学阶段' },
+      { id: 2, gradeName: '中学', description: '中学阶段' }
+    ]
+  }
+}
+
+// 组件挂载时获取科目列表和年级列表
 import { onMounted } from 'vue'
 onMounted(() => {
   fetchSubjects()
+  fetchGrades()
 })
 
 // 检查用户名是否可用
@@ -339,20 +378,13 @@ const handleRegister = async () => {
             <label for="gradeLevel">年级水平</label>
             <select id="gradeLevel" v-model="registerForm.gradeLevel">
               <option value="">请选择年级</option>
-              <option value="小学一年级">小学一年级</option>
-              <option value="小学二年级">小学二年级</option>
-              <option value="小学三年级">小学三年级</option>
-              <option value="小学四年级">小学四年级</option>
-              <option value="小学五年级">小学五年级</option>
-              <option value="小学六年级">小学六年级</option>
-              <option value="初中一年级">初中一年级</option>
-              <option value="初中二年级">初中二年级</option>
-              <option value="初中三年级">初中三年级</option>
-              <option value="高中一年级">高中一年级</option>
-              <option value="高中二年级">高中二年级</option>
-              <option value="高中三年级">高中三年级</option>
-              <option value="大学">大学</option>
-              <option value="成人教育">成人教育</option>
+              <option
+                v-for="grade in grades"
+                :key="grade.id"
+                :value="grade.gradeName"
+              >
+                {{ grade.gradeName }}
+              </option>
             </select>
           </div>
 
