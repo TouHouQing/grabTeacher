@@ -17,19 +17,19 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
     /**
      * 根据教师ID查询课程安排列表
      */
-    @Select("SELECT * FROM schedules WHERE teacher_id = #{teacherId} AND is_deleted = 0 ORDER BY scheduled_date DESC, start_time DESC")
+    @Select("SELECT * FROM schedules WHERE teacher_id = #{teacherId} AND is_deleted = 0 ORDER BY scheduled_date ASC, start_time ASC")
     List<Schedule> findByTeacherId(@Param("teacherId") Long teacherId);
     
     /**
      * 根据学生ID查询课程安排列表
      */
-    @Select("SELECT * FROM schedules WHERE student_id = #{studentId} AND is_deleted = 0 ORDER BY scheduled_date DESC, start_time DESC")
+    @Select("SELECT * FROM schedules WHERE student_id = #{studentId} AND is_deleted = 0 ORDER BY scheduled_date ASC, start_time ASC")
     List<Schedule> findByStudentId(@Param("studentId") Long studentId);
     
     /**
      * 根据课程ID查询课程安排列表
      */
-    @Select("SELECT * FROM schedules WHERE course_id = #{courseId} AND is_deleted = 0 ORDER BY scheduled_date DESC, start_time DESC")
+    @Select("SELECT * FROM schedules WHERE course_id = #{courseId} AND is_deleted = 0 ORDER BY scheduled_date ASC, start_time ASC")
     List<Schedule> findByCourseId(@Param("courseId") Long courseId);
     
     /**
@@ -95,7 +95,7 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
     /**
      * 查询指定状态的课程安排
      */
-    @Select("SELECT * FROM schedules WHERE status = #{status} AND is_deleted = 0 ORDER BY scheduled_date DESC, start_time DESC")
+    @Select("SELECT * FROM schedules WHERE status = #{status} AND is_deleted = 0 ORDER BY scheduled_date ASC, start_time ASC")
     List<Schedule> findByStatus(@Param("status") String status);
     
     /**

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Calendar, Timer, Refresh, Check, VideoCamera, ChatDotRound, InfoFilled, Download, Clock, Collection, Reading } from '@element-plus/icons-vue'
-import { bookingAPI, rescheduleAPI } from '@/utils/api'
+import { bookingAPI, rescheduleAPI, teacherAPI } from '@/utils/api'
 
 // 课程安排接口（基于后端ScheduleResponseDTO）
 interface CourseSchedule {
@@ -219,12 +219,109 @@ const rescheduleForm = ref({
   type: 'single' as 'single' | 'recurring'
 })
 
-// 可用时间段
+// 可用时间段（早上9点到晚上9点，每小时一个时段）
 const availableTimeSlots = ref<string[]>([
-  '09:00-10:00', '10:00-11:00', '11:00-12:00',
-  '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00',
-  '18:00-19:00', '19:00-20:00', '20:00-21:00'
+  '09:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00',
+  '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00',
+  '17:00-18:00', '18:00-19:00', '19:00-20:00', '20:00-21:00'
 ])
+
+// 教师可用时间段（从后端获取）
+const teacherAvailableTimeSlots = ref<any[]>([])
+
+// 获取教师可用时间
+const loadTeacherAvailableTime = async (teacherId: number) => {
+  try {
+    const result = await teacherAPI.getAvailableTime(teacherId)
+    if (result.success && result.data?.availableTimeSlots) {
+      teacherAvailableTimeSlots.value = result.data.availableTimeSlots
+    } else {
+      teacherAvailableTimeSlots.value = []
+    }
+  } catch (error) {
+    console.error('获取教师可用时间失败:', error)
+    teacherAvailableTimeSlots.value = []
+  }
+}
+
+// 检查时间段是否可用（基于教师设置和预约逻辑）
+const isTimeSlotAvailable = (weekday: number, timeSlot: string): boolean => {
+  if (teacherAvailableTimeSlots.value.length === 0) {
+    // 如果教师未设置可用时间，默认所有时间可用
+    return true
+  }
+
+  // 查找对应星期几的时间段（现在统一使用1-7格式）
+  const daySlot = teacherAvailableTimeSlots.value.find(slot => slot.weekday === weekday)
+  if (!daySlot || !daySlot.timeSlots) {
+    return false
+  }
+
+  // 检查时间段是否在教师可用时间内
+  return daySlot.timeSlots.includes(timeSlot)
+}
+
+// 获取可用的时间段（过滤掉不可用的）
+const getAvailableTimeSlotsForWeekday = (weekday: number): string[] => {
+  return availableTimeSlots.value.filter(timeSlot => isTimeSlotAvailable(weekday, timeSlot))
+}
+
+// 获取所有时间段（用于周期性调课显示）
+const getAllAvailableTimeSlots = computed(() => {
+  // 始终返回完整的时间段列表，让用户看到所有选项
+  return availableTimeSlots.value
+})
+
+// 检查时间段是否可选择（用于禁用不可用的时间段）
+const isTimeSlotSelectable = (timeSlot: string): boolean => {
+  if (teacherAvailableTimeSlots.value.length === 0) {
+    // 如果教师未设置可用时间，默认所有时间可选
+    return true
+  }
+
+  // 检查是否有任何星期几包含这个时间段
+  return teacherAvailableTimeSlots.value.some(daySlot =>
+    daySlot.timeSlots && daySlot.timeSlots.includes(timeSlot)
+  )
+}
+
+// 获取可选择的星期几（基于已选择的时间段）
+const getAvailableWeekdays = computed(() => {
+  if (rescheduleForm.value.selectedTimeSlots.length === 0) {
+    return []
+  }
+
+  const availableWeekdays: number[] = []
+
+  // 检查每个星期几
+  for (const weekday of [1, 2, 3, 4, 5, 6, 7]) {
+    // 检查该星期几是否有所有已选择的时间段可用
+    const hasAllTimeSlots = rescheduleForm.value.selectedTimeSlots.every(timeSlot =>
+      isTimeSlotAvailable(weekday, timeSlot)
+    )
+
+    if (hasAllTimeSlots) {
+      availableWeekdays.push(weekday)
+    }
+  }
+
+  return availableWeekdays
+})
+
+// 检查星期几是否可选择
+const isWeekdaySelectable = (weekday: number): boolean => {
+  return getAvailableWeekdays.value.includes(weekday)
+}
+
+// 获取下一节课（最近的未来课程）
+// 由于后端已经按时间正序排序，直接找第一个符合条件的即可
+const getNextSchedule = (schedules?: CourseSchedule[]): CourseSchedule | undefined => {
+  if (!schedules) return undefined
+
+  return schedules.find(s =>
+    new Date(s.scheduledDate) > new Date() && s.status === 'progressing'
+  )
+}
 
 // 调课申请记录
 const rescheduleRequests = ref<RescheduleRequest[]>([])
@@ -238,14 +335,12 @@ const showCourseDetail = (course: Course) => {
 }
 
 // 显示调课弹窗
-const showReschedule = (course: Course) => {
+const showReschedule = async (course: Course) => {
   currentRescheduleCourse.value = course
   rescheduleType.value = 'single'
 
   // 找到下次课程（最近的未来课程）
-  const nextSchedule = course.schedules?.find(s =>
-    new Date(s.scheduledDate) > new Date() && s.status === 'progressing'
-  )
+  const nextSchedule = getNextSchedule(course.schedules)
 
   let originalDate = ''
   let originalTime = ''
@@ -253,6 +348,9 @@ const showReschedule = (course: Course) => {
   if (nextSchedule) {
     originalDate = nextSchedule.scheduledDate
     originalTime = `${nextSchedule.startTime}-${nextSchedule.endTime}`
+
+    // 加载教师可用时间
+    await loadTeacherAvailableTime(nextSchedule.teacherId)
   }
 
   // 重置表单并设置原定课程信息
@@ -275,13 +373,26 @@ const switchRescheduleType = (type: 'single' | 'recurring') => {
   rescheduleType.value = type
   rescheduleForm.value.type = type
 
-  // 清空表单
+  // 保留原定课程信息，只清空新的安排
   if (type === 'single') {
+    // 切换到单次调课时，保留原定课程信息，清空周期性调课的选择
     rescheduleForm.value.selectedWeekdays = []
     rescheduleForm.value.selectedTimeSlots = []
+    rescheduleForm.value.newDate = ''
+    rescheduleForm.value.newTime = ''
+
+    // 重新设置原定课程信息（如果之前被清空了）
+    if (!rescheduleForm.value.originalDate || !rescheduleForm.value.originalTime) {
+      const nextSchedule = getNextSchedule(currentRescheduleCourse.value?.schedules)
+      if (nextSchedule) {
+        rescheduleForm.value.originalDate = nextSchedule.scheduledDate
+        rescheduleForm.value.originalTime = `${nextSchedule.startTime}-${nextSchedule.endTime}`
+      }
+    }
   } else {
-    rescheduleForm.value.originalDate = ''
-    rescheduleForm.value.originalTime = ''
+    // 切换到周期性调课时，清空单次调课的选择
+    rescheduleForm.value.selectedWeekdays = []
+    rescheduleForm.value.selectedTimeSlots = []
     rescheduleForm.value.newDate = ''
     rescheduleForm.value.newTime = ''
   }
@@ -297,11 +408,16 @@ const canReschedule = (dateStr: string): boolean => {
   return targetDate >= tomorrow
 }
 
-// 获取星期几的中文名称
+// 获取星期几的中文名称（统一使用后端格式：1-7）
 const getWeekdayName = (weekday: number): string => {
   const names = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
   return names[weekday] || '未知'
 }
+
+// 课程详情中的课程安排（后端已排序，直接使用）
+const sortedSchedules = computed(() => {
+  return currentCourse.value?.schedules || []
+})
 
 // 提交调课申请
 const submitReschedule = async () => {
@@ -340,9 +456,7 @@ const submitReschedule = async () => {
 
   try {
     // 获取最近的课程安排ID（用于调课申请）
-    const nextSchedule = currentRescheduleCourse.value.schedules?.find(s =>
-      new Date(s.scheduledDate) > new Date() && s.status === 'progressing'
-    )
+    const nextSchedule = getNextSchedule(currentRescheduleCourse.value.schedules)
 
     if (!nextSchedule) {
       ElMessage.error('没有找到可调课的课程安排')
@@ -795,7 +909,7 @@ export default {
           <h4>课程时间安排</h4>
           <div class="schedule-list">
             <div
-              v-for="(schedule, index) in currentCourse.schedules"
+              v-for="(schedule, index) in sortedSchedules"
               :key="schedule.id"
               class="schedule-item-detail"
               :class="getScheduleStatusClass(schedule.status)"
@@ -945,21 +1059,36 @@ export default {
             <el-form-item label="选择时间段">
               <div class="time-slot-selection">
                 <div
-                  v-for="time in availableTimeSlots"
+                  v-for="time in getAllAvailableTimeSlots"
                   :key="time"
                   :class="[
                     'time-slot-card',
-                    { 'selected': rescheduleForm.selectedTimeSlots.includes(time) }
+                    {
+                      'selected': rescheduleForm.selectedTimeSlots.includes(time),
+                      'disabled': !isTimeSlotSelectable(time)
+                    }
                   ]"
                   @click="() => {
+                    // 如果时间段不可选择，不允许点击
+                    if (!isTimeSlotSelectable(time)) {
+                      return
+                    }
+
                     if (rescheduleForm.selectedTimeSlots.includes(time)) {
                       rescheduleForm.selectedTimeSlots = rescheduleForm.selectedTimeSlots.filter(t => t !== time)
+                      // 清空不再可用的星期选择
+                      rescheduleForm.selectedWeekdays = rescheduleForm.selectedWeekdays.filter(weekday =>
+                        isWeekdaySelectable(weekday)
+                      )
                     } else {
                       rescheduleForm.selectedTimeSlots.push(time)
                     }
                   }"
                 >
                   <div class="slot-time">{{ time }}</div>
+                  <div v-if="!isTimeSlotSelectable(time)" class="unavailable-overlay">
+                    <span class="unavailable-text">不可用</span>
+                  </div>
                 </div>
               </div>
             </el-form-item>
@@ -968,13 +1097,20 @@ export default {
               <div class="weekday-selection">
                 <el-checkbox-group v-model="rescheduleForm.selectedWeekdays">
                   <el-checkbox
-                    v-for="weekday in [1, 2, 3, 4, 5, 6, 0]"
+                    v-for="weekday in [1, 2, 3, 4, 5, 6, 7]"
                     :key="weekday"
                     :label="weekday"
+                    :disabled="!isWeekdaySelectable(weekday)"
                   >
-                    <span class="weekday-label">{{ getWeekdayName(weekday) }}</span>
+                    <span class="weekday-label" :class="{ 'disabled': !isWeekdaySelectable(weekday) }">
+                      {{ getWeekdayName(weekday) }}
+                      <span v-if="!isWeekdaySelectable(weekday)" class="unavailable-hint">（不可用）</span>
+                    </span>
                   </el-checkbox>
                 </el-checkbox-group>
+              </div>
+              <div v-if="getAvailableWeekdays.length === 0" class="no-available-weekdays">
+                <el-text type="warning">所选时间段在任何星期都不可用，请重新选择时间段</el-text>
               </div>
             </el-form-item>
 
@@ -1335,12 +1471,13 @@ h2 {
 }
 
 .time-slot-card {
+  position: relative;
   background-color: #f8f8f8;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   padding: 12px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
   text-align: center;
   min-height: 50px;
   display: flex;
@@ -1542,6 +1679,59 @@ h2 {
 .schedule-info .el-tag {
   padding: 8px 12px;
   font-size: 14px;
+}
+
+/* 不可用选项样式 */
+.weekday-label.disabled {
+  color: #c0c4cc;
+  text-decoration: line-through;
+}
+
+.unavailable-hint {
+  font-size: 12px;
+  color: #f56c6c;
+  margin-left: 4px;
+}
+
+.no-available-slots,
+.no-available-weekdays {
+  text-align: center;
+  padding: 20px;
+  background-color: #fdf6ec;
+  border: 1px solid #f5dab1;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+/* 禁用状态的时间段卡片样式 */
+.time-slot-card.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.time-slot-card.disabled:hover {
+  transform: none;
+  box-shadow: none;
+  background-color: #f8f8f8;
+}
+
+.unavailable-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+}
+
+.unavailable-text {
+  font-size: 12px;
+  color: #f56c6c;
+  font-weight: 500;
 }
 
 .schedule-info .el-icon {
