@@ -435,6 +435,11 @@ export const bookingAPI = {
     return apiRequest(`/api/booking/student/schedules?${searchParams}`)
   },
 
+  // 获取学生的所有课程安排列表（不限日期范围）
+  getAllStudentSchedules: () => {
+    return apiRequest('/api/booking/student/schedules/all')
+  },
+
   // 检查免费试听资格
   checkTrialEligibility: () => apiRequest('/api/booking/trial/check'),
 

@@ -287,6 +287,19 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    public List<ScheduleResponseDTO> getAllStudentSchedules(Long studentUserId) {
+        Student student = studentMapper.findByUserId(studentUserId);
+        if (student == null) {
+            throw new RuntimeException("学生信息不存在");
+        }
+
+        List<Schedule> schedules = scheduleMapper.findByStudentId(student.getId());
+        return schedules.stream()
+                .map(this::convertToScheduleResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public boolean canUseFreeTrial(Long userId) {
         User user = userMapper.selectById(userId);
         return user != null && (user.getHasUsedTrial() == null || !user.getHasUsedTrial());

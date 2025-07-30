@@ -265,6 +265,29 @@ public class BookingController {
     }
 
     /**
+     * 获取学生的所有课程安排列表（不限日期范围）
+     */
+    @GetMapping("/student/schedules/all")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "获取学生的所有课程安排列表", description = "学生查看自己的所有课程安排，不限日期范围")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "获取成功"),
+            @ApiResponse(responseCode = "401", description = "未授权"),
+            @ApiResponse(responseCode = "403", description = "权限不足")
+    })
+    public ResponseEntity<com.touhouqing.grabteacherbackend.dto.ApiResponse<List<ScheduleResponseDTO>>> getAllStudentSchedules(
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        try {
+            List<ScheduleResponseDTO> response = bookingService.getAllStudentSchedules(currentUser.getId());
+            return ResponseEntity.ok(com.touhouqing.grabteacherbackend.dto.ApiResponse.success("获取成功", response));
+        } catch (Exception e) {
+            logger.error("获取学生所有课程安排列表异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(com.touhouqing.grabteacherbackend.dto.ApiResponse.error("获取失败"));
+        }
+    }
+
+    /**
      * 检查用户是否可以使用免费试听
      */
     @GetMapping("/trial/check")

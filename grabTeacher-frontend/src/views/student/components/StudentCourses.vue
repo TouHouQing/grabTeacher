@@ -76,14 +76,8 @@ const loadStudentSchedules = async () => {
   try {
     loading.value = true
 
-    // 获取未来3个月的课程安排
-    const startDate = new Date().toISOString().split('T')[0]
-    const endDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-
-    const result = await bookingAPI.getStudentSchedules({
-      startDate,
-      endDate
-    })
+    // 获取学生的所有课程安排，不限日期范围
+    const result = await bookingAPI.getAllStudentSchedules()
 
     if (result.success && result.data) {
       schedules.value = result.data

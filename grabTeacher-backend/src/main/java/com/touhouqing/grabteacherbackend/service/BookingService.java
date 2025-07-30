@@ -78,6 +78,13 @@ public interface BookingService {
      * @return 课程安排列表
      */
     List<ScheduleResponseDTO> getStudentSchedules(Long studentUserId, LocalDate startDate, LocalDate endDate);
+
+    /**
+     * 获取学生的所有课程安排列表（不限日期范围）
+     * @param studentUserId 学生用户ID
+     * @return 课程安排列表
+     */
+    List<ScheduleResponseDTO> getAllStudentSchedules(Long studentUserId);
     
     /**
      * 检查用户是否可以使用免费试听
