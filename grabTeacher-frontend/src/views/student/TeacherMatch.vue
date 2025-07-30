@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock, Close, Warning, SuccessFilled } from '@element-plus/icons-vue'
+import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock, Close, Warning, SuccessFilled, ArrowDown, Document } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { teacherAPI, subjectAPI, bookingAPI, gradeApi } from '@/utils/api'
 import ImprovedTimePreference from '../../components/ImprovedTimePreference.vue'
@@ -111,11 +111,18 @@ const loadingCourses = ref(false)
 const recurringSchedules = ref<RecurringSchedule[]>([])
 const availableTimeSlots = ref<AvailableTimeSlot[]>([])
 const selectedRecurringSchedule = ref<RecurringSchedule | null>(null)
+// 获取明天的日期作为默认开始日期
+const getDefaultStartDate = () => {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return tomorrow.toISOString().split('T')[0]
+}
+
 const scheduleForm = reactive({
   bookingType: 'recurring' as 'trial' | 'recurring', // 预约类型：试听或周期性
   selectedWeekdays: [] as number[],
   selectedTimeSlots: [] as string[], // 改为数组支持多选
-  startDate: '',
+  startDate: getDefaultStartDate(), // 默认设置为明天
   endDate: '',
   sessionCount: 12, // 默认12次课
   // 试听课相关字段
@@ -125,8 +132,10 @@ const scheduleForm = reactive({
 })
 
 // 准确的时间匹配度信息
-const accurateMatchScoreInfo = ref<{ score: number, message: string, type: string } | null>(null)
+const accurateMatchScoreInfo = ref<{ score: number, message: string, type: string, conflicts?: any[] } | null>(null)
 const matchScoreLoading = ref(false)
+const showMatchDetails = ref(false)
+const showConflictDetails = ref(false)
 
 // 月度课表查看相关数据
 const showMonthlyModal = ref(false)
@@ -414,7 +423,8 @@ const showTeacherSchedule = async (teacher: Teacher) => {
   scheduleForm.bookingType = 'recurring'
   scheduleForm.selectedWeekdays = []
   scheduleForm.selectedTimeSlots = []
-  scheduleForm.startDate = new Date().toISOString().split('T')[0]
+  // 设置开始日期为明天
+  scheduleForm.startDate = getDefaultStartDate()
   scheduleForm.endDate = ''
   scheduleForm.sessionCount = 12
   // 重置试听课字段
@@ -823,8 +833,8 @@ const selectTimeSlot = (time: string) => {
   }
   // 清空之前选择的星期，让用户重新选择
   scheduleForm.selectedWeekdays = []
-  // 重新计算结束日期
-  calculateEndDate()
+  // 注意：这里不调用calculateEndDate()，因为星期几已被清空
+  // 结束日期计算会在用户选择星期几后触发
   // 更新准确的匹配度信息
   updateAccurateMatchScore()
 }
@@ -980,8 +990,14 @@ const calculateTimeMatchScore = (): number => {
 
 // 使用后端API获取准确的时间匹配度
 const getAccurateTimeMatchScore = async (): Promise<number> => {
+  const result = await getDetailedTimeValidation()
+  return result.score
+}
+
+// 获取详细的时间验证信息
+const getDetailedTimeValidation = async (): Promise<{ score: number, conflicts: any[] }> => {
   if (!currentTeacher.value || scheduleForm.selectedTimeSlots.length === 0 || scheduleForm.selectedWeekdays.length === 0) {
-    return 0
+    return { score: 0, conflicts: [] }
   }
 
   try {
@@ -1001,14 +1017,20 @@ const getAccurateTimeMatchScore = async (): Promise<number> => {
     const result = await teacherAPI.validateBookingTime(currentTeacher.value.id, requestData)
 
     if (result.success && result.data) {
-      return result.data.overallMatchScore || 0
+      return {
+        score: result.data.overallMatchScore || 0,
+        conflicts: result.data.conflicts || []
+      }
     }
   } catch (error) {
-    console.error('获取准确时间匹配度失败:', error)
+    console.error('获取详细时间验证信息失败:', error)
   }
 
   // 如果API调用失败，回退到本地计算
-  return calculateTimeMatchScore()
+  return {
+    score: calculateTimeMatchScore(),
+    conflicts: []
+  }
 }
 
 // 获取匹配度提示信息
@@ -1042,34 +1064,72 @@ const getMatchScoreInfo = (): { score: number, message: string, type: string } =
   }
 }
 
+// 生成冲突摘要信息
+const getConflictSummary = (conflicts: any[]): string => {
+  if (!conflicts || conflicts.length === 0) return ''
+
+  const conflictsByType = conflicts.reduce((acc: Record<string, string[]>, conflict: any) => {
+    const key = `${getWeekdayName(conflict.weekday)} ${conflict.timeSlot}`
+    if (!acc[key]) {
+      acc[key] = []
+    }
+    if (conflict.conflictDates && Array.isArray(conflict.conflictDates)) {
+      acc[key].push(...conflict.conflictDates)
+    }
+    return acc
+  }, {})
+
+  const summaryParts: string[] = []
+  Object.entries(conflictsByType).forEach(([timeKey, dates]: [string, string[]]) => {
+    if (dates.length > 0) {
+      const dateStr = dates.length > 3
+        ? `${dates.slice(0, 3).map((d: string) => formatDate(d)).join('、')}等${dates.length}个日期`
+        : dates.map((d: string) => formatDate(d)).join('、')
+      summaryParts.push(`${timeKey}: ${dateStr}`)
+    }
+  })
+
+  return summaryParts.length > 0
+    ? `冲突时间: ${summaryParts.join('; ')}`
+    : ''
+}
+
 // 获取准确的匹配度提示信息（异步版本）
-const getAccurateMatchScoreInfo = async (): Promise<{ score: number, message: string, type: string }> => {
-  const score = await getAccurateTimeMatchScore()
+const getAccurateMatchScoreInfo = async (): Promise<{ score: number, message: string, type: string, conflicts?: any[] }> => {
+  const result = await getDetailedTimeValidation()
+  const score = result.score
+  const conflicts = result.conflicts || []
+
+  let message = ''
+  let type = ''
 
   if (score >= 80) {
-    return {
-      score,
-      message: `匹配度很高 (${score}%)，大部分时间段都可预约`,
-      type: 'success'
-    }
+    message = `匹配度很高 (${score}%)，大部分时间段都可预约`
+    type = 'success'
   } else if (score >= 60) {
-    return {
-      score,
-      message: `匹配度良好 (${score}%)，部分时间段可预约`,
-      type: 'warning'
-    }
+    message = `匹配度良好 (${score}%)，部分时间段可预约`
+    type = 'warning'
   } else if (score > 0) {
-    return {
-      score,
-      message: `匹配度较低 (${score}%)，建议调整时间选择`,
-      type: 'danger'
-    }
+    message = `匹配度较低 (${score}%)，建议调整时间选择`
+    type = 'danger'
   } else {
-    return {
-      score,
-      message: '所选时间段教师不可预约，请重新选择',
-      type: 'danger'
+    message = '所选时间段教师不可预约，请重新选择'
+    type = 'danger'
+  }
+
+  // 如果有冲突，在消息中添加冲突信息
+  if (conflicts.length > 0) {
+    const conflictSummary = getConflictSummary(conflicts)
+    if (conflictSummary) {
+      message += `\n${conflictSummary}`
     }
+  }
+
+  return {
+    score,
+    message,
+    type,
+    conflicts
   }
 }
 
@@ -1080,15 +1140,102 @@ const updateAccurateMatchScore = async () => {
     return
   }
 
+  // 如果没有设置开始日期和结束日期，不进行后端验证
+  if (!scheduleForm.startDate || !scheduleForm.endDate) {
+    accurateMatchScoreInfo.value = null
+    return
+  }
+
   matchScoreLoading.value = true
   try {
     accurateMatchScoreInfo.value = await getAccurateMatchScoreInfo()
+    console.log('更新的匹配度信息:', accurateMatchScoreInfo.value)
   } catch (error) {
     console.error('更新匹配度信息失败:', error)
     // 回退到本地计算
-    accurateMatchScoreInfo.value = getMatchScoreInfo()
+    const localInfo = getMatchScoreInfo()
+    accurateMatchScoreInfo.value = {
+      score: localInfo.score,
+      message: localInfo.message,
+      type: localInfo.type,
+      conflicts: []
+    }
   } finally {
     matchScoreLoading.value = false
+  }
+}
+
+// 切换匹配度详情展开/收起
+const toggleMatchDetails = () => {
+  showMatchDetails.value = !showMatchDetails.value
+}
+
+// 切换冲突详情展开/收起
+const toggleConflictDetails = () => {
+  showConflictDetails.value = !showConflictDetails.value
+}
+
+// 处理星期几选择变化
+const onWeekdayChange = () => {
+  // 当星期几选择发生变化时，重新计算结束日期
+  calculateEndDate()
+  // 更新匹配度信息
+  updateAccurateMatchScore()
+}
+
+// 获取进度条颜色
+const getProgressColor = (type: string) => {
+  switch (type) {
+    case 'success':
+      return '#67c23a'
+    case 'warning':
+      return '#e6a23c'
+    case 'danger':
+      return '#f56c6c'
+    default:
+      return '#909399'
+  }
+}
+
+// 获取冲突严重程度文本
+const getSeverityText = (severity: string) => {
+  switch (severity) {
+    case 'HIGH':
+      return '严重'
+    case 'MEDIUM':
+      return '中等'
+    case 'LOW':
+      return '轻微'
+    default:
+      return '未知'
+  }
+}
+
+// 获取冲突严重程度提示
+const getSeverityTooltip = (severity: string) => {
+  switch (severity) {
+    case 'HIGH':
+      return '严重冲突：该时间段完全不可用，需要重新选择时间'
+    case 'MEDIUM':
+      return '中等冲突：部分时间可用，建议调整或协商'
+    case 'LOW':
+      return '轻微冲突：大部分时间可用，影响较小'
+    default:
+      return '冲突程度未知'
+  }
+}
+
+// 格式化冲突日期显示
+const formatConflictDate = (dateStr: string) => {
+  try {
+    const date = new Date(dateStr)
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    const weekday = date.getDay()
+    const weekdayNames = ['日', '一', '二', '三', '四', '五', '六']
+    return `${month}/${day}(${weekdayNames[weekday]})`
+  } catch (error) {
+    return dateStr
   }
 }
 
@@ -1705,6 +1852,51 @@ onMounted(() => {
             </div>
           </el-form-item>
 
+          <!-- 周期性预约的课程安排设置 -->
+          <template v-if="scheduleForm.bookingType === 'recurring'">
+            <el-form-item label="课程安排">
+              <div class="course-schedule-row">
+                <div class="schedule-item">
+                  <label class="schedule-label">开始日期</label>
+                  <el-date-picker
+                    v-model="scheduleForm.startDate"
+                    type="date"
+                    placeholder="选择开始日期"
+                    :disabled-date="(date) => date < new Date()"
+                    format="YYYY-MM-DD"
+                    value-format="YYYY-MM-DD"
+                    @change="calculateEndDate"
+                    style="width: 160px"
+                  />
+                </div>
+
+                <div class="schedule-item">
+                  <label class="schedule-label">课程次数</label>
+                  <div class="session-count-wrapper">
+                    <el-input-number
+                      v-model="scheduleForm.sessionCount"
+                      :min="1"
+                      :max="50"
+                      @change="calculateEndDate"
+                      style="width: 120px"
+                    />
+                    <span class="session-unit">次课</span>
+                  </div>
+                </div>
+
+                <div class="schedule-item">
+                  <label class="schedule-label">结束日期</label>
+                  <el-input
+                    v-model="scheduleForm.endDate"
+                    placeholder="自动计算"
+                    readonly
+                    style="width: 160px"
+                  />
+                </div>
+              </div>
+            </el-form-item>
+          </template>
+
           <!-- 试听课表单 -->
           <template v-if="scheduleForm.bookingType === 'trial'">
             <el-alert
@@ -1844,7 +2036,7 @@ onMounted(() => {
           <el-form-item label="选择星期" v-if="scheduleForm.selectedTimeSlots.length > 0">
             <div class="form-item-tip">选择每周的哪几天上课 (可横向滑动查看所有选项)</div>
             <div class="weekday-selection">
-              <el-checkbox-group v-model="scheduleForm.selectedWeekdays">
+              <el-checkbox-group v-model="scheduleForm.selectedWeekdays" @change="onWeekdayChange">
                 <el-checkbox
                   v-for="weekday in [1, 2, 3, 4, 5, 6, 7]"
                   :key="weekday"
@@ -1863,131 +2055,103 @@ onMounted(() => {
             </div>
           </el-form-item>
 
-          <!-- 时间匹配度提示 - 重新设计 -->
-          <el-form-item v-if="scheduleForm.selectedTimeSlots.length > 0 && scheduleForm.selectedWeekdays.length > 0">
-            <div class="enhanced-match-info">
-              <!-- 匹配度卡片 -->
-              <div class="match-score-card" :class="(accurateMatchScoreInfo || getMatchScoreInfo()).type">
-                <div class="match-header">
-                  <div class="match-icon">
-                    <el-icon v-if="matchScoreLoading"><Loading /></el-icon>
-                    <el-icon v-else-if="(accurateMatchScoreInfo || getMatchScoreInfo()).type === 'success'"><Check /></el-icon>
-                    <el-icon v-else-if="(accurateMatchScoreInfo || getMatchScoreInfo()).type === 'warning'"><InfoFilled /></el-icon>
-                    <el-icon v-else><Close /></el-icon>
+          <!-- 时间匹配度分析 - 紧凑设计 -->
+          <el-form-item v-if="scheduleForm.selectedTimeSlots.length > 0 && scheduleForm.selectedWeekdays.length > 0" label="时间匹配度分析">
+            <div class="compact-match-analysis">
+              <!-- 紧凑的匹配度显示 -->
+              <div class="compact-match-card" :class="(accurateMatchScoreInfo || getMatchScoreInfo()).type">
+                <div class="compact-match-header" @click="toggleMatchDetails">
+                  <div class="match-info-inline">
+                    <div class="match-status-indicator">
+                      <el-icon v-if="matchScoreLoading" class="loading-icon"><Loading /></el-icon>
+                      <el-icon v-else-if="(accurateMatchScoreInfo || getMatchScoreInfo()).type === 'success'"><Check /></el-icon>
+                      <el-icon v-else-if="(accurateMatchScoreInfo || getMatchScoreInfo()).type === 'warning'"><InfoFilled /></el-icon>
+                      <el-icon v-else><Close /></el-icon>
+                    </div>
+                    <span class="match-description">{{ (accurateMatchScoreInfo || getMatchScoreInfo()).message.split('\n')[0] }}</span>
                   </div>
-                  <div class="match-title">
-                    <h4>时间匹配度分析</h4>
-                    <span class="match-subtitle">{{ matchScoreLoading ? '正在计算准确匹配度...' : '基于您选择的时间段和星期' }}</span>
+                  <div class="match-score-inline">
+                    <span class="score-value">{{ matchScoreLoading ? '...' : (accurateMatchScoreInfo || getMatchScoreInfo()).score }}%</span>
+                    <el-icon class="expand-icon" :class="{ 'rotated': showMatchDetails }"><ArrowDown /></el-icon>
                   </div>
                 </div>
 
-                <div class="match-content">
-                  <!-- 匹配度环形进度 -->
-                  <div class="match-progress-section">
-                    <div class="circular-progress">
-                      <el-progress
-                        type="circle"
-                        :percentage="(accurateMatchScoreInfo || getMatchScoreInfo()).score"
-                        :width="120"
-                        :stroke-width="8"
-                        :color="(accurateMatchScoreInfo || getMatchScoreInfo()).type === 'success' ? '#67c23a' : (accurateMatchScoreInfo || getMatchScoreInfo()).type === 'warning' ? '#e6a23c' : '#f56c6c'"
-                      >
-                        <template #default="{ percentage }">
-                          <div class="progress-content">
-                            <div class="percentage">{{ matchScoreLoading ? '...' : percentage + '%' }}</div>
-                            <div class="progress-label">匹配度</div>
+                <!-- 紧凑的详细内容 -->
+                <el-collapse-transition>
+                  <div v-show="showMatchDetails" class="compact-details-content">
+
+
+                    <!-- 详细的冲突信息 -->
+                    <div v-if="accurateMatchScoreInfo && accurateMatchScoreInfo.conflicts && accurateMatchScoreInfo.conflicts.length > 0" class="conflicts-compact">
+                      <div class="conflicts-header" @click="toggleConflictDetails">
+                        <el-icon><Warning /></el-icon>
+                        <span>发现 {{ accurateMatchScoreInfo.conflicts.length }} 个时间冲突</span>
+                        <el-icon class="conflict-expand-icon" :class="{ 'rotated': showConflictDetails }"><ArrowDown /></el-icon>
+                      </div>
+                      <div class="conflicts-details-compact">
+                        <!-- 始终显示前3个冲突 -->
+                        <div
+                          v-for="conflict in accurateMatchScoreInfo.conflicts.slice(0, 3)"
+                          :key="`${conflict.weekday}-${conflict.timeSlot}`"
+                          class="conflict-item-compact"
+                        >
+                          <div class="conflict-time-info">
+                            <el-tag type="warning" size="small" class="conflict-tag-compact">
+                              <span v-if="conflict.conflictDates && conflict.conflictDates.length > 0" class="conflict-dates-inline">
+                                {{ conflict.conflictDates.slice(0, 1).map(d => formatConflictDate(d))[0] }}
+                              </span>
+                              {{ getWeekdayName(conflict.weekday) }} {{ conflict.timeSlot }}
+                            </el-tag>
+                            <span class="conflict-reason-text">{{ conflict.conflictReason }}</span>
                           </div>
-                        </template>
-                      </el-progress>
+                        </div>
+
+                        <!-- 可展开的其他冲突 -->
+                        <el-collapse-transition>
+                          <div v-show="showConflictDetails && accurateMatchScoreInfo.conflicts.length > 3">
+                            <div
+                              v-for="conflict in accurateMatchScoreInfo.conflicts.slice(3)"
+                              :key="`${conflict.weekday}-${conflict.timeSlot}-extra`"
+                              class="conflict-item-compact"
+                            >
+                              <div class="conflict-time-info">
+                                <el-tag type="warning" size="small" class="conflict-tag-compact">
+                                  <span v-if="conflict.conflictDates && conflict.conflictDates.length > 0" class="conflict-dates-inline">
+                                    {{ conflict.conflictDates.slice(0, 1).map(d => formatConflictDate(d))[0] }}
+                                  </span>
+                                  {{ getWeekdayName(conflict.weekday) }} {{ conflict.timeSlot }}
+                                </el-tag>
+                                <span class="conflict-reason-text">{{ conflict.conflictReason }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </el-collapse-transition>
+
+                        <!-- 展开提示 -->
+                        <div v-if="accurateMatchScoreInfo.conflicts.length > 3 && !showConflictDetails" class="more-conflicts-toggle" @click="toggleConflictDetails">
+                          <el-icon><ArrowDown /></el-icon>
+                          <span>查看其他 {{ accurateMatchScoreInfo.conflicts.length - 3 }} 个冲突</span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div class="match-stats">
-                      <div class="stat-item">
-                        <div class="stat-number">{{ scheduleForm.selectedTimeSlots.length }}</div>
-                        <div class="stat-label">选择时段</div>
-                      </div>
-                      <div class="stat-item">
-                        <div class="stat-number">{{ scheduleForm.selectedWeekdays.length }}</div>
-                        <div class="stat-label">选择天数</div>
-                      </div>
-                      <div class="stat-item">
-                        <div class="stat-number">{{ Math.round(((accurateMatchScoreInfo || getMatchScoreInfo()).score / 100) * scheduleForm.selectedTimeSlots.length * scheduleForm.selectedWeekdays.length) }}</div>
-                        <div class="stat-label">可用组合</div>
-                      </div>
+                    <!-- 智能建议 -->
+                    <div v-if="(accurateMatchScoreInfo || getMatchScoreInfo()).score < 80" class="suggestion-compact">
+                      <el-icon><InfoFilled /></el-icon>
+                      <span v-if="(accurateMatchScoreInfo || getMatchScoreInfo()).score === 0">
+                        💡 当前时间段不可用，请尝试其他时间
+                      </span>
+                      <span v-else-if="(accurateMatchScoreInfo || getMatchScoreInfo()).score < 50">
+                        ⚠️ 冲突较多，建议重新规划时间安排
+                      </span>
+                      <span v-else>
+                        ✨ 可以微调时间或与教师沟通协商
+                      </span>
                     </div>
                   </div>
-
-                  <!-- 匹配度描述和建议 -->
-                  <div class="match-description">
-                    <div class="description-text">
-                      <el-icon class="desc-icon"><Calendar /></el-icon>
-                      <span>{{ (accurateMatchScoreInfo || getMatchScoreInfo()).message }}</span>
-                    </div>
-
-                    <div v-if="(accurateMatchScoreInfo || getMatchScoreInfo()).score < 80" class="match-suggestions">
-                      <div class="suggestions-title">
-                        <el-icon><InfoFilled /></el-icon>
-                        <span>优化建议</span>
-                      </div>
-                      <div class="suggestions-list">
-                        <div v-if="(accurateMatchScoreInfo || getMatchScoreInfo()).score === 0" class="suggestion-item">
-                          <el-icon class="suggestion-icon"><Warning /></el-icon>
-                          <span>当前选择的时间段教师不可预约，请重新选择时间</span>
-                        </div>
-                        <div v-else class="suggestion-item">
-                          <el-icon class="suggestion-icon"><Clock /></el-icon>
-                          <span>可以尝试调整时间段选择，或联系教师协商其他可用时间</span>
-                        </div>
-                        <div v-if="(accurateMatchScoreInfo || getMatchScoreInfo()).score > 0 && (accurateMatchScoreInfo || getMatchScoreInfo()).score < 60" class="suggestion-item">
-                          <el-icon class="suggestion-icon"><Refresh /></el-icon>
-                          <span>建议选择更多教师可用的时间段以提高匹配度</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div v-else class="match-success-info">
-                      <div class="success-message">
-                        <el-icon class="success-icon"><SuccessFilled /></el-icon>
-                        <span>时间安排非常合适，可以直接提交预约申请！</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                </el-collapse-transition>
               </div>
             </div>
-          </el-form-item>
-
-          <el-form-item label="开始日期">
-            <el-date-picker
-              v-model="scheduleForm.startDate"
-              type="date"
-              placeholder="选择开始日期"
-              :disabled-date="(date) => date < new Date()"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-              @change="calculateEndDate"
-              style="width: 200px"
-            />
-          </el-form-item>
-
-          <el-form-item label="课程次数">
-            <el-input-number
-              v-model="scheduleForm.sessionCount"
-              :min="1"
-              :max="50"
-              @change="calculateEndDate"
-              style="width: 200px"
-            />
-            <span class="session-info">次课</span>
-          </el-form-item>
-
-          <el-form-item label="结束日期">
-            <el-input
-              v-model="scheduleForm.endDate"
-              placeholder="自动计算"
-              readonly
-              style="width: 200px"
-            />
           </el-form-item>
 
           <el-form-item label="课程预览" v-if="scheduleForm.selectedWeekdays.length > 0 && scheduleForm.selectedTimeSlots.length > 0">
@@ -2720,6 +2884,112 @@ h2 {
   line-height: 1.3;
 }
 
+/* 冲突详情样式 */
+.conflict-details {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #fef7e6;
+  border: 1px solid #ffd666;
+  border-radius: 8px;
+}
+
+.conflict-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #e6a23c;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.conflict-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.conflict-item {
+  padding: 12px;
+  background-color: #fff;
+  border: 1px solid #ffd666;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.conflict-time {
+  margin-bottom: 6px;
+}
+
+.conflict-reason {
+  color: #e6a23c;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.conflict-dates {
+  color: #666;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.conflict-suggestion {
+  color: #409eff;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* 课程安排行样式 */
+.course-schedule-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.schedule-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedule-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #606266;
+  margin-bottom: 0;
+}
+
+.session-count-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.session-unit {
+  font-size: 14px;
+  color: #606266;
+  white-space: nowrap;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .course-schedule-row {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .schedule-item {
+    width: 100%;
+  }
+
+  .schedule-item .el-date-picker,
+  .schedule-item .el-input-number,
+  .schedule-item .el-input {
+    width: 100% !important;
+  }
+}
+
 .weekday-selection {
   background-color: #f9f9f9;
   border-radius: 8px;
@@ -2749,10 +3019,7 @@ h2 {
   background: #a8a8a8;
 }
 
-.session-info {
-  margin-left: 10px;
-  color: #666;
-}
+
 
 /* 优化复选框组样式 */
 .el-checkbox-group {
@@ -3527,23 +3794,494 @@ h2 {
   line-height: 1.4;
 }
 
-/* 增强的匹配度信息样式 */
-.enhanced-match-info {
-  margin: 24px 0;
+/* 紧凑的匹配度分析样式 */
+.compact-match-analysis {
+  width: 100%;
 }
 
-.match-score-card {
+.compact-match-card {
   background: #fff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 2px solid #f0f0f0;
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
+  overflow: hidden;
   transition: all 0.3s ease;
 }
 
-.match-score-card.success {
+.compact-match-card.success {
   border-color: #67c23a;
   background: linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%);
+}
+
+.compact-match-card.warning {
+  border-color: #e6a23c;
+  background: linear-gradient(135deg, #fdf6ec 0%, #fef0e6 100%);
+}
+
+.compact-match-card.danger {
+  border-color: #f56c6c;
+  background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%);
+}
+
+.compact-match-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.compact-match-header:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.match-info-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.match-status-indicator {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.compact-match-card.success .match-status-indicator {
+  color: #67c23a;
+}
+
+.compact-match-card.warning .match-status-indicator {
+  color: #e6a23c;
+}
+
+.compact-match-card.danger .match-status-indicator {
+  color: #f56c6c;
+}
+
+.loading-icon {
+  animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.match-description {
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.match-score-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.score-value {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.compact-match-card.success .score-value {
+  color: #67c23a;
+}
+
+.compact-match-card.warning .score-value {
+  color: #e6a23c;
+}
+
+.compact-match-card.danger .score-value {
+  color: #f56c6c;
+}
+
+.expand-icon {
+  font-size: 14px;
+  color: #909399;
+  transition: transform 0.3s ease;
+}
+
+.expand-icon.rotated {
+  transform: rotate(180deg);
+}
+
+/* 紧凑详细内容样式 */
+.compact-details-content {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* 统计信息行样式 */
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.stat-item-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.stat-label-compact {
+  font-size: 12px;
+  color: #909399;
+  text-align: center;
+}
+
+.stat-value-compact {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+/* 冲突信息紧凑样式 */
+.conflicts-compact {
+  margin-bottom: 12px;
+}
+
+.conflicts-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #e6a23c;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.conflicts-header:hover {
+  background-color: rgba(230, 162, 60, 0.1);
+}
+
+.conflict-expand-icon {
+  margin-left: auto;
+  font-size: 12px;
+  transition: transform 0.3s ease;
+}
+
+.conflict-expand-icon.rotated {
+  transform: rotate(180deg);
+}
+
+.conflicts-details-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conflict-item-compact {
+  background: rgba(230, 162, 60, 0.05);
+  border-radius: 6px;
+  padding: 8px;
+  border-left: 3px solid #e6a23c;
+}
+
+.conflict-time-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.conflict-tag-compact {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.conflict-dates-inline {
+  margin-right: 4px;
+  font-weight: 600;
+  color: #f56c6c;
+}
+
+.conflict-reason-text {
+  font-size: 12px;
+  color: #e6a23c;
+  font-weight: 500;
+}
+
+.more-conflicts-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  cursor: pointer;
+  padding: 6px 8px;
+  margin-top: 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.more-conflicts-toggle:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #606266;
+}
+
+.conflict-dates-compact {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #909399;
+}
+
+.date-icon {
+  font-size: 12px;
+}
+
+.dates-text {
+  line-height: 1.2;
+}
+
+.more-dates {
+  color: #c0c4cc;
+  font-style: italic;
+}
+
+.more-conflicts-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #909399;
+  font-style: italic;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+}
+
+/* 建议信息紧凑样式 */
+.suggestion-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #409eff;
+  padding: 8px 12px;
+  background: rgba(64, 158, 255, 0.1);
+  border-radius: 6px;
+  border-left: 3px solid #409eff;
+}
+
+
+
+/* 区域标题样式 */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.section-icon {
+  color: #e6a23c;
+  font-size: 18px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+  flex: 1;
+}
+
+/* 冲突详情样式 */
+.conflicts-section {
+  margin-bottom: 24px;
+}
+
+.conflicts-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.conflict-card {
+  background: #fff;
+  border: 1px solid #ffd666;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.conflict-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.conflict-time-tag {
+  font-weight: 500;
+}
+
+.conflict-severity {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.conflict-severity.high {
+  background: #fef0f0;
+  color: #f56c6c;
+}
+
+.conflict-severity.medium {
+  background: #fdf6ec;
+  color: #e6a23c;
+}
+
+.conflict-severity.low {
+  background: #f0f9ff;
+  color: #409eff;
+}
+
+.severity-text {
+  font-weight: 600;
+}
+
+.conflict-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conflict-reason {
+  font-weight: 500;
+  color: #e6a23c;
+}
+
+.conflict-dates,
+.conflict-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #606266;
+}
+
+.more-dates {
+  color: #909399;
+  font-style: italic;
+}
+
+/* 建议区域样式 */
+.suggestions-section {
+  margin-bottom: 16px;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.suggestion-item.high {
+  background: #fef0f0;
+  border-left-color: #f56c6c;
+}
+
+.suggestion-item.medium {
+  background: #fdf6ec;
+  border-left-color: #e6a23c;
+}
+
+.suggestion-item.low {
+  background: #f0f9ff;
+  border-left-color: #409eff;
+}
+
+.suggestion-icon {
+  margin-top: 2px;
+  font-size: 16px;
+}
+
+.suggestion-item.high .suggestion-icon {
+  color: #f56c6c;
+}
+
+.suggestion-item.medium .suggestion-icon {
+  color: #e6a23c;
+}
+
+.suggestion-item.low .suggestion-icon {
+  color: #409eff;
+}
+
+.suggestion-content {
+  flex: 1;
+}
+
+.suggestion-title {
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.suggestion-desc {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.4;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .stats-row {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .stat-item-compact {
+    min-width: calc(50% - 6px);
+  }
+
+  .compact-match-header {
+    padding: 10px 12px;
+  }
+
+  .compact-details-content {
+    padding: 10px 12px;
+  }
+
+  .match-description {
+    font-size: 13px;
+  }
+
+  .score-value {
+    font-size: 16px;
+  }
 }
 
 .match-score-card.warning {
