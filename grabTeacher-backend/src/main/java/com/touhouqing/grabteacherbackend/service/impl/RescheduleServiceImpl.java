@@ -103,8 +103,9 @@ public class RescheduleServiceImpl implements RescheduleService {
                 .reason(request.getReason())
                 .urgencyLevel(request.getUrgencyLevel())
                 .advanceNoticeHours(advanceNoticeHours)
+                .affectsFutureSessions(request.getAffectsFutureSessions())
                 .status("pending")
-                .effectiveDate(request.getEffectiveDate())
+
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .isDeleted(false)
@@ -164,12 +165,13 @@ public class RescheduleServiceImpl implements RescheduleService {
         rescheduleRequest.setReviewerType("teacher");
         rescheduleRequest.setReviewNotes(approval.getReviewNotes());
         rescheduleRequest.setCompensationAmount(approval.getCompensationAmount());
-        rescheduleRequest.setProcessedAt(LocalDateTime.now());
+        if (approval.getAffectsFutureSessions() != null) {
+            rescheduleRequest.setAffectsFutureSessions(approval.getAffectsFutureSessions());
+        }
+        rescheduleRequest.setReviewedAt(LocalDateTime.now());
         rescheduleRequest.setUpdatedAt(LocalDateTime.now());
         
-        if (approval.getEffectiveDate() != null) {
-            rescheduleRequest.setEffectiveDate(approval.getEffectiveDate());
-        }
+
 
         rescheduleRequestMapper.updateById(rescheduleRequest);
 
@@ -420,6 +422,11 @@ public class RescheduleServiceImpl implements RescheduleService {
             schedule.setStartTime(rescheduleRequest.getNewStartTime());
             schedule.setEndTime(rescheduleRequest.getNewEndTime());
             scheduleMapper.updateById(schedule);
+
+            // 重新计算同一预约申请下所有课程的session_number
+            if (schedule.getBookingRequestId() != null) {
+                recalculateSessionNumbers(schedule.getBookingRequestId());
+            }
         } else if ("recurring".equals(rescheduleRequest.getRequestType())) {
             // 周期性调课：需要更新后续所有课程安排
             // 这里简化处理，实际可能需要更复杂的逻辑
@@ -429,6 +436,49 @@ public class RescheduleServiceImpl implements RescheduleService {
             schedule.setStatus("cancelled");
             scheduleMapper.updateById(schedule);
         }
+    }
+
+    /**
+     * 重新计算指定预约申请下所有课程的session_number
+     * 根据实际上课时间（日期+时间）重新排序
+     */
+    private void recalculateSessionNumbers(Long bookingRequestId) {
+        log.info("重新计算预约申请 {} 下所有课程的session_number", bookingRequestId);
+
+        // 获取该预约申请下的所有课程安排，按时间排序
+        List<Schedule> schedules = scheduleMapper.findByBookingRequestId(bookingRequestId);
+
+        if (schedules.isEmpty()) {
+            log.warn("预约申请 {} 下没有找到课程安排", bookingRequestId);
+            return;
+        }
+
+        // 按实际上课时间排序（日期+时间）
+        schedules.sort((s1, s2) -> {
+            // 首先按日期排序
+            int dateCompare = s1.getScheduledDate().compareTo(s2.getScheduledDate());
+            if (dateCompare != 0) {
+                return dateCompare;
+            }
+            // 如果日期相同，按开始时间排序
+            return s1.getStartTime().compareTo(s2.getStartTime());
+        });
+
+        // 重新分配session_number
+        for (int i = 0; i < schedules.size(); i++) {
+            Schedule schedule = schedules.get(i);
+            int newSessionNumber = i + 1;
+
+            // 只有当session_number发生变化时才更新
+            if (schedule.getSessionNumber() == null || !schedule.getSessionNumber().equals(newSessionNumber)) {
+                schedule.setSessionNumber(newSessionNumber);
+                scheduleMapper.updateById(schedule);
+                log.debug("更新课程安排 {} 的session_number: {} -> {}",
+                         schedule.getId(), schedule.getSessionNumber(), newSessionNumber);
+            }
+        }
+
+        log.info("预约申请 {} 下共 {} 个课程安排的session_number重新计算完成", bookingRequestId, schedules.size());
     }
 
     /**
@@ -483,8 +533,9 @@ public class RescheduleServiceImpl implements RescheduleService {
                 .reviewerType(rescheduleRequest.getReviewerType())
                 .reviewNotes(rescheduleRequest.getReviewNotes())
                 .compensationAmount(rescheduleRequest.getCompensationAmount())
-                .processedAt(rescheduleRequest.getProcessedAt())
-                .effectiveDate(rescheduleRequest.getEffectiveDate())
+                .affectsFutureSessions(rescheduleRequest.getAffectsFutureSessions())
+                .reviewedAt(rescheduleRequest.getReviewedAt())
+
                 .createdAt(rescheduleRequest.getCreatedAt())
                 .updatedAt(rescheduleRequest.getUpdatedAt());
 

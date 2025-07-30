@@ -605,7 +605,7 @@ export const rescheduleAPI = {
     reason: string
     urgencyLevel?: 'low' | 'medium' | 'high'
     advanceNoticeHours?: number
-    effectiveDate?: string
+    affectsFutureSessions?: boolean
     notes?: string
   }) => apiRequest('/api/reschedule/request', {
     method: 'POST',
@@ -617,7 +617,7 @@ export const rescheduleAPI = {
     status: 'approved' | 'rejected'
     reviewNotes?: string
     compensationAmount?: number
-    effectiveDate?: string
+    affectsFutureSessions?: boolean
   }) => apiRequest(`/api/reschedule/${id}/approve`, {
     method: 'PUT',
     body: JSON.stringify(data)
@@ -665,7 +665,17 @@ export const rescheduleAPI = {
   getPendingCount: () => apiRequest('/api/reschedule/teacher/pending-count'),
 
   // 检查是否可以申请调课
-  canApply: (scheduleId: number) => apiRequest(`/api/reschedule/can-apply/${scheduleId}`)
+  canApply: (scheduleId: number) => apiRequest(`/api/reschedule/can-apply/${scheduleId}`),
+
+  // 检查调课时间冲突
+  checkTimeConflict: (scheduleId: number, newDate: string, newStartTime: string, newEndTime: string) => {
+    const params = new URLSearchParams({
+      newDate,
+      newStartTime,
+      newEndTime
+    })
+    return apiRequest(`/api/reschedule/check-conflict/${scheduleId}?${params}`)
+  }
 }
 
 // 年级管理API

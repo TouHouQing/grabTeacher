@@ -5,6 +5,14 @@ import com.touhouqing.grabteacherbackend.dto.ApiResponse;
 import com.touhouqing.grabteacherbackend.dto.RescheduleApprovalDTO;
 import com.touhouqing.grabteacherbackend.dto.RescheduleRequestDTO;
 import com.touhouqing.grabteacherbackend.dto.RescheduleResponseDTO;
+import com.touhouqing.grabteacherbackend.entity.Schedule;
+import com.touhouqing.grabteacherbackend.entity.Student;
+import com.touhouqing.grabteacherbackend.entity.Teacher;
+import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
+import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
+import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.RescheduleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,11 +23,16 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
 
 /**
  * 调课管理控制器
@@ -31,8 +44,40 @@ public class RescheduleController {
 
     private static final Logger logger = LoggerFactory.getLogger(RescheduleController.class);
 
+    /**
+     * 调课时间检查结果
+     */
+    public static class RescheduleTimeCheckResult {
+        private boolean hasConflict;
+        private String conflictType; // "teacher_unavailable" 或 "time_conflict"
+        private String message;
+
+        public RescheduleTimeCheckResult(boolean hasConflict, String conflictType, String message) {
+            this.hasConflict = hasConflict;
+            this.conflictType = conflictType;
+            this.message = message;
+        }
+
+        // Getters and setters
+        public boolean isHasConflict() { return hasConflict; }
+        public void setHasConflict(boolean hasConflict) { this.hasConflict = hasConflict; }
+        public String getConflictType() { return conflictType; }
+        public void setConflictType(String conflictType) { this.conflictType = conflictType; }
+        public String getMessage() { return message; }
+        public void setMessage(String message) { this.message = message; }
+    }
+
     @Autowired
     private RescheduleService rescheduleService;
+
+    @Autowired
+    private ScheduleMapper scheduleMapper;
+
+    @Autowired
+    private StudentMapper studentMapper;
+
+    @Autowired
+    private TeacherMapper teacherMapper;
 
     /**
      * 创建调课申请（学生操作）
@@ -215,5 +260,142 @@ public class RescheduleController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("检查失败"));
         }
+    }
+
+    /**
+     * 检查调课时间冲突
+     */
+    @GetMapping("/check-conflict/{scheduleId}")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "检查调课时间冲突", description = "学生检查调课新时间是否与现有课程冲突")
+    public ResponseEntity<ApiResponse<RescheduleTimeCheckResult>> checkRescheduleTimeConflict(
+            @Parameter(description = "课程安排ID", required = true) @PathVariable Long scheduleId,
+            @Parameter(description = "新日期", required = true) @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate newDate,
+            @Parameter(description = "新开始时间", required = true) @RequestParam String newStartTime,
+            @Parameter(description = "新结束时间", required = true) @RequestParam String newEndTime,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        try {
+            // 获取课程安排信息
+            Schedule schedule = scheduleMapper.selectById(scheduleId);
+            if (schedule == null) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("课程安排不存在"));
+            }
+
+            // 验证学生权限
+            Student student = studentMapper.findByUserId(currentUser.getId());
+            if (student == null || !schedule.getStudentId().equals(student.getId())) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("无权限操作此课程安排"));
+            }
+
+            // 首先检查教师可用时间
+            try {
+                validateSingleRescheduleTime(schedule.getTeacherId(), newDate, newStartTime, newEndTime);
+            } catch (RuntimeException e) {
+                // 如果教师时间不可用，返回冲突
+                RescheduleTimeCheckResult result = new RescheduleTimeCheckResult(
+                    true, "teacher_unavailable", e.getMessage()
+                );
+                return ResponseEntity.ok(ApiResponse.success("检查完成", result));
+            }
+
+            // 然后检查时间冲突
+            boolean hasConflict = rescheduleService.hasTimeConflict(
+                    schedule.getTeacherId(),
+                    schedule.getStudentId(),
+                    newDate.toString(),
+                    newStartTime,
+                    newEndTime,
+                    scheduleId
+            );
+
+            RescheduleTimeCheckResult result = new RescheduleTimeCheckResult(
+                hasConflict,
+                hasConflict ? "time_conflict" : null,
+                hasConflict ? "该时间段已有其他课程安排，请选择其他时间" : "时间可用"
+            );
+
+            return ResponseEntity.ok(ApiResponse.success("检查完成", result));
+        } catch (Exception e) {
+            logger.error("检查调课时间冲突异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("检查失败"));
+        }
+    }
+
+    /**
+     * 验证单次调课时间是否在教师可预约时间范围内
+     * 参考预约试听课的逻辑
+     */
+    private void validateSingleRescheduleTime(Long teacherId, LocalDate date, String startTime, String endTime) {
+        Teacher teacher = teacherMapper.selectById(teacherId);
+        if (teacher == null) {
+            throw new RuntimeException("教师信息不存在");
+        }
+
+        // 如果教师没有设置可预约时间，则默认所有时间都可以预约
+        if (teacher.getAvailableTimeSlots() == null || teacher.getAvailableTimeSlots().trim().isEmpty()) {
+            logger.info("教师未设置可预约时间限制，允许所有时间调课，教师ID: {}", teacherId);
+            return;
+        }
+
+        List<TimeSlotDTO> teacherAvailableSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
+        if (teacherAvailableSlots == null || teacherAvailableSlots.isEmpty()) {
+            logger.info("教师可预约时间为空，允许所有时间调课，教师ID: {}", teacherId);
+            return;
+        }
+
+        // 获取调课日期对应的星期几 (1=周一, 7=周日)
+        int weekday = date.getDayOfWeek().getValue();
+        String requestedTimeSlot = startTime + "-" + endTime;
+
+        // 检查该星期几是否有可预约时间
+        boolean isAvailable = teacherAvailableSlots.stream()
+                .anyMatch(slot -> weekday == slot.getWeekday() &&
+                         slot.getTimeSlots() != null &&
+                         slot.getTimeSlots().stream().anyMatch(time ->
+                             isTimeSlotContained(requestedTimeSlot, time)));
+
+        if (!isAvailable) {
+            String weekdayName = getWeekdayName(weekday);
+            throw new RuntimeException(String.format("教师在%s %s时间段不可预约，请选择其他时间",
+                    weekdayName, requestedTimeSlot));
+        }
+
+        logger.info("单次调课时间验证通过，教师ID: {}, 时间: {} {}", teacherId, getWeekdayName(weekday), requestedTimeSlot);
+    }
+
+    /**
+     * 检查请求的时间段是否完全在可预约时间段内
+     */
+    private boolean isTimeSlotContained(String requestedTimeSlot, String availableTimeSlot) {
+        if (requestedTimeSlot == null || availableTimeSlot == null) {
+            return false;
+        }
+
+        try {
+            String[] requestedTimes = requestedTimeSlot.split("-");
+            String[] availableTimes = availableTimeSlot.split("-");
+
+            LocalTime requestedStart = LocalTime.parse(requestedTimes[0]);
+            LocalTime requestedEnd = LocalTime.parse(requestedTimes[1]);
+            LocalTime availableStart = LocalTime.parse(availableTimes[0]);
+            LocalTime availableEnd = LocalTime.parse(availableTimes[1]);
+
+            // 检查请求的时间段是否完全在可预约时间段内
+            return !requestedStart.isBefore(availableStart) && !requestedEnd.isAfter(availableEnd);
+        } catch (Exception e) {
+            logger.error("时间段比较失败: requested={}, available={}", requestedTimeSlot, availableTimeSlot, e);
+            return false;
+        }
+    }
+
+    /**
+     * 获取星期几的中文名称
+     */
+    private String getWeekdayName(int weekday) {
+        String[] names = {"", "周一", "周二", "周三", "周四", "周五", "周六", "周日"};
+        return weekday >= 1 && weekday <= 7 ? names[weekday] : "未知";
     }
 }

@@ -8,7 +8,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 
 /**
  * 调课申请审批DTO
@@ -30,6 +29,6 @@ public class RescheduleApprovalDTO {
     @Schema(description = "补偿金额(如需要)", example = "0.00")
     private BigDecimal compensationAmount;
 
-    @Schema(description = "生效日期", example = "2024-01-16")
-    private LocalDate effectiveDate;
+    @Schema(description = "是否影响后续课程", example = "false")
+    private Boolean affectsFutureSessions;
 }

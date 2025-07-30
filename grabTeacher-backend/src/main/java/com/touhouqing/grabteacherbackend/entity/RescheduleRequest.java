@@ -106,13 +106,16 @@ public class RescheduleRequest {
     @Builder.Default
     private BigDecimal compensationAmount = BigDecimal.ZERO;
 
-    @TableField("processed_at")
-    @Schema(description = "处理时间")
-    private LocalDateTime processedAt;
+    @TableField("affects_future_sessions")
+    @Schema(description = "是否影响后续课程", example = "false")
+    @Builder.Default
+    private Boolean affectsFutureSessions = false;
 
-    @TableField("effective_date")
-    @Schema(description = "生效日期", example = "2024-01-16")
-    private LocalDate effectiveDate;
+    @TableField("reviewed_at")
+    @Schema(description = "审核时间")
+    private LocalDateTime reviewedAt;
+
+
 
     @TableField("created_at")
     @Schema(description = "创建时间")
@@ -130,11 +133,4 @@ public class RescheduleRequest {
     @TableField("deleted_at")
     @Schema(description = "删除时间", hidden = true)
     private LocalDateTime deletedAt;
-
-    // 自动填充字段
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
 }

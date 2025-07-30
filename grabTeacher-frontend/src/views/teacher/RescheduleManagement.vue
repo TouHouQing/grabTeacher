@@ -9,7 +9,6 @@ import {
   Calendar,
   Timer,
   User,
-  Document,
   Refresh
 } from '@element-plus/icons-vue'
 import { rescheduleAPI } from '@/utils/api'
@@ -51,7 +50,6 @@ const rescheduleRequests = ref<RescheduleRequest[]>([])
 const statusFilter = ref('all')
 const currentRequest = ref<RescheduleRequest | null>(null)
 const showDetailModal = ref(false)
-const showApprovalModal = ref(false)
 
 // 分页配置
 const pagination = reactive({
@@ -60,13 +58,7 @@ const pagination = reactive({
   total: 0
 })
 
-// 审批表单
-const approvalForm = reactive({
-  status: 'approved' as 'approved' | 'rejected',
-  reviewNotes: '',
-  compensationAmount: 0,
-  effectiveDate: ''
-})
+
 
 // 状态选项
 const statusOptions = [
@@ -134,51 +126,7 @@ const closeDetailModal = () => {
   currentRequest.value = null
 }
 
-// 显示审批弹窗
-const showApproval = (request: RescheduleRequest, status: 'approved' | 'rejected') => {
-  currentRequest.value = request
-  approvalForm.status = status
-  approvalForm.reviewNotes = ''
-  approvalForm.compensationAmount = 0
-  approvalForm.effectiveDate = ''
-  showApprovalModal.value = true
-}
 
-// 关闭审批弹窗
-const closeApprovalModal = () => {
-  showApprovalModal.value = false
-  currentRequest.value = null
-}
-
-// 提交审批
-const submitApproval = async () => {
-  if (!currentRequest.value) return
-
-  if (!approvalForm.reviewNotes.trim()) {
-    ElMessage.warning('请输入审批意见')
-    return
-  }
-
-  try {
-    const result = await rescheduleAPI.approve(currentRequest.value.id, {
-      status: approvalForm.status,
-      reviewNotes: approvalForm.reviewNotes,
-      compensationAmount: approvalForm.compensationAmount || undefined,
-      effectiveDate: approvalForm.effectiveDate || undefined
-    })
-
-    if (result.success) {
-      ElMessage.success(`调课申请已${approvalForm.status === 'approved' ? '同意' : '拒绝'}`)
-      closeApprovalModal()
-      await loadRescheduleRequests()
-    } else {
-      ElMessage.error(result.message || '审批失败')
-    }
-  } catch (error) {
-    console.error('审批失败:', error)
-    ElMessage.error('审批失败，请稍后重试')
-  }
-}
 
 // 快速审批
 const quickApproval = async (request: RescheduleRequest, status: 'approved' | 'rejected') => {
@@ -381,15 +329,7 @@ onMounted(() => {
             >
               拒绝
             </el-button>
-            <el-button
-              v-if="request.status === 'pending'"
-              type="warning"
-              size="small"
-              @click="showApproval(request, 'approved')"
-              :icon="Document"
-            >
-              详细审批
-            </el-button>
+
           </div>
         </el-card>
       </div>
@@ -496,56 +436,7 @@ onMounted(() => {
       </template>
     </el-dialog>
 
-    <!-- 审批弹窗 -->
-    <el-dialog
-      v-model="showApprovalModal"
-      :title="`${approvalForm.status === 'approved' ? '同意' : '拒绝'}调课申请`"
-      width="500px"
-      @close="closeApprovalModal"
-    >
-      <el-form :model="approvalForm" label-width="100px">
-        <el-form-item label="审批意见" required>
-          <el-input
-            v-model="approvalForm.reviewNotes"
-            type="textarea"
-            :rows="4"
-            :placeholder="`请输入${approvalForm.status === 'approved' ? '同意' : '拒绝'}的理由`"
-          />
-        </el-form-item>
 
-        <el-form-item v-if="approvalForm.status === 'approved'" label="补偿金额">
-          <el-input-number
-            v-model="approvalForm.compensationAmount"
-            :min="0"
-            :precision="2"
-            placeholder="如需补偿请填写金额"
-          />
-          <span style="margin-left: 8px; color: #999;">元</span>
-        </el-form-item>
-
-        <el-form-item v-if="approvalForm.status === 'approved'" label="生效日期">
-          <el-date-picker
-            v-model="approvalForm.effectiveDate"
-            type="date"
-            placeholder="选择生效日期"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-          />
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="closeApprovalModal">取消</el-button>
-          <el-button
-            :type="approvalForm.status === 'approved' ? 'success' : 'danger'"
-            @click="submitApproval"
-          >
-            确认{{ approvalForm.status === 'approved' ? '同意' : '拒绝' }}
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
   </div>
 </template>
 

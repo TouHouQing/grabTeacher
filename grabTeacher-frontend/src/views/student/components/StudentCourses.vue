@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, Timer, Refresh, Check, VideoCamera, ChatDotRound, InfoFilled, Download, Clock, Collection, Reading } from '@element-plus/icons-vue'
+import { Calendar, Timer, Refresh, Check, VideoCamera, ChatDotRound, InfoFilled, Download, Clock, Collection, Reading, Loading } from '@element-plus/icons-vue'
 import { bookingAPI, rescheduleAPI, teacherAPI } from '@/utils/api'
 
 // 课程安排接口（基于后端ScheduleResponseDTO）
@@ -408,6 +408,57 @@ const canReschedule = (dateStr: string): boolean => {
   return targetDate >= tomorrow
 }
 
+// 时间冲突检查状态
+const timeConflictChecking = ref(false)
+const timeConflictResult = ref<{
+  hasConflict: boolean;
+  conflictType?: string;
+  message?: string
+} | null>(null)
+
+// 检查调课时间冲突
+const checkRescheduleTimeConflict = async () => {
+  if (!rescheduleForm.value.newDate || !rescheduleForm.value.newTime) {
+    timeConflictResult.value = null
+    return
+  }
+
+  const nextSchedule = getNextSchedule(currentRescheduleCourse.value?.schedules)
+  if (!nextSchedule) {
+    timeConflictResult.value = { hasConflict: false, message: '无法获取课程信息' }
+    return
+  }
+
+  try {
+    timeConflictChecking.value = true
+
+    // 解析时间段
+    const [startTime, endTime] = rescheduleForm.value.newTime.split('-')
+
+    const result = await rescheduleAPI.checkTimeConflict(
+      nextSchedule.id,
+      rescheduleForm.value.newDate,
+      startTime,
+      endTime
+    )
+
+    if (result.success) {
+      timeConflictResult.value = {
+        hasConflict: result.data.hasConflict,
+        conflictType: result.data.conflictType,
+        message: result.data.message
+      }
+    } else {
+      timeConflictResult.value = { hasConflict: false, message: '检查失败，请重试' }
+    }
+  } catch (error) {
+    console.error('检查时间冲突失败:', error)
+    timeConflictResult.value = { hasConflict: false, message: '检查失败，请重试' }
+  } finally {
+    timeConflictChecking.value = false
+  }
+}
+
 // 获取星期几的中文名称（统一使用后端格式：1-7）
 const getWeekdayName = (weekday: number): string => {
   const names = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -440,6 +491,21 @@ const submitReschedule = async () => {
     if (!canReschedule(rescheduleForm.value.newDate)) {
       ElMessage.error('新的上课时间需要是明天之后')
       return
+    }
+
+    // 检查时间冲突
+    if (timeConflictResult.value?.hasConflict) {
+      ElMessage.error('所选时间与其他课程冲突，请选择其他时间')
+      return
+    }
+
+    // 如果还没有检查过时间冲突，先检查
+    if (!timeConflictResult.value) {
+      await checkRescheduleTimeConflict()
+      if (timeConflictResult.value?.hasConflict) {
+        ElMessage.error('所选时间与其他课程冲突，请选择其他时间')
+        return
+      }
     }
   } else {
     if (rescheduleForm.value.selectedWeekdays.length === 0 ||
@@ -1039,8 +1105,14 @@ export default {
                   format="YYYY-MM-DD"
                   value-format="YYYY-MM-DD"
                   style="width: 200px;"
+                  @change="checkRescheduleTimeConflict"
                 />
-                <el-select v-model="rescheduleForm.newTime" placeholder="选择新时间" style="width: 150px;">
+                <el-select
+                  v-model="rescheduleForm.newTime"
+                  placeholder="选择新时间"
+                  style="width: 150px;"
+                  @change="checkRescheduleTimeConflict"
+                >
                   <el-option
                     v-for="time in availableTimeSlots"
                     :key="time"
@@ -1048,6 +1120,41 @@ export default {
                     :value="time"
                   />
                 </el-select>
+              </div>
+
+              <!-- 时间冲突检查结果 -->
+              <div v-if="timeConflictChecking || timeConflictResult" class="time-conflict-check">
+                <div v-if="timeConflictChecking" class="checking">
+                  <el-icon class="is-loading"><Loading /></el-icon>
+                  <span>正在检查时间冲突...</span>
+                </div>
+                <div v-else-if="timeConflictResult" class="check-result">
+                  <el-alert
+                    :type="timeConflictResult.hasConflict ? 'error' : 'success'"
+                    :title="timeConflictResult.message"
+                    :closable="false"
+                    show-icon
+                  >
+                    <template v-if="timeConflictResult.hasConflict && timeConflictResult.conflictType === 'teacher_unavailable'">
+                      <div class="conflict-detail">
+                        <p>教师在该时间段不可预约，建议：</p>
+                        <ul>
+                          <li>选择教师设置的可用时间段</li>
+                          <li>或联系教师调整可用时间设置</li>
+                        </ul>
+                      </div>
+                    </template>
+                    <template v-else-if="timeConflictResult.hasConflict && timeConflictResult.conflictType === 'time_conflict'">
+                      <div class="conflict-detail">
+                        <p>该时间段已有其他课程安排，建议：</p>
+                        <ul>
+                          <li>选择其他可用时间段</li>
+                          <li>或联系相关人员协调时间</li>
+                        </ul>
+                      </div>
+                    </template>
+                  </el-alert>
+                </div>
               </div>
             </el-form-item>
           </el-form>
@@ -1732,6 +1839,50 @@ h2 {
   font-size: 12px;
   color: #f56c6c;
   font-weight: 500;
+}
+
+/* 时间冲突检查样式 */
+.time-conflict-check {
+  margin-top: 15px;
+  padding: 10px;
+  border-radius: 6px;
+  background-color: #f8f9fa;
+}
+
+.time-conflict-check .checking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #606266;
+  font-size: 14px;
+}
+
+.time-conflict-check .checking .el-icon {
+  font-size: 16px;
+}
+
+.time-conflict-check .check-result {
+  margin: 0;
+}
+
+.conflict-detail {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.conflict-detail p {
+  margin: 0 0 8px 0;
+  font-weight: 500;
+}
+
+.conflict-detail ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.conflict-detail li {
+  margin-bottom: 4px;
+  color: #666;
 }
 
 .schedule-info .el-icon {

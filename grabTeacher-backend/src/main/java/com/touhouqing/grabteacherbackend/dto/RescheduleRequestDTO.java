@@ -58,8 +58,8 @@ public class RescheduleRequestDTO {
     @Schema(description = "提前通知小时数", example = "24")
     private Integer advanceNoticeHours;
 
-    @Schema(description = "生效日期", example = "2024-01-16")
-    private LocalDate effectiveDate;
+    @Schema(description = "是否影响后续课程", example = "false")
+    private Boolean affectsFutureSessions;
 
     @Schema(description = "备注信息", example = "希望老师能够同意调课申请")
     private String notes;
