@@ -3,6 +3,8 @@ package com.touhouqing.grabteacherbackend.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.touhouqing.grabteacherbackend.entity.BookingRequest;
+import com.touhouqing.grabteacherbackend.entity.Course;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.StudentSubject;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
@@ -11,6 +13,8 @@ import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
+import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
@@ -40,6 +44,8 @@ public class AdminServiceImpl implements AdminService {
     private final StudentSubjectMapper studentSubjectMapper;
     private final TeacherMapper teacherMapper;
     private final TeacherSubjectMapper teacherSubjectMapper;
+    private final BookingRequestMapper bookingRequestMapper;
+    private final CourseMapper courseMapper;
     @Autowired
     private PasswordEncoder passwordEncoder;
 
@@ -71,10 +77,31 @@ public class AdminServiceImpl implements AdminService {
         verifiedTeacherWrapper.eq("is_verified", true);
         Long verifiedTeachers = teacherMapper.selectCount(verifiedTeacherWrapper);
 
+        // 预约待审批统计
+        QueryWrapper<BookingRequest> pendingBookingWrapper = new QueryWrapper<>();
+        pendingBookingWrapper.eq("status", "pending");
+        pendingBookingWrapper.eq("is_deleted", false);
+        Long pendingBookings = bookingRequestMapper.selectCount(pendingBookingWrapper);
+
+        // 课程待审批统计
+        QueryWrapper<Course> pendingCourseWrapper = new QueryWrapper<>();
+        pendingCourseWrapper.eq("status", "pending");
+        pendingCourseWrapper.eq("is_deleted", false);
+        Long pendingCourses = courseMapper.selectCount(pendingCourseWrapper);
+
+        // 教师待认证统计
+        QueryWrapper<Teacher> unverifiedTeacherWrapper = new QueryWrapper<>();
+        unverifiedTeacherWrapper.eq("is_deleted", false);
+        unverifiedTeacherWrapper.eq("is_verified", false);
+        Long unverifiedTeachers = teacherMapper.selectCount(unverifiedTeacherWrapper);
+
         statistics.put("totalUsers", totalUsers);
         statistics.put("totalStudents", totalStudents);
         statistics.put("totalTeachers", totalTeachers);
         statistics.put("verifiedTeachers", verifiedTeachers);
+        statistics.put("pendingBookings", pendingBookings);
+        statistics.put("pendingCourses", pendingCourses);
+        statistics.put("unverifiedTeachers", unverifiedTeachers);
 
         return statistics;
     }

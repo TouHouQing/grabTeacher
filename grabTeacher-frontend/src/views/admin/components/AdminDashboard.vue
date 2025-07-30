@@ -7,7 +7,10 @@ const statistics = ref({
   totalUsers: 0,
   totalTeachers: 0,
   totalStudents: 0,
-  verifiedTeachers: 0
+  verifiedTeachers: 0,
+  pendingBookings: 0,
+  pendingCourses: 0,
+  unverifiedTeachers: 0
 })
 
 const loading = ref(false)
@@ -70,6 +73,35 @@ onMounted(() => {
       </el-col>
     </el-row>
 
+    <!-- 待审批数据统计 -->
+    <h3 style="margin-top: 30px;">待审批统计</h3>
+    <el-row :gutter="16" class="statistics-cards" v-loading="loading">
+      <el-col :xs="12" :sm="8" :md="8" :lg="8">
+        <el-card class="statistic-card pending-card" shadow="hover">
+          <div class="statistic">
+            <h4>预约待审批</h4>
+            <div class="statistic-value pending-value">{{ statistics.pendingBookings }}</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="8" :md="8" :lg="8">
+        <el-card class="statistic-card pending-card" shadow="hover">
+          <div class="statistic">
+            <h4>课程待审批</h4>
+            <div class="statistic-value pending-value">{{ statistics.pendingCourses }}</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="8" :md="8" :lg="8">
+        <el-card class="statistic-card pending-card" shadow="hover">
+          <div class="statistic">
+            <h4>教师待认证</h4>
+            <div class="statistic-value pending-value">{{ statistics.unverifiedTeachers }}</div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
 
   </div>
 </template>
@@ -110,6 +142,14 @@ onMounted(() => {
   font-size: 32px;
   font-weight: bold;
   color: #409eff;
+}
+
+.pending-card {
+  border-left: 4px solid #e6a23c;
+}
+
+.pending-value {
+  color: #e6a23c;
 }
 
 
