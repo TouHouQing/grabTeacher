@@ -43,4 +43,21 @@ public interface TimeValidationService {
     TimeValidationResult validateStudentBookingTime(Long teacherId,
                                                    List<Integer> studentPreferredWeekdays,
                                                    List<String> studentPreferredTimeSlots);
+
+    /**
+     * 验证周期性预约的时间匹配度（考虑具体日期范围和课程冲突）
+     * @param teacherId 教师ID
+     * @param studentPreferredWeekdays 学生偏好星期几
+     * @param studentPreferredTimeSlots 学生偏好时间段
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param totalTimes 总课程次数
+     * @return 详细的匹配结果
+     */
+    TimeValidationResult validateRecurringBookingTime(Long teacherId,
+                                                     List<Integer> studentPreferredWeekdays,
+                                                     List<String> studentPreferredTimeSlots,
+                                                     LocalDate startDate,
+                                                     LocalDate endDate,
+                                                     Integer totalTimes);
 }

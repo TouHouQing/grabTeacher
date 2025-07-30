@@ -9,9 +9,11 @@ import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherProfileResponse;
 import com.touhouqing.grabteacherbackend.dto.TeacherScheduleResponse;
 import com.touhouqing.grabteacherbackend.dto.TimeSlotAvailability;
+import com.touhouqing.grabteacherbackend.dto.TimeValidationResult;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
+import com.touhouqing.grabteacherbackend.service.TimeValidationService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +38,9 @@ public class TeacherController {
 
     @Autowired
     private TeacherService teacherService;
+
+    @Autowired
+    private TimeValidationService timeValidationService;
 
     /**
      * 获取教师个人信息（包含科目信息）
@@ -208,6 +213,49 @@ public class TeacherController {
             logger.error("获取教师统计数据异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("获取失败"));
+        }
+    }
+
+    /**
+     * 验证学生预约时间匹配度（供学生预约时使用）
+     */
+    @PostMapping("/{teacherId}/validate-booking-time")
+    public ResponseEntity<ApiResponse<TimeValidationResult>> validateStudentBookingTime(
+            @PathVariable Long teacherId,
+            @RequestBody Map<String, Object> request) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<Integer> weekdays = (List<Integer>) request.get("weekdays");
+            @SuppressWarnings("unchecked")
+            List<String> timeSlots = (List<String>) request.get("timeSlots");
+            String startDateStr = (String) request.get("startDate");
+            String endDateStr = (String) request.get("endDate");
+            Integer totalTimes = (Integer) request.get("totalTimes");
+
+            if (weekdays == null || timeSlots == null) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("星期几和时间段不能为空"));
+            }
+
+            TimeValidationResult result;
+
+            // 如果提供了日期范围，使用更准确的周期性预约验证
+            if (startDateStr != null && endDateStr != null) {
+                LocalDate startDate = LocalDate.parse(startDateStr);
+                LocalDate endDate = LocalDate.parse(endDateStr);
+                result = timeValidationService.validateRecurringBookingTime(
+                        teacherId, weekdays, timeSlots, startDate, endDate, totalTimes);
+            } else {
+                // 否则使用简单的时间匹配验证
+                result = timeValidationService.validateStudentBookingTime(
+                        teacherId, weekdays, timeSlots);
+            }
+
+            return ResponseEntity.ok(ApiResponse.success("验证完成", result));
+        } catch (Exception e) {
+            logger.error("验证学生预约时间异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("验证失败"));
         }
     }
 }

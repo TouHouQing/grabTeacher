@@ -337,7 +337,19 @@ export const teacherAPI = {
   },
 
   // 获取教师统计数据
-  getStatistics: () => apiRequest('/api/teacher/statistics')
+  getStatistics: () => apiRequest('/api/teacher/statistics'),
+
+  // 验证学生预约时间匹配度
+  validateBookingTime: (teacherId: number, data: {
+    weekdays: number[]
+    timeSlots: string[]
+    startDate?: string
+    endDate?: string
+    totalTimes?: number
+  }) => apiRequest(`/api/teacher/${teacherId}/validate-booking-time`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  })
 }
 
 // 管理员统计 API

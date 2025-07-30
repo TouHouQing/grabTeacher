@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock, Close, Warning, SuccessFilled } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
@@ -123,6 +123,10 @@ const scheduleForm = reactive({
   trialStartTime: '',
   trialEndTime: ''
 })
+
+// 准确的时间匹配度信息
+const accurateMatchScoreInfo = ref<{ score: number, message: string, type: string } | null>(null)
+const matchScoreLoading = ref(false)
 
 // 月度课表查看相关数据
 const showMonthlyModal = ref(false)
@@ -821,6 +825,8 @@ const selectTimeSlot = (time: string) => {
   scheduleForm.selectedWeekdays = []
   // 重新计算结束日期
   calculateEndDate()
+  // 更新准确的匹配度信息
+  updateAccurateMatchScore()
 }
 
 // 获取星期几的短名称
@@ -950,8 +956,9 @@ const hasTimeSlotConflicts = (time: string): boolean => {
   )
 }
 
-// 计算时间匹配度
+// 计算时间匹配度 - 修复周期性预约的匹配度计算
 const calculateTimeMatchScore = (): number => {
+  // 周期性预约必须选择时间段和星期几才能计算匹配度
   if (scheduleForm.selectedTimeSlots.length === 0 || scheduleForm.selectedWeekdays.length === 0) {
     return 0
   }
@@ -969,6 +976,39 @@ const calculateTimeMatchScore = (): number => {
   })
 
   return totalCombinations > 0 ? Math.round((availableCombinations / totalCombinations) * 100) : 0
+}
+
+// 使用后端API获取准确的时间匹配度
+const getAccurateTimeMatchScore = async (): Promise<number> => {
+  if (!currentTeacher.value || scheduleForm.selectedTimeSlots.length === 0 || scheduleForm.selectedWeekdays.length === 0) {
+    return 0
+  }
+
+  try {
+    // 构建请求数据，包含日期范围和课程次数
+    const requestData: any = {
+      weekdays: scheduleForm.selectedWeekdays,
+      timeSlots: scheduleForm.selectedTimeSlots
+    }
+
+    // 如果有开始和结束日期，添加到请求中以获得更准确的匹配度
+    if (scheduleForm.startDate && scheduleForm.endDate) {
+      requestData.startDate = scheduleForm.startDate
+      requestData.endDate = scheduleForm.endDate
+      requestData.totalTimes = scheduleForm.sessionCount
+    }
+
+    const result = await teacherAPI.validateBookingTime(currentTeacher.value.id, requestData)
+
+    if (result.success && result.data) {
+      return result.data.overallMatchScore || 0
+    }
+  } catch (error) {
+    console.error('获取准确时间匹配度失败:', error)
+  }
+
+  // 如果API调用失败，回退到本地计算
+  return calculateTimeMatchScore()
 }
 
 // 获取匹配度提示信息
@@ -999,6 +1039,56 @@ const getMatchScoreInfo = (): { score: number, message: string, type: string } =
       message: '所选时间段教师不可预约，请重新选择',
       type: 'danger'
     }
+  }
+}
+
+// 获取准确的匹配度提示信息（异步版本）
+const getAccurateMatchScoreInfo = async (): Promise<{ score: number, message: string, type: string }> => {
+  const score = await getAccurateTimeMatchScore()
+
+  if (score >= 80) {
+    return {
+      score,
+      message: `匹配度很高 (${score}%)，大部分时间段都可预约`,
+      type: 'success'
+    }
+  } else if (score >= 60) {
+    return {
+      score,
+      message: `匹配度良好 (${score}%)，部分时间段可预约`,
+      type: 'warning'
+    }
+  } else if (score > 0) {
+    return {
+      score,
+      message: `匹配度较低 (${score}%)，建议调整时间选择`,
+      type: 'danger'
+    }
+  } else {
+    return {
+      score,
+      message: '所选时间段教师不可预约，请重新选择',
+      type: 'danger'
+    }
+  }
+}
+
+// 更新准确的匹配度信息
+const updateAccurateMatchScore = async () => {
+  if (scheduleForm.selectedTimeSlots.length === 0 || scheduleForm.selectedWeekdays.length === 0) {
+    accurateMatchScoreInfo.value = null
+    return
+  }
+
+  matchScoreLoading.value = true
+  try {
+    accurateMatchScoreInfo.value = await getAccurateMatchScoreInfo()
+  } catch (error) {
+    console.error('更新匹配度信息失败:', error)
+    // 回退到本地计算
+    accurateMatchScoreInfo.value = getMatchScoreInfo()
+  } finally {
+    matchScoreLoading.value = false
   }
 }
 
@@ -1373,6 +1463,15 @@ const handleTimeSlotsUpdate = (timeSlots: string[]) => {
     }
   })
 }
+
+// 监听时间选择变化，更新匹配度
+watch(
+  () => [scheduleForm.selectedWeekdays, scheduleForm.selectedTimeSlots, scheduleForm.startDate, scheduleForm.endDate, scheduleForm.sessionCount],
+  () => {
+    updateAccurateMatchScore()
+  },
+  { deep: true }
+)
 
 // 组件挂载时初始化数据
 onMounted(() => {
@@ -1768,16 +1867,17 @@ onMounted(() => {
           <el-form-item v-if="scheduleForm.selectedTimeSlots.length > 0 && scheduleForm.selectedWeekdays.length > 0">
             <div class="enhanced-match-info">
               <!-- 匹配度卡片 -->
-              <div class="match-score-card" :class="getMatchScoreInfo().type">
+              <div class="match-score-card" :class="(accurateMatchScoreInfo || getMatchScoreInfo()).type">
                 <div class="match-header">
                   <div class="match-icon">
-                    <el-icon v-if="getMatchScoreInfo().type === 'success'"><Check /></el-icon>
-                    <el-icon v-else-if="getMatchScoreInfo().type === 'warning'"><InfoFilled /></el-icon>
+                    <el-icon v-if="matchScoreLoading"><Loading /></el-icon>
+                    <el-icon v-else-if="(accurateMatchScoreInfo || getMatchScoreInfo()).type === 'success'"><Check /></el-icon>
+                    <el-icon v-else-if="(accurateMatchScoreInfo || getMatchScoreInfo()).type === 'warning'"><InfoFilled /></el-icon>
                     <el-icon v-else><Close /></el-icon>
                   </div>
                   <div class="match-title">
                     <h4>时间匹配度分析</h4>
-                    <span class="match-subtitle">基于您选择的时间段和星期</span>
+                    <span class="match-subtitle">{{ matchScoreLoading ? '正在计算准确匹配度...' : '基于您选择的时间段和星期' }}</span>
                   </div>
                 </div>
 
@@ -1787,14 +1887,14 @@ onMounted(() => {
                     <div class="circular-progress">
                       <el-progress
                         type="circle"
-                        :percentage="getMatchScoreInfo().score"
+                        :percentage="(accurateMatchScoreInfo || getMatchScoreInfo()).score"
                         :width="120"
                         :stroke-width="8"
-                        :color="getMatchScoreInfo().type === 'success' ? '#67c23a' : getMatchScoreInfo().type === 'warning' ? '#e6a23c' : '#f56c6c'"
+                        :color="(accurateMatchScoreInfo || getMatchScoreInfo()).type === 'success' ? '#67c23a' : (accurateMatchScoreInfo || getMatchScoreInfo()).type === 'warning' ? '#e6a23c' : '#f56c6c'"
                       >
                         <template #default="{ percentage }">
                           <div class="progress-content">
-                            <div class="percentage">{{ percentage }}%</div>
+                            <div class="percentage">{{ matchScoreLoading ? '...' : percentage + '%' }}</div>
                             <div class="progress-label">匹配度</div>
                           </div>
                         </template>
@@ -1811,7 +1911,7 @@ onMounted(() => {
                         <div class="stat-label">选择天数</div>
                       </div>
                       <div class="stat-item">
-                        <div class="stat-number">{{ Math.round((getMatchScoreInfo().score / 100) * scheduleForm.selectedTimeSlots.length * scheduleForm.selectedWeekdays.length) }}</div>
+                        <div class="stat-number">{{ Math.round(((accurateMatchScoreInfo || getMatchScoreInfo()).score / 100) * scheduleForm.selectedTimeSlots.length * scheduleForm.selectedWeekdays.length) }}</div>
                         <div class="stat-label">可用组合</div>
                       </div>
                     </div>
@@ -1821,16 +1921,16 @@ onMounted(() => {
                   <div class="match-description">
                     <div class="description-text">
                       <el-icon class="desc-icon"><Calendar /></el-icon>
-                      <span>{{ getMatchScoreInfo().message }}</span>
+                      <span>{{ (accurateMatchScoreInfo || getMatchScoreInfo()).message }}</span>
                     </div>
 
-                    <div v-if="getMatchScoreInfo().score < 80" class="match-suggestions">
+                    <div v-if="(accurateMatchScoreInfo || getMatchScoreInfo()).score < 80" class="match-suggestions">
                       <div class="suggestions-title">
                         <el-icon><InfoFilled /></el-icon>
                         <span>优化建议</span>
                       </div>
                       <div class="suggestions-list">
-                        <div v-if="getMatchScoreInfo().score === 0" class="suggestion-item">
+                        <div v-if="(accurateMatchScoreInfo || getMatchScoreInfo()).score === 0" class="suggestion-item">
                           <el-icon class="suggestion-icon"><Warning /></el-icon>
                           <span>当前选择的时间段教师不可预约，请重新选择时间</span>
                         </div>
@@ -1838,7 +1938,7 @@ onMounted(() => {
                           <el-icon class="suggestion-icon"><Clock /></el-icon>
                           <span>可以尝试调整时间段选择，或联系教师协商其他可用时间</span>
                         </div>
-                        <div v-if="getMatchScoreInfo().score > 0 && getMatchScoreInfo().score < 60" class="suggestion-item">
+                        <div v-if="(accurateMatchScoreInfo || getMatchScoreInfo()).score > 0 && (accurateMatchScoreInfo || getMatchScoreInfo()).score < 60" class="suggestion-item">
                           <el-icon class="suggestion-icon"><Refresh /></el-icon>
                           <span>建议选择更多教师可用的时间段以提高匹配度</span>
                         </div>

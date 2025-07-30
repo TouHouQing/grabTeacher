@@ -15,7 +15,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 时间验证服务实现
@@ -190,6 +189,118 @@ public class TimeValidationServiceImpl implements TimeValidationService {
                 .message(valid ? "时间匹配良好" : "时间匹配度较低，建议调整")
                 .conflicts(conflicts)
                 .overallMatchScore(matchScore)
+                .build();
+    }
+
+    @Override
+    public TimeValidationResult validateRecurringBookingTime(Long teacherId,
+                                                           List<Integer> studentPreferredWeekdays,
+                                                           List<String> studentPreferredTimeSlots,
+                                                           LocalDate startDate,
+                                                           LocalDate endDate,
+                                                           Integer totalTimes) {
+        log.info("验证周期性预约时间，教师ID: {}, 学生偏好: 星期{}, 时间段{}, 日期范围: {} - {}, 总次数: {}",
+                teacherId, studentPreferredWeekdays, studentPreferredTimeSlots, startDate, endDate, totalTimes);
+
+        Teacher teacher = teacherMapper.selectById(teacherId);
+        if (teacher == null) {
+            return TimeValidationResult.builder()
+                    .valid(false)
+                    .message("教师不存在")
+                    .conflicts(new ArrayList<>())
+                    .overallMatchScore(0)
+                    .build();
+        }
+
+        // 获取教师可用时间设置
+        List<TimeSlotDTO> teacherAvailableSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
+
+        List<TimeValidationResult.TimeConflictInfo> conflicts = new ArrayList<>();
+        int totalPossibleSlots = 0;
+        int availableSlots = 0;
+
+        // 遍历日期范围内的每一天
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            int weekday = currentDate.getDayOfWeek().getValue(); // 1=周一, 7=周日
+
+            // 检查这一天是否在学生选择的星期几中
+            if (studentPreferredWeekdays.contains(weekday)) {
+                // 检查每个时间段
+                for (String timeSlot : studentPreferredTimeSlots) {
+                    totalPossibleSlots++;
+
+                    // 1. 检查教师是否在这个星期几的这个时间段可用
+                    boolean teacherAvailable = teacherAvailableSlots.stream()
+                            .anyMatch(slot -> weekday == slot.getWeekday() &&
+                                     slot.getTimeSlots() != null &&
+                                     slot.getTimeSlots().contains(timeSlot));
+
+                    if (!teacherAvailable) {
+                        conflicts.add(TimeValidationResult.TimeConflictInfo.builder()
+                                .weekday(weekday)
+                                .timeSlot(timeSlot)
+                                .conflictDates(List.of(currentDate.toString()))
+                                .conflictReason("教师该时间段不可用")
+                                .severity("HIGH")
+                                .suggestion("选择教师可用的时间段")
+                                .build());
+                        continue;
+                    }
+
+                    // 2. 检查具体日期是否有课程冲突
+                    String[] times = timeSlot.split("-");
+                    if (times.length == 2) {
+                        try {
+                            LocalTime startTime = LocalTime.parse(times[0]);
+                            LocalTime endTime = LocalTime.parse(times[1]);
+
+                            int conflictCount = scheduleMapper.countConflictingSchedules(
+                                    teacherId, currentDate, startTime, endTime);
+
+                            if (conflictCount > 0) {
+                                conflicts.add(TimeValidationResult.TimeConflictInfo.builder()
+                                        .weekday(weekday)
+                                        .timeSlot(timeSlot)
+                                        .conflictDates(List.of(currentDate.toString()))
+                                        .conflictReason("该时间段已有其他课程安排")
+                                        .severity("HIGH")
+                                        .suggestion("选择其他时间或日期")
+                                        .build());
+                            } else {
+                                availableSlots++;
+                            }
+                        } catch (Exception e) {
+                            log.error("解析时间段失败: {}", timeSlot, e);
+                        }
+                    }
+                }
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+
+        // 计算匹配度
+        int overallMatchScore = totalPossibleSlots > 0 ?
+                (availableSlots * 100) / totalPossibleSlots : 0;
+
+        boolean valid = overallMatchScore >= 70; // 70%以上认为可接受
+
+        String message;
+        if (overallMatchScore >= 90) {
+            message = String.format("时间匹配度很高 (%d%%)，大部分时间段都可预约", overallMatchScore);
+        } else if (overallMatchScore >= 70) {
+            message = String.format("时间匹配度良好 (%d%%)，部分时间段可预约", overallMatchScore);
+        } else if (overallMatchScore > 0) {
+            message = String.format("时间匹配度较低 (%d%%)，建议调整时间选择", overallMatchScore);
+        } else {
+            message = "所选时间段教师不可预约，请重新选择";
+        }
+
+        return TimeValidationResult.builder()
+                .valid(valid)
+                .message(message)
+                .conflicts(conflicts)
+                .overallMatchScore(overallMatchScore)
                 .build();
     }
 
