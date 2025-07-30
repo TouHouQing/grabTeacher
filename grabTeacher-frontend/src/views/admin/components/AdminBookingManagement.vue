@@ -151,14 +151,7 @@
               >
                 拒绝
               </el-button>
-              <el-button
-                v-if="booking.status === 'approved'"
-                type="primary"
-                size="small"
-                @click="viewSchedules(booking)"
-              >
-                查看课表
-              </el-button>
+
             </div>
           </div>
         </div>
@@ -478,10 +471,7 @@ const submitApproval = async () => {
   }
 }
 
-// 查看课表
-const viewSchedules = (booking: any) => {
-  ElMessage.info('即将跳转到课表页面...')
-}
+
 
 // 工具函数
 const formatDateTime = (dateTimeStr: string) => {

@@ -142,14 +142,7 @@
               >
                 取消预约
               </el-button>
-              <el-button
-                v-if="booking.status === 'approved'"
-                type="success"
-                size="small"
-                @click="viewSchedules(booking)"
-              >
-                查看课表
-              </el-button>
+
             </div>
           </div>
         </div>
@@ -387,11 +380,7 @@ const cancelBooking = async (booking: any) => {
   }
 }
 
-// 查看课表
-const viewSchedules = (booking: any) => {
-  // 跳转到课表页面或显示课表信息
-  ElMessage.info('课表功能开发中...')
-}
+
 
 // 工具函数
 const formatDateTime = (dateTimeStr: string) => {
