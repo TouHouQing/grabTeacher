@@ -335,7 +335,9 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional
     public int generateRecurringSchedules(BookingRequest bookingRequest) {
-        log.info("生成周期性课程安排，预约申请ID: {}", bookingRequest.getId());
+        log.info("生成周期性课程安排，预约申请ID: {}, 总次数: {}, 开始日期: {}, 结束日期: {}",
+                bookingRequest.getId(), bookingRequest.getTotalTimes(),
+                bookingRequest.getStartDate(), bookingRequest.getEndDate());
 
         if (!"recurring".equals(bookingRequest.getBookingType())) {
             throw new RuntimeException("只能为周期性预约生成课程安排");
@@ -348,9 +350,109 @@ public class BookingServiceImpl implements BookingService {
             throw new RuntimeException("周期性预约的星期和时间段不能为空");
         }
 
+        log.info("预约配置 - 星期几: {}, 时间段: {}", weekdays, timeSlots);
+
         int generatedCount = 0;
+        int sessionNumber = 1;
         LocalDate currentDate = bookingRequest.getStartDate();
         LocalDate endDate = bookingRequest.getEndDate();
+
+        // 如果没有设置总次数，按原逻辑处理
+        if (bookingRequest.getTotalTimes() == null) {
+            return generateRecurringSchedulesWithoutLimit(bookingRequest, weekdays, timeSlots, currentDate, endDate);
+        }
+
+        int targetTotalTimes = bookingRequest.getTotalTimes();
+        int maxCycles = 10; // 最多循环10轮，防止无限循环
+        int currentCycle = 0;
+
+        // 持续循环直到生成足够的课程数量
+        while (generatedCount < targetTotalTimes && currentCycle < maxCycles) {
+            currentCycle++;
+
+            log.debug("开始第 {} 轮课程生成，当前已生成: {} 节，目标: {} 节", currentCycle, generatedCount, targetTotalTimes);
+
+            while ((currentDate.isBefore(endDate) || currentDate.isEqual(endDate)) && generatedCount < targetTotalTimes) {
+                int dayOfWeek = currentDate.getDayOfWeek().getValue(); // 1=Monday, 7=Sunday
+                int weekdayValue = dayOfWeek == 7 ? 0 : dayOfWeek; // 转换为0=Sunday, 1=Monday格式
+
+                if (weekdays.contains(weekdayValue)) {
+                    for (String timeSlot : timeSlots) {
+                        if (generatedCount >= targetTotalTimes) {
+                            break; // 已达到目标数量
+                        }
+
+                        String[] times = timeSlot.split("-");
+                        if (times.length == 2) {
+                            LocalTime startTime = LocalTime.parse(times[0]);
+                            LocalTime endTime = LocalTime.parse(times[1]);
+
+                            // 检查时间冲突
+                            if (!hasTeacherTimeConflict(bookingRequest.getTeacherId(), currentDate, times[0], times[1]) &&
+                                !hasStudentTimeConflict(bookingRequest.getStudentId(), currentDate, times[0], times[1])) {
+
+                                Schedule schedule = Schedule.builder()
+                                        .teacherId(bookingRequest.getTeacherId())
+                                        .studentId(bookingRequest.getStudentId())
+                                        .courseId(bookingRequest.getCourseId())
+                                        .scheduledDate(currentDate)
+                                        .startTime(startTime)
+                                        .endTime(endTime)
+                                        .totalTimes(bookingRequest.getTotalTimes())
+                                        .status("progressing")
+                                        .bookingRequestId(bookingRequest.getId())
+                                        .bookingSource("request")
+                                        .isTrial(bookingRequest.getIsTrial())
+                                        .sessionNumber(sessionNumber)
+                                        .recurringWeekdays(bookingRequest.getRecurringWeekdays())
+                                        .recurringTimeSlots(bookingRequest.getRecurringTimeSlots())
+                                        .build();
+
+                                scheduleMapper.insert(schedule);
+                                generatedCount++;
+                                sessionNumber++;
+
+                                log.debug("成功生成第 {} 节课程安排，日期: {}, 时间: {}-{}",
+                                        sessionNumber - 1, currentDate, times[0], times[1]);
+                            } else {
+                                log.debug("跳过冲突时间段，日期: {}, 时间: {}-{}", currentDate, times[0], times[1]);
+                            }
+                        }
+                    }
+                }
+                currentDate = currentDate.plusDays(1);
+            }
+
+            // 如果还没生成足够的课程，扩展结束日期继续生成
+            if (generatedCount < targetTotalTimes && currentCycle < maxCycles) {
+                endDate = endDate.plusMonths(1); // 扩展一个月
+                log.info("课程数量不足，扩展结束日期到: {}，继续生成剩余 {} 节课",
+                        endDate, targetTotalTimes - generatedCount);
+            }
+        }
+
+        log.info("周期性课程安排生成完成，预约申请ID: {}, 预期总次数: {}, 实际生成: {} 个安排",
+                bookingRequest.getId(), targetTotalTimes, generatedCount);
+
+        // 如果经过多轮循环仍然无法生成足够的课程，记录错误
+        if (generatedCount < targetTotalTimes) {
+            log.error("无法生成足够的课程！预约申请ID: {}, 预期: {} 节课, 实际生成: {} 节课, 可能原因：时间冲突过多或配置不合理",
+                    bookingRequest.getId(), targetTotalTimes, generatedCount);
+        }
+
+        return generatedCount;
+    }
+
+    /**
+     * 生成周期性课程安排（无总次数限制）
+     * 用于处理没有设置总次数的情况，按原有逻辑生成
+     */
+    private int generateRecurringSchedulesWithoutLimit(BookingRequest bookingRequest,
+                                                      List<Integer> weekdays,
+                                                      List<String> timeSlots,
+                                                      LocalDate currentDate,
+                                                      LocalDate endDate) {
+        int generatedCount = 0;
         int sessionNumber = 1;
 
         while (currentDate.isBefore(endDate) || currentDate.isEqual(endDate)) {
@@ -389,11 +491,10 @@ public class BookingServiceImpl implements BookingService {
                             generatedCount++;
                             sessionNumber++;
 
-                            // 如果达到总次数限制，停止生成
-                            if (bookingRequest.getTotalTimes() != null && sessionNumber > bookingRequest.getTotalTimes()) {
-                                log.info("已达到总次数限制，停止生成课程安排");
-                                return generatedCount;
-                            }
+                            log.debug("成功生成第 {} 节课程安排，日期: {}, 时间: {}-{}",
+                                    sessionNumber - 1, currentDate, times[0], times[1]);
+                        } else {
+                            log.debug("跳过冲突时间段，日期: {}, 时间: {}-{}", currentDate, times[0], times[1]);
                         }
                     }
                 }
@@ -401,7 +502,6 @@ public class BookingServiceImpl implements BookingService {
             currentDate = currentDate.plusDays(1);
         }
 
-        log.info("周期性课程安排生成完成，共生成 {} 个安排", generatedCount);
         return generatedCount;
     }
 
