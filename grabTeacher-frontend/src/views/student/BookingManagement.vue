@@ -156,7 +156,7 @@
 
         <div v-if="bookings.length === 0 && !loading" class="empty-state">
           <el-empty description="暂无预约申请">
-            <el-button type="primary" @click="$router.push('/student/teacher-match')">
+            <el-button type="primary" @click="$router.push('/student-center/match')">
               立即预约
             </el-button>
           </el-empty>
