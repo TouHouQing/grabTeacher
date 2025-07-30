@@ -85,73 +85,84 @@
               <el-tag :type="getStatusTagType(booking.status)" size="large">
                 {{ getStatusText(booking.status) }}
               </el-tag>
-              <el-tag v-if="booking.isTrial" type="warning" size="small" style="margin-left: 8px;">
+              <el-tag v-if="booking.isTrial" type="warning" size="large" style="margin-left: 8px;">
                 试听课
               </el-tag>
             </div>
           </div>
 
           <div class="booking-content">
-            <div class="booking-details">
-              <div class="detail-row">
-                <span class="label">预约类型：</span>
-                <span class="value">{{ booking.bookingType === 'single' ? '单次预约' : '周期性预约' }}</span>
+            <div class="booking-main">
+              <div class="booking-details">
+                <div class="detail-row">
+                  <span class="label">预约类型：</span>
+                  <span class="value">{{ booking.bookingType === 'single' ? '单次预约' : '周期性预约' }}</span>
+                </div>
+
+                <div v-if="booking.bookingType === 'single'" class="detail-row">
+                  <span class="label">上课时间：</span>
+                  <span class="value">
+                    {{ booking.requestedDate }} {{ booking.requestedStartTime }}-{{ booking.requestedEndTime }}
+                  </span>
+                </div>
+
+                <div v-else class="detail-row">
+                  <span class="label">上课时间：</span>
+                  <span class="value">
+                    {{ formatRecurringTime(booking.recurringWeekdays, booking.recurringTimeSlots) || '未设置' }}
+                  </span>
+                </div>
+
+                <div v-if="booking.bookingType === 'recurring'" class="detail-row">
+                  <span class="label">课程周期：</span>
+                  <span class="value">
+                    {{ booking.startDate }} 至 {{ booking.endDate }}
+                    <span v-if="booking.totalTimes">（共{{ booking.totalTimes }}次课）</span>
+                  </span>
+                </div>
+
+                <div v-if="booking.studentRequirements" class="detail-row">
+                  <span class="label">学习需求：</span>
+                  <span class="value requirements">{{ booking.studentRequirements }}</span>
+                </div>
+
+                <div v-if="booking.adminNotes" class="detail-row">
+                  <span class="label">管理员备注：</span>
+                  <span class="value admin-notes">{{ booking.adminNotes }}</span>
+                </div>
               </div>
 
-              <div v-if="booking.bookingType === 'single'" class="detail-row">
-                <span class="label">上课时间：</span>
-                <span class="value">
-                  {{ booking.requestedDate }} {{ booking.requestedStartTime }}-{{ booking.requestedEndTime }}
-                </span>
-              </div>
-
-              <div v-else class="detail-row">
-                <span class="label">上课时间：</span>
-                <span class="value">
-                  {{ formatRecurringTime(booking.recurringWeekdays, booking.recurringTimeSlots) || '未设置' }}
-                </span>
-              </div>
-
-              <div v-if="booking.bookingType === 'recurring'" class="detail-row">
-                <span class="label">课程周期：</span>
-                <span class="value">
-                  {{ booking.startDate }} 至 {{ booking.endDate }}
-                  <span v-if="booking.totalTimes">（共{{ booking.totalTimes }}次课）</span>
-                </span>
-              </div>
-
-              <div v-if="booking.studentRequirements" class="detail-row">
-                <span class="label">学习需求：</span>
-                <span class="value requirements">{{ booking.studentRequirements }}</span>
-              </div>
-
-              <div v-if="booking.adminNotes" class="detail-row">
-                <span class="label">管理员备注：</span>
-                <span class="value admin-notes">{{ booking.adminNotes }}</span>
-              </div>
             </div>
 
-            <div class="booking-actions">
-              <el-button size="small" @click="viewBookingDetail(booking)">
+            <div class="booking-actions-right">
+              <el-button
+                class="action-btn detail-btn"
+                size="small"
+                @click="viewBookingDetail(booking)"
+              >
+                <el-icon><View /></el-icon>
                 详情
               </el-button>
               <el-button
                 v-if="booking.status === 'pending'"
+                class="action-btn approve-btn"
                 type="success"
                 size="small"
                 @click="approveBooking(booking, 'approved')"
               >
+                <el-icon><Check /></el-icon>
                 通过
               </el-button>
               <el-button
                 v-if="booking.status === 'pending'"
+                class="action-btn reject-btn"
                 type="danger"
                 size="small"
                 @click="approveBooking(booking, 'rejected')"
               >
+                <el-icon><Close /></el-icon>
                 拒绝
               </el-button>
-
             </div>
           </div>
         </div>
@@ -303,7 +314,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, Clock, Check, Star, Refresh } from '@element-plus/icons-vue'
+import { Calendar, Clock, Check, Star, Refresh, View, Close } from '@element-plus/icons-vue'
 import { bookingAPI } from '@/utils/api'
 
 // 响应式数据
@@ -681,6 +692,17 @@ const getStatusText = (status: string) => {
   align-items: center;
 }
 
+.booking-content {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.booking-main {
+  flex: 1;
+}
+
 .booking-details {
   margin-bottom: 16px;
 }
@@ -716,10 +738,69 @@ const getStatusText = (status: string) => {
   border-left: 3px solid #67c23a;
 }
 
-.booking-actions {
+.booking-actions-right {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 6px;
+  width: 80px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.action-btn {
+  width: 80px !important;
+  height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  border-radius: 4px !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+.action-btn .el-icon {
+  margin-right: 4px !important;
+  font-size: 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.detail-btn {
+  background: linear-gradient(135deg, #409eff, #66b3ff) !important;
+  border: none !important;
+  color: white !important;
+}
+
+.detail-btn:hover {
+  background: linear-gradient(135deg, #337ecc, #5aa3e6) !important;
+  box-shadow: 0 2px 4px rgba(64, 158, 255, 0.3) !important;
+}
+
+.approve-btn {
+  background: linear-gradient(135deg, #67c23a, #85ce61) !important;
+  border: none !important;
+  color: white !important;
+}
+
+.approve-btn:hover {
+  background: linear-gradient(135deg, #529b2e, #6cb344) !important;
+  box-shadow: 0 2px 4px rgba(103, 194, 58, 0.3) !important;
+}
+
+.reject-btn {
+  background: linear-gradient(135deg, #f56c6c, #f78989) !important;
+  border: none !important;
+  color: white !important;
+}
+
+.reject-btn:hover {
+  background: linear-gradient(135deg, #dd6161, #e67c7c) !important;
+  box-shadow: 0 2px 4px rgba(245, 108, 108, 0.3) !important;
 }
 
 .empty-state, .loading-state {
@@ -769,5 +850,33 @@ const getStatusText = (status: string) => {
 
 .detail-item span {
   color: #303133;
+}
+
+/* 移动端响应式设计 */
+@media (max-width: 768px) {
+  .booking-content {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .booking-actions-right {
+    flex-direction: row;
+    justify-content: flex-end;
+    min-width: auto;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .action-btn {
+    width: 60px !important;
+    height: 26px !important;
+    font-size: 11px !important;
+    padding: 0 6px !important;
+  }
+
+  .action-btn .el-icon {
+    margin-right: 2px !important;
+    font-size: 10px !important;
+  }
 }
 </style>
