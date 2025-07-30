@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, Timer, Refresh, Check, VideoCamera, ChatDotRound, InfoFilled, Download } from '@element-plus/icons-vue'
+import { Calendar, Timer, Refresh, Check, VideoCamera, ChatDotRound, InfoFilled, Download, Clock, Collection, Reading } from '@element-plus/icons-vue'
 import { bookingAPI, rescheduleAPI } from '@/utils/api'
 
 // 课程安排接口（基于后端ScheduleResponseDTO）
@@ -431,6 +431,57 @@ const formatDate = (dateStr: string): string => {
   return `${date.getMonth() + 1}月${date.getDate()}日`
 }
 
+// 格式化课程安排日期显示
+const formatScheduleDate = (dateStr: string): string => {
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  const weekday = weekdays[date.getDay()]
+
+  return `${year}年${month}月${day}日 ${weekday}`
+}
+
+// 获取课程状态对应的CSS类
+const getScheduleStatusClass = (status: string): string => {
+  switch (status) {
+    case 'completed':
+      return 'schedule-completed'
+    case 'cancelled':
+      return 'schedule-cancelled'
+    case 'progressing':
+    default:
+      return 'schedule-progressing'
+  }
+}
+
+// 获取课程状态对应的标签类型
+const getScheduleTagType = (status: string): string => {
+  switch (status) {
+    case 'completed':
+      return 'success'
+    case 'cancelled':
+      return 'danger'
+    case 'progressing':
+    default:
+      return 'primary'
+  }
+}
+
+// 获取课程状态显示文本
+const getScheduleStatusText = (status: string): string => {
+  switch (status) {
+    case 'completed':
+      return '已完成'
+    case 'cancelled':
+      return '已取消'
+    case 'progressing':
+    default:
+      return '进行中'
+  }
+}
+
 
 
 // 下载学习资料
@@ -720,7 +771,7 @@ export default {
                 <span>{{ currentCourse.schedule }}</span>
               </div>
               <div class="meta-item">
-                <el-icon><Date /></el-icon>
+                <el-icon><Timer /></el-icon>
                 <span>{{ currentCourse.startDate }} 至 {{ currentCourse.endDate }}</span>
               </div>
               <div class="meta-item">
@@ -744,6 +795,42 @@ export default {
           <h4>课程介绍</h4>
           <p>{{ currentCourse.description }}</p>
         </div>
+
+        <!-- 课程时间安排 -->
+        <div class="detail-schedule" v-if="currentCourse.schedules && currentCourse.schedules.length > 0">
+          <h4>课程时间安排</h4>
+          <div class="schedule-list">
+            <div
+              v-for="(schedule, index) in currentCourse.schedules"
+              :key="schedule.id"
+              class="schedule-item-detail"
+              :class="getScheduleStatusClass(schedule.status)"
+            >
+              <div class="schedule-number">
+                <span>第{{ schedule.sessionNumber || (index + 1) }}节</span>
+              </div>
+              <div class="schedule-info">
+                <div class="schedule-date">
+                  <el-icon><Calendar /></el-icon>
+                  <span>{{ formatScheduleDate(schedule.scheduledDate) }}</span>
+                </div>
+                <div class="schedule-time">
+                  <el-icon><Clock /></el-icon>
+                  <span>{{ schedule.startTime }} - {{ schedule.endTime }}</span>
+                </div>
+              </div>
+              <div class="schedule-status">
+                <el-tag
+                  :type="getScheduleTagType(schedule.status)"
+                  size="small"
+                >
+                  {{ getScheduleStatusText(schedule.status) }}
+                </el-tag>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="detail-actions">
           <el-button type="primary" @click="enterClassroom(currentCourse)">
             <el-icon><VideoCamera /></el-icon> 进入课堂
@@ -1344,6 +1431,98 @@ h2 {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+/* 课程时间安排样式 */
+.detail-schedule {
+  margin-top: 20px;
+}
+
+.detail-schedule h4 {
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.schedule-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  background-color: #fafafa;
+}
+
+.schedule-item-detail {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e4e7ed;
+  transition: background-color 0.3s ease;
+}
+
+.schedule-item-detail:last-child {
+  border-bottom: none;
+}
+
+.schedule-item-detail:hover {
+  background-color: #f0f9ff;
+}
+
+.schedule-number {
+  flex-shrink: 0;
+  width: 60px;
+  margin-right: 15px;
+}
+
+.schedule-number span {
+  display: inline-block;
+  padding: 4px 8px;
+  background-color: #409eff;
+  color: white;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.schedule-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.schedule-date,
+.schedule-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #606266;
+}
+
+.schedule-date .el-icon,
+.schedule-time .el-icon {
+  font-size: 16px;
+  color: #909399;
+}
+
+.schedule-status {
+  flex-shrink: 0;
+  margin-left: 15px;
+}
+
+/* 不同状态的样式 */
+.schedule-completed .schedule-number span {
+  background-color: #67c23a;
+}
+
+.schedule-cancelled .schedule-number span {
+  background-color: #f56c6c;
+}
+
+.schedule-progressing .schedule-number span {
+  background-color: #409eff;
 }
 
 .time-tags {
