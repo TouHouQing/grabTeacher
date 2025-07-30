@@ -189,9 +189,45 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public Student addStudent(StudentInfoRequest request) {
-        // 只创建学生信息，不创建用户（管理员直接创建学生档案）
+        // 验证必填字段
+        if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
+            throw new RuntimeException("用户名不能为空");
+        }
+        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+            throw new RuntimeException("邮箱不能为空");
+        }
+        if (request.getRealName() == null || request.getRealName().trim().isEmpty()) {
+            throw new RuntimeException("真实姓名不能为空");
+        }
+
+        // 检查用户名是否已存在
+        if (userMapper.existsByUsername(request.getUsername().trim())) {
+            throw new RuntimeException("用户名已被使用");
+        }
+
+        // 检查邮箱是否已存在
+        if (userMapper.existsByEmail(request.getEmail().trim())) {
+            throw new RuntimeException("邮箱已被注册");
+        }
+
+        // 创建用户账号，默认密码为123456
+        User user = User.builder()
+                .username(request.getUsername().trim())
+                .email(request.getEmail().trim())
+                .password(passwordEncoder.encode("123456")) // 默认密码
+                .phone(request.getPhone())
+                .userType("student")
+                .status("active")
+                .isDeleted(false)
+                .hasUsedTrial(false)
+                .build();
+
+        userMapper.insert(user);
+        log.info("管理员创建学生用户账号成功: {}, ID: {}", user.getEmail(), user.getId());
+
+        // 创建学生信息，关联到刚创建的用户
         Student student = Student.builder()
-                .userId(null) // 管理员创建的学生可能没有关联用户
+                .userId(user.getId()) // 关联到刚创建的用户
                 .realName(request.getRealName())
                 .gradeLevel(request.getGradeLevel())
                 .subjectsInterested(request.getSubjectsInterested())
@@ -202,6 +238,7 @@ public class AdminServiceImpl implements AdminService {
                 .build();
 
         studentMapper.insert(student);
+        log.info("管理员创建学生档案成功: 学生ID={}, 用户ID={}", student.getId(), user.getId());
 
         // 处理学生感兴趣的科目关联
         if (request.getSubjectIds() != null && !request.getSubjectIds().isEmpty()) {
@@ -209,6 +246,7 @@ public class AdminServiceImpl implements AdminService {
                 StudentSubject studentSubject = new StudentSubject(student.getId(), subjectId);
                 studentSubjectMapper.insert(studentSubject);
             }
+            log.info("学生科目关联创建成功: 学生ID={}, 科目数量={}", student.getId(), request.getSubjectIds().size());
         }
 
         return student;

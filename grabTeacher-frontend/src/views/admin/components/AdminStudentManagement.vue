@@ -2,13 +2,15 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue'
-import { studentAPI, gradeApi } from '../../../utils/api'
+import { studentAPI, gradeApi, subjectAPI } from '../../../utils/api'
 
 // 学生列表
 const studentList = ref([])
 const loading = ref(false)
 const availableGrades = ref([])
 const loadingGrades = ref(false)
+const subjects = ref([])
+const loadingSubjects = ref(false)
 
 // 搜索表单
 const studentSearchForm = reactive({
@@ -30,8 +32,12 @@ const studentDialogTitle = ref('')
 const studentForm = reactive({
   id: 0,
   realName: '',
+  username: '',
+  email: '',
+  phone: '',
   gradeLevel: '',
   subjectsInterested: '',
+  subjectIds: [] as number[],
   learningGoals: '',
   preferredTeachingStyle: '',
   budgetRange: '',
@@ -49,6 +55,14 @@ const genderOptions = [
 const studentRules = {
   realName: [
     { required: true, message: '请输入学生姓名', trigger: 'blur' }
+  ],
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 3, max: 50, message: '用户名长度必须在3-50个字符之间', trigger: 'blur' }
+  ],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
   ]
 }
 
@@ -103,8 +117,12 @@ const handleAddStudent = () => {
   Object.assign(studentForm, {
     id: 0,
     realName: '',
+    username: '',
+    email: '',
+    phone: '',
     gradeLevel: '',
     subjectsInterested: '',
+    subjectIds: [],
     learningGoals: '',
     preferredTeachingStyle: '',
     budgetRange: '',
@@ -126,15 +144,19 @@ const saveStudent = async () => {
     loading.value = true
     const studentData = {
       realName: studentForm.realName,
+      username: studentForm.username,
+      email: studentForm.email,
+      phone: studentForm.phone,
       gradeLevel: studentForm.gradeLevel,
       subjectsInterested: studentForm.subjectsInterested,
+      subjectIds: studentForm.subjectIds,
       learningGoals: studentForm.learningGoals,
       preferredTeachingStyle: studentForm.preferredTeachingStyle,
       budgetRange: studentForm.budgetRange,
       gender: studentForm.gender
     }
 
-    let result
+    let result: any
     if (studentForm.id === 0) {
       result = await studentAPI.create(studentData)
     } else {
@@ -142,7 +164,7 @@ const saveStudent = async () => {
     }
 
     if (result.success) {
-      ElMessage.success(studentForm.id === 0 ? '添加成功' : '更新成功')
+      ElMessage.success(studentForm.id === 0 ? '添加成功，默认密码为123456' : '更新成功')
       studentDialogVisible.value = false
       await loadStudentList()
     } else {
@@ -207,9 +229,25 @@ const loadGrades = async () => {
   }
 }
 
+// 获取科目列表
+const loadSubjects = async () => {
+  try {
+    loadingSubjects.value = true
+    const response = await subjectAPI.getActiveSubjects()
+    if (response.success && response.data) {
+      subjects.value = response.data
+    }
+  } catch (error) {
+    console.error('获取科目列表失败:', error)
+  } finally {
+    loadingSubjects.value = false
+  }
+}
+
 onMounted(() => {
   loadStudentList()
   loadGrades()
+  loadSubjects()
 })
 </script>
 
@@ -301,9 +339,53 @@ onMounted(() => {
       :close-on-click-modal="false"
     >
       <el-form :model="studentForm" :rules="studentRules" label-width="120px">
-        <el-form-item label="学生姓名" prop="realName">
-          <el-input v-model="studentForm.realName" placeholder="请输入学生姓名" />
-        </el-form-item>
+        <!-- 账号信息 -->
+        <el-row :gutter="20" v-if="studentForm.id === 0">
+          <el-col :span="12">
+            <el-form-item label="用户名" prop="username">
+              <el-input v-model="studentForm.username" placeholder="请输入用户名" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="邮箱" prop="email">
+              <el-input v-model="studentForm.email" placeholder="请输入邮箱" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20" v-if="studentForm.id === 0">
+          <el-col :span="12">
+            <el-form-item label="手机号">
+              <el-input v-model="studentForm.phone" placeholder="请输入手机号" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="默认密码">
+              <el-input value="123456" disabled placeholder="默认密码为123456" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 基本信息 -->
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="学生姓名" prop="realName">
+              <el-input v-model="studentForm.realName" placeholder="请输入学生姓名" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="性别">
+              <el-radio-group v-model="studentForm.gender">
+                <el-radio
+                  v-for="option in genderOptions"
+                  :key="option.value"
+                  :label="option.value"
+                >
+                  {{ option.label }}
+                </el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="年级">
           <el-select v-model="studentForm.gradeLevel" placeholder="请选择年级" style="width: 100%" :loading="loadingGrades">
             <el-option
@@ -314,18 +396,21 @@ onMounted(() => {
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="性别">
-          <el-select v-model="studentForm.gender" placeholder="请选择性别" style="width: 100%">
+        <el-form-item label="感兴趣科目">
+          <el-select
+            v-model="studentForm.subjectIds"
+            multiple
+            placeholder="请选择感兴趣的科目"
+            style="width: 100%"
+            :loading="loadingSubjects"
+          >
             <el-option
-              v-for="option in genderOptions"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
+              v-for="subject in subjects"
+              :key="subject.id"
+              :label="subject.name"
+              :value="subject.id"
             />
           </el-select>
-        </el-form-item>
-        <el-form-item label="感兴趣科目">
-          <el-input v-model="studentForm.subjectsInterested" placeholder="请输入感兴趣的科目" />
         </el-form-item>
         <el-form-item label="学习目标">
           <el-input

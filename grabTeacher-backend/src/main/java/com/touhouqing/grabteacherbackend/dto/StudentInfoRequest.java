@@ -1,5 +1,6 @@
 package com.touhouqing.grabteacherbackend.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -16,5 +17,17 @@ public class StudentInfoRequest {
     private String learningGoals;
     private String preferredTeachingStyle;
     private String budgetRange;
+
+    @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     private String gender;
+
+    // 管理员添加学生时需要的账号信息
+    @Schema(description = "用户名（管理员添加学生时必填）")
+    private String username;
+
+    @Schema(description = "邮箱（管理员添加学生时必填）")
+    private String email;
+
+    @Schema(description = "手机号")
+    private String phone;
 }

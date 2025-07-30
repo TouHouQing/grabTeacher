@@ -128,11 +128,16 @@ export const studentAPI = {
   // 添加学生
   create: (data: {
     realName: string
+    username?: string
+    email?: string
+    phone?: string
     gradeLevel?: string
     subjectsInterested?: string
+    subjectIds?: number[]
     learningGoals?: string
     preferredTeachingStyle?: string
     budgetRange?: string
+    gender?: string
   }) => apiRequest('/api/admin/students', {
     method: 'POST',
     body: JSON.stringify(data)
@@ -141,11 +146,16 @@ export const studentAPI = {
   // 更新学生
   update: (id: number, data: {
     realName: string
+    username?: string
+    email?: string
+    phone?: string
     gradeLevel?: string
     subjectsInterested?: string
+    subjectIds?: number[]
     learningGoals?: string
     preferredTeachingStyle?: string
     budgetRange?: string
+    gender?: string
   }) => apiRequest(`/api/admin/students/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)
