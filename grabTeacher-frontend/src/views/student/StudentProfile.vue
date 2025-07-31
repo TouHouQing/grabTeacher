@@ -80,9 +80,9 @@ const fetchStudentProfile = async () => {
     const response = await userStore.getStudentProfile()
     if (response.success && response.data) {
       Object.assign(studentForm, response.data)
-      // 获取学生信息后，立即获取科目信息
-      if ((response.data as any).id) {
-        await fetchStudentSubjects((response.data as any).id)
+      // 从profile响应中直接设置科目信息
+      if ((response.data as any).subjectIds) {
+        selectedSubjectIds.value = (response.data as any).subjectIds
       }
     } else {
       ElMessage.warning(response.message || '获取学生信息失败')
@@ -143,30 +143,11 @@ const fetchGrades = async () => {
   }
 }
 
-// 获取学生感兴趣的科目
-const fetchStudentSubjects = async (studentId?: number) => {
-  // 如果没有传入studentId，尝试从studentForm中获取
-  const id = studentId || (studentForm as any).id
-  if (!id) return
-
-  try {
-    const response = await fetch(`${getApiBaseUrl()}/api/admin/students/${id}/subjects`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userStore.token}`
-      }
-    })
-
-    if (response.ok) {
-      const result = await response.json()
-      if (result.success && result.data) {
-        selectedSubjectIds.value = result.data
-      }
-    }
-  } catch (error) {
-    console.error('获取学生科目失败:', error)
-  }
+// 获取学生感兴趣的科目（从profile数据中获取，不需要单独请求）
+const fetchStudentSubjects = async () => {
+  // 学生的科目信息已经包含在profile中，不需要单独请求
+  // 这个函数保留是为了兼容性，但实际上科目信息会在loadProfile中设置
+  console.log('学生科目信息已从profile中获取')
 }
 
 // 保存学生信息
@@ -302,7 +283,7 @@ const changeEmail = async () => {
 onMounted(async () => {
   await fetchSubjects()
   await fetchGrades()
-  await fetchStudentProfile() // 这里会自动调用fetchStudentSubjects
+  await fetchStudentProfile() // 这里会自动从profile中获取科目信息
 })
 </script>
 
