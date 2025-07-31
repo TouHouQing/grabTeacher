@@ -2,6 +2,7 @@ package com.touhouqing.grabteacherbackend.controller;
 
 import com.touhouqing.grabteacherbackend.dto.ApiResponse;
 import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
+import com.touhouqing.grabteacherbackend.dto.StudentProfileResponse;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.StudentService;
@@ -31,17 +32,17 @@ public class StudentController {
      * 获取学生个人信息
      */
     @GetMapping("/profile")
-    public ResponseEntity<ApiResponse<Student>> getProfile(Authentication authentication) {
+    public ResponseEntity<ApiResponse<StudentProfileResponse>> getProfile(Authentication authentication) {
         try {
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-            Student student = studentService.getStudentByUserId(userPrincipal.getId());
-            
-            if (student == null) {
+            StudentProfileResponse studentProfile = studentService.getStudentProfileByUserId(userPrincipal.getId());
+
+            if (studentProfile == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("学生信息不存在"));
             }
-            
-            return ResponseEntity.ok(ApiResponse.success("获取成功", student));
+
+            return ResponseEntity.ok(ApiResponse.success("获取成功", studentProfile));
         } catch (Exception e) {
             logger.error("获取学生信息异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

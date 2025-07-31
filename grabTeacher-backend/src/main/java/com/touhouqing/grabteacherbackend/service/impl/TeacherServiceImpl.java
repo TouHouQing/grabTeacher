@@ -171,10 +171,15 @@ public class TeacherServiceImpl implements TeacherService {
             availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
         }
 
+        // 获取用户的出生年月
+        User user = userMapper.selectById(teacher.getUserId());
+        String birthDate = user != null ? user.getBirthDate() : null;
+
         return TeacherProfileResponse.builder()
                 .id(teacher.getId())
                 .userId(teacher.getUserId())
                 .realName(teacher.getRealName())
+                .birthDate(birthDate)
                 .educationBackground(teacher.getEducationBackground())
                 .teachingExperience(teacher.getTeachingExperience())
                 .specialties(teacher.getSpecialties())
@@ -290,6 +295,16 @@ public class TeacherServiceImpl implements TeacherService {
         if (request.getRealName() != null) {
             teacher.setRealName(request.getRealName());
         }
+
+        // 更新用户表中的出生年月
+        if (request.getBirthDate() != null) {
+            User user = userMapper.selectById(userId);
+            if (user != null) {
+                user.setBirthDate(request.getBirthDate());
+                userMapper.updateById(user);
+            }
+        }
+
         if (request.getEducationBackground() != null) {
             teacher.setEducationBackground(request.getEducationBackground());
         }

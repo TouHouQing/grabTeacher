@@ -35,6 +35,7 @@ export interface StudentInfo {
   id?: number
   userId?: number
   realName?: string
+  birthDate?: string
   gradeLevel?: string
   subjectsInterested?: string
   learningGoals?: string
@@ -47,6 +48,7 @@ export interface TeacherInfo {
   id?: number
   userId?: number
   realName?: string
+  birthDate?: string
   educationBackground?: string
   teachingExperience?: number
   specialties?: string
@@ -345,6 +347,27 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // 更新用户基本信息
+  const updateUserProfile = async (data: { birthDate: string }): Promise<ApiResponse<string>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/update-profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token.value}`,
+        },
+        body: JSON.stringify(data),
+      })
+      return await response.json()
+    } catch (error) {
+      console.error('更新用户基本信息失败:', error)
+      return {
+        success: false,
+        message: '网络错误，请稍后重试',
+      }
+    }
+  }
+
   // 管理员登录
   const adminLogin = async (loginData: LoginRequest): Promise<ApiResponse<User>> => {
     try {
@@ -390,6 +413,7 @@ export const useUserStore = defineStore('user', () => {
     updateTeacherProfile,
     getSubjects,
     changePassword,
+    updateUserProfile,
     adminLogin,
   }
 })

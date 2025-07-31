@@ -26,7 +26,23 @@ const passwordRules = {
   ],
   newPassword: [
     { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' },
+    {
+      validator: (rule: any, value: any, callback: any) => {
+        if (value && value.length >= 6) {
+          const hasLetter = /[a-zA-Z]/.test(value)
+          const hasNumber = /[0-9]/.test(value)
+          if (!hasLetter || !hasNumber) {
+            callback(new Error('密码必须包含字母和数字'))
+          } else {
+            callback()
+          }
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
   ],
   confirmPassword: [
     { required: true, message: '请确认新密码', trigger: 'blur' },
@@ -173,7 +189,7 @@ const resetEmailForm = () => {
           <el-input
             v-model="passwordForm.newPassword"
             type="password"
-            placeholder="请输入新密码（至少6位）"
+            placeholder="请输入新密码（至少6位，必须包括字母和数字）"
             show-password
             autocomplete="new-password"
           />
@@ -249,6 +265,7 @@ const resetEmailForm = () => {
       <h4>密码安全提示</h4>
       <ul>
         <li>密码长度至少6位字符</li>
+        <li>密码必须包含字母和数字</li>
         <li>建议使用字母、数字和特殊字符的组合</li>
         <li>不要使用过于简单的密码，如生日、电话号码等</li>
         <li>定期更换密码，提高账户安全性</li>

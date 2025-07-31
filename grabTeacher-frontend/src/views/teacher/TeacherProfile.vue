@@ -19,6 +19,7 @@ const selectedSubjectIds = ref<number[]>([])
 // 教师信息表单
 const teacherForm = reactive<TeacherInfo>({
   realName: '',
+  birthDate: '',
   educationBackground: '',
   teachingExperience: 0,
   specialties: '',
@@ -114,6 +115,7 @@ const saveProfile = async () => {
     // 只提交教师可以修改的字段，不包括科目和收费
     const formData = {
       realName: teacherForm.realName,
+      birthDate: teacherForm.birthDate,
       educationBackground: teacherForm.educationBackground,
       teachingExperience: teacherForm.teachingExperience,
       specialties: teacherForm.specialties,
@@ -170,6 +172,14 @@ const changePassword = async () => {
 
   if (passwordForm.newPassword.length < 6) {
     ElMessage.error('新密码长度不能少于6位')
+    return
+  }
+
+  // 验证密码必须包含字母和数字
+  const hasLetter = /[a-zA-Z]/.test(passwordForm.newPassword)
+  const hasNumber = /[0-9]/.test(passwordForm.newPassword)
+  if (!hasLetter || !hasNumber) {
+    ElMessage.error('密码必须包含字母和数字')
     return
   }
 
@@ -278,6 +288,13 @@ onMounted(() => {
               <el-form-item label="真实姓名" required>
                 <el-input v-model="teacherForm.realName" placeholder="请输入真实姓名"></el-input>
               </el-form-item>
+              <el-form-item label="出生年月" required>
+                <el-input
+                  v-model="teacherForm.birthDate"
+                  type="month"
+                  placeholder="请选择出生年月"
+                ></el-input>
+              </el-form-item>
               <el-form-item label="性别">
                 <el-radio-group v-model="teacherForm.gender">
                   <el-radio
@@ -374,7 +391,7 @@ onMounted(() => {
               <el-input
                 v-model="passwordForm.newPassword"
                 type="password"
-                placeholder="请输入新密码(至少6位)"
+                placeholder="请输入新密码(至少6位，必须包括字母和数字)"
                 show-password
               ></el-input>
             </el-form-item>

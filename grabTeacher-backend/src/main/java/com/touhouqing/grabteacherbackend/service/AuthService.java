@@ -3,6 +3,7 @@ package com.touhouqing.grabteacherbackend.service;
 import com.touhouqing.grabteacherbackend.dto.AuthResponse;
 import com.touhouqing.grabteacherbackend.dto.LoginRequest;
 import com.touhouqing.grabteacherbackend.dto.RegisterRequest;
+import com.touhouqing.grabteacherbackend.dto.UserUpdateRequest;
 import com.touhouqing.grabteacherbackend.entity.User;
 
 public interface AuthService {
@@ -51,4 +52,9 @@ public interface AuthService {
      * 管理员登录
      */
     AuthResponse authenticateAdmin(LoginRequest loginRequest);
+
+    /**
+     * 更新用户基本信息
+     */
+    boolean updateUserProfile(Long userId, UserUpdateRequest request);
 }

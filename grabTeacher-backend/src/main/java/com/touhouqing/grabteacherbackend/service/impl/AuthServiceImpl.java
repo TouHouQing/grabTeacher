@@ -447,4 +447,30 @@ public class AuthServiceImpl implements AuthService {
             return false;
         }
     }
+
+    /**
+     * 更新用户基本信息
+     */
+    @Override
+    @Transactional
+    public boolean updateUserProfile(Long userId, com.touhouqing.grabteacherbackend.dto.UserUpdateRequest request) {
+        try {
+            User user = userMapper.selectById(userId);
+            if (user == null) {
+                log.warn("用户不存在: userId={}", userId);
+                return false;
+            }
+
+            // 更新出生年月
+            user.setBirthDate(request.getBirthDate());
+            user.setUpdatedAt(LocalDateTime.now());
+            userMapper.updateById(user);
+
+            log.info("用户基本信息更新成功: userId={}", userId);
+            return true;
+        } catch (Exception e) {
+            log.error("更新用户基本信息失败: userId={}", userId, e);
+            return false;
+        }
+    }
 }

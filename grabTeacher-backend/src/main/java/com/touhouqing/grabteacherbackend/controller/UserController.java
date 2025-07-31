@@ -3,6 +3,7 @@ package com.touhouqing.grabteacherbackend.controller;
 import com.touhouqing.grabteacherbackend.dto.ApiResponse;
 import com.touhouqing.grabteacherbackend.dto.PasswordChangeRequest;
 import com.touhouqing.grabteacherbackend.dto.EmailUpdateRequest;
+import com.touhouqing.grabteacherbackend.dto.UserUpdateRequest;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.AuthService;
@@ -127,6 +128,37 @@ public class UserController {
             logger.error("更新邮箱异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("邮箱更新失败"));
+        }
+    }
+
+    /**
+     * 更新用户基本信息
+     */
+    @Operation(summary = "更新用户基本信息", description = "更新当前登录用户的基本信息（如出生年月）")
+    @PutMapping("/update-profile")
+    public ResponseEntity<ApiResponse<String>> updateUserProfile(
+            @Valid @RequestBody UserUpdateRequest request,
+            Authentication authentication) {
+        try {
+            if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error(401, "未登录"));
+            }
+
+            UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+
+            boolean success = authService.updateUserProfile(userPrincipal.getId(), request);
+
+            if (success) {
+                return ResponseEntity.ok(ApiResponse.success("用户信息更新成功", null));
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("用户信息更新失败"));
+            }
+        } catch (Exception e) {
+            logger.error("更新用户信息异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("更新用户信息失败"));
         }
     }
 }

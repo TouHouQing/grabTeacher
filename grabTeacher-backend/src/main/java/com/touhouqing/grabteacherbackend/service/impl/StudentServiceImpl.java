@@ -2,6 +2,7 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
+import com.touhouqing.grabteacherbackend.dto.StudentProfileResponse;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.StudentSubject;
 import com.touhouqing.grabteacherbackend.entity.BookingRequest;
@@ -10,6 +11,8 @@ import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
+import com.touhouqing.grabteacherbackend.mapper.UserMapper;
+import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.service.StudentService;
 import java.util.Map;
 import java.util.HashMap;
@@ -31,6 +34,7 @@ public class StudentServiceImpl implements StudentService {
     private final StudentSubjectMapper studentSubjectMapper;
     private final BookingRequestMapper bookingRequestMapper;
     private final ScheduleMapper scheduleMapper;
+    private final UserMapper userMapper;
 
     /**
      * 根据用户ID获取学生信息
@@ -41,6 +45,40 @@ public class StudentServiceImpl implements StudentService {
         queryWrapper.eq("user_id", userId);
         queryWrapper.eq("is_deleted", false);
         return studentMapper.selectOne(queryWrapper);
+    }
+
+    /**
+     * 根据用户ID获取学生个人信息（包含出生年月）
+     */
+    @Override
+    public StudentProfileResponse getStudentProfileByUserId(Long userId) {
+        Student student = getStudentByUserId(userId);
+        if (student == null) {
+            return null;
+        }
+
+        // 获取用户的出生年月
+        User user = userMapper.selectById(userId);
+        String birthDate = user != null ? user.getBirthDate() : null;
+
+        // 获取学生感兴趣的科目ID列表
+        List<Long> subjectIds = studentSubjectMapper.getSubjectIdsByStudentId(student.getId());
+
+        return StudentProfileResponse.builder()
+                .id(student.getId())
+                .userId(student.getUserId())
+                .realName(student.getRealName())
+                .birthDate(birthDate)
+                .gradeLevel(student.getGradeLevel())
+                .subjectsInterested(student.getSubjectsInterested())
+                .subjectIds(subjectIds)
+                .learningGoals(student.getLearningGoals())
+                .preferredTeachingStyle(student.getPreferredTeachingStyle())
+                .budgetRange(student.getBudgetRange())
+                .gender(student.getGender())
+                .isDeleted(student.getIsDeleted())
+                .deletedAt(student.getDeletedAt())
+                .build();
     }
 
     /**
@@ -58,6 +96,16 @@ public class StudentServiceImpl implements StudentService {
         if (request.getRealName() != null) {
             student.setRealName(request.getRealName());
         }
+
+        // 更新用户表中的出生年月
+        if (request.getBirthDate() != null) {
+            User user = userMapper.selectById(userId);
+            if (user != null) {
+                user.setBirthDate(request.getBirthDate());
+                userMapper.updateById(user);
+            }
+        }
+
         if (request.getGradeLevel() != null) {
             student.setGradeLevel(request.getGradeLevel());
         }

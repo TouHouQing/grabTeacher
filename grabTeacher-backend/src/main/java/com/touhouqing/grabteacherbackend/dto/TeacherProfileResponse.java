@@ -29,7 +29,10 @@ public class TeacherProfileResponse {
     
     @Schema(description = "真实姓名", example = "张老师")
     private String realName;
-    
+
+    @Schema(description = "出生年月", example = "1990-01")
+    private String birthDate;
+
     @Schema(description = "教育背景", example = "北京大学数学系硕士")
     private String educationBackground;
     

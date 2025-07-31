@@ -22,6 +22,7 @@ const userStore = useUserStore()
 // 学生信息表单
 const studentForm = reactive<StudentInfo>({
   realName: '',
+  birthDate: '',
   gradeLevel: '',
   subjectsInterested: '',
   learningGoals: '',
@@ -219,6 +220,14 @@ const changePassword = async () => {
     return
   }
 
+  // 验证密码必须包含字母和数字
+  const hasLetter = /[a-zA-Z]/.test(passwordForm.newPassword)
+  const hasNumber = /[0-9]/.test(passwordForm.newPassword)
+  if (!hasLetter || !hasNumber) {
+    ElMessage.error('密码必须包含字母和数字')
+    return
+  }
+
   passwordLoading.value = true
   try {
     const response = await userStore.changePassword(passwordForm)
@@ -325,6 +334,13 @@ onMounted(async () => {
               <el-form-item label="真实姓名" required>
                 <el-input v-model="studentForm.realName" placeholder="请输入真实姓名"></el-input>
               </el-form-item>
+              <el-form-item label="出生年月" required>
+                <el-input
+                  v-model="studentForm.birthDate"
+                  type="month"
+                  placeholder="请选择出生年月"
+                ></el-input>
+              </el-form-item>
               <el-form-item label="性别">
                 <el-radio-group v-model="studentForm.gender">
                   <el-radio
@@ -414,7 +430,7 @@ onMounted(async () => {
               <el-input
                 v-model="passwordForm.newPassword"
                 type="password"
-                placeholder="请输入新密码(至少6位)"
+                placeholder="请输入新密码(至少6位，必须包括字母和数字)"
                 show-password
               ></el-input>
             </el-form-item>

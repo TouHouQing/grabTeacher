@@ -13,6 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class TeacherInfoRequest {
     private String realName;
+    private String birthDate;
     private String educationBackground;
     private Integer teachingExperience;
     private String specialties;
