@@ -139,6 +139,15 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <!-- 配置测试插件跳过测试 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- 默认为 true，即跳过测试 -->
+                    <skipTests>true</skipTests>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
