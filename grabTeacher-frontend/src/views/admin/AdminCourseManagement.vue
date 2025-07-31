@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
 import { courseAPI, subjectAPI, teacherAPI, gradeApi } from '../../utils/api'
@@ -183,6 +183,11 @@ const fetchGrades = async () => {
     loadingGrades.value = false
   }
 }
+
+// 监听年级选择变化，同步到表单数据
+watch(selectedGrades, (newGrades: string[]) => {
+  courseForm.grade = newGrades.join(',')
+}, { deep: true })
 
 // 重置表单
 const resetForm = () => {
