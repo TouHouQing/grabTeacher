@@ -3,6 +3,11 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD 
 
 console.log('当前API环境:', API_BASE_URL)
 
+// 自定义错误类型，包含响应数据
+interface ApiError extends Error {
+  response?: any
+}
+
 // 创建API请求函数
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const url = `${API_BASE_URL}${endpoint}`
@@ -51,7 +56,7 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
 
       // 如果响应体包含错误信息，抛出包含具体错误信息的错误
       const errorMessage = responseData.message || `HTTP error! status: ${response.status}`
-      const error = new Error(errorMessage)
+      const error = new Error(errorMessage) as ApiError
       error.response = responseData
       throw error
     }
