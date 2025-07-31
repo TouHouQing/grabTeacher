@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getApiBaseUrl } from '@/utils/env'
 
-// 扩展注册请求接口
+// 简化注册请求接口
 interface ExtendedRegisterRequest {
   username: string
   email: string
@@ -13,14 +13,7 @@ interface ExtendedRegisterRequest {
   userType: 'student' | 'teacher' | 'admin'
   realName: string
   phone?: string
-  // 学生信息
-  gradeLevel?: string
-  subjectsInterested?: string
-  studentSubjectIds?: number[] // 学生感兴趣的科目ID列表
-  learningGoals?: string
-  preferredTeachingStyle?: string
-  budgetRange?: string
-  gender?: string
+  birthDate: string // 出生年月
 }
 
 const router = useRouter()
@@ -38,118 +31,12 @@ const registerForm = reactive<ExtendedRegisterRequest>({
   userType: 'student',
   realName: '',
   phone: '',
-  gradeLevel: '',
-  subjectsInterested: '',
-  learningGoals: '',
-  preferredTeachingStyle: '',
-  budgetRange: '',
-  gender: '不愿透露'
+  birthDate: '' // 出生年月
 })
 
-// 科目相关数据
-interface Subject {
-  id: number
-  name: string
-}
 
-// 年级相关数据
-interface Grade {
-  id: number
-  gradeName: string
-  description?: string
-}
 
-const subjects = ref<Subject[]>([])
-const selectedSubjectIds = ref<number[]>([])
-const grades = ref<Grade[]>([])
 
-// 计算属性：将选中的科目转换为字符串（保持兼容性）
-const subjectsString = computed(() => {
-  return selectedSubjectIds.value
-    .map(id => subjects.value.find(s => s.id === id)?.name)
-    .filter(Boolean)
-    .join(',')
-})
-
-// 性别选项
-const genderOptions = [
-  { label: '不愿透露', value: '不愿透露' },
-  { label: '男', value: '男' },
-  { label: '女', value: '女' }
-]
-
-// 获取科目列表
-const fetchSubjects = async () => {
-  try {
-    const response = await fetch(`${getApiBaseUrl()}/api/public/subjects/active`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
-
-    if (response.ok) {
-      const result = await response.json()
-      if (result.success && result.data) {
-        subjects.value = result.data.map((subject: any) => ({
-          id: subject.id,
-          name: subject.name
-        }))
-      }
-    }
-  } catch (error) {
-    console.error('获取科目列表失败:', error)
-    // 如果获取失败，使用默认科目列表
-    subjects.value = [
-      { id: 1, name: '语文' },
-      { id: 2, name: '数学' },
-      { id: 3, name: '英语' },
-      { id: 4, name: '物理' },
-      { id: 5, name: '化学' },
-      { id: 6, name: '生物' },
-      { id: 7, name: '历史' },
-      { id: 8, name: '地理' },
-      { id: 9, name: '政治' }
-    ]
-  }
-}
-
-// 获取年级列表
-const fetchGrades = async () => {
-  try {
-    const response = await fetch(`${getApiBaseUrl()}/api/public/grades`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
-
-    if (response.ok) {
-      const result = await response.json()
-      if (result.success && result.data) {
-        grades.value = result.data.map((grade: any) => ({
-          id: grade.id,
-          gradeName: grade.gradeName,
-          description: grade.description
-        }))
-      }
-    }
-  } catch (error) {
-    console.error('获取年级列表失败:', error)
-    // 如果获取失败，使用默认年级列表
-    grades.value = [
-      { id: 1, gradeName: '小学', description: '小学阶段' },
-      { id: 2, gradeName: '中学', description: '中学阶段' }
-    ]
-  }
-}
-
-// 组件挂载时获取科目列表和年级列表
-import { onMounted } from 'vue'
-onMounted(() => {
-  fetchSubjects()
-  fetchGrades()
-})
 
 // 检查用户名是否可用
 const checkUsername = async (username: string): Promise<boolean> => {
@@ -210,8 +97,21 @@ const validateForm = async (): Promise<boolean> => {
     return false
   }
 
+  // 验证密码必须包含字母和数字
+  const hasLetter = /[a-zA-Z]/.test(registerForm.password)
+  const hasNumber = /[0-9]/.test(registerForm.password)
+  if (!hasLetter || !hasNumber) {
+    errorMessage.value = '密码必须包含字母和数字'
+    return false
+  }
+
   if (registerForm.password !== registerForm.confirmPassword) {
     errorMessage.value = '密码和确认密码不匹配'
+    return false
+  }
+
+  if (!registerForm.birthDate) {
+    errorMessage.value = '请选择出生年月'
     return false
   }
 
@@ -225,10 +125,6 @@ const handleRegister = async () => {
   if (!(await validateForm())) {
     return
   }
-
-  // 设置感兴趣的科目
-  registerForm.subjectsInterested = subjectsString.value
-  registerForm.studentSubjectIds = selectedSubjectIds.value
 
   loading.value = true
 
@@ -338,6 +234,17 @@ const handleRegister = async () => {
           </div>
 
           <div class="form-group">
+            <label for="birthDate">出生年月 *</label>
+            <input
+              id="birthDate"
+              v-model="registerForm.birthDate"
+              type="month"
+              placeholder="请选择出生年月"
+              required
+            />
+          </div>
+
+          <div class="form-group">
             <label for="phone">手机号</label>
             <input
               id="phone"
@@ -353,7 +260,7 @@ const handleRegister = async () => {
               id="password"
               v-model="registerForm.password"
               type="password"
-              placeholder="请输入密码（至少6位）"
+              placeholder="请输入密码（至少6位，必须包括字母和数字）"
               required
             />
           </div>
@@ -370,95 +277,7 @@ const handleRegister = async () => {
           </div>
         </div>
 
-        <!-- 学生信息 -->
-        <div class="form-section student-info">
-          <h3>学生信息</h3>
 
-          <div class="form-group">
-            <label for="gradeLevel">年级水平</label>
-            <select id="gradeLevel" v-model="registerForm.gradeLevel">
-              <option value="">请选择年级</option>
-              <option
-                v-for="grade in grades"
-                :key="grade.id"
-                :value="grade.gradeName"
-              >
-                {{ grade.gradeName }}
-              </option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="subjectsInterested">感兴趣的科目</label>
-            <select
-              id="subjectsInterested"
-              v-model="selectedSubjectIds"
-              multiple
-              class="subjects-select"
-            >
-              <option
-                v-for="subject in subjects"
-                :key="subject.id"
-                :value="subject.id"
-              >
-                {{ subject.name }}
-              </option>
-            </select>
-            <small>按住 Ctrl 键可以选择多个科目</small>
-          </div>
-
-          <div class="form-group">
-            <label for="learningGoals">学习目标</label>
-            <textarea
-              id="learningGoals"
-              v-model="registerForm.learningGoals"
-              placeholder="请描述您的学习目标和需求"
-              rows="3"
-            ></textarea>
-          </div>
-
-          <div class="form-group">
-            <label for="preferredTeachingStyle">偏好的教学风格</label>
-            <select id="preferredTeachingStyle" v-model="registerForm.preferredTeachingStyle">
-              <option value="">请选择教学风格</option>
-              <option value="严格型">严格型</option>
-              <option value="温和型">温和型</option>
-              <option value="互动型">互动型</option>
-              <option value="启发型">启发型</option>
-              <option value="实践型">实践型</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>性别</label>
-            <div class="radio-group">
-              <label
-                v-for="option in genderOptions"
-                :key="option.value"
-                class="radio-option"
-              >
-                <input
-                  v-model="registerForm.gender"
-                  type="radio"
-                  :value="option.value"
-                />
-                <span>{{ option.label }}</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="budgetRange">预算范围（元/小时）</label>
-            <select id="budgetRange" v-model="registerForm.budgetRange">
-              <option value="">请选择预算范围</option>
-              <option value="50-100">50-100元</option>
-              <option value="100-200">100-200元</option>
-              <option value="200-300">200-300元</option>
-              <option value="300-500">300-500元</option>
-              <option value="500以上">500元以上</option>
-            </select>
-          </div>
-        </div>
 
         <div v-if="errorMessage" class="error-message">
           {{ errorMessage }}

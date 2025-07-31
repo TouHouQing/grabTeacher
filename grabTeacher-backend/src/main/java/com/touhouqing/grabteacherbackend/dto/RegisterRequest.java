@@ -1,5 +1,6 @@
 package com.touhouqing.grabteacherbackend.dto;
 
+import com.touhouqing.grabteacherbackend.validation.ValidPassword;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -24,7 +25,7 @@ public class RegisterRequest {
     private String email;
 
     @NotBlank(message = "密码不能为空")
-    @Size(min = 6, message = "密码长度不能少于6位")
+    @ValidPassword
     private String password;
 
     @NotBlank(message = "确认密码不能为空")
@@ -37,6 +38,9 @@ public class RegisterRequest {
     private String realName;
 
     private String phone;
+
+    @NotBlank(message = "出生年月不能为空")
+    private String birthDate;
 
     // 学生额外信息
     private String gradeLevel;

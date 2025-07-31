@@ -35,6 +35,9 @@ public class User {
     @Size(max = 20, message = "手机号长度不能超过20位")
     private String phone;
 
+    @TableField("birth_date")
+    private String birthDate;
+
     @TableField("avatar_url")
     private String avatarUrl;
 

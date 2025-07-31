@@ -2,15 +2,9 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { getApiBaseUrl } from '@/utils/env'
-import WideTimeSlotSelector from '@/components/WideTimeSlotSelector.vue'
 
-// 时间段接口
-interface TimeSlot {
-  weekday: number
-  timeSlots: string[]
-}
 
-// 扩展注册请求接口
+// 简化注册请求接口
 interface ExtendedRegisterRequest {
   username: string
   email: string
@@ -19,13 +13,7 @@ interface ExtendedRegisterRequest {
   userType: 'student' | 'teacher' | 'admin'
   realName: string
   phone?: string
-  // 教师信息
-  educationBackground?: string
-  teachingExperience?: number
-  specialties?: string
-  introduction?: string
-  gender?: string
-  availableTimeSlots?: TimeSlot[]
+  birthDate: string // 出生年月
 }
 
 const router = useRouter()
@@ -42,23 +30,10 @@ const registerForm = reactive<ExtendedRegisterRequest>({
   userType: 'teacher', // 固定为教师
   realName: '',
   phone: '',
-  educationBackground: '',
-  teachingExperience: 0,
-  specialties: '',
-  introduction: '',
-  gender: '不愿透露',
-  availableTimeSlots: []
+  birthDate: '' // 出生年月
 })
 
-// 可上课时间
-const availableTimeSlots = ref<TimeSlot[]>([])
 
-// 性别选项
-const genderOptions = [
-  { label: '不愿透露', value: '不愿透露' },
-  { label: '男', value: '男' },
-  { label: '女', value: '女' }
-]
 
 
 
@@ -121,8 +96,21 @@ const validateForm = async (): Promise<boolean> => {
     return false
   }
 
+  // 验证密码必须包含字母和数字
+  const hasLetter = /[a-zA-Z]/.test(registerForm.password)
+  const hasNumber = /[0-9]/.test(registerForm.password)
+  if (!hasLetter || !hasNumber) {
+    errorMessage.value = '密码必须包含字母和数字'
+    return false
+  }
+
   if (registerForm.password !== registerForm.confirmPassword) {
     errorMessage.value = '密码和确认密码不匹配'
+    return false
+  }
+
+  if (!registerForm.birthDate) {
+    errorMessage.value = '请选择出生年月'
     return false
   }
 
@@ -136,9 +124,6 @@ const handleRegister = async () => {
   if (!(await validateForm())) {
     return
   }
-
-  // 更新注册表单中的可上课时间
-  registerForm.availableTimeSlots = availableTimeSlots.value
 
   // 调试：打印要发送的数据
   console.log('发送的教师注册数据:', JSON.stringify(registerForm, null, 2))
@@ -221,6 +206,17 @@ const handleRegister = async () => {
           </div>
 
           <div class="form-group">
+            <label for="birthDate">出生年月 *</label>
+            <input
+              id="birthDate"
+              v-model="registerForm.birthDate"
+              type="month"
+              placeholder="请选择出生年月"
+              required
+            />
+          </div>
+
+          <div class="form-group">
             <label for="phone">手机号码</label>
             <input
               id="phone"
@@ -236,7 +232,7 @@ const handleRegister = async () => {
               id="password"
               v-model="registerForm.password"
               type="password"
-              placeholder="请输入密码（至少6位）"
+              placeholder="请输入密码（至少6位，必须包括字母和数字）"
               required
             />
           </div>
@@ -253,81 +249,7 @@ const handleRegister = async () => {
           </div>
         </div>
 
-        <!-- 教师专用字段 -->
-        <div class="form-section teacher-info">
-          <h3>教师信息</h3>
 
-          <div class="form-group">
-            <label>性别</label>
-            <div class="radio-group">
-              <label
-                v-for="option in genderOptions"
-                :key="option.value"
-                class="radio-option"
-              >
-                <input
-                  v-model="registerForm.gender"
-                  type="radio"
-                  :value="option.value"
-                  :name="'gender'"
-                  @change="() => console.log('性别选择:', registerForm.gender)"
-                />
-                <span>{{ option.label }}</span>
-              </label>
-            </div>
-            <small class="debug-info">当前选择: {{ registerForm.gender }}</small>
-          </div>
-
-          <div class="form-group">
-            <label for="educationBackground">教育背景</label>
-            <textarea
-              id="educationBackground"
-              v-model="registerForm.educationBackground"
-              placeholder="请简述您的教育背景（学历、毕业院校等）"
-              rows="3"
-            ></textarea>
-          </div>
-
-          <div class="form-group">
-            <label for="teachingExperience">教学经验（年）</label>
-            <input
-              id="teachingExperience"
-              v-model.number="registerForm.teachingExperience"
-              type="number"
-              min="0"
-              max="50"
-              placeholder="请输入教学经验年数"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="specialties">专业特长</label>
-            <input
-              id="specialties"
-              v-model="registerForm.specialties"
-              type="text"
-              placeholder="如：高考数学、竞赛辅导、基础提升等"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="introduction">个人简介</label>
-            <textarea
-              id="introduction"
-              v-model="registerForm.introduction"
-              placeholder="请简述您的教学理念、教学方法等"
-              rows="4"
-            ></textarea>
-          </div>
-        </div>
-
-        <!-- 可上课时间选择 -->
-        <div class="form-section time-selection">
-          <WideTimeSlotSelector
-            v-model="availableTimeSlots"
-            title="设置可上课时间"
-          />
-        </div>
 
         <div v-if="errorMessage" class="error-message">
           {{ errorMessage }}
