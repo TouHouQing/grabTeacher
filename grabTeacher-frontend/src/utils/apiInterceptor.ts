@@ -8,6 +8,10 @@ export const handleApiResponse = async (response: Response) => {
     const errorData = await response.json().catch(() => ({}))
 
     switch (response.status) {
+      case 400:
+        // 400错误通常包含具体的业务错误信息，直接显示
+        ElMessage.error(errorData.message || '请求参数错误')
+        break
       case 401:
         ElMessage.error('登录已过期，请重新登录')
         const userStore = useUserStore()
@@ -15,13 +19,27 @@ export const handleApiResponse = async (response: Response) => {
         router.push('/login')
         break
       case 403:
-        ElMessage.error('权限不足')
+        ElMessage.error('权限不足，无法执行此操作')
         break
       case 404:
         ElMessage.error('请求的资源不存在')
         break
+      case 409:
+        // 409冲突错误，通常是数据冲突
+        ElMessage.error(errorData.message || '数据冲突，请刷新页面后重试')
+        break
+      case 422:
+        // 422数据验证错误
+        ElMessage.error(errorData.message || '数据验证失败，请检查输入内容')
+        break
       case 500:
         ElMessage.error('服务器内部错误，请稍后重试')
+        break
+      case 502:
+        ElMessage.error('网关错误，请稍后重试')
+        break
+      case 503:
+        ElMessage.error('服务暂时不可用，请稍后重试')
         break
       default:
         ElMessage.error(errorData.message || `请求失败 (${response.status})`)

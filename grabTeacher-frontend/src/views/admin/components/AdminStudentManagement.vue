@@ -3,6 +3,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue'
 import { studentAPI, gradeApi, subjectAPI } from '../../../utils/api'
+import { getApiBaseUrl } from '../../../utils/env'
 
 // 学生列表
 const studentList = ref([])
@@ -51,18 +52,82 @@ const genderOptions = [
   { label: '女', value: '女' }
 ]
 
+// 检查用户名是否可用（仅在新增时检查）
+const checkUsernameAvailable = async (username: string): Promise<boolean> => {
+  if (!username || studentForm.id !== 0) return true // 编辑时不检查
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/auth/check-username?username=${encodeURIComponent(username)}`)
+    const result = await response.json()
+    return result.success && result.data
+  } catch (error) {
+    console.error('检查用户名失败:', error)
+    return false
+  }
+}
+
+// 检查邮箱是否可用（仅在新增时检查）
+const checkEmailAvailable = async (email: string): Promise<boolean> => {
+  if (!email || studentForm.id !== 0) return true // 编辑时不检查
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/auth/check-email?email=${encodeURIComponent(email)}`)
+    const result = await response.json()
+    return result.success && result.data
+  } catch (error) {
+    console.error('检查邮箱失败:', error)
+    return false
+  }
+}
+
+// 自定义验证器
+const validateUsername = async (rule: any, value: string, callback: any) => {
+  if (!value) {
+    callback(new Error('请输入用户名'))
+    return
+  }
+  if (value.length < 3 || value.length > 50) {
+    callback(new Error('用户名长度必须在3-50个字符之间'))
+    return
+  }
+  if (studentForm.id === 0) { // 仅在新增时检查
+    const available = await checkUsernameAvailable(value)
+    if (!available) {
+      callback(new Error('用户名已被使用，请选择其他用户名'))
+      return
+    }
+  }
+  callback()
+}
+
+const validateEmail = async (rule: any, value: string, callback: any) => {
+  if (!value) {
+    callback(new Error('请输入邮箱'))
+    return
+  }
+  const emailRegex = /^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
+  if (!emailRegex.test(value)) {
+    callback(new Error('请输入正确的邮箱格式'))
+    return
+  }
+  if (studentForm.id === 0) { // 仅在新增时检查
+    const available = await checkEmailAvailable(value)
+    if (!available) {
+      callback(new Error('邮箱已被注册，请使用其他邮箱'))
+      return
+    }
+  }
+  callback()
+}
+
 // 表单验证规则
 const studentRules = {
   realName: [
     { required: true, message: '请输入学生姓名', trigger: 'blur' }
   ],
   username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 50, message: '用户名长度必须在3-50个字符之间', trigger: 'blur' }
+    { validator: validateUsername, trigger: 'blur' }
   ],
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+    { validator: validateEmail, trigger: 'blur' }
   ]
 }
 

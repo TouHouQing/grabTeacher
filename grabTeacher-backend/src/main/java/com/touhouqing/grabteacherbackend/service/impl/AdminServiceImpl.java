@@ -260,6 +260,35 @@ public class AdminServiceImpl implements AdminService {
             throw new RuntimeException("学生不存在");
         }
 
+        // 如果更新了用户名或邮箱，需要检查是否与其他用户冲突
+        if (student.getUserId() != null) {
+            User currentUser = userMapper.selectById(student.getUserId());
+            if (currentUser != null) {
+                // 检查用户名是否与其他用户冲突（排除当前用户）
+                if (request.getUsername() != null && !request.getUsername().equals(currentUser.getUsername())) {
+                    if (userMapper.existsByUsername(request.getUsername())) {
+                        throw new RuntimeException("用户名已被使用");
+                    }
+                    currentUser.setUsername(request.getUsername());
+                }
+
+                // 检查邮箱是否与其他用户冲突（排除当前用户）
+                if (request.getEmail() != null && !request.getEmail().equals(currentUser.getEmail())) {
+                    if (userMapper.existsByEmail(request.getEmail())) {
+                        throw new RuntimeException("邮箱已被注册");
+                    }
+                    currentUser.setEmail(request.getEmail());
+                }
+
+                // 更新用户表中的其他信息
+                if (request.getPhone() != null) {
+                    currentUser.setPhone(request.getPhone());
+                }
+                currentUser.setUpdatedAt(LocalDateTime.now());
+                userMapper.updateById(currentUser);
+            }
+        }
+
         // 更新学生信息
         student.setRealName(request.getRealName());
         student.setGradeLevel(request.getGradeLevel());
@@ -441,6 +470,35 @@ public class AdminServiceImpl implements AdminService {
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
             throw new RuntimeException("教师不存在");
+        }
+
+        // 如果更新了用户名或邮箱，需要检查是否与其他用户冲突
+        if (teacher.getUserId() != null) {
+            User currentUser = userMapper.selectById(teacher.getUserId());
+            if (currentUser != null) {
+                // 检查用户名是否与其他用户冲突（排除当前用户）
+                if (request.getUsername() != null && !request.getUsername().equals(currentUser.getUsername())) {
+                    if (userMapper.existsByUsername(request.getUsername())) {
+                        throw new RuntimeException("用户名已被使用");
+                    }
+                    currentUser.setUsername(request.getUsername());
+                }
+
+                // 检查邮箱是否与其他用户冲突（排除当前用户）
+                if (request.getEmail() != null && !request.getEmail().equals(currentUser.getEmail())) {
+                    if (userMapper.existsByEmail(request.getEmail())) {
+                        throw new RuntimeException("邮箱已被注册");
+                    }
+                    currentUser.setEmail(request.getEmail());
+                }
+
+                // 更新用户表中的其他信息
+                if (request.getPhone() != null) {
+                    currentUser.setPhone(request.getPhone());
+                }
+                currentUser.setUpdatedAt(LocalDateTime.now());
+                userMapper.updateById(currentUser);
+            }
         }
 
         // 更新教师信息
