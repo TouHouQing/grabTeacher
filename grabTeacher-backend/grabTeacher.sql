@@ -545,7 +545,7 @@ CREATE TABLE `users` (
   `email` varchar(100) NOT NULL COMMENT '邮箱地址，用于登录和通知',
   `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '密码（加密）Bcrypt',
   `phone` varchar(20) DEFAULT NULL COMMENT '手机号码',
-  `birth_date` varchar(7) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '出生年月，格式：YYYY-MM',
+  `birth_date` varchar(7) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '出生年月，格式：YYYY-MM',
   `avatar_url` varchar(255) DEFAULT NULL COMMENT '头像图片URL地址',
   `user_type` enum('student','teacher','admin') NOT NULL COMMENT '用户类型：student-学生，teacher-教师，admin-管理员',
   `status` enum('active','inactive','banned') DEFAULT 'active' COMMENT '账户状态：active-激活，inactive-未激活，banned-封禁',
