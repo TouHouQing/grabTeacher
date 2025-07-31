@@ -202,9 +202,11 @@ const submitForm = async () => {
     } else {
       ElMessage.error(response.message || '操作失败')
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('提交表单失败:', error)
-    ElMessage.error('操作失败')
+    // 如果错误对象包含具体的错误信息，显示具体信息
+    const errorMessage = error.response?.message || error.message || '操作失败'
+    ElMessage.error(errorMessage)
   } finally {
     submitting.value = false
   }
@@ -236,10 +238,12 @@ const deleteGrade = async (grade: any) => {
     } else {
       ElMessage.error(response.message || '删除失败')
     }
-  } catch (error) {
+  } catch (error: any) {
     if (error !== 'cancel') {
       console.error('删除年级失败:', error)
-      ElMessage.error('删除失败')
+      // 如果错误对象包含具体的错误信息，显示具体信息
+      const errorMessage = error.response?.message || error.message || '删除失败'
+      ElMessage.error(errorMessage)
     }
   }
 }

@@ -39,16 +39,24 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
 
     console.log('API响应状态:', response.status)
 
+    // 先解析响应体
+    const responseData = await response.json()
+
     if (!response.ok) {
       if (response.status === 401) {
         console.error('401错误 - 认证失败，可能token无效或过期')
         // 如果是401错误，清除本地token
         localStorage.removeItem('token')
       }
-      throw new Error(`HTTP error! status: ${response.status}`)
+
+      // 如果响应体包含错误信息，抛出包含具体错误信息的错误
+      const errorMessage = responseData.message || `HTTP error! status: ${response.status}`
+      const error = new Error(errorMessage)
+      error.response = responseData
+      throw error
     }
 
-    return await response.json()
+    return responseData
   } catch (error) {
     console.error('API请求失败:', error)
     throw error
