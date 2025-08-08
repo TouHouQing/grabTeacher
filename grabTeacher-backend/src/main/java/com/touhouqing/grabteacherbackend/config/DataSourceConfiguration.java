@@ -14,7 +14,7 @@ import javax.sql.DataSource;
  * 手动配置数据源以避免Spring Boot自动配置的干扰
  */
 @Configuration
-public class DataSourceConfig {
+public class DataSourceConfiguration {
 
     @Value("${spring.datasource.url}")
     private String jdbcUrl;

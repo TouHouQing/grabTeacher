@@ -10,7 +10,7 @@ import javax.crypto.SecretKey;
 import java.util.Base64;
 
 @Configuration
-public class JwtConfig {
+public class JwtConfiguration {
 
     /**
      * JWT密钥，从环境变量读取，如果环境变量不存在则使用默认值

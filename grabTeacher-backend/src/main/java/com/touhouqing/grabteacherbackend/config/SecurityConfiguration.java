@@ -3,7 +3,6 @@ package com.touhouqing.grabteacherbackend.config;
 import com.touhouqing.grabteacherbackend.security.CustomUserDetailsService;
 import com.touhouqing.grabteacherbackend.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -27,7 +26,7 @@ import java.util.Arrays;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-public class SecurityConfig {
+public class SecurityConfiguration {
 
     @Autowired
     CustomUserDetailsService customUserDetailsService;

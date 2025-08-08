@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 
 @Configuration
 @MapperScan("com.touhouqing.grabteacherbackend.mapper")
-public class MybatisPlusConfig {
+public class MybatisPlusConfiguration {
 
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
