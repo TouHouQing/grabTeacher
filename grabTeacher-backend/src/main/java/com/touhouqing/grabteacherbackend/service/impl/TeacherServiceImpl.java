@@ -17,10 +17,8 @@ import com.touhouqing.grabteacherbackend.entity.Schedule;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Subject;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
-import com.touhouqing.grabteacherbackend.entity.TeacherSubject;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.entity.BookingRequest;
-import com.touhouqing.grabteacherbackend.entity.RescheduleRequest;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseGradeMapper;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
@@ -32,10 +30,10 @@ import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
 import com.touhouqing.grabteacherbackend.mapper.RescheduleRequestMapper;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
-import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -52,6 +50,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@CacheConfig(cacheNames = "teachers")
 public class TeacherServiceImpl implements TeacherService {
 
     private final TeacherMapper teacherMapper;
@@ -69,6 +68,9 @@ public class TeacherServiceImpl implements TeacherService {
      * 根据用户ID获取教师信息
      */
     @Override
+    @Cacheable(cacheNames = "teachers",
+               keyGenerator = "teacherCacheKeyGenerator",
+               unless = "#result == null")
     public Teacher getTeacherByUserId(Long userId) {
         QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId);
@@ -80,6 +82,7 @@ public class TeacherServiceImpl implements TeacherService {
      * 根据ID获取教师信息
      */
     @Override
+    @Cacheable(cacheNames = "teachers", key = "#teacherId", unless = "#result == null")
     public Teacher getTeacherById(Long teacherId) {
         QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("id", teacherId);
@@ -91,6 +94,9 @@ public class TeacherServiceImpl implements TeacherService {
      * 根据ID获取教师详情（包含用户信息、科目信息、年级信息）
      */
     @Override
+    @Cacheable(cacheNames = "teacherDetails",
+               keyGenerator = "teacherCacheKeyGenerator",
+               unless = "#result == null")
     public TeacherDetailResponse getTeacherDetailById(Long teacherId) {
         // 获取教师基本信息
         Teacher teacher = getTeacherById(teacherId);
@@ -200,16 +206,18 @@ public class TeacherServiceImpl implements TeacherService {
      */
     @Override
     public List<Teacher> getTeacherList(int page, int size, String subject, String keyword) {
+        // 如果有科目筛选，需要通过关联表查询
+        if (StringUtils.hasText(subject)) {
+            return getTeacherListBySubject(page, size, subject, keyword);
+        }
+
+        // 没有科目筛选时的简单查询
         Page<Teacher> pageParam = new Page<>(page, size);
         QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
-        
+
         queryWrapper.eq("is_deleted", false);
         queryWrapper.eq("is_verified", true); // 只显示已认证的教师
-        
-        if (StringUtils.hasText(subject)) {
-            queryWrapper.like("subjects", subject);
-        }
-        
+
         if (StringUtils.hasText(keyword)) {
             queryWrapper.and(wrapper -> wrapper
                     .like("real_name", keyword)
@@ -219,17 +227,53 @@ public class TeacherServiceImpl implements TeacherService {
                     .like("introduction", keyword)
             );
         }
-        
+
         queryWrapper.orderByDesc("id");
-        
+
         Page<Teacher> result = teacherMapper.selectPage(pageParam, queryWrapper);
         return result.getRecords();
+    }
+
+    /**
+     * 根据科目获取教师列表
+     */
+    private List<Teacher> getTeacherListBySubject(int page, int size, String subject, String keyword) {
+        // 先通过科目名称获取教师ID列表
+        List<Teacher> subjectTeachers = teacherMapper.findTeachersBySubject(subject);
+
+        // 如果有关键词筛选，进一步过滤
+        List<Teacher> filteredTeachers = new ArrayList<>();
+        for (Teacher teacher : subjectTeachers) {
+            boolean matchKeyword = true;
+
+            if (StringUtils.hasText(keyword)) {
+                matchKeyword = (teacher.getRealName() != null && teacher.getRealName().contains(keyword)) ||
+                              (teacher.getSpecialties() != null && teacher.getSpecialties().contains(keyword)) ||
+                              (teacher.getIntroduction() != null && teacher.getIntroduction().contains(keyword));
+            }
+
+            if (matchKeyword) {
+                filteredTeachers.add(teacher);
+            }
+        }
+
+        // 手动分页
+        int start = (page - 1) * size;
+        int end = Math.min(start + size, filteredTeachers.size());
+        if (start >= filteredTeachers.size()) {
+            return new ArrayList<>();
+        }
+
+        return filteredTeachers.subList(start, end);
     }
 
     /**
      * 获取教师列表（包含科目信息）
      */
     @Override
+    @Cacheable(cacheNames = "teacherList",
+               keyGenerator = "teacherCacheKeyGenerator",
+               unless = "#result == null || #result.isEmpty()")
     public List<TeacherListResponse> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword) {
         // 获取教师列表，支持科目和年级筛选
         List<Teacher> teachers = getFilteredTeacherList(page, size, subject, grade, keyword);
@@ -285,6 +329,12 @@ public class TeacherServiceImpl implements TeacherService {
      */
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(cacheNames = "teachers", allEntries = true),
+        @CacheEvict(cacheNames = "teacherDetails", allEntries = true),
+        @CacheEvict(cacheNames = "teacherList", allEntries = true),
+        @CacheEvict(cacheNames = "teacherMatch", allEntries = true)
+    })
     public Teacher updateTeacherInfo(Long userId, TeacherInfoRequest request) {
         Teacher teacher = getTeacherByUserId(userId);
         if (teacher == null) {
@@ -356,6 +406,9 @@ public class TeacherServiceImpl implements TeacherService {
      * 匹配教师 - 优化版本，减少数据库查询次数
      */
     @Override
+    @Cacheable(cacheNames = "teacherMatch",
+               keyGenerator = "teacherCacheKeyGenerator",
+               unless = "#result == null || #result.isEmpty()")
     public List<TeacherMatchResponse> matchTeachers(TeacherMatchRequest request) {
         log.info("开始匹配教师，请求参数: {}", request);
 
@@ -725,6 +778,9 @@ public class TeacherServiceImpl implements TeacherService {
      * 获取所有可用的年级选项（从课程年级关联表获取）
      */
     @Override
+    @Cacheable(cacheNames = "grades",
+               keyGenerator = "teacherCacheKeyGenerator",
+               unless = "#result == null || #result.isEmpty()")
     public List<String> getAvailableGrades() {
         // 从course_grades表中获取所有不同的年级
         List<String> grades = courseGradeMapper.findAllDistinctGrades();
@@ -767,6 +823,9 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     @Override
+    @Cacheable(cacheNames = "teacherSchedule",
+               keyGenerator = "teacherCacheKeyGenerator",
+               unless = "#result == null")
     public TeacherScheduleResponse getTeacherPublicSchedule(Long teacherId, LocalDate startDate, LocalDate endDate) {
         // 获取教师信息
         Teacher teacher = teacherMapper.selectById(teacherId);
@@ -826,6 +885,9 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     @Override
+    @Cacheable(cacheNames = "teacherAvailability",
+               keyGenerator = "teacherCacheKeyGenerator",
+               unless = "#result == null || #result.isEmpty()")
     public List<TimeSlotAvailability> checkTeacherAvailability(Long teacherId, LocalDate startDate, LocalDate endDate, List<String> timeSlots) {
         List<TimeSlotAvailability> availabilities = new ArrayList<>();
 

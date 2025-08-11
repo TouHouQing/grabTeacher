@@ -2,6 +2,7 @@ package com.touhouqing.grabteacherbackend.controller;
 
 import com.touhouqing.grabteacherbackend.service.CacheMonitorService;
 import com.touhouqing.grabteacherbackend.service.CacheWarmupService;
+import com.touhouqing.grabteacherbackend.service.TeacherCacheWarmupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +31,9 @@ public class CacheManagementController {
 
     @Autowired
     private CacheWarmupService cacheWarmupService;
+
+    @Autowired
+    private TeacherCacheWarmupService teacherCacheWarmupService;
 
     /**
      * 获取缓存统计报告
@@ -135,7 +139,7 @@ public class CacheManagementController {
     /**
      * 清理特定教师的课程缓存
      */
-    @DeleteMapping("/clear-teacher/{teacherId}")
+    @DeleteMapping("/clear-teacher-courses/{teacherId}")
     @Operation(summary = "清理特定教师课程缓存", description = "清理指定教师ID的课程相关缓存")
     public ResponseEntity<Map<String, String>> clearTeacherCoursesCache(
             @Parameter(description = "教师ID", required = true)
@@ -210,6 +214,115 @@ public class CacheManagementController {
             error.put("status", "unhealthy");
             error.put("error", e.getMessage());
             error.put("timestamp", System.currentTimeMillis());
+            return ResponseEntity.internalServerError().body(error);
+        }
+    }
+
+    /**
+     * 手动触发教师缓存预热
+     */
+    @PostMapping("/warmup-teachers")
+    @Operation(summary = "手动触发教师缓存预热", description = "手动执行教师缓存预热操作")
+    public ResponseEntity<Map<String, String>> warmupTeacherCache() {
+        try {
+            teacherCacheWarmupService.manualWarmupTeachers();
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "教师缓存预热已启动");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("教师缓存预热失败", e);
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "教师缓存预热失败: " + e.getMessage());
+            error.put("status", "error");
+            return ResponseEntity.internalServerError().body(error);
+        }
+    }
+
+    /**
+     * 清理所有教师缓存
+     */
+    @DeleteMapping("/clear-teachers")
+    @Operation(summary = "清理所有教师缓存", description = "清理所有教师相关缓存")
+    public ResponseEntity<Map<String, String>> clearAllTeacherCaches() {
+        try {
+            teacherCacheWarmupService.clearAllTeacherCaches();
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "所有教师缓存已清理");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("清理教师缓存失败", e);
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "清理教师缓存失败: " + e.getMessage());
+            error.put("status", "error");
+            return ResponseEntity.internalServerError().body(error);
+        }
+    }
+
+    /**
+     * 清理特定教师的缓存
+     */
+    @DeleteMapping("/clear-teacher/{teacherId}")
+    @Operation(summary = "清理特定教师缓存", description = "清理指定教师ID的相关缓存")
+    public ResponseEntity<Map<String, String>> clearSpecificTeacherCache(
+            @Parameter(description = "教师ID", required = true)
+            @PathVariable Long teacherId) {
+        try {
+            teacherCacheWarmupService.clearTeacherCache(teacherId);
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "教师 " + teacherId + " 的缓存已清理");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("清理教师缓存失败", e);
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "清理教师缓存失败: " + e.getMessage());
+            error.put("status", "error");
+            return ResponseEntity.internalServerError().body(error);
+        }
+    }
+
+    /**
+     * 清理特定科目的教师缓存
+     */
+    @DeleteMapping("/clear-subject-teachers/{subject}")
+    @Operation(summary = "清理特定科目教师缓存", description = "清理指定科目的教师相关缓存")
+    public ResponseEntity<Map<String, String>> clearSubjectTeacherCache(
+            @Parameter(description = "科目名称", required = true)
+            @PathVariable String subject) {
+        try {
+            teacherCacheWarmupService.clearSubjectTeacherCache(subject);
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "科目 " + subject + " 的教师缓存已清理");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("清理科目教师缓存失败", e);
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "清理科目教师缓存失败: " + e.getMessage());
+            error.put("status", "error");
+            return ResponseEntity.internalServerError().body(error);
+        }
+    }
+
+    /**
+     * 获取教师缓存统计信息
+     */
+    @GetMapping("/teacher-cache-stats")
+    @Operation(summary = "获取教师缓存统计信息", description = "获取教师缓存的详细统计信息")
+    public ResponseEntity<Map<String, String>> getTeacherCacheStats() {
+        try {
+            String stats = teacherCacheWarmupService.getTeacherCacheStats();
+            Map<String, String> response = new HashMap<>();
+            response.put("stats", stats);
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("获取教师缓存统计失败", e);
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "获取教师缓存统计失败: " + e.getMessage());
+            error.put("status", "error");
             return ResponseEntity.internalServerError().body(error);
         }
     }

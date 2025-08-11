@@ -1,5 +1,6 @@
 package com.touhouqing.grabteacherbackend.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -35,6 +36,7 @@ public class TimeSlotDTO {
     /**
      * 获取星期几的中文名称
      */
+    @JsonIgnore
     public String getWeekdayName() {
         String[] weekdays = {"", "周一", "周二", "周三", "周四", "周五", "周六", "周日"};
         return weekday != null && weekday >= 1 && weekday <= 7 ? weekdays[weekday] : "未知";
@@ -43,13 +45,15 @@ public class TimeSlotDTO {
     /**
      * 检查是否为工作日
      */
+    @JsonIgnore
     public boolean isWeekday() {
         return weekday != null && weekday >= 1 && weekday <= 5;
     }
-    
+
     /**
      * 检查是否为周末
      */
+    @JsonIgnore
     public boolean isWeekend() {
         return weekday != null && (weekday == 6 || weekday == 7);
     }

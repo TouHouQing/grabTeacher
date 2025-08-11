@@ -38,6 +38,9 @@ public class CacheWarmupService implements ApplicationRunner {
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
 
+    @Autowired
+    private TeacherCacheWarmupService teacherCacheWarmupService;
+
     /**
      * 应用启动时执行缓存预热
      */
@@ -62,7 +65,10 @@ public class CacheWarmupService implements ApplicationRunner {
             
             // 预热热门教师课程
             warmupPopularTeacherCourses();
-            
+
+            // 预热教师相关缓存
+            teacherCacheWarmupService.warmupTeacherCaches();
+
             log.info("缓存预热任务完成");
         } catch (Exception e) {
             log.error("缓存预热失败", e);

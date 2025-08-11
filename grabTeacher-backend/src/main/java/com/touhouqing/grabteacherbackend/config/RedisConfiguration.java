@@ -171,6 +171,55 @@ public class RedisConfiguration {
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .computePrefixWith(cacheName -> "grabTeacher:grades:"));
 
+        // 教师相关缓存 - 25分钟过期
+        configs.put("teachers", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(25))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
+                .computePrefixWith(cacheName -> "grabTeacher:teachers:"));
+
+        // 教师详情缓存 - 30分钟过期
+        configs.put("teacherDetails", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(30))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
+                .computePrefixWith(cacheName -> "grabTeacher:teacherDetails:"));
+
+        // 教师列表缓存 - 15分钟过期（更新频繁）
+        configs.put("teacherList", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(15))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
+                .computePrefixWith(cacheName -> "grabTeacher:teacherList:"));
+
+        // 教师匹配缓存 - 10分钟过期（高频查询）
+        configs.put("teacherMatch", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(10))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
+                .computePrefixWith(cacheName -> "grabTeacher:teacherMatch:"));
+
+        // 教师科目关联缓存 - 45分钟过期（变化较少）
+        configs.put("teacherSubjects", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(45))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
+                .computePrefixWith(cacheName -> "grabTeacher:teacherSubjects:"));
+
+        // 教师时间表缓存 - 5分钟过期（实时性要求高）
+        configs.put("teacherSchedule", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(5))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
+                .computePrefixWith(cacheName -> "grabTeacher:teacherSchedule:"));
+
+        // 教师可用性缓存 - 3分钟过期（实时性要求很高）
+        configs.put("teacherAvailability", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(3))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
+                .computePrefixWith(cacheName -> "grabTeacher:teacherAvailability:"));
+
         return configs;
     }
 }

@@ -51,4 +51,11 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
             "AND cg.grade = #{grade} AND c.is_deleted = 0 " +
             "ORDER BY t.teaching_experience DESC")
     List<Teacher> findTeachersBySubjectAndGrade(@Param("subject") String subject, @Param("grade") String grade);
+
+    /**
+     * 查询活跃教师ID列表（按教学经验排序）
+     */
+    @Select("SELECT id FROM teachers WHERE is_deleted = 0 AND is_verified = 1 " +
+            "ORDER BY teaching_experience DESC, id DESC LIMIT 50")
+    List<Long> findActiveTeacherIds();
 }
