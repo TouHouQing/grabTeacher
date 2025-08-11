@@ -17,6 +17,7 @@ import com.touhouqing.grabteacherbackend.mapper.GradeMapper;
 import com.touhouqing.grabteacherbackend.service.CourseService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@CacheConfig(cacheNames = "course")
 public class CourseServiceImpl implements CourseService {
 
     @Autowired
@@ -47,6 +49,12 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(cacheNames = "course", allEntries = true),
+        @CacheEvict(cacheNames = "courseList", allEntries = true),
+        @CacheEvict(cacheNames = "teacherCourses", allEntries = true),
+        @CacheEvict(cacheNames = "activeCourses", allEntries = true)
+    })
     public Course createCourse(CourseRequest request, Long currentUserId, String userType) {
         log.info("创建课程，用户ID: {}, 用户类型: {}", currentUserId, userType);
         
@@ -143,6 +151,12 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(cacheNames = "course", key = "#id"),
+        @CacheEvict(cacheNames = "courseList", allEntries = true),
+        @CacheEvict(cacheNames = "teacherCourses", allEntries = true),
+        @CacheEvict(cacheNames = "activeCourses", allEntries = true)
+    })
     public Course updateCourse(Long id, CourseRequest request, Long currentUserId, String userType) {
         log.info("更新课程，课程ID: {}, 用户ID: {}, 用户类型: {}", id, currentUserId, userType);
         
@@ -224,6 +238,12 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(cacheNames = "course", key = "#id"),
+        @CacheEvict(cacheNames = "courseList", allEntries = true),
+        @CacheEvict(cacheNames = "teacherCourses", allEntries = true),
+        @CacheEvict(cacheNames = "activeCourses", allEntries = true)
+    })
     public void deleteCourse(Long id, Long currentUserId, String userType) {
         log.info("删除课程，课程ID: {}, 用户ID: {}, 用户类型: {}", id, currentUserId, userType);
         
@@ -247,7 +267,11 @@ public class CourseServiceImpl implements CourseService {
         log.info("课程删除成功: {}", course.getTitle());
     }
 
+    /**
+     * 根据ID查询课程详情
+     */
     @Override
+    @Cacheable(cacheNames = "course", key = "#id", unless = "#result == null")
     public CourseResponse getCourseById(Long id) {
         Course course = courseMapper.selectById(id);
         if (course == null || course.getIsDeleted()) {
@@ -266,7 +290,13 @@ public class CourseServiceImpl implements CourseService {
         return "active".equals(status) || "inactive".equals(status) || "full".equals(status) || "pending".equals(status);
     }
 
+    /**
+     * 分页查询课程列表
+     */
     @Override
+    @Cacheable(cacheNames = "courseList",
+               keyGenerator = "courseCacheKeyGenerator",
+               unless = "#result == null || #result.records.isEmpty()")
     public Page<CourseResponse> getCourseList(int page, int size, String keyword, Long subjectId,
                                             Long teacherId, String status, String courseType, String grade) {
         Page<Course> pageParam = new Page<>(page, size);
@@ -320,8 +350,13 @@ public class CourseServiceImpl implements CourseService {
 
         return responsePage;
     }
-
+    /**
+     * 获取教师的课程列表
+     */
     @Override
+    @Cacheable(cacheNames = "teacherCourses",
+               keyGenerator = "courseCacheKeyGenerator",
+               unless = "#result == null || #result.isEmpty()")
     public List<CourseResponse> getTeacherCourses(Long teacherId, Long currentUserId, String userType) {
         // 权限检查：教师只能查看自己的课程，管理员可以查看任何教师的课程，public模式允许查看活跃课程
         if ("teacher".equals(userType)) {
@@ -372,7 +407,13 @@ public class CourseServiceImpl implements CourseService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 获取所有活跃课程
+     */
     @Override
+    @Cacheable(cacheNames = "activeCourses",
+               key = "'all'",
+               unless = "#result == null || #result.isEmpty()")
     public List<CourseResponse> getActiveCourses() {
         List<Course> courses = courseMapper.findActiveCourses();
         return courses.stream()
@@ -380,8 +421,17 @@ public class CourseServiceImpl implements CourseService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 更新课程状态
+     */
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(cacheNames = "course", key = "#id"),
+        @CacheEvict(cacheNames = "courseList", allEntries = true),
+        @CacheEvict(cacheNames = "teacherCourses", allEntries = true),
+        @CacheEvict(cacheNames = "activeCourses", allEntries = true)
+    })
     public void updateCourseStatus(Long id, String status, Long currentUserId, String userType) {
         log.info("更新课程状态，课程ID: {}, 新状态: {}, 用户ID: {}", id, status, currentUserId);
 

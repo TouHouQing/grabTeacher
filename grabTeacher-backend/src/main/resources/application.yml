@@ -57,6 +57,25 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
       database: ${REDIS_DATABASE:2}
+      timeout: ${REDIS_TIMEOUT:5000ms}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:20}
+          max-idle: ${REDIS_POOL_MAX_IDLE:10}
+          min-idle: ${REDIS_POOL_MIN_IDLE:5}
+          max-wait: ${REDIS_POOL_MAX_WAIT:3000ms}
+        shutdown-timeout: ${REDIS_SHUTDOWN_TIMEOUT:100ms}
+
+  # ========================================
+  # 缓存配置
+  # ========================================
+  cache:
+    type: redis
+    redis:
+      time-to-live: ${CACHE_TTL:PT30M}
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: ${CACHE_KEY_PREFIX:grabTeacher:cache:}
 
 # ========================================
 # 服务器配置

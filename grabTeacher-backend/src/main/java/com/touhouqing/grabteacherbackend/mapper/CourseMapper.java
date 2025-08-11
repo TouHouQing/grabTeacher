@@ -46,4 +46,10 @@ public interface CourseMapper extends BaseMapper<Course> {
      */
     @Select("SELECT * FROM courses WHERE teacher_id = #{teacherId} AND status = 'active' AND is_deleted = 0 ORDER BY created_at DESC")
     List<Course> findActiveByTeacherId(@Param("teacherId") Long teacherId);
+
+    /**
+     * 查询有活跃课程的教师ID列表
+     */
+    @Select("SELECT DISTINCT teacher_id FROM courses WHERE status = 'active' AND is_deleted = 0 ORDER BY teacher_id")
+    List<Long> findActiveTeacherIds();
 }
