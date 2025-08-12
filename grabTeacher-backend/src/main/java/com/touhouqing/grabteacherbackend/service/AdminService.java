@@ -87,6 +87,11 @@ public interface AdminService {
     void verifyTeacher(Long teacherId, Boolean isVerified);
 
     /**
+     * 设置教师为精选教师
+     */
+    void setTeacherFeatured(Long teacherId, Boolean isFeatured);
+
+    /**
      * 获取教师科目列表
      */
     List<Long> getTeacherSubjects(Long teacherId);

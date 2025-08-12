@@ -162,7 +162,7 @@ const loadTeachersWithFilter = async () => {
       params.grade = filter.grade
     }
 
-    const response = await teacherAPI.getPublicList(params)
+    const response = await teacherAPI.getFeaturedList(params)
     if (response.success && response.data) {
       const teacherList = Array.isArray(response.data) ? response.data : []
       teachers.value = transformTeacherData(teacherList)
@@ -235,7 +235,7 @@ const loadSubjects = async () => {
 const loadTeachers = async () => {
   try {
     loadingTeachers.value = true
-    const response = await teacherAPI.getPublicList({
+    const response = await teacherAPI.getFeaturedList({
       page: 1,
       size: 100 // 获取更多教师数据
     })

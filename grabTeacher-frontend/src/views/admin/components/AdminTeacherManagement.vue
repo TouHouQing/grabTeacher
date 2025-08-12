@@ -385,6 +385,22 @@ const toggleVerification = async (teacher: any) => {
   }
 }
 
+// 切换精选教师状态
+const toggleFeatured = async (teacher: any) => {
+  try {
+    const result = await teacherAPI.setFeatured(teacher.id, !teacher.isFeatured)
+    if (result.success) {
+      ElMessage.success(teacher.isFeatured ? '已取消天下名师' : '设置为天下名师成功')
+      await loadTeacherList()
+    } else {
+      ElMessage.error(result.message || '操作失败')
+    }
+  } catch (error: any) {
+    console.error('更新精选状态失败:', error)
+    ElMessage.error(error.message || '操作失败')
+  }
+}
+
 // 分页处理
 const handleTeacherPageChange = (page: number) => {
   teacherPagination.currentPage = page
@@ -478,7 +494,14 @@ onMounted(async () => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right" align="center">
+      <el-table-column prop="isFeatured" label="名师状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="row.isFeatured ? 'success' : 'info'">
+            {{ row.isFeatured ? '天下名师' : '普通教师' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="350" fixed="right" align="center">
         <template #default="{ row }">
           <div class="operation-buttons">
             <el-button size="small" :icon="Edit" @click="handleEditTeacher(row)">编辑</el-button>
@@ -489,6 +512,13 @@ onMounted(async () => {
               @click="toggleVerification(row)"
             >
               {{ row.isVerified ? '取消认证' : '认证' }}
+            </el-button>
+            <el-button
+              size="small"
+              :type="row.isFeatured ? 'warning' : 'primary'"
+              @click="toggleFeatured(row)"
+            >
+              {{ row.isFeatured ? '取消名师' : '设为名师' }}
             </el-button>
             <el-button size="small" type="danger" :icon="Delete" @click="handleDeleteTeacher(row)">删除</el-button>
           </div>

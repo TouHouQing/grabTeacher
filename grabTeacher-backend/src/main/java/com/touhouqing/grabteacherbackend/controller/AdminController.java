@@ -336,6 +336,30 @@ public class AdminController {
     }
 
     /**
+     * 设置教师为精选教师
+     */
+    @Operation(summary = "设置精选教师", description = "管理员设置教师是否为天下名师")
+    @PutMapping("/teachers/{teacherId}/featured")
+    public ResponseEntity<ApiResponse<Object>> setTeacherFeatured(
+            @PathVariable Long teacherId,
+            @RequestBody Map<String, Boolean> requestBody) {
+        try {
+            Boolean isFeatured = requestBody.get("isFeatured");
+            adminService.setTeacherFeatured(teacherId, isFeatured);
+            String message = isFeatured ? "设置为天下名师成功" : "取消天下名师成功";
+            return ResponseEntity.ok(ApiResponse.success(message, null));
+        } catch (RuntimeException e) {
+            logger.warn("设置精选教师失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("设置精选教师异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("设置失败"));
+        }
+    }
+
+    /**
      * 获取教师科目列表
      */
     @Operation(summary = "获取教师科目列表", description = "获取指定教师的科目ID列表")

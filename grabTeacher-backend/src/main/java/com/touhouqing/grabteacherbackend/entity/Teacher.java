@@ -54,6 +54,10 @@ public class Teacher {
     @Builder.Default
     private Boolean isVerified = false;
 
+    @TableField("is_featured")
+    @Builder.Default
+    private Boolean isFeatured = false;
+
     @TableField("is_deleted")
     @Builder.Default
     private Boolean isDeleted = false;

@@ -1,7 +1,6 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.touhouqing.grabteacherbackend.entity.BookingRequest;
 import com.touhouqing.grabteacherbackend.entity.Course;
@@ -23,6 +22,7 @@ import com.touhouqing.grabteacherbackend.mapper.UserMapper;
 import com.touhouqing.grabteacherbackend.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -573,6 +573,20 @@ public class AdminServiceImpl implements AdminService {
 
         teacher.setIsVerified(isVerified);
         teacherMapper.updateById(teacher);
+    }
+
+    @Override
+    @CacheEvict(cacheNames = {"featuredTeachers", "teacherList", "teachers"}, allEntries = true)
+    public void setTeacherFeatured(Long teacherId, Boolean isFeatured) {
+        Teacher teacher = teacherMapper.selectById(teacherId);
+        if (teacher == null) {
+            throw new RuntimeException("教师不存在");
+        }
+
+        teacher.setIsFeatured(isFeatured);
+        teacherMapper.updateById(teacher);
+
+        log.info("设置教师精选状态成功: teacherId={}, isFeatured={}", teacherId, isFeatured);
     }
 
     @Override

@@ -110,6 +110,26 @@ public class TeacherController {
     }
 
     /**
+     * 获取精选教师列表（天下名师页面使用）
+     */
+    @GetMapping("/featured")
+    public ResponseEntity<ApiResponse<List<TeacherListResponse>>> getFeaturedTeachers(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String subject,
+            @RequestParam(required = false) String grade,
+            @RequestParam(required = false) String keyword) {
+        try {
+            List<TeacherListResponse> teachers = teacherService.getFeaturedTeachers(page, size, subject, grade, keyword);
+            return ResponseEntity.ok(ApiResponse.success("获取成功", teachers));
+        } catch (Exception e) {
+            logger.error("获取精选教师列表异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("获取失败"));
+        }
+    }
+
+    /**
      * 获取教师详情（公开接口）
      */
     @GetMapping("/{teacherId}")

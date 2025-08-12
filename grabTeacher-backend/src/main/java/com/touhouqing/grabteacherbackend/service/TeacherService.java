@@ -45,6 +45,11 @@ public interface TeacherService {
      * 获取教师列表（包含科目信息）
      */
     List<TeacherListResponse> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword);
+
+    /**
+     * 获取精选教师列表（天下名师页面使用）
+     */
+    List<TeacherListResponse> getFeaturedTeachers(int page, int size, String subject, String grade, String keyword);
     
     /**
      * 更新教师信息

@@ -271,6 +271,16 @@ export const teacherAPI = {
       body: JSON.stringify({ isVerified: isVerified })
     }),
 
+  // 设置教师为精选教师
+  setFeatured: (id: number, isFeatured: boolean) =>
+    apiRequest(`/api/admin/teachers/${id}/featured`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ isFeatured: isFeatured })
+    }),
+
   // 匹配教师
   matchTeachers: (data: {
     subject?: string
@@ -347,6 +357,23 @@ export const teacherAPI = {
       }
     })
     return apiRequest(`/api/teacher/list?${searchParams}`)
+  },
+
+  // 获取精选教师列表（天下名师页面使用）
+  getFeaturedList: (params: {
+    page?: number
+    size?: number
+    subject?: string
+    grade?: string
+    keyword?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/teacher/featured?${searchParams}`)
   },
 
   // 获取教师统计数据

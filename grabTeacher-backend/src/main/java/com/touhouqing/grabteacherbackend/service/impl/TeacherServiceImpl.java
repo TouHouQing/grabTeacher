@@ -38,12 +38,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -277,6 +275,63 @@ public class TeacherServiceImpl implements TeacherService {
     public List<TeacherListResponse> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword) {
         // 获取教师列表，支持科目和年级筛选
         List<Teacher> teachers = getFilteredTeacherList(page, size, subject, grade, keyword);
+
+        // 转换为包含科目信息的响应DTO
+        List<TeacherListResponse> responseList = new ArrayList<>();
+        for (Teacher teacher : teachers) {
+            // 获取用户信息
+            User user = userMapper.selectById(teacher.getUserId());
+
+            // 获取教师的科目ID列表
+            List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
+
+            // 获取科目名称列表
+            List<String> subjects = new ArrayList<>();
+            for (Long subjectId : subjectIds) {
+                try {
+                    Subject subjectEntity = subjectService.getSubjectById(subjectId);
+                    if (subjectEntity != null) {
+                        subjects.add(subjectEntity.getName());
+                    }
+                } catch (Exception e) {
+                    log.warn("获取科目信息失败，科目ID: {}", subjectId, e);
+                }
+            }
+
+            // 获取年级信息
+            List<String> grades = getTeacherGradesList(teacher.getId());
+
+            TeacherListResponse response = TeacherListResponse.builder()
+                    .id(teacher.getId())
+                    .realName(teacher.getRealName())
+                    .avatarUrl(user != null ? user.getAvatarUrl() : null)
+                    .educationBackground(teacher.getEducationBackground())
+                    .teachingExperience(teacher.getTeachingExperience())
+                    .specialties(teacher.getSpecialties())
+                    .subjects(subjects)
+                    .grades(grades)
+                    .hourlyRate(teacher.getHourlyRate())
+                    .introduction(teacher.getIntroduction())
+                    .gender(teacher.getGender())
+                    .isVerified(teacher.getIsVerified())
+                    .build();
+
+            responseList.add(response);
+        }
+
+        return responseList;
+    }
+
+    /**
+     * 获取精选教师列表（天下名师页面使用）
+     */
+    @Override
+    @Cacheable(cacheNames = "featuredTeachers",
+               keyGenerator = "teacherCacheKeyGenerator",
+               unless = "#result == null || #result.isEmpty()")
+    public List<TeacherListResponse> getFeaturedTeachers(int page, int size, String subject, String grade, String keyword) {
+        // 获取精选教师列表，支持科目和年级筛选
+        List<Teacher> teachers = getFeaturedTeacherList(page, size, subject, grade, keyword);
 
         // 转换为包含科目信息的响应DTO
         List<TeacherListResponse> responseList = new ArrayList<>();
@@ -1428,5 +1483,92 @@ public class TeacherServiceImpl implements TeacherService {
         log.info("获取教师统计数据成功: userId={}, statistics={}", userId, statistics);
 
         return statistics;
+    }
+
+    /**
+     * 获取精选教师列表（支持科目和年级筛选）
+     */
+    private List<Teacher> getFeaturedTeacherList(int page, int size, String subject, String grade, String keyword) {
+        // 如果没有年级筛选，使用简化方法
+        if (!StringUtils.hasText(grade)) {
+            return getFeaturedTeacherListSimple(page, size, subject, keyword);
+        }
+
+        // 有年级筛选时，需要通过课程年级关联表查询
+        // 构建查询条件
+        QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("t.is_deleted", false);
+        queryWrapper.eq("t.is_verified", true);
+        queryWrapper.eq("t.is_featured", true); // 只查询精选教师
+
+        // 添加年级筛选条件
+        queryWrapper.exists("SELECT 1 FROM courses c " +
+                           "INNER JOIN course_grades cg ON c.id = cg.course_id " +
+                           "WHERE c.teacher_id = t.id AND c.is_deleted = 0 AND c.status = 'active' " +
+                           "AND cg.grade = {0}", grade);
+
+        // 添加科目筛选条件
+        if (StringUtils.hasText(subject)) {
+            queryWrapper.exists("SELECT 1 FROM teacher_subjects ts " +
+                               "INNER JOIN subjects s ON ts.subject_id = s.id " +
+                               "WHERE ts.teacher_id = t.id AND s.name = {0} AND s.is_deleted = 0", subject);
+        }
+
+        // 添加关键词筛选条件
+        if (StringUtils.hasText(keyword)) {
+            queryWrapper.and(wrapper -> wrapper
+                    .like("t.real_name", keyword)
+                    .or()
+                    .like("t.specialties", keyword)
+                    .or()
+                    .like("t.introduction", keyword)
+            );
+        }
+
+        queryWrapper.orderByDesc("t.id");
+
+        // 使用原生SQL查询
+        List<Teacher> teachers = teacherMapper.selectList(new QueryWrapper<Teacher>()
+                .eq("is_deleted", false)
+                .eq("is_verified", true)
+                .eq("is_featured", true)
+                .orderByDesc("id")
+                .last("LIMIT " + ((page - 1) * size) + ", " + size));
+
+        return teachers != null ? teachers : new ArrayList<>();
+    }
+
+    /**
+     * 获取精选教师列表（简化版，不包含年级筛选）
+     */
+    private List<Teacher> getFeaturedTeacherListSimple(int page, int size, String subject, String keyword) {
+        QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("is_deleted", false);
+        queryWrapper.eq("is_verified", true);
+        queryWrapper.eq("is_featured", true); // 只查询精选教师
+
+        // 添加科目筛选条件
+        if (StringUtils.hasText(subject)) {
+            queryWrapper.exists("SELECT 1 FROM teacher_subjects ts " +
+                               "INNER JOIN subjects s ON ts.subject_id = s.id " +
+                               "WHERE ts.teacher_id = teachers.id AND s.name = '" + subject + "' AND s.is_deleted = 0");
+        }
+
+        // 添加关键词筛选条件
+        if (StringUtils.hasText(keyword)) {
+            queryWrapper.and(wrapper -> wrapper
+                    .like("real_name", keyword)
+                    .or()
+                    .like("specialties", keyword)
+                    .or()
+                    .like("introduction", keyword)
+            );
+        }
+
+        queryWrapper.orderByDesc("id");
+        queryWrapper.last("LIMIT " + ((page - 1) * size) + ", " + size);
+
+        List<Teacher> teachers = teacherMapper.selectList(queryWrapper);
+        return teachers != null ? teachers : new ArrayList<>();
     }
 }

@@ -498,11 +498,13 @@ CREATE TABLE `teachers` (
   `video_intro_url` varchar(255) DEFAULT NULL COMMENT '个人介绍视频URL地址',
   `gender` enum('男','女','不愿透露') DEFAULT '不愿透露' COMMENT '性别：男、女、不愿透露',
   `is_verified` tinyint(1) DEFAULT '0' COMMENT '是否已认证：true-已认证，false-未认证',
+  `is_featured` tinyint(1) DEFAULT '0' COMMENT '是否为天下名师：true-是，false-否',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   `available_time_slots` text COMMENT '可上课时间安排，JSON格式存储：[{"weekday":1,"timeSlots":["08:00-09:00","10:00-11:00"]},{"weekday":2,"timeSlots":["14:00-15:00"]}]，weekday: 1=周一,2=周二...7=周日',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `user_id` (`user_id`)
+  UNIQUE KEY `user_id` (`user_id`),
+  KEY `idx_is_featured` (`is_featured`)
 ) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='教师详细信息表，存储教师的专业资料和教学信息';
 
 -- ----------------------------
@@ -591,5 +593,10 @@ INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`) VALUES (166, 'teacher_middle_chinese_03', 'middle_chinese03@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800008003', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`) VALUES (183, 'teacher', 'qhycursor@126.com', '$2a$10$jlFOPIGNKGflN7bUxRAR2OZ9F8NdnZotJaRsZ/cZ.IBPFPz5Gc/da', '', NULL, 'teacher', 'active', '2025-07-29 13:07:29', '2025-07-29 13:07:29', 0, NULL, 0, NULL);
 COMMIT;
+
+-- ----------------------------
+-- 设置部分教师为天下名师（精选教师）
+-- ----------------------------
+UPDATE `teachers` SET `is_featured` = 1 WHERE `id` IN (1, 2, 7, 10, 13, 16, 19, 22);
 
 SET FOREIGN_KEY_CHECKS = 1;
