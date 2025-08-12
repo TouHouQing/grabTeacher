@@ -51,6 +51,9 @@ public class CourseResponse {
     @Schema(description = "课程状态显示名称", example = "可报名")
     private String statusDisplay;
 
+    @Schema(description = "是否为精选课程", example = "false")
+    private Boolean isFeatured;
+
     @Schema(description = "课程创建时间")
     private LocalDateTime createdAt;
 

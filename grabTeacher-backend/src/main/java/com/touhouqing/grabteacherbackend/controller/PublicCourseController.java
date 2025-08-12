@@ -115,9 +115,9 @@ public class PublicCourseController {
     }
 
     /**
-     * 获取最新课程列表
+     * 获取最新课程列表（精选课程）
      */
-    @Operation(summary = "获取最新课程列表", description = "获取最近创建的活跃课程列表")
+    @Operation(summary = "获取最新课程列表", description = "获取管理员精选的最新课程列表")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功")
     })
@@ -128,17 +128,16 @@ public class PublicCourseController {
             @Parameter(description = "科目ID") @RequestParam(required = false) Long subjectId,
             @Parameter(description = "适用年级") @RequestParam(required = false) String grade) {
         try {
-            // 获取最新的活跃课程，按创建时间倒序排列
-            Page<CourseResponse> coursePage = courseService.getCourseList(page, size, null,
-                    subjectId, null, "active", null, grade);
-            
+            // 获取精选课程列表
+            Page<CourseResponse> coursePage = courseService.getFeaturedCourses(page, size, subjectId, grade);
+
             Map<String, Object> response = new HashMap<>();
             response.put("courses", coursePage.getRecords());
             response.put("total", coursePage.getTotal());
             response.put("current", coursePage.getCurrent());
             response.put("size", coursePage.getSize());
             response.put("pages", coursePage.getPages());
-            
+
             return ResponseEntity.ok(ApiResponse.success("获取最新课程列表成功", response));
         } catch (Exception e) {
             logger.error("获取最新课程列表异常: ", e);

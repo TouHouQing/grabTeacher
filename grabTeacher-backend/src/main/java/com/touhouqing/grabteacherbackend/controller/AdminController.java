@@ -8,8 +8,10 @@ import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
 import com.touhouqing.grabteacherbackend.dto.GradeRequest;
 import com.touhouqing.grabteacherbackend.dto.GradeResponse;
+import com.touhouqing.grabteacherbackend.dto.CourseResponse;
 import com.touhouqing.grabteacherbackend.service.AdminService;
 import com.touhouqing.grabteacherbackend.service.GradeService;
+import com.touhouqing.grabteacherbackend.service.CourseService;
 import jakarta.validation.Valid;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,6 +44,9 @@ public class AdminController {
 
     @Autowired
     private GradeService gradeService;
+
+    @Autowired
+    private CourseService courseService;
 
     /**
      * 获取系统统计信息
@@ -456,6 +462,117 @@ public class AdminController {
             logger.error("删除年级异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("删除失败"));
+        }
+    }
+
+    // ==================== 精选课程管理接口 ====================
+
+    /**
+     * 获取精选课程列表
+     */
+    @Operation(summary = "获取精选课程列表", description = "获取所有精选课程的分页列表")
+    @GetMapping("/featured-courses")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getFeaturedCourses(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(required = false) String grade) {
+        try {
+            Page<CourseResponse> coursePage = courseService.getFeaturedCourses(page, size, subjectId, grade);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("courses", coursePage.getRecords());
+            response.put("total", coursePage.getTotal());
+            response.put("current", coursePage.getCurrent());
+            response.put("size", coursePage.getSize());
+            response.put("pages", coursePage.getPages());
+
+            return ResponseEntity.ok(ApiResponse.success("获取精选课程列表成功", response));
+        } catch (Exception e) {
+            logger.error("获取精选课程列表异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("获取失败"));
+        }
+    }
+
+    /**
+     * 获取所有精选课程ID列表
+     */
+    @Operation(summary = "获取精选课程ID列表", description = "获取所有精选课程的ID列表")
+    @GetMapping("/featured-courses/ids")
+    public ResponseEntity<ApiResponse<List<Long>>> getFeaturedCourseIds() {
+        try {
+            List<Long> courseIds = courseService.getFeaturedCourseIds();
+            return ResponseEntity.ok(ApiResponse.success("获取精选课程ID列表成功", courseIds));
+        } catch (Exception e) {
+            logger.error("获取精选课程ID列表异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("获取失败"));
+        }
+    }
+
+    /**
+     * 设置单个课程为精选课程
+     */
+    @Operation(summary = "设置精选课程", description = "设置单个课程为精选课程或取消精选")
+    @PutMapping("/courses/{courseId}/featured")
+    public ResponseEntity<ApiResponse<Object>> setCourseAsFeatured(
+            @PathVariable Long courseId,
+            @RequestBody Map<String, Boolean> requestBody) {
+        try {
+            Boolean featured = requestBody.get("featured");
+            if (featured == null) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("featured参数不能为空"));
+            }
+
+            courseService.setCourseAsFeatured(courseId, featured);
+            String action = featured ? "设置为精选课程" : "取消精选课程";
+            return ResponseEntity.ok(ApiResponse.success(action + "成功", null));
+        } catch (RuntimeException e) {
+            logger.warn("设置精选课程失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("设置精选课程异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("操作失败"));
+        }
+    }
+
+    /**
+     * 批量设置精选课程
+     */
+    @Operation(summary = "批量设置精选课程", description = "批量设置多个课程为精选课程或取消精选")
+    @PutMapping("/courses/batch-featured")
+    public ResponseEntity<ApiResponse<Object>> batchSetFeaturedCourses(
+            @RequestBody Map<String, Object> requestBody) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<Long> courseIds = (List<Long>) requestBody.get("courseIds");
+            Boolean featured = (Boolean) requestBody.get("featured");
+
+            if (courseIds == null || courseIds.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("课程ID列表不能为空"));
+            }
+
+            if (featured == null) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("featured参数不能为空"));
+            }
+
+            courseService.batchSetFeaturedCourses(courseIds, featured);
+            String action = featured ? "批量设置为精选课程" : "批量取消精选课程";
+            return ResponseEntity.ok(ApiResponse.success(action + "成功", null));
+        } catch (RuntimeException e) {
+            logger.warn("批量设置精选课程失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("批量设置精选课程异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("操作失败"));
         }
     }
 }

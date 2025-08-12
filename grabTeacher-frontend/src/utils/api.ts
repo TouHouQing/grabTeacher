@@ -613,7 +613,60 @@ export const courseAPI = {
   getPublicActiveCourses: () => apiRequest('/api/public/courses/active'),
 
   // 获取课程详情（公开接口）
-  getPublicCourseById: (id: number) => apiRequest(`/api/public/courses/${id}`)
+  getPublicCourseById: (id: number) => apiRequest(`/api/public/courses/${id}`),
+
+  // 管理员获取课程列表
+  getCourseList: (params: {
+    page?: number
+    size?: number
+    keyword?: string
+    subjectId?: number
+    teacherId?: number
+    status?: string
+    courseType?: string
+    grade?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/courses?${searchParams}`)
+  },
+
+  // 获取精选课程列表
+  getFeaturedCourses: (params: {
+    page?: number
+    size?: number
+    subjectId?: number
+    grade?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/admin/featured-courses?${searchParams}`)
+  },
+
+  // 获取精选课程ID列表
+  getFeaturedCourseIds: () => apiRequest('/api/admin/featured-courses/ids'),
+
+  // 设置单个课程为精选课程
+  setCourseAsFeatured: (courseId: number, featured: boolean) =>
+    apiRequest(`/api/admin/courses/${courseId}/featured`, {
+      method: 'PUT',
+      body: JSON.stringify({ featured })
+    }),
+
+  // 批量设置精选课程
+  batchSetFeaturedCourses: (courseIds: number[], featured: boolean) =>
+    apiRequest('/api/admin/courses/batch-featured', {
+      method: 'PUT',
+      body: JSON.stringify({ courseIds, featured })
+    })
 }
 
 // 调课管理 API

@@ -89,4 +89,34 @@ public interface CourseService {
      * @return 是否有权限
      */
     boolean hasPermissionToManageCourse(Long courseId, Long currentUserId, String userType);
+
+    /**
+     * 获取精选课程列表（分页）
+     * @param page 页码
+     * @param size 每页大小
+     * @param subjectId 科目ID
+     * @param grade 年级
+     * @return 分页精选课程列表
+     */
+    Page<CourseResponse> getFeaturedCourses(int page, int size, Long subjectId, String grade);
+
+    /**
+     * 设置课程为精选课程
+     * @param courseId 课程ID
+     * @param featured 是否精选
+     */
+    void setCourseAsFeatured(Long courseId, boolean featured);
+
+    /**
+     * 批量设置精选课程
+     * @param courseIds 课程ID列表
+     * @param featured 是否精选
+     */
+    void batchSetFeaturedCourses(List<Long> courseIds, boolean featured);
+
+    /**
+     * 获取所有精选课程ID列表
+     * @return 精选课程ID列表
+     */
+    List<Long> getFeaturedCourseIds();
 }

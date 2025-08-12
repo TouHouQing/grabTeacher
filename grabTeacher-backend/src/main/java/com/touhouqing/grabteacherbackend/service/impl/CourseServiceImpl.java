@@ -506,6 +506,7 @@ public class CourseServiceImpl implements CourseService {
                 .courseType(course.getCourseType())
                 .durationMinutes(course.getDurationMinutes())
                 .status(course.getStatus())
+                .isFeatured(course.getIsFeatured())
                 .createdAt(course.getCreatedAt())
                 .grade(gradeStr) // 从course_grades表获取年级信息
                 .build();
@@ -515,5 +516,99 @@ public class CourseServiceImpl implements CourseService {
         response.setStatusDisplay(response.getStatusDisplay());
 
         return response;
+    }
+
+    /**
+     * 获取精选课程列表（分页）
+     */
+    @Override
+    @Cacheable(cacheNames = "featuredCourses",
+               key = "'page:' + #page + ':size:' + #size + ':subject:' + (#subjectId ?: 'all') + ':grade:' + (#grade ?: 'all')",
+               unless = "#result == null || #result.records.isEmpty()")
+    public Page<CourseResponse> getFeaturedCourses(int page, int size, Long subjectId, String grade) {
+        Page<Course> pageParam = new Page<>(page, size);
+        QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
+
+        queryWrapper.eq("is_featured", true)
+                   .eq("status", "active")
+                   .eq("is_deleted", false);
+
+        if (subjectId != null) {
+            queryWrapper.eq("subject_id", subjectId);
+        }
+
+        // 如果指定了年级，需要通过course_grades表关联查询
+        if (grade != null && !grade.trim().isEmpty()) {
+            queryWrapper.exists("SELECT 1 FROM course_grades cg WHERE cg.course_id = courses.id AND cg.grade = {0}", grade);
+        }
+
+        queryWrapper.orderByDesc("created_at");
+
+        Page<Course> coursePage = courseMapper.selectPage(pageParam, queryWrapper);
+
+        // 转换为CourseResponse
+        Page<CourseResponse> responsePage = new Page<>(coursePage.getCurrent(), coursePage.getSize(), coursePage.getTotal());
+        List<CourseResponse> responseList = coursePage.getRecords().stream()
+                .map(this::convertToCourseResponse)
+                .collect(Collectors.toList());
+        responsePage.setRecords(responseList);
+
+        return responsePage;
+    }
+
+    /**
+     * 设置课程为精选课程
+     */
+    @Override
+    @CacheEvict(cacheNames = {"featuredCourses", "courseList", "activeCourses"}, allEntries = true)
+    public void setCourseAsFeatured(Long courseId, boolean featured) {
+        Course course = courseMapper.selectById(courseId);
+        if (course == null || course.getIsDeleted()) {
+            throw new RuntimeException("课程不存在");
+        }
+
+        course.setIsFeatured(featured);
+        courseMapper.updateById(course);
+
+        log.info("课程 {} 精选状态已更新为: {}", courseId, featured);
+    }
+
+    /**
+     * 批量设置精选课程
+     */
+    @Override
+    @CacheEvict(cacheNames = {"featuredCourses", "courseList", "activeCourses"}, allEntries = true)
+    public void batchSetFeaturedCourses(List<Long> courseIds, boolean featured) {
+        if (courseIds == null || courseIds.isEmpty()) {
+            return;
+        }
+
+        // 验证所有课程都存在且未删除，并批量更新
+        QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
+        queryWrapper.in("id", courseIds)
+                   .eq("is_deleted", false);
+
+        List<Course> courses = courseMapper.selectList(queryWrapper);
+
+        if (courses.isEmpty()) {
+            throw new RuntimeException("没有有效的课程可以更新");
+        }
+
+        // 批量更新
+        for (Course course : courses) {
+            course.setIsFeatured(featured);
+            courseMapper.updateById(course);
+        }
+
+        log.info("批量更新 {} 个课程的精选状态为: {}", courses.size(), featured);
+    }
+
+    /**
+     * 获取所有精选课程ID列表
+     */
+    @Override
+    @Cacheable(cacheNames = "featuredCourseIds", key = "'all'")
+    public List<Long> getFeaturedCourseIds() {
+        return courseMapper.findFeaturedCourseIds();
     }
 }

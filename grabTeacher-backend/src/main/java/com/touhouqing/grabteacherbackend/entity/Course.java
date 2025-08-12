@@ -57,6 +57,11 @@ public class Course {
     @Schema(description = "课程状态", example = "pending", allowableValues = {"active", "inactive", "full", "pending"})
     private String status = "pending";
 
+    @TableField("is_featured")
+    @Builder.Default
+    @Schema(description = "是否为精选课程，在最新课程页面展示", example = "false")
+    private Boolean isFeatured = false;
+
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     @Schema(description = "课程创建时间")
     private LocalDateTime createdAt;
@@ -78,6 +83,7 @@ public class Course {
         this.courseType = courseType;
         this.durationMinutes = durationMinutes;
         this.status = "pending";
+        this.isFeatured = false;
         this.isDeleted = false;
     }
 }

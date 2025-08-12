@@ -3,6 +3,7 @@ package com.touhouqing.grabteacherbackend.controller;
 import com.touhouqing.grabteacherbackend.service.CacheMonitorService;
 import com.touhouqing.grabteacherbackend.service.CacheWarmupService;
 import com.touhouqing.grabteacherbackend.service.TeacherCacheWarmupService;
+import com.touhouqing.grabteacherbackend.service.FeaturedCourseCacheWarmupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,6 +35,9 @@ public class CacheManagementController {
 
     @Autowired
     private TeacherCacheWarmupService teacherCacheWarmupService;
+
+    @Autowired
+    private FeaturedCourseCacheWarmupService featuredCourseCacheWarmupService;
 
     /**
      * 获取缓存统计报告
@@ -322,6 +326,56 @@ public class CacheManagementController {
             log.error("获取教师缓存统计失败", e);
             Map<String, String> error = new HashMap<>();
             error.put("error", "获取教师缓存统计失败: " + e.getMessage());
+            error.put("status", "error");
+            return ResponseEntity.internalServerError().body(error);
+        }
+    }
+
+    /**
+     * 预热精选课程缓存
+     */
+    @PostMapping("/warmup/featured-courses")
+    @Operation(summary = "预热精选课程缓存", description = "手动触发精选课程缓存预热，提升访问性能")
+    public ResponseEntity<Map<String, String>> warmupFeaturedCoursesCache() {
+        try {
+            featuredCourseCacheWarmupService.manualWarmup();
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "精选课程缓存预热已启动");
+            response.put("status", "success");
+            response.put("timestamp", java.time.LocalDateTime.now().toString());
+
+            log.info("管理员手动触发精选课程缓存预热");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("预热精选课程缓存失败", e);
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "预热精选课程缓存失败: " + e.getMessage());
+            error.put("status", "error");
+            return ResponseEntity.internalServerError().body(error);
+        }
+    }
+
+    /**
+     * 清除精选课程缓存
+     */
+    @DeleteMapping("/clear/featured-courses")
+    @Operation(summary = "清除精选课程缓存", description = "清除所有精选课程相关的缓存数据")
+    public ResponseEntity<Map<String, String>> clearFeaturedCoursesCache() {
+        try {
+            featuredCourseCacheWarmupService.clearFeaturedCoursesCache();
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "精选课程缓存已清除");
+            response.put("status", "success");
+            response.put("timestamp", java.time.LocalDateTime.now().toString());
+
+            log.info("管理员清除精选课程缓存");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("清除精选课程缓存失败", e);
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "清除精选课程缓存失败: " + e.getMessage());
             error.put("status", "error");
             return ResponseEntity.internalServerError().body(error);
         }
