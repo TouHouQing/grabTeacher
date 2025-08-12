@@ -205,11 +205,16 @@ const initializeData = () => {
 
   // 根据 modelValue 设置选择
   if (props.modelValue && props.modelValue.length > 0) {
+    console.log('WideTimeSlotSelector: 初始化数据', props.modelValue)
     props.modelValue.forEach((item: TimeSlot) => {
       if (item.timeSlots && item.timeSlots.length > 0) {
         selectedSlots.value[item.weekday] = [...item.timeSlots]
+        console.log(`WideTimeSlotSelector: 设置星期${item.weekday}的时间段:`, item.timeSlots)
       }
     })
+    console.log('WideTimeSlotSelector: 最终selectedSlots:', selectedSlots.value)
+  } else {
+    console.log('WideTimeSlotSelector: 没有初始数据或数据为空')
   }
 }
 

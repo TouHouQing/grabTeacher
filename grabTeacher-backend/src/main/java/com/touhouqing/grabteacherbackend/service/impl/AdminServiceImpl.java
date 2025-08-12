@@ -11,6 +11,7 @@ import com.touhouqing.grabteacherbackend.entity.TeacherSubject;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
 import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
@@ -513,12 +514,15 @@ public class AdminServiceImpl implements AdminService {
 
         // 更新可上课时间
         if (request.getAvailableTimeSlots() != null) {
-            if (TimeSlotUtil.isValidTimeSlots(request.getAvailableTimeSlots())) {
-                teacher.setAvailableTimeSlots(TimeSlotUtil.toJsonString(request.getAvailableTimeSlots()));
-            } else {
-                // 如果格式不正确，保持原有时间不变
-                // 可以选择抛出异常或者使用默认时间
-                throw new RuntimeException("可上课时间格式不正确");
+            try {
+                // 使用sanitizeTimeSlots方法来清理和验证时间数据
+                List<TimeSlotDTO> sanitizedTimeSlots = TimeSlotUtil.sanitizeTimeSlots(request.getAvailableTimeSlots());
+                teacher.setAvailableTimeSlots(TimeSlotUtil.toJsonString(sanitizedTimeSlots));
+                log.debug("成功更新教师时间安排: teacherId={}", teacherId);
+            } catch (Exception e) {
+                log.error("处理可上课时间时发生错误: teacherId={}, error={}", teacherId, e.getMessage());
+                // 如果出现异常，使用默认时间安排
+                teacher.setAvailableTimeSlots(TimeSlotUtil.toJsonString(TimeSlotUtil.getDefaultTimeSlots()));
             }
         }
 

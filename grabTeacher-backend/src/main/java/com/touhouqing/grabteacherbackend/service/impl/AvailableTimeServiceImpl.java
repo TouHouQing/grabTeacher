@@ -42,6 +42,8 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
                 .availableTimeSlots(timeSlots)
                 .lastUpdated(LocalDateTime.now().format(FORMATTER))
                 .build();
+
+        log.info("构建的响应对象: {}", response);
         
         // 计算统计信息
         response.calculateStats();

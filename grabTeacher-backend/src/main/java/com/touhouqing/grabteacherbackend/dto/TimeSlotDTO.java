@@ -1,6 +1,7 @@
 package com.touhouqing.grabteacherbackend.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -27,6 +28,7 @@ public class TimeSlotDTO {
     @Min(value = 1, message = "星期几必须在1-7之间")
     @Max(value = 7, message = "星期几必须在1-7之间")
     @Schema(description = "星期几", example = "1", allowableValues = {"1", "2", "3", "4", "5", "6", "7"})
+    @JsonProperty("weekday")
     private Integer weekday;
     
     @Schema(description = "时间段列表", example = "[\"08:00-09:00\", \"10:00-11:00\", \"14:00-15:00\"]")

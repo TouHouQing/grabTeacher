@@ -103,7 +103,7 @@ public class AvailableTimeController {
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("教师信息不存在"));
             }
-            
+
             AvailableTimeResponse response = availableTimeService.getTeacherAvailableTime(teacherId);
             return ResponseEntity.ok(ApiResponse.success("获取成功", response));
         } catch (Exception e) {
@@ -112,4 +112,6 @@ public class AvailableTimeController {
                     .body(ApiResponse.error("获取失败: " + e.getMessage()));
         }
     }
+
+
 }

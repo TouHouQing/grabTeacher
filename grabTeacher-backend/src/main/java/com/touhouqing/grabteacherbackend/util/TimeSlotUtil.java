@@ -1,8 +1,9 @@
 package com.touhouqing.grabteacherbackend.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -21,7 +22,14 @@ import java.util.regex.Pattern;
 @Component
 public class TimeSlotUtil {
     
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper objectMapper = createObjectMapper();
+
+    private static ObjectMapper createObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        mapper.configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false);
+        return mapper;
+    }
     private static final Pattern TIME_SLOT_PATTERN = Pattern.compile("^([01]?[0-9]|2[0-3]):[0-5][0-9]-([01]?[0-9]|2[0-3]):[0-5][0-9]$");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     
@@ -48,9 +56,33 @@ public class TimeSlotUtil {
         if (jsonString == null || jsonString.trim().isEmpty()) {
             return new ArrayList<>();
         }
-        
+
         try {
-            return objectMapper.readValue(jsonString, new TypeReference<List<TimeSlotDTO>>() {});
+            // 手动解析JSON来避免Jackson反序列化问题
+            // 这是为了解决weekday字段在自动反序列化时丢失的问题
+            JsonNode rootNode = objectMapper.readTree(jsonString);
+            List<TimeSlotDTO> result = new ArrayList<>();
+
+            for (JsonNode node : rootNode) {
+                Integer weekday = node.has("weekday") ? node.get("weekday").asInt() : null;
+                List<String> timeSlots = new ArrayList<>();
+
+                if (node.has("timeSlots")) {
+                    JsonNode timeSlotsNode = node.get("timeSlots");
+                    for (JsonNode timeSlotNode : timeSlotsNode) {
+                        timeSlots.add(timeSlotNode.asText());
+                    }
+                }
+
+                TimeSlotDTO dto = TimeSlotDTO.builder()
+                    .weekday(weekday)
+                    .timeSlots(timeSlots)
+                    .build();
+
+                result.add(dto);
+            }
+
+            return result;
         } catch (JsonProcessingException e) {
             log.error("解析时间安排JSON失败: {}", jsonString, e);
             return new ArrayList<>();
@@ -61,20 +93,34 @@ public class TimeSlotUtil {
      * 验证时间段格式是否正确
      */
     public static boolean isValidTimeSlot(String timeSlot) {
-        if (timeSlot == null || !TIME_SLOT_PATTERN.matcher(timeSlot).matches()) {
+        if (timeSlot == null || timeSlot.trim().isEmpty()) {
             return false;
         }
-        
+
+        timeSlot = timeSlot.trim();
+
+        // 检查基本格式
+        if (!TIME_SLOT_PATTERN.matcher(timeSlot).matches()) {
+            log.debug("时间段格式不匹配正则表达式: {}", timeSlot);
+            return false;
+        }
+
         String[] times = timeSlot.split("-");
         if (times.length != 2) {
+            log.debug("时间段分割后长度不为2: {}", timeSlot);
             return false;
         }
-        
+
         try {
-            LocalTime startTime = LocalTime.parse(times[0], TIME_FORMATTER);
-            LocalTime endTime = LocalTime.parse(times[1], TIME_FORMATTER);
-            return startTime.isBefore(endTime);
+            LocalTime startTime = LocalTime.parse(times[0].trim(), TIME_FORMATTER);
+            LocalTime endTime = LocalTime.parse(times[1].trim(), TIME_FORMATTER);
+            boolean isValid = startTime.isBefore(endTime);
+            if (!isValid) {
+                log.debug("开始时间不早于结束时间: {} -> {}", startTime, endTime);
+            }
+            return isValid;
         } catch (DateTimeParseException e) {
+            log.debug("时间解析失败: {}, error: {}", timeSlot, e.getMessage());
             return false;
         }
     }
@@ -88,25 +134,72 @@ public class TimeSlotUtil {
             return true; // 空列表或null是有效的，表示清空时间设置
         }
 
-        for (TimeSlotDTO timeSlot : timeSlots) {
-            if (timeSlot.getWeekday() == null ||
-                timeSlot.getWeekday() < 1 ||
-                timeSlot.getWeekday() > 7) {
-                return false;
-            }
+        try {
+            for (TimeSlotDTO timeSlot : timeSlots) {
+                // 检查weekday是否有效
+                if (timeSlot.getWeekday() == null ||
+                    timeSlot.getWeekday() < 1 ||
+                    timeSlot.getWeekday() > 7) {
+                    log.warn("无效的星期几: {}", timeSlot.getWeekday());
+                    return false;
+                }
 
-            if (timeSlot.getTimeSlots() != null) {
-                for (String slot : timeSlot.getTimeSlots()) {
-                    if (!isValidTimeSlot(slot)) {
-                        return false;
+                // 检查时间段是否有效
+                if (timeSlot.getTimeSlots() != null) {
+                    for (String slot : timeSlot.getTimeSlots()) {
+                        if (slot != null && !slot.trim().isEmpty() && !isValidTimeSlot(slot)) {
+                            log.warn("无效的时间段格式: {}", slot);
+                            return false;
+                        }
                     }
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            log.error("验证时间段时发生异常", e);
+            return false;
+        }
+    }
+
+    /**
+     * 尝试修复和验证时间段数据
+     * 如果数据有问题，尝试修复或返回默认值
+     */
+    public static List<TimeSlotDTO> sanitizeTimeSlots(List<TimeSlotDTO> timeSlots) {
+        if (timeSlots == null || timeSlots.isEmpty()) {
+            return getDefaultTimeSlots();
+        }
+
+        List<TimeSlotDTO> sanitized = new ArrayList<>();
+
+        for (TimeSlotDTO timeSlot : timeSlots) {
+            if (timeSlot.getWeekday() != null &&
+                timeSlot.getWeekday() >= 1 &&
+                timeSlot.getWeekday() <= 7) {
+
+                List<String> validSlots = new ArrayList<>();
+                if (timeSlot.getTimeSlots() != null) {
+                    for (String slot : timeSlot.getTimeSlots()) {
+                        if (slot != null && !slot.trim().isEmpty() && isValidTimeSlot(slot)) {
+                            validSlots.add(slot.trim());
+                        }
+                    }
+                }
+
+                // 如果这个星期几有有效的时间段，就添加
+                if (!validSlots.isEmpty()) {
+                    sanitized.add(TimeSlotDTO.builder()
+                        .weekday(timeSlot.getWeekday())
+                        .timeSlots(validSlots)
+                        .build());
                 }
             }
         }
 
-        return true;
+        // 如果没有任何有效的时间段，返回默认值
+        return sanitized.isEmpty() ? getDefaultTimeSlots() : sanitized;
     }
-    
+
     /**
      * 获取默认的可上课时间安排
      */
