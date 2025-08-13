@@ -817,3 +817,79 @@ export const gradeApi = {
       method: 'DELETE'
     })
 }
+
+
+// 留学咨询 API
+export const studyAbroadAPI = {
+  // 公开：获取启用的国家/阶段/项目
+  getCountries: () => apiRequest('/api/public/study-abroad/countries'),
+  getStages: () => apiRequest('/api/public/study-abroad/stages'),
+  getPrograms: (params: { limit?: number; countryId?: number; stageId?: number }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null) searchParams.append(key, v.toString())
+    })
+    const query = searchParams.toString()
+    return apiRequest(`/api/public/study-abroad/programs${query ? `?${query}` : ''}`)
+  },
+
+  // 管理端：国家
+  adminListCountries: (params: { page?: number; size?: number; keyword?: string; isActive?: boolean }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null) searchParams.append(key, v.toString())
+    })
+    return apiRequest(`/api/admin/study-abroad/countries?${searchParams}`)
+  },
+  adminCreateCountry: (data: { countryName: string; sortOrder?: number; isActive?: boolean }) =>
+    apiRequest('/api/admin/study-abroad/countries', { method: 'POST', body: JSON.stringify(data) }),
+  adminUpdateCountry: (id: number, data: { countryName: string; sortOrder?: number; isActive?: boolean }) =>
+    apiRequest(`/api/admin/study-abroad/countries/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  adminDeleteCountry: (id: number) =>
+    apiRequest(`/api/admin/study-abroad/countries/${id}`, { method: 'DELETE' }),
+  adminUpdateCountryStatus: (id: number, isActive: boolean) =>
+    apiRequest(`/api/admin/study-abroad/countries/${id}/status?isActive=${isActive}`, { method: 'PATCH' }),
+
+  // 管理端：阶段
+  adminListStages: (params: { page?: number; size?: number; keyword?: string; isActive?: boolean }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null) searchParams.append(key, v.toString())
+    })
+    return apiRequest(`/api/admin/study-abroad/stages?${searchParams}`)
+  },
+  adminCreateStage: (data: { stageName: string; sortOrder?: number; isActive?: boolean }) =>
+    apiRequest('/api/admin/study-abroad/stages', { method: 'POST', body: JSON.stringify(data) }),
+  adminUpdateStage: (id: number, data: { stageName: string; sortOrder?: number; isActive?: boolean }) =>
+    apiRequest(`/api/admin/study-abroad/stages/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  adminDeleteStage: (id: number) =>
+    apiRequest(`/api/admin/study-abroad/stages/${id}`, { method: 'DELETE' }),
+  adminUpdateStageStatus: (id: number, isActive: boolean) =>
+    apiRequest(`/api/admin/study-abroad/stages/${id}/status?isActive=${isActive}`, { method: 'PATCH' }),
+
+  // 管理端：项目
+  adminListPrograms: (params: { page?: number; size?: number; keyword?: string; isActive?: boolean; countryId?: number; stageId?: number; isHot?: boolean }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null) searchParams.append(key, v.toString())
+    })
+    return apiRequest(`/api/admin/study-abroad/programs?${searchParams}`)
+  },
+  adminCreateProgram: (data: { title: string; countryId: number; stageId: number; description?: string; imageUrl?: string; tags?: string; isHot?: boolean; isFeatured?: boolean; sortOrder?: number; isActive?: boolean }) =>
+    apiRequest('/api/admin/study-abroad/programs', { method: 'POST', body: JSON.stringify(data) }),
+  adminUpdateProgram: (id: number, data: { title: string; countryId: number; stageId: number; description?: string; imageUrl?: string; tags?: string; isHot?: boolean; isFeatured?: boolean; sortOrder?: number; isActive?: boolean }) =>
+    apiRequest(`/api/admin/study-abroad/programs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  adminDeleteProgram: (id: number) =>
+    apiRequest(`/api/admin/study-abroad/programs/${id}`, { method: 'DELETE' }),
+  adminUpdateProgramStatus: (id: number, isActive: boolean) =>
+    apiRequest(`/api/admin/study-abroad/programs/${id}/status?isActive=${isActive}`, { method: 'PATCH' }),
+  adminUpdateProgramFlags: (id: number, isHot?: boolean, isFeatured?: boolean) => {
+    const params = new URLSearchParams()
+    if (isHot !== undefined && isHot !== null) params.append('isHot', String(isHot))
+    return apiRequest(`/api/admin/study-abroad/programs/${id}/flags?${params}`, { method: 'PATCH' })
+  }
+}

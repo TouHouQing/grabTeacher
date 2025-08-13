@@ -20,6 +20,7 @@ interface Course {
   statusDisplay: string
   grade?: string
   createdAt: string
+  isFeatured: boolean
 }
 
 interface Subject {
@@ -323,6 +324,25 @@ const updateCourseStatus = async (course: Course, newStatus: string) => {
   }
 }
 
+// 切换精选状态
+const onToggleFeatured = async (course: Course, val: any) => {
+  const next = !!val
+  const prev = !!course.isFeatured
+  course.isFeatured = next
+  try {
+    const response = await courseAPI.setCourseAsFeatured(course.id, next)
+    if (response.success) {
+      ElMessage.success('已更新精选状态')
+    } else {
+      course.isFeatured = prev
+      ElMessage.error(response.message || '操作失败')
+    }
+  } catch (error: any) {
+    course.isFeatured = prev
+    ElMessage.error(error?.message || '操作失败')
+  }
+}
+
 // 批准课程
 const approveCourse = async (course: Course) => {
   try {
@@ -516,6 +536,11 @@ onMounted(() => {
             <el-tag :type="getStatusTagType(row.status)">
               {{ row.statusDisplay }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="精选" width="90">
+          <template #default="{ row }">
+            <el-switch v-model="row.isFeatured" @change="val => onToggleFeatured(row, val)" />
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="120">

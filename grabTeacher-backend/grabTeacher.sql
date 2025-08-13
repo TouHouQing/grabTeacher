@@ -599,4 +599,138 @@ COMMIT;
 -- ----------------------------
 UPDATE `teachers` SET `is_featured` = 1 WHERE `id` IN (1, 2, 7, 10, 13, 16, 19, 22);
 
+-- ----------------------------
+-- Table structure for study_abroad_countries
+-- ----------------------------
+DROP TABLE IF EXISTS `study_abroad_countries`;
+CREATE TABLE `study_abroad_countries` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '留学国家ID，主键自增',
+  `country_name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '国家名称',
+  `sort_order` int(11) DEFAULT '0' COMMENT '排序权重，数值越小越靠前',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT '是否启用：1-启用，0-禁用',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：1-已删除，0-未删除',
+  `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_country_name_isdel` (`country_name`,`is_deleted`),
+  KEY `idx_is_active` (`is_active`),
+  KEY `idx_sort_order` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='留学国家管理表';
+
+-- ----------------------------
+-- Table structure for study_abroad_stages
+-- ----------------------------
+DROP TABLE IF EXISTS `study_abroad_stages`;
+CREATE TABLE `study_abroad_stages` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '留学阶段ID，主键自增',
+  `stage_name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '阶段名称，如：高中、本科、硕士',
+  `sort_order` int(11) DEFAULT '0' COMMENT '排序权重，数值越小越靠前',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT '是否启用：1-启用，0-禁用',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：1-已删除，0-未删除',
+  `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_stage_name_isdel` (`stage_name`,`is_deleted`),
+  KEY `idx_is_active` (`is_active`),
+  KEY `idx_sort_order` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='留学阶段管理表';
+
+
+-- ----------------------------
+-- Table structure for study_abroad_programs
+-- ----------------------------
+DROP TABLE IF EXISTS `study_abroad_programs`;
+CREATE TABLE `study_abroad_programs` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '留学项目ID，主键自增',
+  `title` varchar(200) COLLATE utf8mb4_general_ci NOT NULL COMMENT '项目标题',
+  `country_id` bigint(20) NOT NULL COMMENT '留学国家ID，关联study_abroad_countries表',
+  `stage_id` bigint(20) NOT NULL COMMENT '留学阶段ID，关联study_abroad_stages表',
+  `description` text COLLATE utf8mb4_general_ci COMMENT '项目详细描述',
+  `image_url` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '项目图片URL',
+  `tags` text COLLATE utf8mb4_general_ci COMMENT '项目标签，JSON格式存储',
+  `is_hot` tinyint(1) DEFAULT '0' COMMENT '是否为热门项目：1-是，0-否',
+  `sort_order` int(11) DEFAULT '0' COMMENT '排序权重，数值越小越靠前',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT '是否启用：1-启用，0-禁用',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：1-已删除，0-未删除',
+  `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_country_id` (`country_id`),
+  KEY `idx_stage_id` (`stage_id`),
+  KEY `idx_is_active` (`is_active`),
+  KEY `idx_is_hot` (`is_hot`),
+  KEY `idx_sort_order` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='留学项目管理表';
+
 SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- ----------------------------
+-- Seed data for Study Abroad (countries, stages, programs)
+-- 使用 INSERT IGNORE/NOT EXISTS 以避免重复导入
+-- ----------------------------
+
+-- 基础国家（若已存在会忽略）
+INSERT IGNORE INTO `study_abroad_countries` (`country_name`, `sort_order`, `is_active`) VALUES
+  ('中国', 0, 1),
+  ('美国', 0, 1),
+  ('英国', 0, 1),
+  ('加拿大', 0, 1);
+
+-- 基础阶段（若已存在会忽略）
+INSERT IGNORE INTO `study_abroad_stages` (`stage_name`, `sort_order`, `is_active`) VALUES
+  ('高中', 0, 1),
+  ('本科', 0, 1),
+  ('硕士', 0, 1);
+
+-- 留学项目示例（依赖上方国家/阶段），避免重复插入
+INSERT INTO `study_abroad_programs` (`title`,`country_id`,`stage_id`,`description`,`image_url`,`tags`,`is_hot`,`sort_order`,`is_active`)
+SELECT '英国高中A-Level申请指导', c.id, s.id,
+       'A-Level 选课、文书、面试全流程辅导', NULL,
+       '["文书指导","面试培训","选课规划"]', 1, 10, 1
+FROM study_abroad_countries c, study_abroad_stages s
+WHERE c.country_name='英国' AND c.is_deleted=0
+  AND s.stage_name='高中' AND s.is_deleted=0
+  AND NOT EXISTS (
+      SELECT 1 FROM study_abroad_programs p
+      WHERE p.title='英国高中A-Level申请指导' AND p.country_id=c.id AND p.stage_id=s.id AND p.is_deleted=0
+  );
+
+INSERT INTO `study_abroad_programs` (`title`,`country_id`,`stage_id`,`description`,`image_url`,`tags`,`is_hot`,`sort_order`,`is_active`)
+SELECT '美国本科通用申请（Common App）', c.id, s.id,
+       'Common App 文书、活动梳理、网申提交', NULL,
+       '["文书指导","活动背景","网申"]', 1, 20, 1
+FROM study_abroad_countries c, study_abroad_stages s
+WHERE c.country_name='美国' AND c.is_deleted=0
+  AND s.stage_name='本科' AND s.is_deleted=0
+  AND NOT EXISTS (
+      SELECT 1 FROM study_abroad_programs p
+      WHERE p.title='美国本科通用申请（Common App）' AND p.country_id=c.id AND p.stage_id=s.id AND p.is_deleted=0
+  );
+
+INSERT INTO `study_abroad_programs` (`title`,`country_id`,`stage_id`,`description`,`image_url`,`tags`,`is_hot`,`sort_order`,`is_active`)
+SELECT '加拿大硕士工科申请', c.id, s.id,
+       '套磁、简历优化、研究计划书', NULL,
+       '["套磁","简历优化","研究计划"]', 0, 30, 1
+FROM study_abroad_countries c, study_abroad_stages s
+WHERE c.country_name='加拿大' AND c.is_deleted=0
+  AND s.stage_name='硕士' AND s.is_deleted=0
+  AND NOT EXISTS (
+      SELECT 1 FROM study_abroad_programs p
+      WHERE p.title='加拿大硕士工科申请' AND p.country_id=c.id AND p.stage_id=s.id AND p.is_deleted=0
+  );
+
+INSERT INTO `study_abroad_programs` (`title`,`country_id`,`stage_id`,`description`,`image_url`,`tags`,`is_hot`,`sort_order`,`is_active`)
+SELECT '中国港澳本科申请', c.id, s.id,
+       '港大/港中文等院校申请咨询', NULL,
+       '["院校选择","文书指导"]', 0, 40, 1
+FROM study_abroad_countries c, study_abroad_stages s
+WHERE c.country_name='中国' AND c.is_deleted=0
+  AND s.stage_name='本科' AND s.is_deleted=0
+  AND NOT EXISTS (
+      SELECT 1 FROM study_abroad_programs p
+      WHERE p.title='中国港澳本科申请' AND p.country_id=c.id AND p.stage_id=s.id AND p.is_deleted=0
+  );

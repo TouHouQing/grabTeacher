@@ -12,7 +12,9 @@ import AdminCourseManagement from './AdminCourseManagement.vue'
 import AdminGradeManagement from '../../components/AdminGradeManagement.vue'
 import AdminPasswordChange from './components/AdminPasswordChange.vue'
 import AdminBookingManagement from './components/AdminBookingManagement.vue'
-import AdminFeaturedCourseManagement from './components/AdminFeaturedCourseManagement.vue'
+import AdminStudyAbroadCountryManagement from './components/AdminStudyAbroadCountryManagement.vue'
+import AdminStudyAbroadStageManagement from './components/AdminStudyAbroadStageManagement.vue'
+import AdminStudyAbroadProgramManagement from './components/AdminStudyAbroadProgramManagement.vue'
 
 // 获取用户信息
 const userStore = useUserStore()
@@ -56,26 +58,48 @@ const handleMenuSelect = (key: string) => {
             <el-icon><Avatar /></el-icon>
             <span>教师管理</span>
           </el-menu-item>
-          <el-menu-item index="subjects">
-            <el-icon><Document /></el-icon>
-            <span>科目管理</span>
-          </el-menu-item>
-          <el-menu-item index="courses">
-            <el-icon><Reading /></el-icon>
-            <span>课程管理</span>
-          </el-menu-item>
-          <el-menu-item index="featured-courses">
-            <el-icon><Setting /></el-icon>
-            <span>精选课程</span>
-          </el-menu-item>
           <el-menu-item index="bookings">
             <el-icon><Document /></el-icon>
             <span>预约管理</span>
           </el-menu-item>
-          <el-menu-item index="grades">
-            <el-icon><Setting /></el-icon>
-            <span>年级管理</span>
-          </el-menu-item>
+
+          <el-sub-menu index="course-mgmt">
+            <template #title>
+              <el-icon><Reading /></el-icon>
+              <span>课程管理</span>
+            </template>
+            <el-menu-item index="grades">
+              <el-icon><Setting /></el-icon>
+              <span>年级管理</span>
+            </el-menu-item>
+            <el-menu-item index="subjects">
+              <el-icon><Document /></el-icon>
+              <span>科目管理</span>
+            </el-menu-item>
+            <el-menu-item index="courses">
+              <el-icon><Reading /></el-icon>
+              <span>课程管理</span>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="abroad-mgmt">
+            <template #title>
+              <el-icon><Setting /></el-icon>
+              <span>留学管理</span>
+            </template>
+            <el-menu-item index="abroad-countries">
+              <el-icon><Setting /></el-icon>
+              <span>留学国家</span>
+            </el-menu-item>
+            <el-menu-item index="abroad-stages">
+              <el-icon><Setting /></el-icon>
+              <span>留学阶段</span>
+            </el-menu-item>
+            <el-menu-item index="abroad-programs">
+              <el-icon><Setting /></el-icon>
+              <span>留学项目</span>
+            </el-menu-item>
+          </el-sub-menu>
           <el-menu-item index="password">
             <el-icon><Lock /></el-icon>
             <span>账户设置</span>
@@ -110,10 +134,6 @@ const handleMenuSelect = (key: string) => {
           <AdminCourseManagement />
         </div>
 
-        <!-- 精选课程管理 -->
-        <div v-show="activeMenu === 'featured-courses'" class="content-panel">
-          <AdminFeaturedCourseManagement />
-        </div>
 
         <!-- 预约管理 -->
         <div v-show="activeMenu === 'bookings'" class="content-panel">
@@ -123,6 +143,21 @@ const handleMenuSelect = (key: string) => {
         <!-- 年级管理 -->
         <div v-show="activeMenu === 'grades'" class="content-panel">
           <AdminGradeManagement />
+        </div>
+
+        <!-- 留学管理：国家 -->
+        <div v-show="activeMenu === 'abroad-countries'" class="content-panel">
+          <AdminStudyAbroadCountryManagement />
+        </div>
+
+        <!-- 留学管理：阶段 -->
+        <div v-show="activeMenu === 'abroad-stages'" class="content-panel">
+          <AdminStudyAbroadStageManagement />
+        </div>
+
+        <!-- 留学管理：项目 -->
+        <div v-show="activeMenu === 'abroad-programs'" class="content-panel">
+          <AdminStudyAbroadProgramManagement />
         </div>
 
         <!-- 账户设置 -->
