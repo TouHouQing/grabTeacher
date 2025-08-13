@@ -24,6 +24,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Redis缓存配置类
@@ -59,8 +60,8 @@ public class RedisConfiguration {
         redisTemplate.setHashKeySerializer(stringSerializer);
         redisTemplate.setHashValueSerializer(jsonSerializer);
 
-        // 启用事务支持
-        redisTemplate.setEnableTransactionSupport(true);
+        // 默认关闭全局事务支持，避免性能损耗；如需事务请使用局部SessionCallback
+        // redisTemplate.setEnableTransactionSupport(true);
 
         // 初始化
         redisTemplate.afterPropertiesSet();
@@ -220,16 +221,16 @@ public class RedisConfiguration {
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .computePrefixWith(cacheName -> "grabTeacher:teacherSubjects:"));
 
-        // 教师时间表缓存 - 5分钟过期（实时性要求高）
+        // 教师时间表缓存 - 基础 5 分钟 TTL + 0~10% 抖动
         configs.put("teacherSchedule", RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(5))
+                .entryTtl(jitter(Duration.ofMinutes(5)))
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .computePrefixWith(cacheName -> "grabTeacher:teacherSchedule:"));
 
-        // 教师可用性缓存 - 3分钟过期（实时性要求很高）
+        // 教师可用性缓存 - 基础 3 分钟 TTL + 0~10% 抖动
         configs.put("teacherAvailability", RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(3))
+                .entryTtl(jitter(Duration.ofMinutes(3)))
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .computePrefixWith(cacheName -> "grabTeacher:teacherAvailability:"));
@@ -284,5 +285,12 @@ public class RedisConfiguration {
                 .computePrefixWith(cacheName -> "grabTeacher:abroad:programs:get:"));
 
         return configs;
+    }
+
+    // 简单的 TTL 抖动：0~10% 的随机偏移（应用级别，非逐 entry）
+    private Duration jitter(Duration base) {
+        long maxJitter = Math.max(1, base.toMillis() / 10);
+        long delta = ThreadLocalRandom.current().nextLong(maxJitter + 1);
+        return base.plusMillis(delta);
     }
 }

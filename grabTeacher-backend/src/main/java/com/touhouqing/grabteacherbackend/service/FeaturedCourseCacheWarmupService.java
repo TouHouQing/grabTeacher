@@ -22,6 +22,9 @@ public class FeaturedCourseCacheWarmupService implements ApplicationRunner {
     @Autowired
     private CourseService courseService;
 
+    @Autowired
+    private SubjectService subjectService;
+
     @Override
     public void run(ApplicationArguments args) throws Exception {
         log.info("开始预热精选课程缓存...");
@@ -93,18 +96,17 @@ public class FeaturedCourseCacheWarmupService implements ApplicationRunner {
      */
     private void warmupFeaturedCoursesBySubjects() {
         try {
-            // 预热热门科目的精选课程
-            Long[] popularSubjectIds = {1L, 2L, 3L, 4L}; // 数学、科学、华文、英语等热门科目
-            
-            for (Long subjectId : popularSubjectIds) {
+            // 预热科目的精选课程（动态获取激活科目）
+            List<com.touhouqing.grabteacherbackend.entity.Subject> activeSubjects = subjectService.getAllActiveSubjects();
+            for (com.touhouqing.grabteacherbackend.entity.Subject s : activeSubjects) {
                 try {
-                    courseService.getFeaturedCourses(1, 6, subjectId, null);
-                    log.debug("预热科目{}的精选课程完成", subjectId);
+                    courseService.getFeaturedCourses(1, 6, s.getId(), null);
+                    log.debug("预热科目{}的精选课程完成", s.getName());
                 } catch (Exception e) {
-                    log.warn("预热科目{}的精选课程失败", subjectId, e);
+                    log.warn("预热科目{}的精选课程失败", s.getName(), e);
                 }
             }
-            
+
         } catch (Exception e) {
             log.warn("预热不同科目的精选课程失败", e);
         }

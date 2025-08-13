@@ -8,6 +8,8 @@ import com.touhouqing.grabteacherbackend.mapper.*;
 import com.touhouqing.grabteacherbackend.service.BookingService;
 import com.touhouqing.grabteacherbackend.service.DistributedLockService;
 import com.touhouqing.grabteacherbackend.service.TeacherCacheWarmupService;
+import com.touhouqing.grabteacherbackend.service.CacheKeyEvictor;
+import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +54,12 @@ public class BookingServiceImpl implements BookingService {
 
     @Autowired
     private TeacherCacheWarmupService teacherCacheWarmupService;
+
+    @Autowired
+    private CacheKeyEvictor cacheKeyEvictor;
+
+    @Autowired
+    private TeacherScheduleCacheService teacherScheduleCacheService;
 
     @Override
     @Transactional
@@ -179,11 +187,34 @@ public class BookingServiceImpl implements BookingService {
                 distributedLockService.unlock(lockKey, token);
             }
 
-            // 课表变化后，清理教师课表与可用性缓存，避免脏读
+            // 课表变化后，精准清理并“更新”教师 busy 缓存 + 清理 teacherSchedule/teacherAvailability
             try {
-                teacherCacheWarmupService.clearAllTeacherCaches();
+                Set<LocalDate> affectedDates = new HashSet<>();
+                if ("single".equals(bookingRequest.getBookingType())) {
+                    if (bookingRequest.getRequestedDate() != null) affectedDates.add(bookingRequest.getRequestedDate());
+                } else {
+                    List<Schedule> schedules = scheduleMapper.findByBookingRequestId(bookingRequest.getId());
+                    for (Schedule s : schedules) {
+                        if (s.getScheduledDate() != null) affectedDates.add(s.getScheduledDate());
+                    }
+                }
+                // 清 teacherSchedule/availability + busy:date Key
+                cacheKeyEvictor.evictTeacherScheduleAndAvailability(bookingRequest.getTeacherId(), affectedDates);
+                // 立即回填 busy slots（避免下一次读 miss）
+                if (!affectedDates.isEmpty()) {
+                    for (LocalDate d : affectedDates) {
+                        List<Schedule> dayAll = scheduleMapper.findByTeacherIdAndDate(bookingRequest.getTeacherId(), d);
+                        List<String> slots = new ArrayList<>();
+                        for (Schedule s : dayAll) {
+                            String slot = s.getStartTime().toString() + "-" + s.getEndTime().toString();
+                            slots.add(slot);
+                        }
+                        teacherScheduleCacheService.putBusySlots(bookingRequest.getTeacherId(), d,
+                                slots.isEmpty() ? java.util.Collections.emptyList() : slots);
+                    }
+                }
             } catch (Exception e) {
-                log.warn("清理教师缓存失败，但不影响主流程", e);
+                log.warn("精准清理/回填教师缓存失败，但不影响主流程", e);
             }
         } else if ("rejected".equals(approval.getStatus())) {
             // 如果是试听课且审核被拒绝，恢复试听课使用记录

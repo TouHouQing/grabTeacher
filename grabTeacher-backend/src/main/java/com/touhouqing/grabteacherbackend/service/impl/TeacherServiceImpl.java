@@ -30,6 +30,7 @@ import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
 import com.touhouqing.grabteacherbackend.mapper.RescheduleRequestMapper;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
+import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +62,8 @@ public class TeacherServiceImpl implements TeacherService {
     private final UserMapper userMapper;
     private final BookingRequestMapper bookingRequestMapper;
     private final RescheduleRequestMapper rescheduleRequestMapper;
+
+    private final TeacherScheduleCacheService teacherScheduleCacheService;
 
     /**
      * 根据用户ID获取教师信息
@@ -256,9 +259,9 @@ public class TeacherServiceImpl implements TeacherService {
         }
 
         // 手动分页
-        int start = (page - 1) * size;
+        int start = Math.max(0, (page - 1) * size);
         int end = Math.min(start + size, filteredTeachers.size());
-        if (start >= filteredTeachers.size()) {
+        if (start >= end) {
             return new ArrayList<>();
         }
 
@@ -271,7 +274,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     @Cacheable(cacheNames = "teacherList",
                keyGenerator = "teacherCacheKeyGenerator",
-               unless = "#result == null || #result.isEmpty()")
+               sync = true)
     public List<TeacherListResponse> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword) {
         // 获取教师列表，支持科目和年级筛选
         List<Teacher> teachers = getFilteredTeacherList(page, size, subject, grade, keyword);
@@ -463,7 +466,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     @Cacheable(cacheNames = "teacherMatch",
                keyGenerator = "teacherCacheKeyGenerator",
-               unless = "#result == null || #result.isEmpty()")
+               sync = true)
     public List<TeacherMatchResponse> matchTeachers(TeacherMatchRequest request) {
         log.info("开始匹配教师，请求参数: {}", request);
 
@@ -484,6 +487,7 @@ public class TeacherServiceImpl implements TeacherService {
                 .collect(Collectors.toList());
 
         log.info("匹配到 {} 位教师", responses.size());
+
         return responses;
     }
 
@@ -880,7 +884,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     @Cacheable(cacheNames = "teacherSchedule",
                keyGenerator = "teacherCacheKeyGenerator",
-               unless = "#result == null")
+               sync = true)
     public TeacherScheduleResponse getTeacherPublicSchedule(Long teacherId, LocalDate startDate, LocalDate endDate) {
         // 获取教师信息
         Teacher teacher = teacherMapper.selectById(teacherId);
@@ -888,35 +892,41 @@ public class TeacherServiceImpl implements TeacherService {
             throw new RuntimeException("教师不存在");
         }
 
-        // 获取指定时间范围内的课程安排
+        // 获取指定时间范围内的课程安排（一次 DB）
         List<Schedule> schedules = scheduleMapper.findByTeacherIdAndDateRange(teacherId, startDate, endDate);
 
         // 按日期分组
         Map<LocalDate, List<Schedule>> schedulesByDate = schedules.stream()
                 .collect(Collectors.groupingBy(Schedule::getScheduledDate));
 
+        // 基于本次 DB 结果构建 busy 映射，并批量回写 Redis（避免逐日多次往返）
+        Map<LocalDate, List<String>> busyMap = new HashMap<>();
+        for (Schedule s : schedules) {
+            LocalDate d = s.getScheduledDate();
+            String slot = s.getStartTime().toString() + "-" + s.getEndTime().toString();
+            busyMap.computeIfAbsent(d, k -> new ArrayList<>()).add(slot);
+        }
+        LocalDate fill = startDate;
+        while (!fill.isAfter(endDate)) {
+            busyMap.putIfAbsent(fill, new ArrayList<>());
+            fill = fill.plusDays(1);
+        }
+        try { teacherScheduleCacheService.putBusySlotsBatch(teacherId, busyMap); } catch (Exception ignore) {}
+
         // 生成每日课表
         List<TeacherScheduleResponse.DaySchedule> daySchedules = new ArrayList<>();
         LocalDate currentDate = startDate;
 
         while (!currentDate.isAfter(endDate)) {
+            List<String> busySlots = busyMap.getOrDefault(currentDate, java.util.Collections.emptyList());
             List<Schedule> daySchedules_raw = schedulesByDate.getOrDefault(currentDate, new ArrayList<>());
 
-            // 生成该日的时间段信息
-            List<TeacherScheduleResponse.TimeSlotInfo> timeSlots = generateTimeSlots(teacherId, daySchedules_raw, currentDate);
+            // 生成该日的时间段信息（使用内存 busy 判定占用）
+            List<TeacherScheduleResponse.TimeSlotInfo> timeSlots = generateTimeSlotsWithBusy(teacherId, daySchedules_raw, currentDate, busySlots);
 
             int availableCount = (int) timeSlots.stream().filter(TeacherScheduleResponse.TimeSlotInfo::getAvailable).count();
             int bookedCount = (int) timeSlots.stream().filter(TeacherScheduleResponse.TimeSlotInfo::getBooked).count();
 
-            // 调试日志
-            if (currentDate.getDayOfWeek().getValue() == 4) { // 只记录周四的数据
-                log.info("=== 周四课表调试 ===");
-                log.info("日期: {}, 星期几: {}", currentDate, currentDate.getDayOfWeek().getValue());
-                log.info("教师ID: {}, 生成的时间段数量: {}", teacherId, timeSlots.size());
-                log.info("时间段详情: {}", timeSlots);
-                log.info("可用数量: {}, 已订数量: {}", availableCount, bookedCount);
-                log.info("==================");
-            }
 
             TeacherScheduleResponse.DaySchedule daySchedule = TeacherScheduleResponse.DaySchedule.builder()
                     .date(currentDate)
@@ -942,7 +952,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     @Cacheable(cacheNames = "teacherAvailability",
                keyGenerator = "teacherCacheKeyGenerator",
-               unless = "#result == null || #result.isEmpty()")
+               sync = true)
     public List<TimeSlotAvailability> checkTeacherAvailability(Long teacherId, LocalDate startDate, LocalDate endDate, List<String> timeSlots) {
         List<TimeSlotAvailability> availabilities = new ArrayList<>();
 
@@ -956,12 +966,9 @@ public class TeacherServiceImpl implements TeacherService {
 
         // 如果教师没有设置可上课时间，返回所有时间段为不可用
         if (teacherAvailableSlots.isEmpty()) {
-            // 如果没有指定时间段，使用默认时间段
             if (timeSlots == null || timeSlots.isEmpty()) {
                 timeSlots = getDefaultTimeSlots();
             }
-
-            // 所有时间段都标记为不可用，因为教师没有设置可上课时间
             for (int weekday = 1; weekday <= 7; weekday++) {
                 for (String timeSlot : timeSlots) {
                     TimeSlotAvailability availability = TimeSlotAvailability.builder()
@@ -977,16 +984,26 @@ public class TeacherServiceImpl implements TeacherService {
                 }
             }
         } else {
-            // 只检查教师设置的可上课时间段
+            // 一次性加载范围内所有课程，构建 busyMap 并批量回填 Redis，避免每个 timeSlot 再次访问 DB
+            Map<LocalDate, List<String>> busyMap = new java.util.HashMap<>();
+            List<Schedule> range = scheduleMapper.findByTeacherIdAndDateRange(teacherId, startDate, endDate);
+            for (Schedule s : range) {
+                LocalDate d = s.getScheduledDate();
+                String slot = s.getStartTime().toString() + "-" + s.getEndTime().toString();
+                busyMap.computeIfAbsent(d, k -> new ArrayList<>()).add(slot);
+            }
+            LocalDate fill = startDate;
+            while (!fill.isAfter(endDate)) { busyMap.putIfAbsent(fill, new ArrayList<>()); fill = fill.plusDays(1); }
+            try { teacherScheduleCacheService.putBusySlotsBatch(teacherId, busyMap); } catch (Exception ignore) {}
+
+            // 只检查教师设置的可上课时间段（使用内存 busyMap 判断冲突）
             for (TimeSlotDTO teacherSlot : teacherAvailableSlots) {
                 int weekday = teacherSlot.getWeekday();
                 List<String> slotTimes = teacherSlot.getTimeSlots();
-
                 if (slotTimes != null) {
                     for (String timeSlot : slotTimes) {
-                        TimeSlotAvailability availability = checkWeekdayTimeSlotAvailability(
-                            teacherId, weekday, timeSlot, startDate, endDate);
-                        // 转换为前端格式返回
+                        TimeSlotAvailability availability = checkWeekdayTimeSlotAvailabilityFromBusyMap(
+                            teacherId, weekday, timeSlot, startDate, endDate, busyMap);
                         availability.setWeekday(TimeSlotUtil.convertBackendWeekdayToFrontend(weekday));
                         availabilities.add(availability);
                     }
@@ -1000,7 +1017,7 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 生成时间段信息 - 根据教师设置的可上课时间和实际课表安排
      */
-    private List<TeacherScheduleResponse.TimeSlotInfo> generateTimeSlots(Long teacherId, List<Schedule> daySchedules, LocalDate date) {
+    private List<TeacherScheduleResponse.TimeSlotInfo> generateTimeSlotsWithBusy(Long teacherId, List<Schedule> daySchedules, LocalDate date, List<String> busySlots) {
         // 获取该日期对应的星期几（ISO标准：1=周一, 7=周日）
         int weekday = date.getDayOfWeek().getValue();
 
@@ -1027,8 +1044,14 @@ public class TeacherServiceImpl implements TeacherService {
             LocalTime startTime = LocalTime.parse(times[0]);
             LocalTime endTime = LocalTime.parse(times[1]);
 
+            boolean isBooked;
             Schedule existingSchedule = scheduleByTimeSlot.get(timeSlot);
-            boolean isBooked = existingSchedule != null && !"cancelled".equals(existingSchedule.getStatus());
+            if (busySlots != null && !busySlots.isEmpty()) {
+                // 用 busy 缓存判定是否占用
+                isBooked = busySlots.stream().anyMatch(slot -> TimeSlotUtil.hasTimeConflict(timeSlot, slot));
+            } else {
+                isBooked = existingSchedule != null && !"cancelled".equals(existingSchedule.getStatus());
+            }
 
             TeacherScheduleResponse.TimeSlotInfo timeSlotInfo = TeacherScheduleResponse.TimeSlotInfo.builder()
                     .timeSlot(timeSlot)
@@ -1038,19 +1061,16 @@ public class TeacherServiceImpl implements TeacherService {
                     .booked(isBooked)
                     .build();
 
-            if (isBooked) {
-                // 获取学生信息
+            if (isBooked && existingSchedule != null) {
+                // 补充学生/课程信息
                 Student student = studentMapper.selectById(existingSchedule.getStudentId());
                 if (student != null) {
                     timeSlotInfo.setStudentName(student.getRealName());
                 }
-
-                // 获取课程信息
                 Course course = courseMapper.selectById(existingSchedule.getCourseId());
                 if (course != null) {
                     timeSlotInfo.setCourseTitle(course.getTitle());
                 }
-
                 timeSlotInfo.setStatus(existingSchedule.getStatus());
                 timeSlotInfo.setIsTrial(existingSchedule.getIsTrial());
             }
@@ -1064,16 +1084,12 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 检查特定星期几和时间段的可用性
      */
-    private TimeSlotAvailability checkWeekdayTimeSlotAvailability(Long teacherId, int weekday, String timeSlot, LocalDate startDate, LocalDate endDate) {
-        String[] times = timeSlot.split("-");
-        LocalTime startTime = LocalTime.parse(times[0]);
-        LocalTime endTime = LocalTime.parse(times[1]);
-
-        // 首先检查教师是否设置了该时间段为可上课时间
+    private TimeSlotAvailability checkWeekdayTimeSlotAvailabilityFromBusyMap(Long teacherId, int weekday, String timeSlot,
+                                                                             LocalDate startDate, LocalDate endDate,
+                                                                             Map<LocalDate, List<String>> busyMap) {
+        // 检查教师是否设置了该时间段为可上课时间
         List<String> teacherAvailableSlots = getTeacherAvailableTimeSlotsForWeekday(teacherId, weekday);
         boolean isTeacherAvailable = teacherAvailableSlots.isEmpty() || teacherAvailableSlots.contains(timeSlot);
-
-        // 如果教师没有设置该时间段为可上课时间，直接返回不可用
         if (!isTeacherAvailable) {
             return TimeSlotAvailability.builder()
                     .weekday(weekday)
@@ -1086,37 +1102,31 @@ public class TeacherServiceImpl implements TeacherService {
                     .build();
         }
 
+        // 预解析目标时间段到分钟，减少解析开销
+        int[] target = parseSlotToMinutes(timeSlot);
         List<String> conflictDates = new ArrayList<>();
-        LocalDate currentDate = startDate;
+        LocalDate cur = startDate;
         int totalWeeks = 0;
         int conflictWeeks = 0;
-
-        // 检查指定时间范围内每周该星期几的情况
-        while (!currentDate.isAfter(endDate)) {
-            // 使用ISO标准：1=周一, 2=周二, ..., 7=周日
-            int currentWeekday = currentDate.getDayOfWeek().getValue();
-            if (currentWeekday == 7) {
-                currentWeekday = 7; // 周日保持为7
-            }
-
-            if (currentWeekday == weekday) {
+        while (!cur.isAfter(endDate)) {
+            int wd = cur.getDayOfWeek().getValue();
+            if (wd == weekday) {
                 totalWeeks++;
-
-                // 检查该日期该时间段是否有冲突
-                int conflictCount = scheduleMapper.countConflictingSchedules(teacherId, currentDate, startTime, endTime);
-                if (conflictCount > 0) {
-                    conflictWeeks++;
-                    conflictDates.add(currentDate.toString());
+                List<String> dayBusy = busyMap.getOrDefault(cur, java.util.Collections.emptyList());
+                boolean conflict = false;
+                if (target != null && !dayBusy.isEmpty()) {
+                    for (String b : dayBusy) {
+                        int[] bb = parseSlotToMinutes(b);
+                        if (bb != null && bb[1] > target[0] && bb[0] < target[1]) { conflict = true; break; }
+                    }
                 }
+                if (conflict) { conflictWeeks++; conflictDates.add(cur.toString()); }
             }
-
-            currentDate = currentDate.plusDays(1);
+            cur = cur.plusDays(1);
         }
-
         double availabilityRate = totalWeeks > 0 ? (double) (totalWeeks - conflictWeeks) / totalWeeks : 1.0;
-        boolean available = availabilityRate >= 0.5; // 50%以上可用才认为可选（降低阈值）
+        boolean available = availabilityRate >= 0.5;
         String availabilityLevel = calculateAvailabilityLevel(availabilityRate);
-
         return TimeSlotAvailability.builder()
                 .weekday(weekday)
                 .timeSlot(timeSlot)
@@ -1125,8 +1135,23 @@ public class TeacherServiceImpl implements TeacherService {
                 .conflictDates(conflictDates)
                 .conflictReason(conflictDates.isEmpty() ? null : "已有其他学生预约")
                 .description(String.format("该时间段在查询范围内有%d个日期冲突，可用率%.1f%%（%s）",
-                    conflictDates.size(), availabilityRate * 100, availabilityLevel))
+                        conflictDates.size(), availabilityRate * 100, availabilityLevel))
                 .build();
+    }
+
+    // 解析 "HH:mm-HH:mm" 到 [startMin, endMin]
+    private int[] parseSlotToMinutes(String slot) {
+        if (slot == null || slot.length() < 11) return null;
+        try {
+            int h1 = Integer.parseInt(slot.substring(0, 2));
+            int m1 = Integer.parseInt(slot.substring(3, 5));
+            int h2 = Integer.parseInt(slot.substring(6, 8));
+            int m2 = Integer.parseInt(slot.substring(9, 11));
+            int s = h1 * 60 + m1;
+            int e = h2 * 60 + m2;
+            if (e > s) return new int[]{s, e};
+        } catch (Exception ignore) {}
+        return null;
     }
 
     /**

@@ -99,7 +99,8 @@ mybatis-plus:
   type-aliases-package: com.touhouqing.grabteacherbackend.entity
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: ${MYBATIS_LOG_IMPL:org.apache.ibatis.logging.stdout.StdOutImpl}
+    # 关闭控制台 SQL 输出，降低噪音；如需调试可用环境变量 MYBATIS_LOG_IMPL 重启覆盖
+    log-impl: ${MYBATIS_LOG_IMPL:}
 
 # ========================================
 # JWT 配置
@@ -122,6 +123,6 @@ cors:
 # ========================================
 logging:
   level:
-    com.touhouqing.grabteacherbackend: ${LOG_LEVEL_APP:DEBUG}
-    org.springframework.web: ${LOG_LEVEL_WEB:DEBUG}
-    org.springframework.security: ${LOG_LEVEL_SECURITY:DEBUG}
+    com.touhouqing.grabteacherbackend: ${LOG_LEVEL_APP:INFO}
+    org.springframework.web: ${LOG_LEVEL_WEB:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}

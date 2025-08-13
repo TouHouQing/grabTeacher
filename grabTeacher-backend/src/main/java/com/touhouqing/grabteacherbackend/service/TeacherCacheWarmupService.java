@@ -27,6 +27,9 @@ public class TeacherCacheWarmupService {
     @Autowired
     private TeacherMapper teacherMapper;
 
+    @Autowired
+    private SubjectService subjectService;
+
     /**
      * 异步执行教师缓存预热
      */
@@ -100,18 +103,26 @@ public class TeacherCacheWarmupService {
             // 预热第一页教师列表（最常访问）
             teacherService.getTeacherListWithSubjects(1, 10, null, null, null);
             
-            // 预热热门科目的教师列表
-            String[] popularSubjects = {"数学", "英语", "语文", "物理", "化学"};
-            for (String subject : popularSubjects) {
-                teacherService.getTeacherListWithSubjects(1, 10, subject, null, null);
+            // 预热科目的教师列表（从数据库动态获取激活科目）
+            List<com.touhouqing.grabteacherbackend.entity.Subject> activeSubjects = subjectService.getAllActiveSubjects();
+            for (com.touhouqing.grabteacherbackend.entity.Subject s : activeSubjects) {
+                try {
+                    teacherService.getTeacherListWithSubjects(1, 10, s.getName(), null, null);
+                } catch (Exception e) {
+                    log.debug("预热科目教师列表失败: {}", s.getName(), e);
+                }
             }
-            
-            // 预热热门年级的教师列表
-            String[] popularGrades = {"高一", "高二", "高三", "初一", "初二", "初三"};
-            for (String grade : popularGrades) {
-                teacherService.getTeacherListWithSubjects(1, 10, null, grade, null);
+
+            // 预热年级的教师列表（从数据库动态获取可用年级）
+            List<String> dbGrades = teacherService.getAvailableGrades();
+            for (String grade : dbGrades) {
+                try {
+                    teacherService.getTeacherListWithSubjects(1, 10, null, grade, null);
+                } catch (Exception e) {
+                    log.debug("预热年级教师列表失败: {}", grade, e);
+                }
             }
-            
+
             log.info("预热教师列表缓存完成");
         } catch (Exception e) {
             log.error("预热教师列表缓存失败", e);
@@ -125,25 +136,25 @@ public class TeacherCacheWarmupService {
         try {
             log.info("预热教师匹配缓存...");
             
-            // 预热常见的教师匹配请求
-            String[] subjects = {"数学", "英语", "语文"};
-            String[] grades = {"高一", "高二", "高三"};
-            
-            for (String subject : subjects) {
-                for (String grade : grades) {
+            // 预热教师匹配请求（从数据库动态获取科目与年级）
+            List<com.touhouqing.grabteacherbackend.entity.Subject> activeSubjects = subjectService.getAllActiveSubjects();
+            List<String> dbGrades = teacherService.getAvailableGrades();
+
+            for (com.touhouqing.grabteacherbackend.entity.Subject s : activeSubjects) {
+                for (String grade : dbGrades) {
                     try {
                         TeacherMatchRequest request = new TeacherMatchRequest();
-                        request.setSubject(subject);
+                        request.setSubject(s.getName());
                         request.setGrade(grade);
                         request.setLimit(10);
-                        
+
                         teacherService.matchTeachers(request);
                     } catch (Exception e) {
-                        log.warn("预热教师匹配缓存失败: {} - {}", subject, grade, e);
+                        log.debug("预热教师匹配缓存失败: subject={}, grade={}", s.getName(), grade, e);
                     }
                 }
             }
-            
+
             log.info("预热教师匹配缓存完成");
         } catch (Exception e) {
             log.error("预热教师匹配缓存失败", e);
@@ -156,15 +167,23 @@ public class TeacherCacheWarmupService {
     private void warmupGradeData() {
         try {
             log.info("预热年级数据缓存...");
-            
+
             // 预热可用年级列表
             teacherService.getAvailableGrades();
-            
+
             log.info("预热年级数据缓存完成");
         } catch (Exception e) {
             log.error("预热年级数据缓存失败", e);
         }
     }
+
+    /**
+     * 为智能匹配结果的教师进行就近预热（课表/可用性/忙时）— 事件监听器
+     */
+    // 已取消匹配结果的异步预热（避免与读路径的范围预载重复、拖慢首个请求）
+    // @Async
+    // @EventListener
+    // public void onMatchedTeachersWarmupEvent(MatchedTeachersWarmupEvent event) { ... }
 
     /**
      * 定时清理教师缓存

@@ -30,14 +30,11 @@ public class CacheMonitorAspect {
      */
     @Around("@annotation(org.springframework.cache.annotation.Cacheable)")
     public Object monitorCacheable(ProceedingJoinPoint joinPoint) throws Throwable {
-        long startTime = System.currentTimeMillis();
         String methodName = joinPoint.getSignature().getName();
         String className = joinPoint.getTarget().getClass().getSimpleName();
-        
+
         try {
             Object result = joinPoint.proceed();
-            long executionTime = System.currentTimeMillis() - startTime;
-
             // 获取@Cacheable注解信息
             Method method = getMethod(joinPoint);
             if (method != null) {
@@ -52,13 +49,9 @@ public class CacheMonitorAspect {
                             // 如果有结果，说明缓存未命中，从数据库查询了
                             cacheMonitorService.recordCacheMiss(cacheName);
                             cacheMonitorService.recordCachePut(cacheName);
-                            log.debug("缓存未命中并写入: {} - {}.{}, 执行时间: {}ms",
-                                     cacheName, className, methodName, executionTime);
                         } else {
                             // 结果为null，可能是缓存命中但返回null
                             cacheMonitorService.recordCacheHit(cacheName);
-                            log.debug("缓存命中: {} - {}.{}, 执行时间: {}ms",
-                                     cacheName, className, methodName, executionTime);
                         }
                     }
                 }
@@ -76,14 +69,11 @@ public class CacheMonitorAspect {
      */
     @Around("@annotation(org.springframework.cache.annotation.CacheEvict)")
     public Object monitorCacheEvict(ProceedingJoinPoint joinPoint) throws Throwable {
-        long startTime = System.currentTimeMillis();
         String methodName = joinPoint.getSignature().getName();
         String className = joinPoint.getTarget().getClass().getSimpleName();
-        
+
         try {
             Object result = joinPoint.proceed();
-            long executionTime = System.currentTimeMillis() - startTime;
-
             // 获取@CacheEvict注解信息
             Method method = getMethod(joinPoint);
             if (method != null) {
@@ -95,8 +85,6 @@ public class CacheMonitorAspect {
                     // 记录缓存清除
                     for (String cacheName : cacheNames) {
                         cacheMonitorService.recordCacheEviction(cacheName);
-                        log.debug("缓存清除: {} - {}.{}, 执行时间: {}ms",
-                                 cacheName, className, methodName, executionTime);
                     }
                 }
             }
@@ -119,8 +107,6 @@ public class CacheMonitorAspect {
         
         try {
             Object result = joinPoint.proceed();
-            long executionTime = System.currentTimeMillis() - startTime;
-
             // 获取@CachePut注解信息
             Method method = getMethod(joinPoint);
             if (method != null) {
@@ -132,8 +118,6 @@ public class CacheMonitorAspect {
                     // 记录缓存写入
                     for (String cacheName : cacheNames) {
                         cacheMonitorService.recordCachePut(cacheName);
-                        log.debug("缓存写入: {} - {}.{}, 执行时间: {}ms",
-                                 cacheName, className, methodName, executionTime);
                     }
                 }
             }
@@ -150,17 +134,11 @@ public class CacheMonitorAspect {
      */
     @Around("@annotation(org.springframework.cache.annotation.Caching)")
     public Object monitorCaching(ProceedingJoinPoint joinPoint) throws Throwable {
-        long startTime = System.currentTimeMillis();
         String methodName = joinPoint.getSignature().getName();
         String className = joinPoint.getTarget().getClass().getSimpleName();
-        
+
         try {
             Object result = joinPoint.proceed();
-            
-            long executionTime = System.currentTimeMillis() - startTime;
-            
-            log.debug("复合缓存操作: {}.{}, 执行时间: {}ms", 
-                     className, methodName, executionTime);
             
             return result;
         } catch (Exception e) {

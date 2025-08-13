@@ -9,6 +9,8 @@ import com.touhouqing.grabteacherbackend.entity.*;
 import com.touhouqing.grabteacherbackend.mapper.*;
 import com.touhouqing.grabteacherbackend.service.RescheduleService;
 import com.touhouqing.grabteacherbackend.service.TeacherCacheWarmupService;
+import com.touhouqing.grabteacherbackend.service.CacheKeyEvictor;
+import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -47,6 +49,12 @@ public class RescheduleServiceImpl implements RescheduleService {
 
     @Autowired
     private TeacherCacheWarmupService teacherCacheWarmupService;
+
+    @Autowired
+    private CacheKeyEvictor cacheKeyEvictor;
+
+    @Autowired
+    private TeacherScheduleCacheService teacherScheduleCacheService;
 
     @Override
     @Transactional
@@ -183,11 +191,30 @@ public class RescheduleServiceImpl implements RescheduleService {
         if ("approved".equals(approval.getStatus())) {
             updateScheduleAfterApproval(rescheduleRequest, schedule);
 
-            // 课表变化后，清理教师课表与可用性缓存
+            // 课表变化后，精准清理 + 立即回填教师 busy 缓存
             try {
-                teacherCacheWarmupService.clearAllTeacherCaches();
+                Long teacherId = schedule.getTeacherId();
+                java.util.Set<java.time.LocalDate> affectedDates = new java.util.HashSet<>();
+                if ("single".equals(rescheduleRequest.getRequestType())) {
+                    if (rescheduleRequest.getOriginalDate() != null) affectedDates.add(rescheduleRequest.getOriginalDate());
+                    if (rescheduleRequest.getNewDate() != null) affectedDates.add(rescheduleRequest.getNewDate());
+                } else if ("cancel".equals(rescheduleRequest.getRequestType())) {
+                    if (schedule.getScheduledDate() != null) affectedDates.add(schedule.getScheduledDate());
+                }
+                cacheKeyEvictor.evictTeacherScheduleAndAvailability(teacherId, affectedDates);
+                if (!affectedDates.isEmpty()) {
+                    for (java.time.LocalDate d : affectedDates) {
+                        java.util.List<Schedule> dayAll = scheduleMapper.findByTeacherIdAndDate(teacherId, d);
+                        java.util.List<String> slots = new java.util.ArrayList<>();
+                        for (Schedule s : dayAll) {
+                            slots.add(s.getStartTime().toString() + "-" + s.getEndTime().toString());
+                        }
+                        teacherScheduleCacheService.putBusySlots(teacherId, d,
+                            slots.isEmpty() ? java.util.Collections.emptyList() : slots);
+                    }
+                }
             } catch (Exception e) {
-                log.warn("清理教师缓存失败，但不影响主流程", e);
+                log.warn("精准清理/回填教师缓存失败，但不影响主流程", e);
             }
         }
 

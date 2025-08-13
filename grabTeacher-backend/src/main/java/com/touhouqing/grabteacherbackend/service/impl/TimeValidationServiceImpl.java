@@ -6,6 +6,7 @@ import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.service.TimeValidationService;
+import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,8 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * 时间验证服务实现
@@ -26,6 +26,7 @@ public class TimeValidationServiceImpl implements TimeValidationService {
 
     private final TeacherMapper teacherMapper;
     private final ScheduleMapper scheduleMapper;
+    private final TeacherScheduleCacheService teacherScheduleCacheService;
 
     @Override
     public TimeValidationResult validateTeacherAvailableTime(Long teacherId, 
@@ -219,24 +220,48 @@ public class TimeValidationServiceImpl implements TimeValidationService {
         int totalPossibleSlots = 0;
         int availableSlots = 0;
 
+        // 一次性预载范围内所有天的忙时，避免循环中多次 DB 查询
+        Map<LocalDate, List<String>> busyMap = buildBusyMapAndBackfill(teacherId, startDate, endDate);
+
+        // 将教师可用时段构建为 Map<weekday, Set<String>>，O(1) 判断
+        Map<Integer, Set<String>> availMap = new HashMap<>();
+        for (TimeSlotDTO s : teacherAvailableSlots) {
+            availMap.computeIfAbsent(s.getWeekday(), k -> new HashSet<>() )
+                    .addAll(s.getTimeSlots() == null ? Collections.emptyList() : s.getTimeSlots());
+        }
+
+        // 预解析学生偏好时间段为分钟整数，避免多次 LocalTime.parse
+        Map<String, int[]> prefSlotMinutes = new HashMap<>();
+        for (String ts : studentPreferredTimeSlots) {
+            int[] mm = parseSlotToMinutes(ts);
+            if (mm != null) prefSlotMinutes.put(ts, mm);
+        }
+
+        // 将 busyMap 转为按天的分钟区间列表，并排序，便于快速判断
+        Map<LocalDate, List<int[]>> busyMinutesMap = new HashMap<>();
+        for (Map.Entry<LocalDate, List<String>> e : busyMap.entrySet()) {
+            List<int[]> list = new ArrayList<>();
+            for (String s : e.getValue()) {
+                int[] mm = parseSlotToMinutes(s);
+                if (mm != null) list.add(mm);
+            }
+            list.sort(Comparator.comparingInt(a -> a[0]));
+            busyMinutesMap.put(e.getKey(), list);
+        }
+
         // 遍历日期范围内的每一天
         LocalDate currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
             int weekday = currentDate.getDayOfWeek().getValue(); // 1=周一, 7=周日
 
-            // 检查这一天是否在学生选择的星期几中
             if (studentPreferredWeekdays.contains(weekday)) {
-                // 检查每个时间段
+                List<int[]> dayBusy = busyMinutesMap.getOrDefault(currentDate, Collections.emptyList());
                 for (String timeSlot : studentPreferredTimeSlots) {
                     totalPossibleSlots++;
 
-                    // 1. 检查教师是否在这个星期几的这个时间段可用
-                    boolean teacherAvailable = teacherAvailableSlots.stream()
-                            .anyMatch(slot -> weekday == slot.getWeekday() &&
-                                     slot.getTimeSlots() != null &&
-                                     slot.getTimeSlots().contains(timeSlot));
-
-                    if (!teacherAvailable) {
+                    // 1. 教师该星期几是否可用
+                    Set<String> set = availMap.get(weekday);
+                    if (set == null || !set.contains(timeSlot)) {
                         conflicts.add(TimeValidationResult.TimeConflictInfo.builder()
                                 .weekday(weekday)
                                 .timeSlot(timeSlot)
@@ -248,31 +273,20 @@ public class TimeValidationServiceImpl implements TimeValidationService {
                         continue;
                     }
 
-                    // 2. 检查具体日期是否有课程冲突
-                    String[] times = timeSlot.split("-");
-                    if (times.length == 2) {
-                        try {
-                            LocalTime startTime = LocalTime.parse(times[0]);
-                            LocalTime endTime = LocalTime.parse(times[1]);
-
-                            int conflictCount = scheduleMapper.countConflictingSchedules(
-                                    teacherId, currentDate, startTime, endTime);
-
-                            if (conflictCount > 0) {
-                                conflicts.add(TimeValidationResult.TimeConflictInfo.builder()
-                                        .weekday(weekday)
-                                        .timeSlot(timeSlot)
-                                        .conflictDates(List.of(currentDate.toString()))
-                                        .conflictReason("该时间段已有其他课程安排")
-                                        .severity("HIGH")
-                                        .suggestion("选择其他时间或日期")
-                                        .build());
-                            } else {
-                                availableSlots++;
-                            }
-                        } catch (Exception e) {
-                            log.error("解析时间段失败: {}", timeSlot, e);
-                        }
+                    // 2. 用分钟区间快速判断冲突
+                    int[] mm = prefSlotMinutes.get(timeSlot);
+                    boolean conflict = hasOverlap(dayBusy, mm);
+                    if (conflict) {
+                        conflicts.add(TimeValidationResult.TimeConflictInfo.builder()
+                                .weekday(weekday)
+                                .timeSlot(timeSlot)
+                                .conflictDates(List.of(currentDate.toString()))
+                                .conflictReason("该时间段已有其他课程安排")
+                                .severity("HIGH")
+                                .suggestion("选择其他时间或日期")
+                                .build());
+                    } else {
+                        availableSlots++;
                     }
                 }
             }
@@ -307,38 +321,68 @@ public class TimeValidationServiceImpl implements TimeValidationService {
     /**
      * 检查特定时间段的冲突
      */
-    private List<String> checkTimeSlotConflicts(Long teacherId, int weekday, String timeSlot, 
+    private List<String> checkTimeSlotConflicts(Long teacherId, int weekday, String timeSlot,
                                                LocalDate startDate, LocalDate endDate) {
+        Map<LocalDate, List<String>> busyMap = buildBusyMapAndBackfill(teacherId, startDate, endDate);
+        int[] mm = parseSlotToMinutes(timeSlot);
         List<String> conflictDates = new ArrayList<>();
-        
-        String[] times = timeSlot.split("-");
-        if (times.length != 2) {
-            return conflictDates;
-        }
-        
-        try {
-            LocalTime startTime = LocalTime.parse(times[0]);
-            LocalTime endTime = LocalTime.parse(times[1]);
-            
-            LocalDate currentDate = startDate;
-            while (!currentDate.isAfter(endDate)) {
-                int currentWeekday = currentDate.getDayOfWeek().getValue();
-                if (currentWeekday == 7) currentWeekday = 7; // 周日
-                
-                if (currentWeekday == weekday) {
-                    int conflictCount = scheduleMapper.countConflictingSchedules(
-                        teacherId, currentDate, startTime, endTime);
-                    if (conflictCount > 0) {
-                        conflictDates.add(currentDate.toString());
-                    }
+        LocalDate d = startDate;
+        while (!d.isAfter(endDate)) {
+            int w = d.getDayOfWeek().getValue();
+            if (w == weekday) {
+                List<int[]> dayBusy = new ArrayList<>();
+                for (String b : busyMap.getOrDefault(d, Collections.emptyList())) {
+                    int[] bb = parseSlotToMinutes(b);
+                    if (bb != null) dayBusy.add(bb);
                 }
-                currentDate = currentDate.plusDays(1);
+                dayBusy.sort(Comparator.comparingInt(a -> a[0]));
+                if (hasOverlap(dayBusy, mm)) conflictDates.add(d.toString());
             }
-        } catch (Exception e) {
-            log.error("检查时间冲突时发生错误", e);
+            d = d.plusDays(1);
         }
-        
         return conflictDates;
+    }
+
+    // 一次性构建范围 busyMap 并批量回填 Redis
+    private Map<LocalDate, List<String>> buildBusyMapAndBackfill(Long teacherId, LocalDate startDate, LocalDate endDate) {
+        List<com.touhouqing.grabteacherbackend.entity.Schedule> range =
+                scheduleMapper.findByTeacherIdAndDateRange(teacherId, startDate, endDate);
+        Map<LocalDate, List<String>> busyMap = new HashMap<>();
+        for (com.touhouqing.grabteacherbackend.entity.Schedule s : range) {
+            LocalDate d = s.getScheduledDate();
+            String slot = s.getStartTime().toString() + "-" + s.getEndTime().toString();
+            busyMap.computeIfAbsent(d, k -> new ArrayList<>()).add(slot);
+        }
+        LocalDate d = startDate;
+        while (!d.isAfter(endDate)) { busyMap.putIfAbsent(d, new ArrayList<>()); d = d.plusDays(1); }
+        try { teacherScheduleCacheService.putBusySlotsBatch(teacherId, busyMap); } catch (Exception ignore) {}
+        return busyMap;
+    }
+
+    // 快速区间重叠判断：dayBusy 已按 start 升序
+    private boolean hasOverlap(List<int[]> dayBusy, int[] mm) {
+        if (mm == null) return false;
+        int s = mm[0], e = mm[1];
+        for (int[] b : dayBusy) {
+            if (b[0] >= e) break; // 后续都在右侧
+            if (b[1] > s && b[0] < e) return true;
+        }
+        return false;
+    }
+
+    // 解析 "HH:mm-HH:mm" 到 [startMin, endMin]
+    private int[] parseSlotToMinutes(String slot) {
+        if (slot == null || slot.length() < 11) return null;
+        try {
+            int h1 = Integer.parseInt(slot.substring(0, 2));
+            int m1 = Integer.parseInt(slot.substring(3, 5));
+            int h2 = Integer.parseInt(slot.substring(6, 8));
+            int m2 = Integer.parseInt(slot.substring(9, 11));
+            int s = h1 * 60 + m1;
+            int e = h2 * 60 + m2;
+            if (e > s) return new int[]{s, e};
+        } catch (Exception ignore) {}
+        return null;
     }
 
     /**

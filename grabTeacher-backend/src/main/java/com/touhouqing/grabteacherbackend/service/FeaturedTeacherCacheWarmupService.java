@@ -20,6 +20,7 @@ import java.util.List;
 public class FeaturedTeacherCacheWarmupService implements CommandLineRunner {
 
     private final TeacherService teacherService;
+    private final SubjectService subjectService;
 
     @Override
     public void run(String... args) throws Exception {
@@ -55,20 +56,20 @@ public class FeaturedTeacherCacheWarmupService implements CommandLineRunner {
                 }
             }
             
-            // 预热常用科目的精选教师列表
-            String[] commonSubjects = {"数学", "英语", "语文", "物理", "化学"};
-            for (String subject : commonSubjects) {
-                List<TeacherListResponse> teachers = teacherService.getFeaturedTeachers(1, 10, subject, null, null);
-                log.debug("预热精选教师缓存: subject={}, count={}", subject, teachers.size());
+            // 预热科目的精选教师列表（动态获取激活科目）
+            List<com.touhouqing.grabteacherbackend.entity.Subject> activeSubjects = subjectService.getAllActiveSubjects();
+            for (com.touhouqing.grabteacherbackend.entity.Subject s : activeSubjects) {
+                List<TeacherListResponse> teachers = teacherService.getFeaturedTeachers(1, 10, s.getName(), null, null);
+                log.debug("预热精选教师缓存: subject={}, count={}", s.getName(), teachers.size());
             }
-            
-            // 预热常用年级的精选教师列表
-            String[] commonGrades = {"小学", "中学"};
-            for (String grade : commonGrades) {
+
+            // 预热年级的精选教师列表（动态获取可用年级）
+            List<String> dbGrades = teacherService.getAvailableGrades();
+            for (String grade : dbGrades) {
                 List<TeacherListResponse> teachers = teacherService.getFeaturedTeachers(1, 10, null, grade, null);
                 log.debug("预热精选教师缓存: grade={}, count={}", grade, teachers.size());
             }
-            
+
             log.info("精选教师列表缓存预热完成");
         } catch (Exception e) {
             log.error("预热精选教师列表缓存失败", e);
