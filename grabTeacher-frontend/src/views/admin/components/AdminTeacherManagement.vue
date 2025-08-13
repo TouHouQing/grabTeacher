@@ -129,9 +129,11 @@ const teacherRules = {
     { required: true, message: '请输入教师姓名', trigger: 'blur' }
   ],
   username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
     { validator: validateUsername, trigger: 'blur' }
   ],
   email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
     { validator: validateEmail, trigger: 'blur' }
   ]
 }
@@ -551,12 +553,18 @@ onMounted(async () => {
         <!-- 账号信息 -->
         <el-row :gutter="20" v-if="teacherForm.id === 0">
           <el-col :span="12">
-            <el-form-item label="用户名" prop="username">
+            <el-form-item prop="username">
+              <template #label>
+                <span><span style="color:#f56c6c"></span> 用户名</span>
+              </template>
               <el-input v-model="teacherForm.username" placeholder="请输入用户名" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="邮箱" prop="email">
+            <el-form-item prop="email">
+              <template #label>
+                <span><span style="color:#f56c6c"></span> 邮箱</span>
+              </template>
               <el-input v-model="teacherForm.email" placeholder="请输入邮箱" />
             </el-form-item>
           </el-col>
@@ -577,7 +585,10 @@ onMounted(async () => {
         <!-- 基本信息 -->
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="教师姓名" prop="realName">
+            <el-form-item prop="realName">
+              <template #label>
+                <span><span style="color:#f56c6c"></span> 教师姓名</span>
+              </template>
               <el-input v-model="teacherForm.realName" placeholder="请输入教师姓名" />
             </el-form-item>
           </el-col>
