@@ -25,6 +25,8 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -53,17 +55,19 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "course", allEntries = true),
         @CacheEvict(cacheNames = "courseList", allEntries = true),
         @CacheEvict(cacheNames = "teacherCourses", allEntries = true),
-        @CacheEvict(cacheNames = "activeCourses", allEntries = true)
+        @CacheEvict(cacheNames = "activeCourses", allEntries = true),
+        @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
+        @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true)
     })
     public Course createCourse(CourseRequest request, Long currentUserId, String userType) {
         log.info("创建课程，用户ID: {}, 用户类型: {}", currentUserId, userType);
-        
+
         // 验证科目是否存在
         Subject subject = subjectMapper.selectById(request.getSubjectId());
         if (subject == null || subject.getIsDeleted()) {
             throw new RuntimeException("科目不存在");
         }
-        
+
         Long teacherId;
         if ("admin".equals(userType)) {
             // 管理员可以为任何教师创建课程
@@ -71,7 +75,7 @@ public class CourseServiceImpl implements CourseService {
                 throw new RuntimeException("管理员创建课程时必须指定教师ID");
             }
             teacherId = request.getTeacherId();
-            
+
             // 验证教师是否存在
             Teacher teacher = teacherMapper.selectById(teacherId);
             if (teacher == null || teacher.getIsDeleted()) {
@@ -83,7 +87,7 @@ public class CourseServiceImpl implements CourseService {
             teacherQuery.eq("user_id", currentUserId);
             teacherQuery.eq("is_deleted", false);
             Teacher teacher = teacherMapper.selectOne(teacherQuery);
-            
+
             if (teacher == null) {
                 throw new RuntimeException("教师信息不存在，请先完善教师资料");
             }
@@ -91,12 +95,12 @@ public class CourseServiceImpl implements CourseService {
         } else {
             throw new RuntimeException("只有教师和管理员可以创建课程");
         }
-        
+
         // 验证课程类型
         if (!isValidCourseType(request.getCourseType())) {
             throw new RuntimeException("无效的课程类型");
         }
-        
+
         // 验证课程状态
         if (request.getStatus() != null && !isValidCourseStatus(request.getStatus())) {
             throw new RuntimeException("无效的课程状态");
@@ -155,27 +159,29 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "course", key = "#id"),
         @CacheEvict(cacheNames = "courseList", allEntries = true),
         @CacheEvict(cacheNames = "teacherCourses", allEntries = true),
-        @CacheEvict(cacheNames = "activeCourses", allEntries = true)
+        @CacheEvict(cacheNames = "activeCourses", allEntries = true),
+        @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
+        @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true)
     })
     public Course updateCourse(Long id, CourseRequest request, Long currentUserId, String userType) {
         log.info("更新课程，课程ID: {}, 用户ID: {}, 用户类型: {}", id, currentUserId, userType);
-        
+
         Course course = courseMapper.selectById(id);
         if (course == null || course.getIsDeleted()) {
             throw new RuntimeException("课程不存在");
         }
-        
+
         // 权限检查
         if (!hasPermissionToManageCourse(id, currentUserId, userType)) {
             throw new RuntimeException("没有权限操作此课程");
         }
-        
+
         // 验证科目是否存在
         Subject subject = subjectMapper.selectById(request.getSubjectId());
         if (subject == null || subject.getIsDeleted()) {
             throw new RuntimeException("科目不存在");
         }
-        
+
         // 管理员可以修改教师，教师不能修改
         if ("admin".equals(userType) && request.getTeacherId() != null) {
             Teacher teacher = teacherMapper.selectById(request.getTeacherId());
@@ -184,7 +190,7 @@ public class CourseServiceImpl implements CourseService {
             }
             course.setTeacherId(request.getTeacherId());
         }
-        
+
         // 验证课程类型和状态
         if (!isValidCourseType(request.getCourseType())) {
             throw new RuntimeException("无效的课程类型");
@@ -242,16 +248,18 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "course", key = "#id"),
         @CacheEvict(cacheNames = "courseList", allEntries = true),
         @CacheEvict(cacheNames = "teacherCourses", allEntries = true),
-        @CacheEvict(cacheNames = "activeCourses", allEntries = true)
+        @CacheEvict(cacheNames = "activeCourses", allEntries = true),
+        @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
+        @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true)
     })
     public void deleteCourse(Long id, Long currentUserId, String userType) {
         log.info("删除课程，课程ID: {}, 用户ID: {}, 用户类型: {}", id, currentUserId, userType);
-        
+
         Course course = courseMapper.selectById(id);
         if (course == null || course.getIsDeleted()) {
             throw new RuntimeException("课程不存在");
         }
-        
+
         // 权限检查
         if (!hasPermissionToManageCourse(id, currentUserId, userType)) {
             throw new RuntimeException("没有权限操作此课程");
@@ -341,11 +349,9 @@ public class CourseServiceImpl implements CourseService {
 
         Page<Course> coursePage = courseMapper.selectPage(pageParam, queryWrapper);
 
-        // 转换为CourseResponse
+        // 批量装配，消除 N+1
         Page<CourseResponse> responsePage = new Page<>(coursePage.getCurrent(), coursePage.getSize(), coursePage.getTotal());
-        List<CourseResponse> responseList = coursePage.getRecords().stream()
-                .map(this::convertToCourseResponse)
-                .collect(Collectors.toList());
+        List<CourseResponse> responseList = assembleCourseResponses(coursePage.getRecords());
         responsePage.setRecords(responseList);
 
         return responsePage;
@@ -402,23 +408,37 @@ public class CourseServiceImpl implements CourseService {
             courses = courseMapper.findByTeacherId(teacherId);
         }
 
-        return courses.stream()
-                .map(this::convertToCourseResponse)
-                .collect(Collectors.toList());
+        return assembleCourseResponses(courses);
     }
 
     /**
      * 获取所有活跃课程
      */
     @Override
-    @Cacheable(cacheNames = "activeCourses",
+    @Cacheable(cacheNames = "activeCoursesAll",
                key = "'all'",
                unless = "#result == null || #result.isEmpty()")
     public List<CourseResponse> getActiveCourses() {
         List<Course> courses = courseMapper.findActiveCourses();
-        return courses.stream()
-                .map(this::convertToCourseResponse)
-                .collect(Collectors.toList());
+        return assembleCourseResponses(courses);
+    }
+
+    /**
+     * 获取活跃课程列表（限制条数）
+     */
+    @Override
+    @Cacheable(cacheNames = "activeCoursesLimited",
+               key = "'limit:' + (#limit == null ? 'all' : #limit)",
+               sync = true)
+    public List<CourseResponse> getActiveCoursesLimited(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return getActiveCourses();
+        }
+        QueryWrapper<Course> qw = new QueryWrapper<>();
+        qw.eq("status", "active").eq("is_deleted", false).orderByDesc("created_at");
+        Page<Course> page = new Page<>(1, limit);
+        Page<Course> res = courseMapper.selectPage(page, qw);
+        return assembleCourseResponses(res.getRecords());
     }
 
     /**
@@ -430,7 +450,9 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "course", key = "#id"),
         @CacheEvict(cacheNames = "courseList", allEntries = true),
         @CacheEvict(cacheNames = "teacherCourses", allEntries = true),
-        @CacheEvict(cacheNames = "activeCourses", allEntries = true)
+        @CacheEvict(cacheNames = "activeCourses", allEntries = true),
+        @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
+        @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true)
     })
     public void updateCourseStatus(Long id, String status, Long currentUserId, String userType) {
         log.info("更新课程状态，课程ID: {}, 新状态: {}, 用户ID: {}", id, status, currentUserId);
@@ -537,23 +559,101 @@ public class CourseServiceImpl implements CourseService {
             queryWrapper.eq("subject_id", subjectId);
         }
 
-        // 如果指定了年级，需要通过course_grades表关联查询
+        // 如果指定了年级，改为两段式查询：先查 course_ids 再 IN 过滤，避免 exists 带来的执行波动
         if (grade != null && !grade.trim().isEmpty()) {
-            queryWrapper.exists("SELECT 1 FROM course_grades cg WHERE cg.course_id = courses.id AND cg.grade = {0}", grade);
+            String g = grade.trim();
+            List<Long> idsByGrade = courseGradeMapper.findCourseIdsByGrade(g);
+            if (idsByGrade == null || idsByGrade.isEmpty()) {
+                Page<CourseResponse> emptyPage = new Page<>(page, size, 0);
+                emptyPage.setRecords(new ArrayList<>());
+                return emptyPage;
+            }
+            queryWrapper.in("id", idsByGrade);
         }
 
         queryWrapper.orderByDesc("created_at");
 
         Page<Course> coursePage = courseMapper.selectPage(pageParam, queryWrapper);
 
-        // 转换为CourseResponse
+        // 批量装配，消除 N+1
         Page<CourseResponse> responsePage = new Page<>(coursePage.getCurrent(), coursePage.getSize(), coursePage.getTotal());
-        List<CourseResponse> responseList = coursePage.getRecords().stream()
-                .map(this::convertToCourseResponse)
-                .collect(Collectors.toList());
+        List<CourseResponse> responseList = assembleCourseResponses(coursePage.getRecords());
         responsePage.setRecords(responseList);
 
         return responsePage;
+    }
+
+
+    // 批量组装 CourseResponse，避免 convertToCourseResponse 的逐条查询开销
+    private List<CourseResponse> assembleCourseResponses(List<Course> courses) {
+        if (courses == null || courses.isEmpty()) return new ArrayList<>();
+        // 1) 收集ID集合
+        List<Long> teacherIds = courses.stream().map(Course::getTeacherId).collect(Collectors.toList());
+        List<Long> subjectIds = courses.stream().map(Course::getSubjectId).collect(Collectors.toList());
+        List<Long> courseIds = courses.stream().map(Course::getId).collect(Collectors.toList());
+
+        // 2) 批量查询教师
+        Map<Long, String> teacherNameMap = new HashMap<>();
+        if (!teacherIds.isEmpty()) {
+            QueryWrapper<Teacher> tq = new QueryWrapper<>();
+            tq.in("id", teacherIds);
+            tq.eq("is_deleted", false);
+            for (Teacher t : teacherMapper.selectList(tq)) {
+                teacherNameMap.put(t.getId(), t.getRealName());
+            }
+        }
+
+        // 3) 批量查询科目
+        Map<Long, String> subjectNameMap = new HashMap<>();
+        if (!subjectIds.isEmpty()) {
+            QueryWrapper<Subject> sq = new QueryWrapper<>();
+            sq.in("id", subjectIds);
+            sq.eq("is_deleted", false);
+            for (Subject s : subjectMapper.selectList(sq)) {
+                subjectNameMap.put(s.getId(), s.getName());
+            }
+        }
+
+        // 4) 批量查询年级
+        Map<Long, String> courseGradesStr = new HashMap<>();
+        if (!courseIds.isEmpty()) {
+            List<CourseGrade> all = courseGradeMapper.findByCourseIds(courseIds);
+            Map<Long, List<String>> tmp = new HashMap<>();
+            for (CourseGrade cg : all) {
+                tmp.computeIfAbsent(cg.getCourseId(), k -> new ArrayList<>()).add(cg.getGrade());
+            }
+            for (Map.Entry<Long, List<String>> e : tmp.entrySet()) {
+                courseGradesStr.put(e.getKey(), String.join(",", e.getValue()));
+            }
+        }
+
+        // 5) 组装响应
+        List<CourseResponse> list = new ArrayList<>();
+        for (Course c : courses) {
+            String teacherName = teacherNameMap.getOrDefault(c.getTeacherId(), "未知教师");
+            String subjectName = subjectNameMap.getOrDefault(c.getSubjectId(), "未知科目");
+            String gradeStr = courseGradesStr.getOrDefault(c.getId(), "未设置");
+
+            CourseResponse resp = CourseResponse.builder()
+                    .id(c.getId())
+                    .teacherId(c.getTeacherId())
+                    .teacherName(teacherName)
+                    .subjectId(c.getSubjectId())
+                    .subjectName(subjectName)
+                    .title(c.getTitle())
+                    .description(truncate(c.getDescription(), 160))
+                    .courseType(c.getCourseType())
+                    .durationMinutes(c.getDurationMinutes())
+                    .status(c.getStatus())
+                    .isFeatured(c.getIsFeatured())
+                    .createdAt(c.getCreatedAt())
+                    .grade(gradeStr)
+                    .build();
+            resp.setCourseTypeDisplay(resp.getCourseTypeDisplay());
+            resp.setStatusDisplay(resp.getStatusDisplay());
+            list.add(resp);
+        }
+        return list;
     }
 
     /**
@@ -603,12 +703,19 @@ public class CourseServiceImpl implements CourseService {
         log.info("批量更新 {} 个课程的精选状态为: {}", courses.size(), featured);
     }
 
-    /**
-     * 获取所有精选课程ID列表
-     */
-    @Override
-    @Cacheable(cacheNames = "featuredCourseIds", key = "'all'")
-    public List<Long> getFeaturedCourseIds() {
+        // 列表轻载化：截断长文本，避免超大回包
+        private String truncate(String s, int max) {
+            if (s == null) return null;
+            if (max <= 0) return "";
+            return s.length() <= max ? s : s.substring(0, max);
+        }
+
+        /**
+         * 获取所有精选课程ID列表
+         */
+        @Override
+        @Cacheable(cacheNames = "featuredCourseIds", key = "'all'")
+        public List<Long> getFeaturedCourseIds() {
         return courseMapper.findFeaturedCourseIds();
     }
 }

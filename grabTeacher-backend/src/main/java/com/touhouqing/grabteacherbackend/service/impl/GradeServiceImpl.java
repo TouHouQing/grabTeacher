@@ -15,6 +15,8 @@ import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.service.GradeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,7 @@ public class GradeServiceImpl implements GradeService {
     private final ScheduleMapper scheduleMapper;
 
     @Override
+    @Cacheable(cacheNames = "grades", key = "'all'")
     public List<GradeResponse> getAllGrades() {
         QueryWrapper<Grade> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("is_deleted", false);
@@ -84,6 +87,7 @@ public class GradeServiceImpl implements GradeService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {"grades"}, allEntries = true)
     public GradeResponse createGrade(GradeRequest request) {
         // 检查年级名称是否已存在
         if (isGradeNameExists(request.getGradeName())) {
@@ -105,6 +109,7 @@ public class GradeServiceImpl implements GradeService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {"grades"}, allEntries = true)
     public GradeResponse updateGrade(Long id, GradeRequest request) {
         Grade grade = gradeMapper.selectById(id);
         if (grade == null || grade.getIsDeleted()) {
@@ -127,6 +132,7 @@ public class GradeServiceImpl implements GradeService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {"grades"}, allEntries = true)
     public void deleteGrade(Long id) {
         Grade grade = gradeMapper.selectById(id);
         if (grade == null || grade.getIsDeleted()) {

@@ -71,7 +71,12 @@ public interface CourseService {
      * @return 活跃课程列表
      */
     List<CourseResponse> getActiveCourses();
-    
+
+    /**
+     * 获取活跃状态的课程（限制条数）
+     */
+    List<CourseResponse> getActiveCoursesLimited(Integer limit);
+
     /**
      * 更新课程状态
      * @param id 课程ID

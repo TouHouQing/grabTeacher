@@ -17,6 +17,8 @@ import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -42,6 +44,7 @@ public class SubjectServiceImpl implements SubjectService {
      */
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {"activeSubjects", "subjects"}, allEntries = true)
     public Subject createSubject(SubjectRequest request) {
         // 检查科目名称是否已存在
         QueryWrapper<Subject> queryWrapper = new QueryWrapper<>();
@@ -70,6 +73,7 @@ public class SubjectServiceImpl implements SubjectService {
      */
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {"activeSubjects", "subjects"}, allEntries = true)
     public Subject updateSubject(Long id, SubjectRequest request) {
         Subject subject = subjectMapper.selectById(id);
         if (subject == null || subject.getIsDeleted()) {
@@ -103,6 +107,7 @@ public class SubjectServiceImpl implements SubjectService {
      */
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {"activeSubjects", "subjects"}, allEntries = true)
     public void deleteSubject(Long id) {
         Subject subject = subjectMapper.selectById(id);
         if (subject == null || subject.getIsDeleted()) {
@@ -168,6 +173,7 @@ public class SubjectServiceImpl implements SubjectService {
      * 根据ID获取科目
      */
     @Override
+    @Cacheable(cacheNames = "subjects", key = "#id", unless = "#result == null")
     public Subject getSubjectById(Long id) {
         QueryWrapper<Subject> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("id", id);
@@ -202,6 +208,7 @@ public class SubjectServiceImpl implements SubjectService {
      * 获取所有激活的科目
      */
     @Override
+    @Cacheable(cacheNames = "activeSubjects", key = "'all'")
     public List<Subject> getAllActiveSubjects() {
         QueryWrapper<Subject> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("is_deleted", false);
@@ -215,6 +222,7 @@ public class SubjectServiceImpl implements SubjectService {
      */
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {"activeSubjects", "subjects"}, allEntries = true)
     public void updateSubjectStatus(Long id, Boolean isActive) {
         Subject subject = subjectMapper.selectById(id);
         if (subject == null || subject.getIsDeleted()) {

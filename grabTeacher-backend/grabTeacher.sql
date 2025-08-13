@@ -734,3 +734,34 @@ WHERE c.country_name='中国' AND c.is_deleted=0
       SELECT 1 FROM study_abroad_programs p
       WHERE p.title='中国港澳本科申请' AND p.country_id=c.id AND p.stage_id=s.id AND p.is_deleted=0
   );
+
+
+-- -------------------------------------------------
+-- Performance Indexes (added by optimization task)
+-- -------------------------------------------------
+
+-- Courses: common filter and sort patterns
+ALTER TABLE `courses`
+  ADD INDEX `idx_courses_status_deleted_created` (`status`, `is_deleted`, `created_at`),
+  ADD INDEX `idx_courses_teacher_deleted_status` (`teacher_id`, `is_deleted`, `status`),
+  ADD INDEX `idx_courses_subject_deleted_status` (`subject_id`, `is_deleted`, `status`),
+  ADD INDEX `idx_courses_featured_status_deleted_created` (`is_featured`, `status`, `is_deleted`, `created_at`);
+
+-- Teacher-Subjects mapping: speed up teacher list by subject and reverse
+ALTER TABLE `teacher_subjects`
+  ADD INDEX `idx_ts_teacher_subject` (`teacher_id`, `subject_id`),
+  ADD INDEX `idx_ts_subject_teacher` (`subject_id`, `teacher_id`);
+
+-- Study Abroad Programs: public list filters
+ALTER TABLE `study_abroad_programs`
+  ADD INDEX `idx_sap_active_deleted_sort` (`is_active`, `is_deleted`, `sort_order`, `id`),
+  ADD INDEX `idx_sap_country_stage_active` (`country_id`, `stage_id`, `is_active`, `is_deleted`),
+  ADD INDEX `idx_sap_country_active` (`country_id`, `is_active`, `is_deleted`),
+  ADD INDEX `idx_sap_stage_active` (`stage_id`, `is_active`, `is_deleted`);
+
+-- Study Abroad Countries/Stages: active lists ordering
+ALTER TABLE `study_abroad_countries`
+  ADD INDEX `idx_sac_active_deleted_sort` (`is_active`, `is_deleted`, `sort_order`, `id`);
+
+ALTER TABLE `study_abroad_stages`
+  ADD INDEX `idx_sas_active_deleted_sort` (`is_active`, `is_deleted`, `sort_order`, `id`);

@@ -14,6 +14,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import com.touhouqing.grabteacherbackend.cache.ActiveCoursesLocalCache;
+import org.springframework.http.MediaType;
+import java.time.Duration;
 
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +33,15 @@ public class PublicCourseController {
 
     @Autowired
     private CourseService courseService;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private ActiveCoursesLocalCache activeCoursesLocalCache;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     /**
      * 获取公开课程列表（分页）
@@ -73,10 +87,40 @@ public class PublicCourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功")
     })
     @GetMapping("/active")
-    public ResponseEntity<ApiResponse<List<CourseResponse>>> getActiveCourses() {
+    public ResponseEntity<?> getActiveCourses(
+            @Parameter(description = "返回数量上限，不传则返回全部") @RequestParam(required = false) Integer limit) {
         try {
-            List<CourseResponse> courses = courseService.getActiveCourses();
-            return ResponseEntity.ok(ApiResponse.success("获取活跃课程列表成功", courses));
+            int lim = (limit == null || limit <= 0) ? Integer.MAX_VALUE : limit;
+            String cacheKey = (limit == null || limit <= 0)
+                    ? "activeCoursesAll:json:all"
+                    : "activeCoursesLimited:json:limit:" + lim;
+
+            // 1) 尝试本地 L1 缓存（JSON 文本）
+            String json = activeCoursesLocalCache.get(cacheKey);
+            if (json != null) {
+                return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
+            }
+
+            // 2) 尝试 Redis L2 缓存（JSON 文本）
+            json = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (json != null) {
+                activeCoursesLocalCache.put(cacheKey, json);
+                return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
+            }
+
+            // 3) 回源：获取对象列表，序列化为 JSON 文本，并写回两级缓存
+            List<CourseResponse> courses = (limit == null || limit <= 0)
+                    ? courseService.getActiveCourses()
+                    : courseService.getActiveCoursesLimited(limit);
+
+            // 使用项目全局 ObjectMapper 确保序列化一致
+            json = objectMapper.writeValueAsString(ApiResponse.success("获取活跃课程列表成功", courses));
+
+            activeCoursesLocalCache.put(cacheKey, json);
+            // 与 activeCoursesLimited TTL 对齐（5 分钟）；全量也使用 5 分钟，避免过期不一致
+            stringRedisTemplate.opsForValue().set(cacheKey, json, Duration.ofMinutes(5));
+
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
         } catch (Exception e) {
             logger.error("获取活跃课程列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

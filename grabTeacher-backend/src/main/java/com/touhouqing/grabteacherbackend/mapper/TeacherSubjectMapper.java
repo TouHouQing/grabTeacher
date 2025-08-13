@@ -14,19 +14,24 @@ import java.util.List;
  */
 @Mapper
 public interface TeacherSubjectMapper extends BaseMapper<TeacherSubject> {
-    
+
     /**
      * 根据教师ID获取科目ID列表
      */
     @Select("SELECT subject_id FROM teacher_subjects WHERE teacher_id = #{teacherId}")
     List<Long> getSubjectIdsByTeacherId(@Param("teacherId") Long teacherId);
-    
+
+    /**
+     * 批量查询多个教师的科目关联
+     */
+    List<TeacherSubject> findByTeacherIds(@Param("teacherIds") List<Long> teacherIds);
+
     /**
      * 根据教师ID删除所有科目关联
      */
     @Delete("DELETE FROM teacher_subjects WHERE teacher_id = #{teacherId}")
     void deleteByTeacherId(@Param("teacherId") Long teacherId);
-    
+
     /**
      * 根据科目ID获取教师ID列表
      */

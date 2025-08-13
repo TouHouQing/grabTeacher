@@ -76,7 +76,7 @@ public class TeacherController {
         try {
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
             Teacher updatedTeacher = teacherService.updateTeacherInfo(userPrincipal.getId(), request);
-            
+
             return ResponseEntity.ok(ApiResponse.success("更新成功", updatedTeacher));
         } catch (RuntimeException e) {
             logger.warn("更新教师信息失败: {}", e.getMessage());
@@ -100,7 +100,12 @@ public class TeacherController {
             @RequestParam(required = false) String grade,
             @RequestParam(required = false) String keyword) {
         try {
-            List<TeacherListResponse> teachers = teacherService.getTeacherListWithSubjects(page, size, subject, grade, keyword);
+            // 查询归一化：去除首尾空白；空字符串统一为 null，减少缓存键碎片
+            String normSubject = normalizeParam(subject);
+            String normGrade = normalizeParam(grade);
+            String normKeyword = normalizeKeyword(keyword);
+
+            List<TeacherListResponse> teachers = teacherService.getTeacherListWithSubjects(page, size, normSubject, normGrade, normKeyword);
             return ResponseEntity.ok(ApiResponse.success("获取成功", teachers));
         } catch (Exception e) {
             logger.error("获取教师列表异常: ", e);
@@ -120,7 +125,11 @@ public class TeacherController {
             @RequestParam(required = false) String grade,
             @RequestParam(required = false) String keyword) {
         try {
-            List<TeacherListResponse> teachers = teacherService.getFeaturedTeachers(page, size, subject, grade, keyword);
+            String normSubject = normalizeParam(subject);
+            String normGrade = normalizeParam(grade);
+            String normKeyword = normalizeKeyword(keyword);
+
+            List<TeacherListResponse> teachers = teacherService.getFeaturedTeachers(page, size, normSubject, normGrade, normKeyword);
             return ResponseEntity.ok(ApiResponse.success("获取成功", teachers));
         } catch (Exception e) {
             logger.error("获取精选教师列表异常: ", e);
@@ -278,4 +287,19 @@ public class TeacherController {
                     .body(ApiResponse.error("验证失败"));
         }
     }
+
+    // 参数归一化：去首尾空白；空串->null，减少缓存键碎片
+    private String normalizeParam(String v) {
+        if (v == null) return null;
+        String t = v.trim();
+        return t.isEmpty() ? null : t;
+    }
+
+    // 关键词归一化：去首尾空白，合并连续空白为单个空格；空串->null
+    private String normalizeKeyword(String v) {
+        if (v == null) return null;
+        String t = v.trim().replaceAll("\\s+", " ");
+        return t.isEmpty() ? null : t;
+    }
+
 }

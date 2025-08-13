@@ -18,6 +18,7 @@ import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Subject;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.entity.User;
+import com.touhouqing.grabteacherbackend.entity.TeacherSubject;
 import com.touhouqing.grabteacherbackend.entity.BookingRequest;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseGradeMapper;
@@ -25,6 +26,8 @@ import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
+import com.touhouqing.grabteacherbackend.mapper.SubjectMapper;
+
 import com.touhouqing.grabteacherbackend.mapper.UserMapper;
 import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
 import com.touhouqing.grabteacherbackend.mapper.RescheduleRequestMapper;
@@ -64,6 +67,7 @@ public class TeacherServiceImpl implements TeacherService {
     private final RescheduleRequestMapper rescheduleRequestMapper;
 
     private final TeacherScheduleCacheService teacherScheduleCacheService;
+    private final SubjectMapper subjectMapper;
 
     /**
      * 根据用户ID获取教师信息
@@ -276,53 +280,10 @@ public class TeacherServiceImpl implements TeacherService {
                keyGenerator = "teacherCacheKeyGenerator",
                sync = true)
     public List<TeacherListResponse> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword) {
-        // 获取教师列表，支持科目和年级筛选
+        // 获取教师列表（分页+筛选）
         List<Teacher> teachers = getFilteredTeacherList(page, size, subject, grade, keyword);
-
-        // 转换为包含科目信息的响应DTO
-        List<TeacherListResponse> responseList = new ArrayList<>();
-        for (Teacher teacher : teachers) {
-            // 获取用户信息
-            User user = userMapper.selectById(teacher.getUserId());
-
-            // 获取教师的科目ID列表
-            List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
-
-            // 获取科目名称列表
-            List<String> subjects = new ArrayList<>();
-            for (Long subjectId : subjectIds) {
-                try {
-                    Subject subjectEntity = subjectService.getSubjectById(subjectId);
-                    if (subjectEntity != null) {
-                        subjects.add(subjectEntity.getName());
-                    }
-                } catch (Exception e) {
-                    log.warn("获取科目信息失败，科目ID: {}", subjectId, e);
-                }
-            }
-
-            // 获取年级信息
-            List<String> grades = getTeacherGradesList(teacher.getId());
-
-            TeacherListResponse response = TeacherListResponse.builder()
-                    .id(teacher.getId())
-                    .realName(teacher.getRealName())
-                    .avatarUrl(user != null ? user.getAvatarUrl() : null)
-                    .educationBackground(teacher.getEducationBackground())
-                    .teachingExperience(teacher.getTeachingExperience())
-                    .specialties(teacher.getSpecialties())
-                    .subjects(subjects)
-                    .grades(grades)
-                    .hourlyRate(teacher.getHourlyRate())
-                    .introduction(teacher.getIntroduction())
-                    .gender(teacher.getGender())
-                    .isVerified(teacher.getIsVerified())
-                    .build();
-
-            responseList.add(response);
-        }
-
-        return responseList;
+        // 批量装配，消除 N+1
+        return assembleTeacherListResponses(teachers);
     }
 
     /**
@@ -331,55 +292,107 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     @Cacheable(cacheNames = "featuredTeachers",
                keyGenerator = "teacherCacheKeyGenerator",
-               unless = "#result == null || #result.isEmpty()")
+               sync = true)
     public List<TeacherListResponse> getFeaturedTeachers(int page, int size, String subject, String grade, String keyword) {
-        // 获取精选教师列表，支持科目和年级筛选
+        // 获取精选教师列表（分页+筛选）
         List<Teacher> teachers = getFeaturedTeacherList(page, size, subject, grade, keyword);
+        // 批量装配，消除 N+1
+        return assembleTeacherListResponses(teachers);
+    }
 
-        // 转换为包含科目信息的响应DTO
-        List<TeacherListResponse> responseList = new ArrayList<>();
-        for (Teacher teacher : teachers) {
-            // 获取用户信息
-            User user = userMapper.selectById(teacher.getUserId());
 
-            // 获取教师的科目ID列表
-            List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
+    // 批量装配教师列表响应，消除 N+1 查询
+    private List<TeacherListResponse> assembleTeacherListResponses(List<Teacher> teachers) {
+        if (teachers == null || teachers.isEmpty()) {
+            return new ArrayList<>();
+        }
+        // 1) 准备ID集合
+        List<Long> teacherIds = teachers.stream().map(Teacher::getId).collect(Collectors.toList());
+        List<Long> userIds = teachers.stream().map(Teacher::getUserId).collect(Collectors.toList());
 
-            // 获取科目名称列表
-            List<String> subjects = new ArrayList<>();
-            for (Long subjectId : subjectIds) {
-                try {
-                    Subject subjectEntity = subjectService.getSubjectById(subjectId);
-                    if (subjectEntity != null) {
-                        subjects.add(subjectEntity.getName());
-                    }
-                } catch (Exception e) {
-                    log.warn("获取科目信息失败，科目ID: {}", subjectId, e);
-                }
+        // 2) 批量查询用户信息并映射
+        QueryWrapper<User> userQ = new QueryWrapper<>();
+        userQ.in("id", userIds);
+        List<User> users = userMapper.selectList(userQ);
+        Map<Long, User> userMap = users.stream().collect(Collectors.toMap(User::getId, u -> u));
+
+        // 3) 批量查询教师-科目关联和科目名称
+        List<TeacherSubject> tsList = teacherSubjectMapper.findByTeacherIds(teacherIds);
+        Map<Long, List<Long>> teacherToSubjectIds = new HashMap<>();
+        for (TeacherSubject ts : tsList) {
+            teacherToSubjectIds.computeIfAbsent(ts.getTeacherId(), k -> new ArrayList<>()).add(ts.getSubjectId());
+        }
+        // 收集所有 subjectId 并批量查科目名称
+        Set<Long> subjectIds = tsList.stream().map(TeacherSubject::getSubjectId).collect(Collectors.toSet());
+        Map<Long, String> subjectNameMap = new HashMap<>();
+        if (!subjectIds.isEmpty()) {
+            QueryWrapper<Subject> sQ = new QueryWrapper<>();
+            sQ.in("id", subjectIds);
+            sQ.eq("is_deleted", false);
+            List<Subject> subjList = subjectMapper.selectList(sQ);
+            for (Subject s : subjList) {
+                subjectNameMap.put(s.getId(), s.getName());
             }
-
-            // 获取年级信息
-            List<String> grades = getTeacherGradesList(teacher.getId());
-
-            TeacherListResponse response = TeacherListResponse.builder()
-                    .id(teacher.getId())
-                    .realName(teacher.getRealName())
-                    .avatarUrl(user != null ? user.getAvatarUrl() : null)
-                    .educationBackground(teacher.getEducationBackground())
-                    .teachingExperience(teacher.getTeachingExperience())
-                    .specialties(teacher.getSpecialties())
-                    .subjects(subjects)
-                    .grades(grades)
-                    .hourlyRate(teacher.getHourlyRate())
-                    .introduction(teacher.getIntroduction())
-                    .gender(teacher.getGender())
-                    .isVerified(teacher.getIsVerified())
-                    .build();
-
-            responseList.add(response);
         }
 
-        return responseList;
+        // 4) 批量查询活跃课程并一次性查年级表
+        List<Course> activeCourses = courseMapper.findActiveByTeacherIds(teacherIds);
+        Map<Long, List<Long>> teacherToCourseIds = new HashMap<>();
+        for (Course c : activeCourses) {
+            teacherToCourseIds.computeIfAbsent(c.getTeacherId(), k -> new ArrayList<>()).add(c.getId());
+        }
+        Set<Long> courseIds = activeCourses.stream().map(Course::getId).collect(Collectors.toSet());
+        Map<Long, Set<String>> teacherToGrades = new HashMap<>();
+        if (!courseIds.isEmpty()) {
+            List<CourseGrade> cgs = courseGradeMapper.findByCourseIds(new ArrayList<>(courseIds));
+            // 反向映射 courseId -> grades
+            Map<Long, List<String>> courseToGrades = new HashMap<>();
+            for (CourseGrade cg : cgs) {
+                courseToGrades.computeIfAbsent(cg.getCourseId(), k -> new ArrayList<>()).add(cg.getGrade());
+            }
+            for (Map.Entry<Long, List<Long>> e : teacherToCourseIds.entrySet()) {
+                Long tId = e.getKey();
+                Set<String> gset = new HashSet<>();
+                for (Long cid : e.getValue()) {
+                    List<String> gs = courseToGrades.get(cid);
+                    if (gs != null) gset.addAll(gs);
+                }
+                teacherToGrades.put(tId, gset);
+            }
+        }
+
+        // 5) 组装DTO
+        List<TeacherListResponse> list = new ArrayList<>();
+        for (Teacher t : teachers) {
+            User user = userMap.get(t.getUserId());
+            List<Long> sids = teacherToSubjectIds.getOrDefault(t.getId(), Collections.emptyList());
+            List<String> subjectNames = sids.stream()
+                    .map(subjectNameMap::get)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            List<String> grades = new ArrayList<>(teacherToGrades.getOrDefault(t.getId(), Collections.emptySet()));
+
+            // 列表端点仅返回短介绍，降低回包体积；详情端点仍返回完整介绍
+            String intro = t.getIntroduction();
+            String shortIntro = (intro != null && intro.length() > 160) ? intro.substring(0, 160) + "…" : intro;
+
+            TeacherListResponse dto = TeacherListResponse.builder()
+                    .id(t.getId())
+                    .realName(t.getRealName())
+                    .avatarUrl(user != null ? user.getAvatarUrl() : null)
+                    .educationBackground(t.getEducationBackground())
+                    .teachingExperience(t.getTeachingExperience())
+                    .specialties(t.getSpecialties())
+                    .subjects(subjectNames)
+                    .grades(grades)
+                    .hourlyRate(t.getHourlyRate())
+                    .introduction(shortIntro)
+                    .gender(t.getGender())
+                    .isVerified(t.getIsVerified())
+                    .build();
+            list.add(dto);
+        }
+        return list;
     }
 
     /**
@@ -1373,7 +1386,6 @@ public class TeacherServiceImpl implements TeacherService {
         }
 
         // 有年级筛选时，需要通过课程年级关联表查询
-        Page<Teacher> pageParam = new Page<>(page, size);
 
         // 构建查询条件
         QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();

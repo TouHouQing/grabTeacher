@@ -22,6 +22,11 @@ public interface CourseGradeMapper extends BaseMapper<CourseGrade> {
     List<CourseGrade> findByCourseId(@Param("courseId") Long courseId);
 
     /**
+     * 批量查询多个课程的年级关联
+     */
+    List<CourseGrade> findByCourseIds(@Param("courseIds") List<Long> courseIds);
+
+    /**
      * 根据年级查询所有课程ID
      */
     @Select("SELECT course_id FROM course_grades WHERE grade = #{grade}")

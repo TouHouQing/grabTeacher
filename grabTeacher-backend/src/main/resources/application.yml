@@ -57,14 +57,18 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
       database: ${REDIS_DATABASE:2}
-      timeout: ${REDIS_TIMEOUT:5000ms}
+      # 提高超时时间，避免高并发下偶发超时
+      timeout: ${REDIS_TIMEOUT:10000ms}
       lettuce:
         pool:
-          max-active: ${REDIS_POOL_MAX_ACTIVE:20}
-          max-idle: ${REDIS_POOL_MAX_IDLE:10}
-          min-idle: ${REDIS_POOL_MIN_IDLE:5}
-          max-wait: ${REDIS_POOL_MAX_WAIT:3000ms}
-        shutdown-timeout: ${REDIS_SHUTDOWN_TIMEOUT:100ms}
+          # 提升连接池容量以支撑并发
+          max-active: ${REDIS_POOL_MAX_ACTIVE:100}
+          max-idle: ${REDIS_POOL_MAX_IDLE:50}
+          min-idle: ${REDIS_POOL_MIN_IDLE:10}
+          # 等待可用连接的最大等待时长
+          max-wait: ${REDIS_POOL_MAX_WAIT:10000ms}
+        # 适当加大优雅关闭时间
+        shutdown-timeout: ${REDIS_SHUTDOWN_TIMEOUT:200ms}
 
   # ========================================
   # 缓存配置
@@ -82,7 +86,11 @@ spring:
 # ========================================
 server:
   port: ${SERVER_PORT:8080}
-  
+  compression:
+    enabled: true
+    min-response-size: 1024
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain,application/javascript,text/css
+
   # ========================================
   # 错误处理配置
   # ========================================

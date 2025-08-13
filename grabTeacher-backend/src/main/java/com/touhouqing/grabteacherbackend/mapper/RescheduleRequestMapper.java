@@ -33,17 +33,8 @@ public interface RescheduleRequestMapper extends BaseMapper<RescheduleRequest> {
     /**
      * 根据教师ID和状态获取调课申请列表（分页）
      */
-    @Select("<script>" +
-            "SELECT rr.* FROM reschedule_requests rr " +
-            "INNER JOIN schedules s ON rr.schedule_id = s.id " +
-            "WHERE s.teacher_id = #{teacherId} AND rr.is_deleted = 0 " +
-            "<if test='status != null and status != \"\"'>" +
-            "AND rr.status = #{status} " +
-            "</if>" +
-            "ORDER BY rr.created_at DESC" +
-            "</script>")
-    Page<RescheduleRequest> findByTeacherIdWithPage(Page<RescheduleRequest> page, 
-                                                   @Param("teacherId") Long teacherId, 
+    Page<RescheduleRequest> findByTeacherIdWithPage(Page<RescheduleRequest> page,
+                                                   @Param("teacherId") Long teacherId,
                                                    @Param("status") String status);
 
     /**
@@ -55,14 +46,6 @@ public interface RescheduleRequestMapper extends BaseMapper<RescheduleRequest> {
     /**
      * 根据申请人ID和类型获取调课申请列表（分页）
      */
-    @Select("<script>" +
-            "SELECT * FROM reschedule_requests " +
-            "WHERE applicant_id = #{applicantId} AND applicant_type = #{applicantType} AND is_deleted = 0 " +
-            "<if test='status != null and status != \"\"'>" +
-            "AND status = #{status} " +
-            "</if>" +
-            "ORDER BY created_at DESC" +
-            "</script>")
     Page<RescheduleRequest> findByApplicantWithPage(Page<RescheduleRequest> page,
                                                    @Param("applicantId") Long applicantId,
                                                    @Param("applicantType") String applicantType,

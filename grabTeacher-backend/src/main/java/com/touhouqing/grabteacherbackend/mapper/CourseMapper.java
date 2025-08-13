@@ -10,13 +10,18 @@ import java.util.List;
 
 @Mapper
 public interface CourseMapper extends BaseMapper<Course> {
-    
+
     /**
      * 根据教师ID查询课程列表
      */
     @Select("SELECT * FROM courses WHERE teacher_id = #{teacherId} AND is_deleted = 0 ORDER BY created_at DESC")
     List<Course> findByTeacherId(@Param("teacherId") Long teacherId);
-    
+
+    /**
+     * 批量查询多个教师的活跃课程
+     */
+    List<Course> findActiveByTeacherIds(@Param("teacherIds") List<Long> teacherIds);
+
     /**
      * 根据科目ID查询课程列表
      */
@@ -28,13 +33,13 @@ public interface CourseMapper extends BaseMapper<Course> {
      */
     @Select("SELECT * FROM courses WHERE subject_id = #{subjectId} AND is_deleted = 0 ORDER BY created_at DESC")
     List<Course> findAllBySubjectId(@Param("subjectId") Long subjectId);
-    
+
     /**
      * 查询指定教师的课程数量
      */
     @Select("SELECT COUNT(*) FROM courses WHERE teacher_id = #{teacherId} AND is_deleted = 0")
     int countByTeacherId(@Param("teacherId") Long teacherId);
-    
+
     /**
      * 查询活跃状态的课程列表
      */

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
@@ -17,6 +18,7 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -70,6 +72,11 @@ public class RedisConfiguration {
         return redisTemplate;
     }
 
+    @Bean
+    public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory redisConnectionFactory) {
+        return new StringRedisTemplate(redisConnectionFactory);
+    }
+
     /**
      * 配置缓存管理器
      * 支持多种缓存策略和TTL配置
@@ -117,8 +124,9 @@ public class RedisConfiguration {
                 JsonTypeInfo.As.PROPERTY
         );
 
-        // 注册Java 8时间模块
+        // 注册Java 8时间模块与 Afterburner 加速模块
         objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.registerModule(new AfterburnerModule());
 
         return new GenericJackson2JsonRedisSerializer(objectMapper);
     }
@@ -152,7 +160,19 @@ public class RedisConfiguration {
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .computePrefixWith(cacheName -> "grabTeacher:teacherCourses:"));
 
-        // 活跃课程缓存 - 10分钟过期（高频访问）
+        // 活跃课程缓存 - 分层：全量 10 分钟，限量 5 分钟（热点）
+        configs.put("activeCoursesAll", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(10))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
+                .computePrefixWith(cacheName -> "grabTeacher:activeCoursesAll:"));
+        configs.put("activeCoursesLimited", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(5))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
+                .computePrefixWith(cacheName -> "grabTeacher:activeCoursesLimited:"));
+
+        // 兼容旧键（如仍被引用，可保留一段时间）；逐步迁移
         configs.put("activeCourses", RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(10))
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
@@ -206,6 +226,12 @@ public class RedisConfiguration {
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .computePrefixWith(cacheName -> "grabTeacher:teacherList:"));
+
+        // 缓存异常降级：任何缓存读写异常都仅记录日志，不影响主业务逻辑
+        // 声明在配置类方法之后（下面有 @Bean cacheErrorHandler）
+
+        // 继续配置其他缓存...
+
 
         // 教师匹配缓存 - 10分钟过期（高频查询）
         configs.put("teacherMatch", RedisCacheConfiguration.defaultCacheConfig()
