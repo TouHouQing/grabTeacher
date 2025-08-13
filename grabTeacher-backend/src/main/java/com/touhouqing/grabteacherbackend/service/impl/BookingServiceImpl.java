@@ -6,6 +6,8 @@ import com.touhouqing.grabteacherbackend.dto.*;
 import com.touhouqing.grabteacherbackend.entity.*;
 import com.touhouqing.grabteacherbackend.mapper.*;
 import com.touhouqing.grabteacherbackend.service.BookingService;
+import com.touhouqing.grabteacherbackend.service.DistributedLockService;
+import com.touhouqing.grabteacherbackend.service.TeacherCacheWarmupService;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +46,12 @@ public class BookingServiceImpl implements BookingService {
 
     @Autowired
     private SubjectMapper subjectMapper;
+
+    @Autowired
+    private DistributedLockService distributedLockService;
+
+    @Autowired
+    private TeacherCacheWarmupService teacherCacheWarmupService;
 
     @Override
     @Transactional
@@ -138,11 +146,44 @@ public class BookingServiceImpl implements BookingService {
                 log.info("试听课审核通过，保持已使用状态，预约ID: {}", bookingId);
             }
 
-            // 生成课程安排
+            // 使用分布式锁串行化相同教师同一时间段的排课生成，避免高并发踩踏
+            String dateStr = bookingRequest.getRequestedDate() != null ? bookingRequest.getRequestedDate().toString() : "any";
+            String startStr = bookingRequest.getRequestedStartTime() != null ? bookingRequest.getRequestedStartTime().toString() : "any";
+            String endStr = bookingRequest.getRequestedEndTime() != null ? bookingRequest.getRequestedEndTime().toString() : "any";
+            String lockKey;
             if ("single".equals(bookingRequest.getBookingType())) {
-                generateSingleSchedule(bookingRequest);
-            } else if ("recurring".equals(bookingRequest.getBookingType())) {
-                generateRecurringSchedules(bookingRequest);
+                lockKey = String.format("grabTeacher:lock:booking:teacher:%d:%s:%s-%s", bookingRequest.getTeacherId(), dateStr, startStr, endStr);
+            } else {
+                // 周期性预约涉及多日期，使用教师级别锁
+                lockKey = String.format("grabTeacher:lock:booking:teacher:%d", bookingRequest.getTeacherId());
+            }
+            String token = java.util.UUID.randomUUID().toString();
+            boolean locked = distributedLockService.tryLock(lockKey, token, java.time.Duration.ofSeconds(10), 50, java.time.Duration.ofMillis(100));
+            if (!locked) {
+                // 双检：可能已有其他请求正在处理审批，尝试读取最新状态
+                BookingRequest latest = bookingRequestMapper.selectById(bookingId);
+                if (latest != null && "approved".equals(latest.getStatus())) {
+                    log.info("预约ID:{} 已由其他请求审批通过，直接返回成功", bookingId);
+                    return convertToBookingResponseDTO(latest);
+                }
+                throw new RuntimeException("系统繁忙，请稍后再试");
+            }
+            try {
+                // 生成课程安排
+                if ("single".equals(bookingRequest.getBookingType())) {
+                    generateSingleSchedule(bookingRequest);
+                } else if ("recurring".equals(bookingRequest.getBookingType())) {
+                    generateRecurringSchedules(bookingRequest);
+                }
+            } finally {
+                distributedLockService.unlock(lockKey, token);
+            }
+
+            // 课表变化后，清理教师课表与可用性缓存，避免脏读
+            try {
+                teacherCacheWarmupService.clearAllTeacherCaches();
+            } catch (Exception e) {
+                log.warn("清理教师缓存失败，但不影响主流程", e);
             }
         } else if ("rejected".equals(approval.getStatus())) {
             // 如果是试听课且审核被拒绝，恢复试听课使用记录
@@ -601,6 +642,18 @@ public class BookingServiceImpl implements BookingService {
         // 记录试听课信息
         if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
             log.info("生成试听课安排，固定30分钟时长");
+        }
+
+        // 审批时再次校验该时间段是否仍然可用（防止创建和审批之间产生新冲突）
+        String startStr = bookingRequest.getRequestedStartTime() != null ? bookingRequest.getRequestedStartTime().toString() : null;
+        String endStr = bookingRequest.getRequestedEndTime() != null ? bookingRequest.getRequestedEndTime().toString() : null;
+        if (bookingRequest.getRequestedDate() != null && startStr != null && endStr != null) {
+            if (hasTeacherTimeConflict(bookingRequest.getTeacherId(), bookingRequest.getRequestedDate(), startStr, endStr)) {
+                throw new RuntimeException("教师该时间段已被占用，请选择其他时间");
+            }
+            if (hasStudentTimeConflict(bookingRequest.getStudentId(), bookingRequest.getRequestedDate(), startStr, endStr)) {
+                throw new RuntimeException("学生该时间段已存在课程，请选择其他时间");
+            }
         }
 
         Schedule schedule = Schedule.builder()

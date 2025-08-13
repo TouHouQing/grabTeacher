@@ -8,6 +8,7 @@ import com.touhouqing.grabteacherbackend.dto.RescheduleResponseDTO;
 import com.touhouqing.grabteacherbackend.entity.*;
 import com.touhouqing.grabteacherbackend.mapper.*;
 import com.touhouqing.grabteacherbackend.service.RescheduleService;
+import com.touhouqing.grabteacherbackend.service.TeacherCacheWarmupService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,9 @@ public class RescheduleServiceImpl implements RescheduleService {
 
     @Autowired
     private SubjectMapper subjectMapper;
+
+    @Autowired
+    private TeacherCacheWarmupService teacherCacheWarmupService;
 
     @Override
     @Transactional
@@ -178,6 +182,13 @@ public class RescheduleServiceImpl implements RescheduleService {
         // 如果审批通过，更新课程安排
         if ("approved".equals(approval.getStatus())) {
             updateScheduleAfterApproval(rescheduleRequest, schedule);
+
+            // 课表变化后，清理教师课表与可用性缓存
+            try {
+                teacherCacheWarmupService.clearAllTeacherCaches();
+            } catch (Exception e) {
+                log.warn("清理教师缓存失败，但不影响主流程", e);
+            }
         }
 
         log.info("调课申请审批完成，状态: {}", approval.getStatus());
