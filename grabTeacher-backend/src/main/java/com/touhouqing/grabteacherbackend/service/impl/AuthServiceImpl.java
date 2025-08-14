@@ -1,8 +1,9 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
-import com.touhouqing.grabteacherbackend.dto.AuthResponse;
-import com.touhouqing.grabteacherbackend.dto.LoginRequest;
-import com.touhouqing.grabteacherbackend.dto.RegisterRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.AuthResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.LoginRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.RegisterRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.UserUpdateRequest;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
@@ -453,7 +454,7 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     @Transactional
-    public boolean updateUserProfile(Long userId, com.touhouqing.grabteacherbackend.dto.UserUpdateRequest request) {
+    public boolean updateUserProfile(Long userId, UserUpdateRequest request) {
         try {
             User user = userMapper.selectById(userId);
             if (user == null) {

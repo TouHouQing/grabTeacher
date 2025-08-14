@@ -1,8 +1,11 @@
 package com.touhouqing.grabteacherbackend.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.*;
 import com.touhouqing.grabteacherbackend.entity.BookingRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.BookingApprovalDTO;
+import com.touhouqing.grabteacherbackend.entity.dto.BookingRequestDTO;
+import com.touhouqing.grabteacherbackend.entity.dto.BookingResponseDTO;
+import com.touhouqing.grabteacherbackend.entity.dto.ScheduleResponseDTO;
 
 import java.time.LocalDate;
 import java.util.List;

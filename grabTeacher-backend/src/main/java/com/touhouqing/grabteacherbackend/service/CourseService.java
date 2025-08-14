@@ -1,8 +1,8 @@
 package com.touhouqing.grabteacherbackend.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.CourseRequest;
-import com.touhouqing.grabteacherbackend.dto.CourseResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.CourseRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.CourseResponse;
 import com.touhouqing.grabteacherbackend.entity.Course;
 
 import java.util.List;

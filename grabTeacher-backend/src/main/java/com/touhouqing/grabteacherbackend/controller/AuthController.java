@@ -1,32 +1,10 @@
 package com.touhouqing.grabteacherbackend.controller;
 
-import com.touhouqing.grabteacherbackend.dto.ApiResponse;
-import com.touhouqing.grabteacherbackend.dto.AuthResponse;
-import com.touhouqing.grabteacherbackend.dto.LoginRequest;
-import com.touhouqing.grabteacherbackend.dto.RegisterRequest;
-import com.touhouqing.grabteacherbackend.dto.PasswordChangeRequest;
-import com.touhouqing.grabteacherbackend.security.UserPrincipal;
-import com.touhouqing.grabteacherbackend.service.AuthService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.Map;
-import com.touhouqing.grabteacherbackend.entity.Admin;
-import com.touhouqing.grabteacherbackend.mapper.AdminMapper;
-import com.touhouqing.grabteacherbackend.dto.AuthResponse;
-import com.touhouqing.grabteacherbackend.dto.LoginRequest;
-import com.touhouqing.grabteacherbackend.dto.RegisterRequest;
-import com.touhouqing.grabteacherbackend.dto.PasswordChangeRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.AuthResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.LoginRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.RegisterRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.PasswordChangeRequest;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;

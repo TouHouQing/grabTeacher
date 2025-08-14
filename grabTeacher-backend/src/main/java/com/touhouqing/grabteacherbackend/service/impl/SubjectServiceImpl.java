@@ -2,7 +2,7 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.SubjectRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.SubjectRequest;
 import com.touhouqing.grabteacherbackend.entity.BookingRequest;
 import com.touhouqing.grabteacherbackend.entity.Course;
 import com.touhouqing.grabteacherbackend.entity.Schedule;

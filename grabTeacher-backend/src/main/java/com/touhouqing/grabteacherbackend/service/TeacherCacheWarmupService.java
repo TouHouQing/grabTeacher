@@ -1,6 +1,6 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.TeacherMatchRequest;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,8 +1,8 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
-import com.touhouqing.grabteacherbackend.dto.StudentProfileResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.StudentInfoRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.StudentProfileResponse;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.StudentSubject;
 import com.touhouqing.grabteacherbackend.entity.BookingRequest;
@@ -18,8 +18,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
-import java.time.LocalDate;
-import java.time.LocalTime;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

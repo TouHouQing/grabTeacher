@@ -2,7 +2,7 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.StudyAbroadProgramRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.StudyAbroadProgramRequest;
 import com.touhouqing.grabteacherbackend.entity.StudyAbroadProgram;
 import com.touhouqing.grabteacherbackend.mapper.StudyAbroadProgramMapper;
 import com.touhouqing.grabteacherbackend.service.StudyAbroadProgramService;

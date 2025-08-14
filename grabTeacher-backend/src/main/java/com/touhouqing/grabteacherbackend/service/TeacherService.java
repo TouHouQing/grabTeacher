@@ -1,13 +1,13 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.dto.TeacherDetailResponse;
-import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
-import com.touhouqing.grabteacherbackend.dto.TeacherListResponse;
-import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequest;
-import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponse;
-import com.touhouqing.grabteacherbackend.dto.TeacherProfileResponse;
-import com.touhouqing.grabteacherbackend.dto.TeacherScheduleResponse;
-import com.touhouqing.grabteacherbackend.dto.TimeSlotAvailability;
+import com.touhouqing.grabteacherbackend.entity.dto.TeacherDetailResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.TeacherInfoRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.TeacherListResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.TeacherMatchRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.TeacherMatchResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.TeacherProfileResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.TeacherScheduleResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotAvailability;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 
 import java.time.LocalDate;

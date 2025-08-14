@@ -1,9 +1,9 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.dto.AuthResponse;
-import com.touhouqing.grabteacherbackend.dto.LoginRequest;
-import com.touhouqing.grabteacherbackend.dto.RegisterRequest;
-import com.touhouqing.grabteacherbackend.dto.UserUpdateRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.AuthResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.LoginRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.RegisterRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.UserUpdateRequest;
 import com.touhouqing.grabteacherbackend.entity.User;
 
 public interface AuthService {

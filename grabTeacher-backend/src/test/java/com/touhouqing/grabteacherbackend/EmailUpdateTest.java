@@ -1,6 +1,5 @@
 package com.touhouqing.grabteacherbackend;
 
-import com.touhouqing.grabteacherbackend.dto.EmailUpdateRequest;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.mapper.UserMapper;
 import com.touhouqing.grabteacherbackend.service.AuthService;

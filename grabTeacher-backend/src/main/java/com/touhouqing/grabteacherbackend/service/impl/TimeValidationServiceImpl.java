@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
-import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
-import com.touhouqing.grabteacherbackend.dto.TimeValidationResult;
+import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.entity.dto.TimeValidationResult;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;

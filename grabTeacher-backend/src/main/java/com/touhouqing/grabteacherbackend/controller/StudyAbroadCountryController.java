@@ -1,8 +1,8 @@
 package com.touhouqing.grabteacherbackend.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.ApiResponse;
-import com.touhouqing.grabteacherbackend.dto.StudyAbroadCountryRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.StudyAbroadCountryRequest;
 import com.touhouqing.grabteacherbackend.entity.StudyAbroadCountry;
 import com.touhouqing.grabteacherbackend.service.StudyAbroadCountryService;
 import io.swagger.v3.oas.annotations.Operation;

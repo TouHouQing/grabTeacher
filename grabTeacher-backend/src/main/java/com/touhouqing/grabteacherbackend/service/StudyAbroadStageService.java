@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.StudyAbroadStageRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.StudyAbroadStageRequest;
 import com.touhouqing.grabteacherbackend.entity.StudyAbroadStage;
 
 import java.util.List;

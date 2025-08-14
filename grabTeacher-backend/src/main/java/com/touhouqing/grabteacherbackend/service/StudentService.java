@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
-import com.touhouqing.grabteacherbackend.dto.StudentProfileResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.StudentInfoRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.StudentProfileResponse;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import java.util.Map;
 

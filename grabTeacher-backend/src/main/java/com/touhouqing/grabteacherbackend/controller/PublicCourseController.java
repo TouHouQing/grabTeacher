@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.controller;
 
-import com.touhouqing.grabteacherbackend.dto.ApiResponse;
-import com.touhouqing.grabteacherbackend.dto.CourseResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.CourseResponse;
 import com.touhouqing.grabteacherbackend.service.CourseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

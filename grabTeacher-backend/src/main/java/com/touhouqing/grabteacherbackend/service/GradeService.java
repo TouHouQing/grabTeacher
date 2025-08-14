@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.dto.GradeRequest;
-import com.touhouqing.grabteacherbackend.dto.GradeResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.GradeRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.GradeResponse;
 
 import java.util.List;
 

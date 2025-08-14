@@ -1,6 +1,6 @@
 package com.touhouqing.grabteacherbackend.exception;
 
-import com.touhouqing.grabteacherbackend.dto.ApiResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;

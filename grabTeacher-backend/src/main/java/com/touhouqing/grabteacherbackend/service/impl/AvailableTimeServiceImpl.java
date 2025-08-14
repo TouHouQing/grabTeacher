@@ -1,8 +1,8 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
-import com.touhouqing.grabteacherbackend.dto.AvailableTimeRequest;
-import com.touhouqing.grabteacherbackend.dto.AvailableTimeResponse;
-import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.entity.dto.AvailableTimeRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.AvailableTimeResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.service.AvailableTimeService;

@@ -2,8 +2,8 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.CourseRequest;
-import com.touhouqing.grabteacherbackend.dto.CourseResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.CourseRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.CourseResponse;
 import com.touhouqing.grabteacherbackend.entity.Course;
 import com.touhouqing.grabteacherbackend.entity.CourseGrade;
 import com.touhouqing.grabteacherbackend.entity.Teacher;

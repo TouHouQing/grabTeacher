@@ -1,14 +1,14 @@
 package com.touhouqing.grabteacherbackend.controller;
 
-import com.touhouqing.grabteacherbackend.dto.ApiResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
-import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
-import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
-import com.touhouqing.grabteacherbackend.dto.GradeRequest;
-import com.touhouqing.grabteacherbackend.dto.GradeResponse;
-import com.touhouqing.grabteacherbackend.dto.CourseResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.StudentInfoRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.TeacherInfoRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.GradeRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.GradeResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.CourseResponse;
 import com.touhouqing.grabteacherbackend.service.AdminService;
 import com.touhouqing.grabteacherbackend.service.GradeService;
 import com.touhouqing.grabteacherbackend.service.CourseService;

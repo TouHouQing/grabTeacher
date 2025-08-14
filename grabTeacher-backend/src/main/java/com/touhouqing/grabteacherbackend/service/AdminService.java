@@ -3,8 +3,8 @@ package com.touhouqing.grabteacherbackend.service;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
-import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
-import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.StudentInfoRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.TeacherInfoRequest;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import java.util.List;

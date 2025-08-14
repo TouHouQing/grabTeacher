@@ -1,6 +1,6 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.dto.TeacherListResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.TeacherListResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;

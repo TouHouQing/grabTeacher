@@ -1,17 +1,17 @@
 package com.touhouqing.grabteacherbackend.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.ApiResponse;
-import com.touhouqing.grabteacherbackend.dto.RescheduleApprovalDTO;
-import com.touhouqing.grabteacherbackend.dto.RescheduleRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.RescheduleResponseDTO;
+import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.RescheduleApprovalDTO;
+import com.touhouqing.grabteacherbackend.entity.dto.RescheduleRequestDTO;
+import com.touhouqing.grabteacherbackend.entity.dto.RescheduleResponseDTO;
 import com.touhouqing.grabteacherbackend.entity.Schedule;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
-import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.RescheduleService;

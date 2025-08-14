@@ -1,9 +1,9 @@
 package com.touhouqing.grabteacherbackend.controller;
 
-import com.touhouqing.grabteacherbackend.dto.ApiResponse;
-import com.touhouqing.grabteacherbackend.dto.PasswordChangeRequest;
-import com.touhouqing.grabteacherbackend.dto.EmailUpdateRequest;
-import com.touhouqing.grabteacherbackend.dto.UserUpdateRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.PasswordChangeRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.EmailUpdateRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.UserUpdateRequest;
 import com.touhouqing.grabteacherbackend.entity.User;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.AuthService;

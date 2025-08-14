@@ -1,8 +1,8 @@
 package com.touhouqing.grabteacherbackend.controller;
 
-import com.touhouqing.grabteacherbackend.dto.ApiResponse;
-import com.touhouqing.grabteacherbackend.dto.StudentInfoRequest;
-import com.touhouqing.grabteacherbackend.dto.StudentProfileResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.StudentInfoRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.StudentProfileResponse;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.StudentService;

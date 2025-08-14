@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.dto.AvailableTimeRequest;
-import com.touhouqing.grabteacherbackend.dto.AvailableTimeResponse;
+import com.touhouqing.grabteacherbackend.entity.dto.AvailableTimeRequest;
+import com.touhouqing.grabteacherbackend.entity.dto.AvailableTimeResponse;
 
 /**
  * 可上课时间服务接口
