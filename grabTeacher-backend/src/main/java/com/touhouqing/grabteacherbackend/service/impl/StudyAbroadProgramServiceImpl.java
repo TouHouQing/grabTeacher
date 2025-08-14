@@ -2,7 +2,7 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.entity.dto.StudyAbroadProgramRequest;
+import com.touhouqing.grabteacherbackend.dto.StudyAbroadProgramRequestDTO;
 import com.touhouqing.grabteacherbackend.entity.StudyAbroadProgram;
 import com.touhouqing.grabteacherbackend.mapper.StudyAbroadProgramMapper;
 import com.touhouqing.grabteacherbackend.service.StudyAbroadProgramService;
@@ -27,7 +27,7 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
     @Override
     @Transactional
     @CacheEvict(cacheNames = {"abroad:programs:list", "abroad:programs:active"}, allEntries = true)
-    public StudyAbroadProgram create(StudyAbroadProgramRequest request) {
+    public StudyAbroadProgram create(StudyAbroadProgramRequestDTO request) {
         // 重名检查（同国家+阶段下，标题唯一，忽略已删除）
         QueryWrapper<StudyAbroadProgram> qw = new QueryWrapper<>();
         qw.eq("title", request.getTitle())
@@ -60,7 +60,7 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
     @Override
     @Transactional
     @CacheEvict(cacheNames = {"abroad:programs:list", "abroad:programs:active", "abroad:programs:get"}, allEntries = true)
-    public StudyAbroadProgram update(Long id, StudyAbroadProgramRequest request) {
+    public StudyAbroadProgram update(Long id, StudyAbroadProgramRequestDTO request) {
         StudyAbroadProgram entity = programMapper.selectById(id);
         if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
             throw new RuntimeException("项目不存在");

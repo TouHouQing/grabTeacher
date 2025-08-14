@@ -1,9 +1,9 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.entity.dto.AuthResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.LoginRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.RegisterRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.UserUpdateRequest;
+import com.touhouqing.grabteacherbackend.dto.AuthResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.LoginRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.RegisterRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.UserUpdateRequestDTO;
 import com.touhouqing.grabteacherbackend.entity.User;
 
 public interface AuthService {
@@ -11,12 +11,12 @@ public interface AuthService {
     /**
      * 用户注册
      */
-    AuthResponse registerUser(RegisterRequest registerRequest);
+    AuthResponseDTO registerUser(RegisterRequestDTO registerRequestDTO);
     
     /**
      * 用户登录
      */
-    AuthResponse authenticateUser(LoginRequest loginRequest);
+    AuthResponseDTO authenticateUser(LoginRequestDTO loginRequestDTO);
     
     /**
      * 检查用户名是否可用
@@ -51,10 +51,10 @@ public interface AuthService {
     /**
      * 管理员登录
      */
-    AuthResponse authenticateAdmin(LoginRequest loginRequest);
+    AuthResponseDTO authenticateAdmin(LoginRequestDTO loginRequestDTO);
 
     /**
      * 更新用户基本信息
      */
-    boolean updateUserProfile(Long userId, UserUpdateRequest request);
+    boolean updateUserProfile(Long userId, UserUpdateRequestDTO request);
 }

@@ -1,13 +1,13 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherDetailResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherInfoRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherListResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherMatchRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherMatchResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherProfileResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherScheduleResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotAvailability;
+import com.touhouqing.grabteacherbackend.dto.TeacherDetailResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherListResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherProfileResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherScheduleResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotAvailabilityDTO;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 
 import java.time.LocalDate;
@@ -29,12 +29,12 @@ public interface TeacherService {
     /**
      * 根据ID获取教师详情（包含用户信息、科目信息、年级信息）
      */
-    TeacherDetailResponse getTeacherDetailById(Long teacherId);
+    TeacherDetailResponseDTO getTeacherDetailById(Long teacherId);
 
     /**
      * 根据用户ID获取教师详细信息（包含科目信息）
      */
-    TeacherProfileResponse getTeacherProfileByUserId(Long userId);
+    TeacherProfileResponseDTO getTeacherProfileByUserId(Long userId);
     
     /**
      * 获取教师列表
@@ -44,22 +44,22 @@ public interface TeacherService {
     /**
      * 获取教师列表（包含科目信息）
      */
-    List<TeacherListResponse> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword);
+    List<TeacherListResponseDTO> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword);
 
     /**
      * 获取精选教师列表（天下名师页面使用）
      */
-    List<TeacherListResponse> getFeaturedTeachers(int page, int size, String subject, String grade, String keyword);
+    List<TeacherListResponseDTO> getFeaturedTeachers(int page, int size, String subject, String grade, String keyword);
     
     /**
      * 更新教师信息
      */
-    Teacher updateTeacherInfo(Long userId, TeacherInfoRequest request);
+    Teacher updateTeacherInfo(Long userId, TeacherInfoRequestDTO request);
 
     /**
      * 匹配教师
      */
-    List<TeacherMatchResponse> matchTeachers(TeacherMatchRequest request);
+    List<TeacherMatchResponseDTO> matchTeachers(TeacherMatchRequestDTO request);
 
     /**
      * 获取所有可用的年级选项（从课程表获取）
@@ -73,7 +73,7 @@ public interface TeacherService {
      * @param endDate 结束日期
      * @return 教师课表信息
      */
-    TeacherScheduleResponse getTeacherPublicSchedule(Long teacherId, LocalDate startDate, LocalDate endDate);
+    TeacherScheduleResponseDTO getTeacherPublicSchedule(Long teacherId, LocalDate startDate, LocalDate endDate);
 
     /**
      * 检查教师时间段可用性（供学生预约时查看）
@@ -83,7 +83,7 @@ public interface TeacherService {
      * @param timeSlots 要检查的时间段列表（可选）
      * @return 时间段可用性列表
      */
-    List<TimeSlotAvailability> checkTeacherAvailability(Long teacherId, LocalDate startDate, LocalDate endDate, List<String> timeSlots);
+    List<TimeSlotAvailabilityDTO> checkTeacherAvailability(Long teacherId, LocalDate startDate, LocalDate endDate, List<String> timeSlots);
 
     /**
      * 获取教师控制台统计数据

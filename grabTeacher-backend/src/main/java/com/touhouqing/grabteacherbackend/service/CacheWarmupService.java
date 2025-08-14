@@ -1,6 +1,6 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.entity.dto.CourseResponse;
+import com.touhouqing.grabteacherbackend.dto.CourseResponseDTO;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -96,8 +96,8 @@ public class CacheWarmupService implements ApplicationRunner {
         try {
             log.info("预热活跃课程缓存...");
             // 预热全量与常用 limit 版本（也会触发 JSON 文本缓存的写入）
-            List<CourseResponse> activeCourses = courseService.getActiveCourses();
-            List<CourseResponse> activeTop50 = courseService.getActiveCoursesLimited(50);
+            List<CourseResponseDTO> activeCourses = courseService.getActiveCourses();
+            List<CourseResponseDTO> activeTop50 = courseService.getActiveCoursesLimited(50);
             log.info("预热活跃课程缓存完成：全量{}门，Top50 {}门",
                     activeCourses.size(), activeTop50.size());
         } catch (Exception e) {

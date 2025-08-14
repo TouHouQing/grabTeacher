@@ -1,8 +1,8 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.touhouqing.grabteacherbackend.entity.dto.GradeRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.GradeResponse;
+import com.touhouqing.grabteacherbackend.dto.GradeRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.GradeResponseDTO;
 import com.touhouqing.grabteacherbackend.entity.BookingRequest;
 import com.touhouqing.grabteacherbackend.entity.Course;
 import com.touhouqing.grabteacherbackend.entity.Grade;
@@ -41,17 +41,17 @@ public class GradeServiceImpl implements GradeService {
 
     @Override
     @Cacheable(cacheNames = "grades", key = "'all'")
-    public List<GradeResponse> getAllGrades() {
+    public List<GradeResponseDTO> getAllGrades() {
         QueryWrapper<Grade> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("is_deleted", false);
 
         List<Grade> grades = gradeMapper.selectList(queryWrapper);
-        List<GradeResponse> gradeResponses = grades.stream()
+        List<GradeResponseDTO> gradeResponsDTOS = grades.stream()
                 .map(this::convertToGradeResponse)
                 .collect(Collectors.toList());
 
         // 自定义排序：按学段和年级排序
-        gradeResponses.sort((g1, g2) -> {
+        gradeResponsDTOS.sort((g1, g2) -> {
             // 定义年级顺序
             String[] gradeOrder = {
                 "小学一年级", "小学二年级", "小学三年级", "小学四年级", "小学五年级", "小学六年级",
@@ -73,11 +73,11 @@ public class GradeServiceImpl implements GradeService {
             return g1.getGradeName().compareTo(g2.getGradeName());
         });
 
-        return gradeResponses;
+        return gradeResponsDTOS;
     }
 
     @Override
-    public GradeResponse getGradeById(Long id) {
+    public GradeResponseDTO getGradeById(Long id) {
         Grade grade = gradeMapper.selectById(id);
         if (grade == null || grade.getIsDeleted()) {
             throw new RuntimeException("年级不存在");
@@ -88,7 +88,7 @@ public class GradeServiceImpl implements GradeService {
     @Override
     @Transactional
     @CacheEvict(cacheNames = {"grades"}, allEntries = true)
-    public GradeResponse createGrade(GradeRequest request) {
+    public GradeResponseDTO createGrade(GradeRequestDTO request) {
         // 检查年级名称是否已存在
         if (isGradeNameExists(request.getGradeName())) {
             throw new RuntimeException("年级名称已存在");
@@ -110,7 +110,7 @@ public class GradeServiceImpl implements GradeService {
     @Override
     @Transactional
     @CacheEvict(cacheNames = {"grades"}, allEntries = true)
-    public GradeResponse updateGrade(Long id, GradeRequest request) {
+    public GradeResponseDTO updateGrade(Long id, GradeRequestDTO request) {
         Grade grade = gradeMapper.selectById(id);
         if (grade == null || grade.getIsDeleted()) {
             throw new RuntimeException("年级不存在");
@@ -202,10 +202,10 @@ public class GradeServiceImpl implements GradeService {
     /**
      * 转换为GradeResponse
      */
-    private GradeResponse convertToGradeResponse(Grade grade) {
+    private GradeResponseDTO convertToGradeResponse(Grade grade) {
         Long courseCount = gradeMapper.countCoursesByGradeName(grade.getGradeName());
         
-        return GradeResponse.builder()
+        return GradeResponseDTO.builder()
                 .id(grade.getId())
                 .gradeName(grade.getGradeName())
                 .description(grade.getDescription())

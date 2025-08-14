@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.entity.dto.GradeRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.GradeResponse;
+import com.touhouqing.grabteacherbackend.dto.GradeRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.GradeResponseDTO;
 
 import java.util.List;
 
@@ -13,22 +13,22 @@ public interface GradeService {
     /**
      * 获取所有年级列表
      */
-    List<GradeResponse> getAllGrades();
+    List<GradeResponseDTO> getAllGrades();
 
     /**
      * 根据ID获取年级信息
      */
-    GradeResponse getGradeById(Long id);
+    GradeResponseDTO getGradeById(Long id);
 
     /**
      * 创建年级
      */
-    GradeResponse createGrade(GradeRequest request);
+    GradeResponseDTO createGrade(GradeRequestDTO request);
 
     /**
      * 更新年级
      */
-    GradeResponse updateGrade(Long id, GradeRequest request);
+    GradeResponseDTO updateGrade(Long id, GradeRequestDTO request);
 
     /**
      * 删除年级

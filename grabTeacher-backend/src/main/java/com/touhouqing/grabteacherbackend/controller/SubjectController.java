@@ -1,8 +1,8 @@
 package com.touhouqing.grabteacherbackend.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.SubjectRequest;
+import com.touhouqing.grabteacherbackend.dto.ApiResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.SubjectRequestDTO;
 import com.touhouqing.grabteacherbackend.entity.Subject;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,18 +50,18 @@ public class SubjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
     })
     @PostMapping
-    public ResponseEntity<ApiResponse<Subject>> createSubject(@Valid @RequestBody SubjectRequest request) {
+    public ResponseEntity<ApiResponseDTO<Subject>> createSubject(@Valid @RequestBody SubjectRequestDTO request) {
         try {
             Subject subject = subjectService.createSubject(request);
-            return ResponseEntity.ok(ApiResponse.success("创建科目成功", subject));
+            return ResponseEntity.ok(ApiResponseDTO.success("创建科目成功", subject));
         } catch (RuntimeException e) {
             logger.warn("创建科目失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(ApiResponseDTO.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("创建科目异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("创建失败，请稍后重试"));
+                    .body(ApiResponseDTO.error("创建失败，请稍后重试"));
         }
     }
 
@@ -75,20 +75,20 @@ public class SubjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "科目不存在")
     })
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Subject>> updateSubject(
+    public ResponseEntity<ApiResponseDTO<Subject>> updateSubject(
             @Parameter(description = "科目ID", required = true) @PathVariable Long id, 
-            @Valid @RequestBody SubjectRequest request) {
+            @Valid @RequestBody SubjectRequestDTO request) {
         try {
             Subject subject = subjectService.updateSubject(id, request);
-            return ResponseEntity.ok(ApiResponse.success("更新科目成功", subject));
+            return ResponseEntity.ok(ApiResponseDTO.success("更新科目成功", subject));
         } catch (RuntimeException e) {
             logger.warn("更新科目失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(ApiResponseDTO.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("更新科目异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("更新失败，请稍后重试"));
+                    .body(ApiResponseDTO.error("更新失败，请稍后重试"));
         }
     }
 
@@ -102,18 +102,18 @@ public class SubjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "科目不存在")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteSubject(@Parameter(description = "科目ID", required = true) @PathVariable Long id) {
+    public ResponseEntity<ApiResponseDTO<Void>> deleteSubject(@Parameter(description = "科目ID", required = true) @PathVariable Long id) {
         try {
             subjectService.deleteSubject(id);
-            return ResponseEntity.ok(ApiResponse.success("删除科目成功", null));
+            return ResponseEntity.ok(ApiResponseDTO.success("删除科目成功", null));
         } catch (RuntimeException e) {
             logger.warn("删除科目失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(ApiResponseDTO.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("删除科目异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("删除失败，请稍后重试"));
+                    .body(ApiResponseDTO.error("删除失败，请稍后重试"));
         }
     }
 
@@ -126,18 +126,18 @@ public class SubjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "科目不存在")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Subject>> getSubjectById(@Parameter(description = "科目ID", required = true) @PathVariable Long id) {
+    public ResponseEntity<ApiResponseDTO<Subject>> getSubjectById(@Parameter(description = "科目ID", required = true) @PathVariable Long id) {
         try {
             Subject subject = subjectService.getSubjectById(id);
             if (subject == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.error("科目不存在"));
+                        .body(ApiResponseDTO.error("科目不存在"));
             }
-            return ResponseEntity.ok(ApiResponse.success("获取科目成功", subject));
+            return ResponseEntity.ok(ApiResponseDTO.success("获取科目成功", subject));
         } catch (Exception e) {
             logger.error("获取科目异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("获取失败，请稍后重试"));
+                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
         }
     }
 
@@ -150,7 +150,7 @@ public class SubjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "请求参数错误")
     })
     @GetMapping
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getSubjectList(
+    public ResponseEntity<ApiResponseDTO<Map<String, Object>>> getSubjectList(
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
@@ -165,11 +165,11 @@ public class SubjectController {
             response.put("size", subjectPage.getSize());
             response.put("pages", subjectPage.getPages());
             
-            return ResponseEntity.ok(ApiResponse.success("获取科目列表成功", response));
+            return ResponseEntity.ok(ApiResponseDTO.success("获取科目列表成功", response));
         } catch (Exception e) {
             logger.error("获取科目列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("获取失败，请稍后重试"));
+                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
         }
     }
 
@@ -181,14 +181,14 @@ public class SubjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功")
     })
     @GetMapping("/active")
-    public ResponseEntity<ApiResponse<List<Subject>>> getAllActiveSubjects() {
+    public ResponseEntity<ApiResponseDTO<List<Subject>>> getAllActiveSubjects() {
         try {
             List<Subject> subjects = subjectService.getAllActiveSubjects();
-            return ResponseEntity.ok(ApiResponse.success("获取激活科目成功", subjects));
+            return ResponseEntity.ok(ApiResponseDTO.success("获取激活科目成功", subjects));
         } catch (Exception e) {
             logger.error("获取激活科目异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("获取失败，请稍后重试"));
+                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
         }
     }
 
@@ -202,20 +202,20 @@ public class SubjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "科目不存在")
     })
     @PatchMapping("/{id}/status")
-    public ResponseEntity<ApiResponse<Void>> updateSubjectStatus(
+    public ResponseEntity<ApiResponseDTO<Void>> updateSubjectStatus(
             @Parameter(description = "科目ID", required = true) @PathVariable Long id, 
             @Parameter(description = "是否激活", required = true) @RequestParam Boolean isActive) {
         try {
             subjectService.updateSubjectStatus(id, isActive);
-            return ResponseEntity.ok(ApiResponse.success("更新科目状态成功", null));
+            return ResponseEntity.ok(ApiResponseDTO.success("更新科目状态成功", null));
         } catch (RuntimeException e) {
             logger.warn("更新科目状态失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(ApiResponseDTO.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("更新科目状态异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("更新失败，请稍后重试"));
+                    .body(ApiResponseDTO.error("更新失败，请稍后重试"));
         }
     }
 } 

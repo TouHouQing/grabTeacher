@@ -1,6 +1,6 @@
 package com.touhouqing.grabteacherbackend.controller;
 
-import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
+import com.touhouqing.grabteacherbackend.dto.ApiResponseDTO;
 import com.touhouqing.grabteacherbackend.entity.Subject;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,14 +33,14 @@ public class PublicSubjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功")
     })
     @GetMapping("/active")
-    public ResponseEntity<ApiResponse<List<Subject>>> getAllActiveSubjects() {
+    public ResponseEntity<ApiResponseDTO<List<Subject>>> getAllActiveSubjects() {
         try {
             List<Subject> subjects = subjectService.getAllActiveSubjects();
-            return ResponseEntity.ok(ApiResponse.success("获取激活科目成功", subjects));
+            return ResponseEntity.ok(ApiResponseDTO.success("获取激活科目成功", subjects));
         } catch (Exception e) {
             logger.error("获取激活科目异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("获取失败，请稍后重试"));
+                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
         }
     }
 
@@ -53,18 +53,18 @@ public class PublicSubjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "科目不存在")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Subject>> getSubjectById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponseDTO<Subject>> getSubjectById(@PathVariable Long id) {
         try {
             Subject subject = subjectService.getSubjectById(id);
             if (subject == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.error("科目不存在"));
+                        .body(ApiResponseDTO.error("科目不存在"));
             }
-            return ResponseEntity.ok(ApiResponse.success("获取科目成功", subject));
+            return ResponseEntity.ok(ApiResponseDTO.success("获取科目成功", subject));
         } catch (Exception e) {
             logger.error("获取科目异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("获取失败，请稍后重试"));
+                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
         }
     }
 }

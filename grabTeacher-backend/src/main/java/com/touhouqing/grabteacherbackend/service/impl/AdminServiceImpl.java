@@ -9,9 +9,9 @@ import com.touhouqing.grabteacherbackend.entity.StudentSubject;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.entity.TeacherSubject;
 import com.touhouqing.grabteacherbackend.entity.User;
-import com.touhouqing.grabteacherbackend.entity.dto.StudentInfoRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherInfoRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.dto.StudentInfoRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
@@ -189,7 +189,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    public Student addStudent(StudentInfoRequest request) {
+    public Student addStudent(StudentInfoRequestDTO request) {
         // 验证必填字段
         if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
             throw new RuntimeException("用户名不能为空");
@@ -255,7 +255,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    public Student updateStudent(Long studentId, StudentInfoRequest request) {
+    public Student updateStudent(Long studentId, StudentInfoRequestDTO request) {
         Student student = studentMapper.selectById(studentId);
         if (student == null) {
             throw new RuntimeException("学生不存在");
@@ -378,7 +378,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    public Teacher addTeacher(TeacherInfoRequest request) {
+    public Teacher addTeacher(TeacherInfoRequestDTO request) {
         // 验证必填字段
         if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
             throw new RuntimeException("用户名不能为空");
@@ -467,7 +467,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    public Teacher updateTeacher(Long teacherId, TeacherInfoRequest request) {
+    public Teacher updateTeacher(Long teacherId, TeacherInfoRequestDTO request) {
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
             throw new RuntimeException("教师不存在");

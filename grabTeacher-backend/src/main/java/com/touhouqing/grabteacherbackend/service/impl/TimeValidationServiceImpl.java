@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
-import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotDTO;
-import com.touhouqing.grabteacherbackend.entity.dto.TimeValidationResult;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.dto.TimeValidationResultDTO;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
@@ -29,15 +29,15 @@ public class TimeValidationServiceImpl implements TimeValidationService {
     private final TeacherScheduleCacheService teacherScheduleCacheService;
 
     @Override
-    public TimeValidationResult validateTeacherAvailableTime(Long teacherId, 
-                                                           List<TimeSlotDTO> availableTimeSlots,
-                                                           LocalDate startDate, 
-                                                           LocalDate endDate) {
+    public TimeValidationResultDTO validateTeacherAvailableTime(Long teacherId,
+                                                                List<TimeSlotDTO> availableTimeSlots,
+                                                                LocalDate startDate,
+                                                                LocalDate endDate) {
         log.info("验证教师可用时间设置，教师ID: {}", teacherId);
 
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
-            return TimeValidationResult.builder()
+            return TimeValidationResultDTO.builder()
                     .valid(false)
                     .message("教师不存在")
                     .conflicts(new ArrayList<>())
@@ -46,7 +46,7 @@ public class TimeValidationServiceImpl implements TimeValidationService {
                     .build();
         }
 
-        List<TimeValidationResult.TimeConflictInfo> conflicts = new ArrayList<>();
+        List<TimeValidationResultDTO.TimeConflictInfo> conflicts = new ArrayList<>();
         int totalSlots = 0;
         int conflictSlots = 0;
 
@@ -62,8 +62,8 @@ public class TimeValidationServiceImpl implements TimeValidationService {
                     if (!conflictDates.isEmpty()) {
                         conflictSlots++;
                         
-                        TimeValidationResult.TimeConflictInfo conflict = 
-                            TimeValidationResult.TimeConflictInfo.builder()
+                        TimeValidationResultDTO.TimeConflictInfo conflict =
+                            TimeValidationResultDTO.TimeConflictInfo.builder()
                                 .weekday(timeSlot.getWeekday())
                                 .timeSlot(time)
                                 .conflictDates(conflictDates)
@@ -90,7 +90,7 @@ public class TimeValidationServiceImpl implements TimeValidationService {
             "时间设置验证通过" : 
             String.format("发现 %d 个时间冲突，建议调整相关时间段", conflicts.size());
 
-        return TimeValidationResult.builder()
+        return TimeValidationResultDTO.builder()
                 .valid(valid)
                 .message(message)
                 .conflicts(conflicts)
@@ -135,15 +135,15 @@ public class TimeValidationServiceImpl implements TimeValidationService {
     }
 
     @Override
-    public TimeValidationResult validateStudentBookingTime(Long teacherId,
-                                                          List<Integer> studentPreferredWeekdays,
-                                                          List<String> studentPreferredTimeSlots) {
+    public TimeValidationResultDTO validateStudentBookingTime(Long teacherId,
+                                                              List<Integer> studentPreferredWeekdays,
+                                                              List<String> studentPreferredTimeSlots) {
         log.info("验证学生预约时间，教师ID: {}, 学生偏好: 星期{}, 时间段{}", 
                 teacherId, studentPreferredWeekdays, studentPreferredTimeSlots);
 
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
-            return TimeValidationResult.builder()
+            return TimeValidationResultDTO.builder()
                     .valid(false)
                     .message("教师不存在")
                     .build();
@@ -152,7 +152,7 @@ public class TimeValidationServiceImpl implements TimeValidationService {
         // 获取教师可用时间
         List<TimeSlotDTO> teacherAvailableSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
         
-        List<TimeValidationResult.TimeConflictInfo> conflicts = new ArrayList<>();
+        List<TimeValidationResultDTO.TimeConflictInfo> conflicts = new ArrayList<>();
         int matchCount = 0;
         int totalChecks = 0;
 
@@ -169,8 +169,8 @@ public class TimeValidationServiceImpl implements TimeValidationService {
                 if (matched) {
                     matchCount++;
                 } else {
-                    TimeValidationResult.TimeConflictInfo conflict = 
-                        TimeValidationResult.TimeConflictInfo.builder()
+                    TimeValidationResultDTO.TimeConflictInfo conflict =
+                        TimeValidationResultDTO.TimeConflictInfo.builder()
                             .weekday(weekday)
                             .timeSlot(timeSlot)
                             .conflictReason("教师该时间段不可用")
@@ -185,7 +185,7 @@ public class TimeValidationServiceImpl implements TimeValidationService {
         int matchScore = totalChecks > 0 ? (matchCount * 100) / totalChecks : 0;
         boolean valid = matchScore >= 50; // 50%以上匹配认为可接受
 
-        return TimeValidationResult.builder()
+        return TimeValidationResultDTO.builder()
                 .valid(valid)
                 .message(valid ? "时间匹配良好" : "时间匹配度较低，建议调整")
                 .conflicts(conflicts)
@@ -194,18 +194,18 @@ public class TimeValidationServiceImpl implements TimeValidationService {
     }
 
     @Override
-    public TimeValidationResult validateRecurringBookingTime(Long teacherId,
-                                                           List<Integer> studentPreferredWeekdays,
-                                                           List<String> studentPreferredTimeSlots,
-                                                           LocalDate startDate,
-                                                           LocalDate endDate,
-                                                           Integer totalTimes) {
+    public TimeValidationResultDTO validateRecurringBookingTime(Long teacherId,
+                                                                List<Integer> studentPreferredWeekdays,
+                                                                List<String> studentPreferredTimeSlots,
+                                                                LocalDate startDate,
+                                                                LocalDate endDate,
+                                                                Integer totalTimes) {
         log.info("验证周期性预约时间，教师ID: {}, 学生偏好: 星期{}, 时间段{}, 日期范围: {} - {}, 总次数: {}",
                 teacherId, studentPreferredWeekdays, studentPreferredTimeSlots, startDate, endDate, totalTimes);
 
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
-            return TimeValidationResult.builder()
+            return TimeValidationResultDTO.builder()
                     .valid(false)
                     .message("教师不存在")
                     .conflicts(new ArrayList<>())
@@ -216,7 +216,7 @@ public class TimeValidationServiceImpl implements TimeValidationService {
         // 获取教师可用时间设置
         List<TimeSlotDTO> teacherAvailableSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
 
-        List<TimeValidationResult.TimeConflictInfo> conflicts = new ArrayList<>();
+        List<TimeValidationResultDTO.TimeConflictInfo> conflicts = new ArrayList<>();
         int totalPossibleSlots = 0;
         int availableSlots = 0;
 
@@ -262,7 +262,7 @@ public class TimeValidationServiceImpl implements TimeValidationService {
                     // 1. 教师该星期几是否可用
                     Set<String> set = availMap.get(weekday);
                     if (set == null || !set.contains(timeSlot)) {
-                        conflicts.add(TimeValidationResult.TimeConflictInfo.builder()
+                        conflicts.add(TimeValidationResultDTO.TimeConflictInfo.builder()
                                 .weekday(weekday)
                                 .timeSlot(timeSlot)
                                 .conflictDates(List.of(currentDate.toString()))
@@ -277,7 +277,7 @@ public class TimeValidationServiceImpl implements TimeValidationService {
                     int[] mm = prefSlotMinutes.get(timeSlot);
                     boolean conflict = hasOverlap(dayBusy, mm);
                     if (conflict) {
-                        conflicts.add(TimeValidationResult.TimeConflictInfo.builder()
+                        conflicts.add(TimeValidationResultDTO.TimeConflictInfo.builder()
                                 .weekday(weekday)
                                 .timeSlot(timeSlot)
                                 .conflictDates(List.of(currentDate.toString()))
@@ -310,7 +310,7 @@ public class TimeValidationServiceImpl implements TimeValidationService {
             message = "所选时间段教师不可预约，请重新选择";
         }
 
-        return TimeValidationResult.builder()
+        return TimeValidationResultDTO.builder()
                 .valid(valid)
                 .message(message)
                 .conflicts(conflicts)

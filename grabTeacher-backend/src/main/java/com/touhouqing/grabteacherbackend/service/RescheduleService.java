@@ -1,9 +1,9 @@
 package com.touhouqing.grabteacherbackend.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.entity.dto.RescheduleApprovalDTO;
-import com.touhouqing.grabteacherbackend.entity.dto.RescheduleRequestDTO;
-import com.touhouqing.grabteacherbackend.entity.dto.RescheduleResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.RescheduleApprovalDTO;
+import com.touhouqing.grabteacherbackend.dto.RescheduleRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.RescheduleResponseDTO;
 
 /**
  * 调课服务接口

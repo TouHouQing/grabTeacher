@@ -1,14 +1,14 @@
 package com.touhouqing.grabteacherbackend.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.entity.dto.StudyAbroadProgramRequest;
+import com.touhouqing.grabteacherbackend.dto.StudyAbroadProgramRequestDTO;
 import com.touhouqing.grabteacherbackend.entity.StudyAbroadProgram;
 
 import java.util.List;
 
 public interface StudyAbroadProgramService {
-    StudyAbroadProgram create(StudyAbroadProgramRequest request);
-    StudyAbroadProgram update(Long id, StudyAbroadProgramRequest request);
+    StudyAbroadProgram create(StudyAbroadProgramRequestDTO request);
+    StudyAbroadProgram update(Long id, StudyAbroadProgramRequestDTO request);
     void delete(Long id);
     StudyAbroadProgram getById(Long id);
     Page<StudyAbroadProgram> list(int page, int size, String keyword, Boolean isActive, Long countryId, Long stageId, Boolean isHot, Boolean isFeatured);

@@ -1,17 +1,17 @@
 package com.touhouqing.grabteacherbackend.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.RescheduleApprovalDTO;
-import com.touhouqing.grabteacherbackend.entity.dto.RescheduleRequestDTO;
-import com.touhouqing.grabteacherbackend.entity.dto.RescheduleResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.ApiResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.RescheduleApprovalDTO;
+import com.touhouqing.grabteacherbackend.dto.RescheduleRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.RescheduleResponseDTO;
 import com.touhouqing.grabteacherbackend.entity.Schedule;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
-import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.RescheduleService;
@@ -85,20 +85,20 @@ public class RescheduleController {
     @PostMapping("/request")
     @PreAuthorize("hasRole('STUDENT')")
     @Operation(summary = "创建调课申请", description = "学生创建调课申请")
-    public ResponseEntity<ApiResponse<RescheduleResponseDTO>> createRescheduleRequest(
+    public ResponseEntity<ApiResponseDTO<RescheduleResponseDTO>> createRescheduleRequest(
             @Valid @RequestBody RescheduleRequestDTO request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             RescheduleResponseDTO response = rescheduleService.createRescheduleRequest(request, currentUser.getId());
-            return ResponseEntity.ok(ApiResponse.success("调课申请创建成功", response));
+            return ResponseEntity.ok(ApiResponseDTO.success("调课申请创建成功", response));
         } catch (RuntimeException e) {
             logger.warn("创建调课申请失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(ApiResponseDTO.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("创建调课申请异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("创建调课申请失败"));
+                    .body(ApiResponseDTO.error("创建调课申请失败"));
         }
     }
 
@@ -108,21 +108,21 @@ public class RescheduleController {
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasRole('TEACHER')")
     @Operation(summary = "教师审批调课申请", description = "教师审批学生的调课申请")
-    public ResponseEntity<ApiResponse<RescheduleResponseDTO>> approveRescheduleRequest(
+    public ResponseEntity<ApiResponseDTO<RescheduleResponseDTO>> approveRescheduleRequest(
             @Parameter(description = "调课申请ID", required = true) @PathVariable Long id,
             @Valid @RequestBody RescheduleApprovalDTO approval,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             RescheduleResponseDTO response = rescheduleService.approveRescheduleRequest(id, approval, currentUser.getId());
-            return ResponseEntity.ok(ApiResponse.success("审批成功", response));
+            return ResponseEntity.ok(ApiResponseDTO.success("审批成功", response));
         } catch (RuntimeException e) {
             logger.warn("审批调课申请失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(ApiResponseDTO.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("审批调课申请异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("审批失败"));
+                    .body(ApiResponseDTO.error("审批失败"));
         }
     }
 
@@ -132,20 +132,20 @@ public class RescheduleController {
     @PutMapping("/{id}/cancel")
     @PreAuthorize("hasRole('STUDENT')")
     @Operation(summary = "取消调课申请", description = "学生取消自己的调课申请")
-    public ResponseEntity<ApiResponse<RescheduleResponseDTO>> cancelRescheduleRequest(
+    public ResponseEntity<ApiResponseDTO<RescheduleResponseDTO>> cancelRescheduleRequest(
             @Parameter(description = "调课申请ID", required = true) @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             RescheduleResponseDTO response = rescheduleService.cancelRescheduleRequest(id, currentUser.getId());
-            return ResponseEntity.ok(ApiResponse.success("取消成功", response));
+            return ResponseEntity.ok(ApiResponseDTO.success("取消成功", response));
         } catch (RuntimeException e) {
             logger.warn("取消调课申请失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(ApiResponseDTO.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("取消调课申请异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("取消失败"));
+                    .body(ApiResponseDTO.error("取消失败"));
         }
     }
 
@@ -155,7 +155,7 @@ public class RescheduleController {
     @GetMapping("/student/requests")
     @PreAuthorize("hasRole('STUDENT')")
     @Operation(summary = "获取学生调课申请列表", description = "学生查看自己的调课申请列表")
-    public ResponseEntity<ApiResponse<Page<RescheduleResponseDTO>>> getStudentRescheduleRequests(
+    public ResponseEntity<ApiResponseDTO<Page<RescheduleResponseDTO>>> getStudentRescheduleRequests(
             @Parameter(description = "页码", example = "1") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小", example = "10") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "状态筛选", example = "pending") @RequestParam(required = false) String status,
@@ -163,15 +163,15 @@ public class RescheduleController {
         try {
             Page<RescheduleResponseDTO> result = rescheduleService.getStudentRescheduleRequests(
                     currentUser.getId(), page, size, status);
-            return ResponseEntity.ok(ApiResponse.success("获取成功", result));
+            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", result));
         } catch (RuntimeException e) {
             logger.warn("获取学生调课申请列表失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(ApiResponseDTO.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("获取学生调课申请列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("获取失败"));
+                    .body(ApiResponseDTO.error("获取失败"));
         }
     }
 
@@ -181,7 +181,7 @@ public class RescheduleController {
     @GetMapping("/teacher/requests")
     @PreAuthorize("hasRole('TEACHER')")
     @Operation(summary = "获取教师调课申请列表", description = "教师查看需要审批的调课申请列表")
-    public ResponseEntity<ApiResponse<Page<RescheduleResponseDTO>>> getTeacherRescheduleRequests(
+    public ResponseEntity<ApiResponseDTO<Page<RescheduleResponseDTO>>> getTeacherRescheduleRequests(
             @Parameter(description = "页码", example = "1") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小", example = "10") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "状态筛选", example = "pending") @RequestParam(required = false) String status,
@@ -189,15 +189,15 @@ public class RescheduleController {
         try {
             Page<RescheduleResponseDTO> result = rescheduleService.getTeacherRescheduleRequests(
                     currentUser.getId(), page, size, status);
-            return ResponseEntity.ok(ApiResponse.success("获取成功", result));
+            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", result));
         } catch (RuntimeException e) {
             logger.warn("获取教师调课申请列表失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(ApiResponseDTO.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("获取教师调课申请列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("获取失败"));
+                    .body(ApiResponseDTO.error("获取失败"));
         }
     }
 
@@ -207,21 +207,21 @@ public class RescheduleController {
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('STUDENT') or hasRole('TEACHER') or hasRole('ADMIN')")
     @Operation(summary = "获取调课申请详情", description = "根据ID获取调课申请的详细信息")
-    public ResponseEntity<ApiResponse<RescheduleResponseDTO>> getRescheduleRequestById(
+    public ResponseEntity<ApiResponseDTO<RescheduleResponseDTO>> getRescheduleRequestById(
             @Parameter(description = "调课申请ID", required = true) @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             String userType = currentUser.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "").toLowerCase();
             RescheduleResponseDTO response = rescheduleService.getRescheduleRequestById(id, currentUser.getId(), userType);
-            return ResponseEntity.ok(ApiResponse.success("获取成功", response));
+            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", response));
         } catch (RuntimeException e) {
             logger.warn("获取调课申请详情失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(ApiResponseDTO.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("获取调课申请详情异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("获取失败"));
+                    .body(ApiResponseDTO.error("获取失败"));
         }
     }
 
@@ -231,15 +231,15 @@ public class RescheduleController {
     @GetMapping("/teacher/pending-count")
     @PreAuthorize("hasRole('TEACHER')")
     @Operation(summary = "获取待处理调课申请数量", description = "教师获取待处理的调课申请数量")
-    public ResponseEntity<ApiResponse<Integer>> getPendingRescheduleCount(
+    public ResponseEntity<ApiResponseDTO<Integer>> getPendingRescheduleCount(
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             int count = rescheduleService.getPendingRescheduleCount(currentUser.getId());
-            return ResponseEntity.ok(ApiResponse.success("获取成功", count));
+            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", count));
         } catch (Exception e) {
             logger.error("获取待处理调课申请数量异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("获取失败"));
+                    .body(ApiResponseDTO.error("获取失败"));
         }
     }
 
@@ -249,16 +249,16 @@ public class RescheduleController {
     @GetMapping("/can-apply/{scheduleId}")
     @PreAuthorize("hasRole('STUDENT')")
     @Operation(summary = "检查是否可以申请调课", description = "学生检查指定课程是否可以申请调课")
-    public ResponseEntity<ApiResponse<Boolean>> canApplyReschedule(
+    public ResponseEntity<ApiResponseDTO<Boolean>> canApplyReschedule(
             @Parameter(description = "课程安排ID", required = true) @PathVariable Long scheduleId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             boolean canApply = rescheduleService.canApplyReschedule(scheduleId, currentUser.getId());
-            return ResponseEntity.ok(ApiResponse.success("检查完成", canApply));
+            return ResponseEntity.ok(ApiResponseDTO.success("检查完成", canApply));
         } catch (Exception e) {
             logger.error("检查是否可以申请调课异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("检查失败"));
+                    .body(ApiResponseDTO.error("检查失败"));
         }
     }
 
@@ -268,7 +268,7 @@ public class RescheduleController {
     @GetMapping("/check-conflict/{scheduleId}")
     @PreAuthorize("hasRole('STUDENT')")
     @Operation(summary = "检查调课时间冲突", description = "学生检查调课新时间是否与现有课程冲突")
-    public ResponseEntity<ApiResponse<RescheduleTimeCheckResult>> checkRescheduleTimeConflict(
+    public ResponseEntity<ApiResponseDTO<RescheduleTimeCheckResult>> checkRescheduleTimeConflict(
             @Parameter(description = "课程安排ID", required = true) @PathVariable Long scheduleId,
             @Parameter(description = "新日期", required = true) @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate newDate,
             @Parameter(description = "新开始时间", required = true) @RequestParam String newStartTime,
@@ -279,14 +279,14 @@ public class RescheduleController {
             Schedule schedule = scheduleMapper.selectById(scheduleId);
             if (schedule == null) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("课程安排不存在"));
+                        .body(ApiResponseDTO.error("课程安排不存在"));
             }
 
             // 验证学生权限
             Student student = studentMapper.findByUserId(currentUser.getId());
             if (student == null || !schedule.getStudentId().equals(student.getId())) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("无权限操作此课程安排"));
+                        .body(ApiResponseDTO.error("无权限操作此课程安排"));
             }
 
             // 首先检查教师可用时间
@@ -297,7 +297,7 @@ public class RescheduleController {
                 RescheduleTimeCheckResult result = new RescheduleTimeCheckResult(
                     true, "teacher_unavailable", e.getMessage()
                 );
-                return ResponseEntity.ok(ApiResponse.success("检查完成", result));
+                return ResponseEntity.ok(ApiResponseDTO.success("检查完成", result));
             }
 
             // 然后检查时间冲突
@@ -316,11 +316,11 @@ public class RescheduleController {
                 hasConflict ? "该时间段已有其他课程安排，请选择其他时间" : "时间可用"
             );
 
-            return ResponseEntity.ok(ApiResponse.success("检查完成", result));
+            return ResponseEntity.ok(ApiResponseDTO.success("检查完成", result));
         } catch (Exception e) {
             logger.error("检查调课时间冲突异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("检查失败"));
+                    .body(ApiResponseDTO.error("检查失败"));
         }
     }
 

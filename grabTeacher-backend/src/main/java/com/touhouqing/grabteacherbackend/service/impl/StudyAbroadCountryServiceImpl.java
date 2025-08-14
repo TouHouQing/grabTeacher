@@ -2,7 +2,7 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.entity.dto.StudyAbroadCountryRequest;
+import com.touhouqing.grabteacherbackend.dto.StudyAbroadCountryRequestDTO;
 import com.touhouqing.grabteacherbackend.entity.StudyAbroadCountry;
 import com.touhouqing.grabteacherbackend.mapper.StudyAbroadCountryMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudyAbroadProgramMapper;
@@ -30,7 +30,7 @@ public class StudyAbroadCountryServiceImpl implements StudyAbroadCountryService 
     @Override
     @Transactional
     @CacheEvict(cacheNames = {"abroad:countries:list", "abroad:countries:active"}, allEntries = true)
-    public StudyAbroadCountry create(StudyAbroadCountryRequest request) {
+    public StudyAbroadCountry create(StudyAbroadCountryRequestDTO request) {
         // 重名检查（忽略软删除）
         QueryWrapper<StudyAbroadCountry> qw = new QueryWrapper<>();
         qw.eq("country_name", request.getCountryName())
@@ -55,7 +55,7 @@ public class StudyAbroadCountryServiceImpl implements StudyAbroadCountryService 
     @Override
     @Transactional
     @CacheEvict(cacheNames = {"abroad:countries:list", "abroad:countries:active"}, allEntries = true)
-    public StudyAbroadCountry update(Long id, StudyAbroadCountryRequest request) {
+    public StudyAbroadCountry update(Long id, StudyAbroadCountryRequestDTO request) {
         StudyAbroadCountry entity = countryMapper.selectById(id);
         if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
             throw new RuntimeException("国家不存在");

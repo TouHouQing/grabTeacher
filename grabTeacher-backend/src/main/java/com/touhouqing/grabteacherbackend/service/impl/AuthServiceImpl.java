@@ -1,9 +1,9 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
-import com.touhouqing.grabteacherbackend.entity.dto.AuthResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.LoginRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.RegisterRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.UserUpdateRequest;
+import com.touhouqing.grabteacherbackend.dto.AuthResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.LoginRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.RegisterRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.UserUpdateRequestDTO;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
@@ -54,31 +54,31 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     @Transactional
-    public AuthResponse registerUser(RegisterRequest registerRequest) {
+    public AuthResponseDTO registerUser(RegisterRequestDTO registerRequestDTO) {
         try {
             // 验证密码确认
-            if (!registerRequest.getPassword().equals(registerRequest.getConfirmPassword())) {
+            if (!registerRequestDTO.getPassword().equals(registerRequestDTO.getConfirmPassword())) {
                 throw new RuntimeException("密码和确认密码不匹配");
             }
 
             // 检查用户名是否已存在
-            if (userMapper.existsByUsername(registerRequest.getUsername())) {
+            if (userMapper.existsByUsername(registerRequestDTO.getUsername())) {
                 throw new RuntimeException("用户名已被使用");
             }
 
             // 检查邮箱是否已存在
-            if (userMapper.existsByEmail(registerRequest.getEmail())) {
+            if (userMapper.existsByEmail(registerRequestDTO.getEmail())) {
                 throw new RuntimeException("邮箱已被注册");
             }
 
             // 创建用户
             User user = User.builder()
-                    .username(registerRequest.getUsername())
-                    .email(registerRequest.getEmail())
-                    .password(passwordEncoder.encode(registerRequest.getPassword()))
-                    .phone(registerRequest.getPhone())
-                    .birthDate(registerRequest.getBirthDate())
-                    .userType(registerRequest.getUserType().name())
+                    .username(registerRequestDTO.getUsername())
+                    .email(registerRequestDTO.getEmail())
+                    .password(passwordEncoder.encode(registerRequestDTO.getPassword()))
+                    .phone(registerRequestDTO.getPhone())
+                    .birthDate(registerRequestDTO.getBirthDate())
+                    .userType(registerRequestDTO.getUserType().name())
                     .status("active")
                     .isDeleted(false)
                     .hasUsedTrial(false) // 新用户默认未使用免费试听
@@ -88,16 +88,16 @@ public class AuthServiceImpl implements AuthService {
             log.info("用户注册成功: {}, ID: {}", user.getEmail(), user.getId());
 
             // 根据用户类型创建对应的详细信息记录
-            if ("student".equals(registerRequest.getUserType().name())) {
+            if ("student".equals(registerRequestDTO.getUserType().name())) {
                 Student student = Student.builder()
                         .userId(user.getId())
-                        .realName(registerRequest.getRealName())
-                        .gradeLevel(StringUtils.hasText(registerRequest.getGradeLevel()) ? registerRequest.getGradeLevel() : null)
-                        .subjectsInterested(StringUtils.hasText(registerRequest.getSubjectsInterested()) ? registerRequest.getSubjectsInterested() : null)
-                        .learningGoals(StringUtils.hasText(registerRequest.getLearningGoals()) ? registerRequest.getLearningGoals() : null)
-                        .preferredTeachingStyle(StringUtils.hasText(registerRequest.getPreferredTeachingStyle()) ? registerRequest.getPreferredTeachingStyle() : null)
-                        .budgetRange(StringUtils.hasText(registerRequest.getBudgetRange()) ? registerRequest.getBudgetRange() : null)
-                        .gender(StringUtils.hasText(registerRequest.getGender()) ? registerRequest.getGender() : "不愿透露")
+                        .realName(registerRequestDTO.getRealName())
+                        .gradeLevel(StringUtils.hasText(registerRequestDTO.getGradeLevel()) ? registerRequestDTO.getGradeLevel() : null)
+                        .subjectsInterested(StringUtils.hasText(registerRequestDTO.getSubjectsInterested()) ? registerRequestDTO.getSubjectsInterested() : null)
+                        .learningGoals(StringUtils.hasText(registerRequestDTO.getLearningGoals()) ? registerRequestDTO.getLearningGoals() : null)
+                        .preferredTeachingStyle(StringUtils.hasText(registerRequestDTO.getPreferredTeachingStyle()) ? registerRequestDTO.getPreferredTeachingStyle() : null)
+                        .budgetRange(StringUtils.hasText(registerRequestDTO.getBudgetRange()) ? registerRequestDTO.getBudgetRange() : null)
+                        .gender(StringUtils.hasText(registerRequestDTO.getGender()) ? registerRequestDTO.getGender() : "不愿透露")
                         .isDeleted(false)
                         .build();
                 
@@ -105,22 +105,22 @@ public class AuthServiceImpl implements AuthService {
                 log.info("学生信息创建成功: {}", user.getId());
 
                 // 处理学生感兴趣的科目关联
-                if (registerRequest.getStudentSubjectIds() != null && !registerRequest.getStudentSubjectIds().isEmpty()) {
-                    for (Long subjectId : registerRequest.getStudentSubjectIds()) {
+                if (registerRequestDTO.getStudentSubjectIds() != null && !registerRequestDTO.getStudentSubjectIds().isEmpty()) {
+                    for (Long subjectId : registerRequestDTO.getStudentSubjectIds()) {
                         StudentSubject studentSubject = new StudentSubject(student.getId(), subjectId);
                         studentSubjectMapper.insert(studentSubject);
                     }
-                    log.info("学生科目关联创建成功: 学生ID={}, 科目数量={}", student.getId(), registerRequest.getStudentSubjectIds().size());
+                    log.info("学生科目关联创建成功: 学生ID={}, 科目数量={}", student.getId(), registerRequestDTO.getStudentSubjectIds().size());
                 }
                 
-            } else if ("teacher".equals(registerRequest.getUserType().name())) {
+            } else if ("teacher".equals(registerRequestDTO.getUserType().name())) {
                 // 处理可上课时间
                 String availableTimeSlotsJson = null;
-                if (registerRequest.getAvailableTimeSlots() != null && !registerRequest.getAvailableTimeSlots().isEmpty()) {
-                    if (TimeSlotUtil.isValidTimeSlots(registerRequest.getAvailableTimeSlots())) {
-                        availableTimeSlotsJson = TimeSlotUtil.toJsonString(registerRequest.getAvailableTimeSlots());
+                if (registerRequestDTO.getAvailableTimeSlots() != null && !registerRequestDTO.getAvailableTimeSlots().isEmpty()) {
+                    if (TimeSlotUtil.isValidTimeSlots(registerRequestDTO.getAvailableTimeSlots())) {
+                        availableTimeSlotsJson = TimeSlotUtil.toJsonString(registerRequestDTO.getAvailableTimeSlots());
                         log.info("教师注册时设置了可上课时间，时间段数量: {}",
-                                registerRequest.getAvailableTimeSlots().stream()
+                                registerRequestDTO.getAvailableTimeSlots().stream()
                                         .mapToInt(slot -> slot.getTimeSlots() != null ? slot.getTimeSlots().size() : 0)
                                         .sum());
                     } else {
@@ -135,14 +135,14 @@ public class AuthServiceImpl implements AuthService {
 
                 Teacher teacher = Teacher.builder()
                         .userId(user.getId())
-                        .realName(registerRequest.getRealName())
-                        .educationBackground(StringUtils.hasText(registerRequest.getEducationBackground()) ? registerRequest.getEducationBackground() : null)
-                        .teachingExperience(registerRequest.getTeachingExperience() != null && registerRequest.getTeachingExperience() > 0 ? registerRequest.getTeachingExperience() : null)
-                        .specialties(StringUtils.hasText(registerRequest.getSpecialties()) ? registerRequest.getSpecialties() : null)
+                        .realName(registerRequestDTO.getRealName())
+                        .educationBackground(StringUtils.hasText(registerRequestDTO.getEducationBackground()) ? registerRequestDTO.getEducationBackground() : null)
+                        .teachingExperience(registerRequestDTO.getTeachingExperience() != null && registerRequestDTO.getTeachingExperience() > 0 ? registerRequestDTO.getTeachingExperience() : null)
+                        .specialties(StringUtils.hasText(registerRequestDTO.getSpecialties()) ? registerRequestDTO.getSpecialties() : null)
                         // 注册时不设置收费，由管理员后续设置
                         .hourlyRate(null)
-                        .introduction(StringUtils.hasText(registerRequest.getIntroduction()) ? registerRequest.getIntroduction() : null)
-                        .gender(StringUtils.hasText(registerRequest.getGender()) ? registerRequest.getGender() : "不愿透露")
+                        .introduction(StringUtils.hasText(registerRequestDTO.getIntroduction()) ? registerRequestDTO.getIntroduction() : null)
+                        .gender(StringUtils.hasText(registerRequestDTO.getGender()) ? registerRequestDTO.getGender() : "不愿透露")
                         .availableTimeSlots(availableTimeSlotsJson)
                         .isVerified(false)
                         .isDeleted(false)
@@ -157,7 +157,7 @@ public class AuthServiceImpl implements AuthService {
             // 生成 JWT token
             String jwt = jwtUtil.generateTokenFromUserId(user.getId());
 
-            return new AuthResponse(jwt, user.getId(), user.getUsername(), 
+            return new AuthResponseDTO(jwt, user.getId(), user.getUsername(),
                                   user.getEmail(), user.getUserType());
         } catch (Exception e) {
             log.error("用户注册失败: {}", e.getMessage());
@@ -187,15 +187,15 @@ public class AuthServiceImpl implements AuthService {
      * 用户登录
      */
     @Override
-    public AuthResponse authenticateUser(LoginRequest loginRequest) {
+    public AuthResponseDTO authenticateUser(LoginRequestDTO loginRequestDTO) {
         try {
-            log.info("尝试登录用户: {}", loginRequest.getUsername());
+            log.info("尝试登录用户: {}", loginRequestDTO.getUsername());
 
             // 支持用户名或邮箱登录
-            User user = userMapper.findByUsernameOrEmail(loginRequest.getUsername());
+            User user = userMapper.findByUsernameOrEmail(loginRequestDTO.getUsername());
             if (user == null) {
-                log.warn("登录失败，用户不存在: {}", loginRequest.getUsername());
-                String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+                log.warn("登录失败，用户不存在: {}", loginRequestDTO.getUsername());
+                String errorMessage = getLoginErrorMessage(loginRequestDTO.getUsername());
                 throw new BadCredentialsException(errorMessage);
             }
 
@@ -203,22 +203,22 @@ public class AuthServiceImpl implements AuthService {
 
             // 检查用户状态
             if (!"active".equals(user.getStatus())) {
-                log.warn("登录失败，用户账户未激活: {}", loginRequest.getUsername());
+                log.warn("登录失败，用户账户未激活: {}", loginRequestDTO.getUsername());
                 throw new BadCredentialsException("账户未激活");
             }
 
             // 验证密码
-            if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
-                log.warn("登录失败，密码错误: {}", loginRequest.getUsername());
-                String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+            if (!passwordEncoder.matches(loginRequestDTO.getPassword(), user.getPassword())) {
+                log.warn("登录失败，密码错误: {}", loginRequestDTO.getUsername());
+                String errorMessage = getLoginErrorMessage(loginRequestDTO.getUsername());
                 throw new BadCredentialsException(errorMessage);
             }
 
             // 进行身份验证
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            loginRequest.getUsername(),
-                            loginRequest.getPassword()
+                            loginRequestDTO.getUsername(),
+                            loginRequestDTO.getPassword()
                     )
             );
 
@@ -238,7 +238,7 @@ public class AuthServiceImpl implements AuthService {
 
             log.info("用户登录成功: {}", user.getEmail());
 
-            return new AuthResponse(jwt, user.getId(), user.getUsername(),
+            return new AuthResponseDTO(jwt, user.getId(), user.getUsername(),
                                   user.getEmail(), user.getUserType(), realName);
         } catch (BadCredentialsException e) {
             log.warn("登录失败，认证错误: {}", e.getMessage());
@@ -246,7 +246,7 @@ public class AuthServiceImpl implements AuthService {
             throw e;
         } catch (AuthenticationException e) {
             log.warn("登录失败，认证异常: {}", e.getMessage());
-            String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+            String errorMessage = getLoginErrorMessage(loginRequestDTO.getUsername());
             throw new BadCredentialsException(errorMessage);
         } catch (Exception e) {
             log.error("登录失败，系统错误: {}", e.getMessage(), e);
@@ -258,22 +258,22 @@ public class AuthServiceImpl implements AuthService {
      * 管理员登录
      */
     @Override
-    public AuthResponse authenticateAdmin(LoginRequest loginRequest) {
+    public AuthResponseDTO authenticateAdmin(LoginRequestDTO loginRequestDTO) {
         try {
-            log.info("尝试管理员登录: {}", loginRequest.getUsername());
+            log.info("尝试管理员登录: {}", loginRequestDTO.getUsername());
 
             // 支持用户名或邮箱登录
-            User user = userMapper.findByUsernameOrEmail(loginRequest.getUsername());
+            User user = userMapper.findByUsernameOrEmail(loginRequestDTO.getUsername());
             if (user == null) {
-                log.warn("管理员登录失败，用户不存在: {}", loginRequest.getUsername());
-                String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+                log.warn("管理员登录失败，用户不存在: {}", loginRequestDTO.getUsername());
+                String errorMessage = getLoginErrorMessage(loginRequestDTO.getUsername());
                 throw new BadCredentialsException(errorMessage);
             }
 
             // 检查是否为管理员类型
             if (!"admin".equals(user.getUserType())) {
-                log.warn("登录失败，用户类型不是管理员: {}", loginRequest.getUsername());
-                String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+                log.warn("登录失败，用户类型不是管理员: {}", loginRequestDTO.getUsername());
+                String errorMessage = getLoginErrorMessage(loginRequestDTO.getUsername());
                 throw new BadCredentialsException(errorMessage);
             }
 
@@ -281,22 +281,22 @@ public class AuthServiceImpl implements AuthService {
 
             // 检查用户状态
             if (!"active".equals(user.getStatus())) {
-                log.warn("管理员登录失败，账户未激活: {}", loginRequest.getUsername());
+                log.warn("管理员登录失败，账户未激活: {}", loginRequestDTO.getUsername());
                 throw new BadCredentialsException("账户未激活");
             }
 
             // 验证密码
-            if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
-                log.warn("管理员登录失败，密码错误: {}", loginRequest.getUsername());
-                String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+            if (!passwordEncoder.matches(loginRequestDTO.getPassword(), user.getPassword())) {
+                log.warn("管理员登录失败，密码错误: {}", loginRequestDTO.getUsername());
+                String errorMessage = getLoginErrorMessage(loginRequestDTO.getUsername());
                 throw new BadCredentialsException(errorMessage);
             }
 
             // 进行身份验证
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            loginRequest.getUsername(),
-                            loginRequest.getPassword()
+                            loginRequestDTO.getUsername(),
+                            loginRequestDTO.getPassword()
                     )
             );
 
@@ -310,7 +310,7 @@ public class AuthServiceImpl implements AuthService {
 
             log.info("管理员登录成功: {}", user.getEmail());
 
-            return new AuthResponse(jwt, user.getId(), user.getUsername(), 
+            return new AuthResponseDTO(jwt, user.getId(), user.getUsername(),
                                   user.getEmail(), user.getUserType(), realName);
         } catch (BadCredentialsException e) {
             log.warn("管理员登录失败，认证错误: {}", e.getMessage());
@@ -318,7 +318,7 @@ public class AuthServiceImpl implements AuthService {
             throw e;
         } catch (AuthenticationException e) {
             log.warn("管理员登录失败，认证异常: {}", e.getMessage());
-            String errorMessage = getLoginErrorMessage(loginRequest.getUsername());
+            String errorMessage = getLoginErrorMessage(loginRequestDTO.getUsername());
             throw new BadCredentialsException(errorMessage);
         } catch (Exception e) {
             log.error("管理员登录失败，系统错误: {}", e.getMessage(), e);
@@ -454,7 +454,7 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     @Transactional
-    public boolean updateUserProfile(Long userId, UserUpdateRequest request) {
+    public boolean updateUserProfile(Long userId, UserUpdateRequestDTO request) {
         try {
             User user = userMapper.selectById(userId);
             if (user == null) {

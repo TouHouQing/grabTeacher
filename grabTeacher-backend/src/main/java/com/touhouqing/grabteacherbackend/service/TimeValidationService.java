@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotDTO;
-import com.touhouqing.grabteacherbackend.entity.dto.TimeValidationResult;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.dto.TimeValidationResultDTO;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -19,10 +19,10 @@ public interface TimeValidationService {
      * @param endDate 验证结束日期
      * @return 验证结果
      */
-    TimeValidationResult validateTeacherAvailableTime(Long teacherId, 
-                                                     List<TimeSlotDTO> availableTimeSlots,
-                                                     LocalDate startDate, 
-                                                     LocalDate endDate);
+    TimeValidationResultDTO validateTeacherAvailableTime(Long teacherId,
+                                                         List<TimeSlotDTO> availableTimeSlots,
+                                                         LocalDate startDate,
+                                                         LocalDate endDate);
     
     /**
      * 获取教师时间设置建议
@@ -40,9 +40,9 @@ public interface TimeValidationService {
      * @param studentPreferredTimeSlots 学生偏好时间段
      * @return 匹配结果
      */
-    TimeValidationResult validateStudentBookingTime(Long teacherId,
-                                                   List<Integer> studentPreferredWeekdays,
-                                                   List<String> studentPreferredTimeSlots);
+    TimeValidationResultDTO validateStudentBookingTime(Long teacherId,
+                                                       List<Integer> studentPreferredWeekdays,
+                                                       List<String> studentPreferredTimeSlots);
 
     /**
      * 验证周期性预约的时间匹配度（考虑具体日期范围和课程冲突）
@@ -54,10 +54,10 @@ public interface TimeValidationService {
      * @param totalTimes 总课程次数
      * @return 详细的匹配结果
      */
-    TimeValidationResult validateRecurringBookingTime(Long teacherId,
-                                                     List<Integer> studentPreferredWeekdays,
-                                                     List<String> studentPreferredTimeSlots,
-                                                     LocalDate startDate,
-                                                     LocalDate endDate,
-                                                     Integer totalTimes);
+    TimeValidationResultDTO validateRecurringBookingTime(Long teacherId,
+                                                         List<Integer> studentPreferredWeekdays,
+                                                         List<String> studentPreferredTimeSlots,
+                                                         LocalDate startDate,
+                                                         LocalDate endDate,
+                                                         Integer totalTimes);
 }

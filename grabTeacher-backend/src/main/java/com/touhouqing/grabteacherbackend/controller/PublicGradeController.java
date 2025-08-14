@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.controller;
 
-import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.GradeResponse;
+import com.touhouqing.grabteacherbackend.dto.ApiResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.GradeResponseDTO;
 import com.touhouqing.grabteacherbackend.service.GradeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,14 +31,14 @@ public class PublicGradeController {
      */
     @Operation(summary = "获取所有年级列表", description = "获取系统中所有年级信息，无需认证")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<GradeResponse>>> getAllGrades() {
+    public ResponseEntity<ApiResponseDTO<List<GradeResponseDTO>>> getAllGrades() {
         try {
-            List<GradeResponse> grades = gradeService.getAllGrades();
-            return ResponseEntity.ok(ApiResponse.success("获取成功", grades));
+            List<GradeResponseDTO> grades = gradeService.getAllGrades();
+            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", grades));
         } catch (Exception e) {
             log.error("获取年级列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("获取失败"));
+                    .body(ApiResponseDTO.error("获取失败"));
         }
     }
 
@@ -47,17 +47,17 @@ public class PublicGradeController {
      */
     @Operation(summary = "获取年级名称列表", description = "获取所有年级的名称列表，用于下拉选择")
     @GetMapping("/names")
-    public ResponseEntity<ApiResponse<List<String>>> getGradeNames() {
+    public ResponseEntity<ApiResponseDTO<List<String>>> getGradeNames() {
         try {
-            List<GradeResponse> grades = gradeService.getAllGrades();
+            List<GradeResponseDTO> grades = gradeService.getAllGrades();
             List<String> gradeNames = grades.stream()
-                    .map(GradeResponse::getGradeName)
+                    .map(GradeResponseDTO::getGradeName)
                     .toList();
-            return ResponseEntity.ok(ApiResponse.success("获取成功", gradeNames));
+            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", gradeNames));
         } catch (Exception e) {
             log.error("获取年级名称列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("获取失败"));
+                    .body(ApiResponseDTO.error("获取失败"));
         }
     }
 }

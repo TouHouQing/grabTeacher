@@ -2,8 +2,8 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.touhouqing.grabteacherbackend.dto.*;
 import com.touhouqing.grabteacherbackend.entity.*;
-import com.touhouqing.grabteacherbackend.entity.dto.*;
 import com.touhouqing.grabteacherbackend.mapper.*;
 import com.touhouqing.grabteacherbackend.service.BookingService;
 import com.touhouqing.grabteacherbackend.service.DistributedLockService;

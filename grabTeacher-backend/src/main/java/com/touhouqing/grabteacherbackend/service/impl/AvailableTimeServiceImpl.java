@@ -1,8 +1,8 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
-import com.touhouqing.grabteacherbackend.entity.dto.AvailableTimeRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.AvailableTimeResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.dto.AvailableTimeRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.AvailableTimeResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.service.AvailableTimeService;
@@ -28,7 +28,7 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Override
-    public AvailableTimeResponse getTeacherAvailableTime(Long teacherId) {
+    public AvailableTimeResponseDTO getTeacherAvailableTime(Long teacherId) {
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
             throw new RuntimeException("教师不存在");
@@ -36,7 +36,7 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
 
         List<TimeSlotDTO> timeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
         
-        AvailableTimeResponse response = AvailableTimeResponse.builder()
+        AvailableTimeResponseDTO response = AvailableTimeResponseDTO.builder()
                 .teacherId(teacher.getId())
                 .teacherName(teacher.getRealName())
                 .availableTimeSlots(timeSlots)
@@ -53,7 +53,7 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
 
     @Override
     @Transactional
-    public AvailableTimeResponse setTeacherAvailableTime(AvailableTimeRequest request) {
+    public AvailableTimeResponseDTO setTeacherAvailableTime(AvailableTimeRequestDTO request) {
         Teacher teacher = teacherMapper.selectById(request.getTeacherId());
         if (teacher == null) {
             throw new RuntimeException("教师不存在");

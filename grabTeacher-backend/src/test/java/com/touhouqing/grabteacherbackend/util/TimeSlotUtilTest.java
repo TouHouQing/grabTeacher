@@ -1,6 +1,6 @@
 package com.touhouqing.grabteacherbackend.util;
 
-import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import static org.junit.jupiter.api.Assertions.*;

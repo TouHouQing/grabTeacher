@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.entity.dto.StudentInfoRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.StudentProfileResponse;
+import com.touhouqing.grabteacherbackend.dto.StudentInfoRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.StudentProfileResponseDTO;
 import com.touhouqing.grabteacherbackend.entity.Student;
 import java.util.Map;
 
@@ -15,12 +15,12 @@ public interface StudentService {
     /**
      * 根据用户ID获取学生个人信息（包含出生年月）
      */
-    StudentProfileResponse getStudentProfileByUserId(Long userId);
+    StudentProfileResponseDTO getStudentProfileByUserId(Long userId);
 
     /**
      * 更新学生信息
      */
-    Student updateStudentInfo(Long userId, StudentInfoRequest request);
+    Student updateStudentInfo(Long userId, StudentInfoRequestDTO request);
 
     /**
      * 获取学生控制台统计数据

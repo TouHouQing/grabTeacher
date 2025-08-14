@@ -1,6 +1,6 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherMatchRequest;
+import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequestDTO;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -143,7 +143,7 @@ public class TeacherCacheWarmupService {
             for (com.touhouqing.grabteacherbackend.entity.Subject s : activeSubjects) {
                 for (String grade : dbGrades) {
                     try {
-                        TeacherMatchRequest request = new TeacherMatchRequest();
+                        TeacherMatchRequestDTO request = new TeacherMatchRequestDTO();
                         request.setSubject(s.getName());
                         request.setGrade(grade);
                         request.setLimit(10);

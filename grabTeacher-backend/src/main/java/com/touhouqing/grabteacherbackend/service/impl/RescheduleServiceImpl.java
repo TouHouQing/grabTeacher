@@ -2,9 +2,9 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.entity.dto.RescheduleApprovalDTO;
-import com.touhouqing.grabteacherbackend.entity.dto.RescheduleRequestDTO;
-import com.touhouqing.grabteacherbackend.entity.dto.RescheduleResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.RescheduleApprovalDTO;
+import com.touhouqing.grabteacherbackend.dto.RescheduleRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.RescheduleResponseDTO;
 import com.touhouqing.grabteacherbackend.entity.*;
 import com.touhouqing.grabteacherbackend.mapper.*;
 import com.touhouqing.grabteacherbackend.service.RescheduleService;

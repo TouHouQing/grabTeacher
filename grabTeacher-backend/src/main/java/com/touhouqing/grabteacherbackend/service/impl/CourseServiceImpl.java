@@ -2,8 +2,8 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.entity.dto.CourseRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.CourseResponse;
+import com.touhouqing.grabteacherbackend.dto.CourseRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.CourseResponseDTO;
 import com.touhouqing.grabteacherbackend.entity.Course;
 import com.touhouqing.grabteacherbackend.entity.CourseGrade;
 import com.touhouqing.grabteacherbackend.entity.Teacher;
@@ -59,7 +59,7 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
         @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true)
     })
-    public Course createCourse(CourseRequest request, Long currentUserId, String userType) {
+    public Course createCourse(CourseRequestDTO request, Long currentUserId, String userType) {
         log.info("创建课程，用户ID: {}, 用户类型: {}", currentUserId, userType);
 
         // 验证科目是否存在
@@ -163,7 +163,7 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
         @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true)
     })
-    public Course updateCourse(Long id, CourseRequest request, Long currentUserId, String userType) {
+    public Course updateCourse(Long id, CourseRequestDTO request, Long currentUserId, String userType) {
         log.info("更新课程，课程ID: {}, 用户ID: {}, 用户类型: {}", id, currentUserId, userType);
 
         Course course = courseMapper.selectById(id);
@@ -280,7 +280,7 @@ public class CourseServiceImpl implements CourseService {
      */
     @Override
     @Cacheable(cacheNames = "course", key = "#id", unless = "#result == null")
-    public CourseResponse getCourseById(Long id) {
+    public CourseResponseDTO getCourseById(Long id) {
         Course course = courseMapper.selectById(id);
         if (course == null || course.getIsDeleted()) {
             return null;
@@ -305,8 +305,8 @@ public class CourseServiceImpl implements CourseService {
     @Cacheable(cacheNames = "courseList",
                keyGenerator = "courseCacheKeyGenerator",
                unless = "#result == null || #result.records.isEmpty()")
-    public Page<CourseResponse> getCourseList(int page, int size, String keyword, Long subjectId,
-                                            Long teacherId, String status, String courseType, String grade) {
+    public Page<CourseResponseDTO> getCourseList(int page, int size, String keyword, Long subjectId,
+                                                 Long teacherId, String status, String courseType, String grade) {
         Page<Course> pageParam = new Page<>(page, size);
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
 
@@ -338,7 +338,7 @@ public class CourseServiceImpl implements CourseService {
             List<Long> courseIds = courseGradeMapper.findCourseIdsByGrade(grade);
             if (courseIds.isEmpty()) {
                 // 如果没有找到符合条件的课程，返回空结果
-                Page<CourseResponse> emptyPage = new Page<>(page, size, 0);
+                Page<CourseResponseDTO> emptyPage = new Page<>(page, size, 0);
                 emptyPage.setRecords(new ArrayList<>());
                 return emptyPage;
             }
@@ -350,8 +350,8 @@ public class CourseServiceImpl implements CourseService {
         Page<Course> coursePage = courseMapper.selectPage(pageParam, queryWrapper);
 
         // 批量装配，消除 N+1
-        Page<CourseResponse> responsePage = new Page<>(coursePage.getCurrent(), coursePage.getSize(), coursePage.getTotal());
-        List<CourseResponse> responseList = assembleCourseResponses(coursePage.getRecords());
+        Page<CourseResponseDTO> responsePage = new Page<>(coursePage.getCurrent(), coursePage.getSize(), coursePage.getTotal());
+        List<CourseResponseDTO> responseList = assembleCourseResponses(coursePage.getRecords());
         responsePage.setRecords(responseList);
 
         return responsePage;
@@ -363,7 +363,7 @@ public class CourseServiceImpl implements CourseService {
     @Cacheable(cacheNames = "teacherCourses",
                keyGenerator = "courseCacheKeyGenerator",
                unless = "#result == null || #result.isEmpty()")
-    public List<CourseResponse> getTeacherCourses(Long teacherId, Long currentUserId, String userType) {
+    public List<CourseResponseDTO> getTeacherCourses(Long teacherId, Long currentUserId, String userType) {
         // 权限检查：教师只能查看自己的课程，管理员可以查看任何教师的课程，public模式允许查看活跃课程
         if ("teacher".equals(userType)) {
             QueryWrapper<Teacher> teacherQuery = new QueryWrapper<>();
@@ -418,7 +418,7 @@ public class CourseServiceImpl implements CourseService {
     @Cacheable(cacheNames = "activeCoursesAll",
                key = "'all'",
                unless = "#result == null || #result.isEmpty()")
-    public List<CourseResponse> getActiveCourses() {
+    public List<CourseResponseDTO> getActiveCourses() {
         List<Course> courses = courseMapper.findActiveCourses();
         return assembleCourseResponses(courses);
     }
@@ -430,7 +430,7 @@ public class CourseServiceImpl implements CourseService {
     @Cacheable(cacheNames = "activeCoursesLimited",
                key = "'limit:' + (#limit == null ? 'all' : #limit)",
                sync = true)
-    public List<CourseResponse> getActiveCoursesLimited(Integer limit) {
+    public List<CourseResponseDTO> getActiveCoursesLimited(Integer limit) {
         if (limit == null || limit <= 0) {
             return getActiveCourses();
         }
@@ -501,7 +501,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     // 辅助方法：转换为CourseResponse
-    private CourseResponse convertToCourseResponse(Course course) {
+    private CourseResponseDTO convertToCourseResponse(Course course) {
         // 获取教师信息
         Teacher teacher = teacherMapper.selectById(course.getTeacherId());
         String teacherName = teacher != null ? teacher.getRealName() : "未知教师";
@@ -517,7 +517,7 @@ public class CourseServiceImpl implements CourseService {
                 .map(CourseGrade::getGrade)
                 .collect(Collectors.joining(","));
 
-        CourseResponse response = CourseResponse.builder()
+        CourseResponseDTO response = CourseResponseDTO.builder()
                 .id(course.getId())
                 .teacherId(course.getTeacherId())
                 .teacherName(teacherName)
@@ -547,7 +547,7 @@ public class CourseServiceImpl implements CourseService {
     @Cacheable(cacheNames = "featuredCourses",
                key = "'page:' + #page + ':size:' + #size + ':subject:' + (#subjectId ?: 'all') + ':grade:' + (#grade ?: 'all')",
                unless = "#result == null || #result.records.isEmpty()")
-    public Page<CourseResponse> getFeaturedCourses(int page, int size, Long subjectId, String grade) {
+    public Page<CourseResponseDTO> getFeaturedCourses(int page, int size, Long subjectId, String grade) {
         Page<Course> pageParam = new Page<>(page, size);
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
 
@@ -564,7 +564,7 @@ public class CourseServiceImpl implements CourseService {
             String g = grade.trim();
             List<Long> idsByGrade = courseGradeMapper.findCourseIdsByGrade(g);
             if (idsByGrade == null || idsByGrade.isEmpty()) {
-                Page<CourseResponse> emptyPage = new Page<>(page, size, 0);
+                Page<CourseResponseDTO> emptyPage = new Page<>(page, size, 0);
                 emptyPage.setRecords(new ArrayList<>());
                 return emptyPage;
             }
@@ -576,16 +576,16 @@ public class CourseServiceImpl implements CourseService {
         Page<Course> coursePage = courseMapper.selectPage(pageParam, queryWrapper);
 
         // 批量装配，消除 N+1
-        Page<CourseResponse> responsePage = new Page<>(coursePage.getCurrent(), coursePage.getSize(), coursePage.getTotal());
-        List<CourseResponse> responseList = assembleCourseResponses(coursePage.getRecords());
+        Page<CourseResponseDTO> responsePage = new Page<>(coursePage.getCurrent(), coursePage.getSize(), coursePage.getTotal());
+        List<CourseResponseDTO> responseList = assembleCourseResponses(coursePage.getRecords());
         responsePage.setRecords(responseList);
 
         return responsePage;
     }
 
 
-    // 批量组装 CourseResponse，避免 convertToCourseResponse 的逐条查询开销
-    private List<CourseResponse> assembleCourseResponses(List<Course> courses) {
+    // 批量组装 CourseResponseDTO，避免 convertToCourseResponse 的逐条查询开销
+    private List<CourseResponseDTO> assembleCourseResponses(List<Course> courses) {
         if (courses == null || courses.isEmpty()) return new ArrayList<>();
         // 1) 收集ID集合
         List<Long> teacherIds = courses.stream().map(Course::getTeacherId).collect(Collectors.toList());
@@ -628,13 +628,13 @@ public class CourseServiceImpl implements CourseService {
         }
 
         // 5) 组装响应
-        List<CourseResponse> list = new ArrayList<>();
+        List<CourseResponseDTO> list = new ArrayList<>();
         for (Course c : courses) {
             String teacherName = teacherNameMap.getOrDefault(c.getTeacherId(), "未知教师");
             String subjectName = subjectNameMap.getOrDefault(c.getSubjectId(), "未知科目");
             String gradeStr = courseGradesStr.getOrDefault(c.getId(), "未设置");
 
-            CourseResponse resp = CourseResponse.builder()
+            CourseResponseDTO resp = CourseResponseDTO.builder()
                     .id(c.getId())
                     .teacherId(c.getTeacherId())
                     .teacherName(teacherName)

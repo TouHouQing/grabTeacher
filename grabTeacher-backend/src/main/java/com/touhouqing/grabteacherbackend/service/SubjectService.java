@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.entity.dto.SubjectRequest;
+import com.touhouqing.grabteacherbackend.dto.SubjectRequestDTO;
 import com.touhouqing.grabteacherbackend.entity.Subject;
 
 import java.util.List;
@@ -11,12 +11,12 @@ public interface SubjectService {
     /**
      * 创建科目
      */
-    Subject createSubject(SubjectRequest request);
+    Subject createSubject(SubjectRequestDTO request);
     
     /**
      * 更新科目
      */
-    Subject updateSubject(Long id, SubjectRequest request);
+    Subject updateSubject(Long id, SubjectRequestDTO request);
     
     /**
      * 删除科目（软删除）

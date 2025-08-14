@@ -1,8 +1,8 @@
 package com.touhouqing.grabteacherbackend.controller;
 
-import com.touhouqing.grabteacherbackend.entity.dto.ApiResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.AvailableTimeRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.AvailableTimeResponse;
+import com.touhouqing.grabteacherbackend.dto.ApiResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.AvailableTimeRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.AvailableTimeResponseDTO;
 import com.touhouqing.grabteacherbackend.service.AvailableTimeService;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,15 +32,15 @@ public class AvailableTimeController {
      */
     @Operation(summary = "获取教师可上课时间", description = "获取指定教师的可上课时间安排")
     @GetMapping("/teacher/{teacherId}")
-    public ResponseEntity<ApiResponse<AvailableTimeResponse>> getTeacherAvailableTime(
+    public ResponseEntity<ApiResponseDTO<AvailableTimeResponseDTO>> getTeacherAvailableTime(
             @PathVariable Long teacherId) {
         try {
-            AvailableTimeResponse response = availableTimeService.getTeacherAvailableTime(teacherId);
-            return ResponseEntity.ok(ApiResponse.success("获取成功", response));
+            AvailableTimeResponseDTO response = availableTimeService.getTeacherAvailableTime(teacherId);
+            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", response));
         } catch (Exception e) {
             log.error("获取教师可上课时间失败: teacherId={}", teacherId, e);
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("获取失败: " + e.getMessage()));
+                    .body(ApiResponseDTO.error("获取失败: " + e.getMessage()));
         }
     }
 
@@ -50,24 +50,24 @@ public class AvailableTimeController {
     @Operation(summary = "教师设置可上课时间", description = "教师设置自己的可上课时间安排")
     @PostMapping("/teacher/set")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<ApiResponse<AvailableTimeResponse>> setTeacherAvailableTime(
-            @Valid @RequestBody AvailableTimeRequest request,
+    public ResponseEntity<ApiResponseDTO<AvailableTimeResponseDTO>> setTeacherAvailableTime(
+            @Valid @RequestBody AvailableTimeRequestDTO request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         try {
             // 确保教师只能设置自己的时间
             Long teacherId = availableTimeService.getTeacherIdByUserId(userPrincipal.getId());
             if (teacherId == null) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("教师信息不存在"));
+                        .body(ApiResponseDTO.error("教师信息不存在"));
             }
             
             request.setTeacherId(teacherId);
-            AvailableTimeResponse response = availableTimeService.setTeacherAvailableTime(request);
-            return ResponseEntity.ok(ApiResponse.success("设置成功", response));
+            AvailableTimeResponseDTO response = availableTimeService.setTeacherAvailableTime(request);
+            return ResponseEntity.ok(ApiResponseDTO.success("设置成功", response));
         } catch (Exception e) {
             log.error("教师设置可上课时间失败: userId={}", userPrincipal.getId(), e);
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("设置失败: " + e.getMessage()));
+                    .body(ApiResponseDTO.error("设置失败: " + e.getMessage()));
         }
     }
 
@@ -77,15 +77,15 @@ public class AvailableTimeController {
     @Operation(summary = "管理员设置教师可上课时间", description = "管理员为指定教师设置可上课时间安排")
     @PostMapping("/admin/set")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<AvailableTimeResponse>> setTeacherAvailableTimeByAdmin(
-            @Valid @RequestBody AvailableTimeRequest request) {
+    public ResponseEntity<ApiResponseDTO<AvailableTimeResponseDTO>> setTeacherAvailableTimeByAdmin(
+            @Valid @RequestBody AvailableTimeRequestDTO request) {
         try {
-            AvailableTimeResponse response = availableTimeService.setTeacherAvailableTime(request);
-            return ResponseEntity.ok(ApiResponse.success("设置成功", response));
+            AvailableTimeResponseDTO response = availableTimeService.setTeacherAvailableTime(request);
+            return ResponseEntity.ok(ApiResponseDTO.success("设置成功", response));
         } catch (Exception e) {
             log.error("管理员设置教师可上课时间失败: teacherId={}", request.getTeacherId(), e);
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("设置失败: " + e.getMessage()));
+                    .body(ApiResponseDTO.error("设置失败: " + e.getMessage()));
         }
     }
 
@@ -95,21 +95,21 @@ public class AvailableTimeController {
     @Operation(summary = "获取当前教师可上课时间", description = "获取当前登录教师的可上课时间安排")
     @GetMapping("/teacher/current")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<ApiResponse<AvailableTimeResponse>> getCurrentTeacherAvailableTime(
+    public ResponseEntity<ApiResponseDTO<AvailableTimeResponseDTO>> getCurrentTeacherAvailableTime(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         try {
             Long teacherId = availableTimeService.getTeacherIdByUserId(userPrincipal.getId());
             if (teacherId == null) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("教师信息不存在"));
+                        .body(ApiResponseDTO.error("教师信息不存在"));
             }
 
-            AvailableTimeResponse response = availableTimeService.getTeacherAvailableTime(teacherId);
-            return ResponseEntity.ok(ApiResponse.success("获取成功", response));
+            AvailableTimeResponseDTO response = availableTimeService.getTeacherAvailableTime(teacherId);
+            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", response));
         } catch (Exception e) {
             log.error("获取当前教师可上课时间失败: userId={}", userPrincipal.getId(), e);
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("获取失败: " + e.getMessage()));
+                    .body(ApiResponseDTO.error("获取失败: " + e.getMessage()));
         }
     }
 

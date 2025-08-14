@@ -2,15 +2,15 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherDetailResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherInfoRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherListResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherMatchRequest;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherMatchResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherProfileResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.TeacherScheduleResponse;
-import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotAvailability;
-import com.touhouqing.grabteacherbackend.entity.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherDetailResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherListResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequestDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherProfileResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.TeacherScheduleResponseDTO;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotAvailabilityDTO;
+import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.entity.Course;
 import com.touhouqing.grabteacherbackend.entity.CourseGrade;
 import com.touhouqing.grabteacherbackend.entity.Schedule;
@@ -102,7 +102,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Cacheable(cacheNames = "teacherDetails",
                keyGenerator = "teacherCacheKeyGenerator",
                unless = "#result == null")
-    public TeacherDetailResponse getTeacherDetailById(Long teacherId) {
+    public TeacherDetailResponseDTO getTeacherDetailById(Long teacherId) {
         // 获取教师基本信息
         Teacher teacher = getTeacherById(teacherId);
         if (teacher == null) {
@@ -140,7 +140,7 @@ public class TeacherServiceImpl implements TeacherService {
             availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
         }
 
-        return TeacherDetailResponse.builder()
+        return TeacherDetailResponseDTO.builder()
                 .id(teacher.getId())
                 .userId(teacher.getUserId())
                 .realName(teacher.getRealName())
@@ -167,7 +167,7 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 根据用户ID获取教师详细信息（包含科目信息）
      */
-    public TeacherProfileResponse getTeacherProfileByUserId(Long userId) {
+    public TeacherProfileResponseDTO getTeacherProfileByUserId(Long userId) {
         Teacher teacher = getTeacherByUserId(userId);
         if (teacher == null) {
             return null;
@@ -186,7 +186,7 @@ public class TeacherServiceImpl implements TeacherService {
         User user = userMapper.selectById(teacher.getUserId());
         String birthDate = user != null ? user.getBirthDate() : null;
 
-        return TeacherProfileResponse.builder()
+        return TeacherProfileResponseDTO.builder()
                 .id(teacher.getId())
                 .userId(teacher.getUserId())
                 .realName(teacher.getRealName())
@@ -279,7 +279,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Cacheable(cacheNames = "teacherList",
                keyGenerator = "teacherCacheKeyGenerator",
                sync = true)
-    public List<TeacherListResponse> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword) {
+    public List<TeacherListResponseDTO> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword) {
         // 获取教师列表（分页+筛选）
         List<Teacher> teachers = getFilteredTeacherList(page, size, subject, grade, keyword);
         // 批量装配，消除 N+1
@@ -293,7 +293,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Cacheable(cacheNames = "featuredTeachers",
                keyGenerator = "teacherCacheKeyGenerator",
                sync = true)
-    public List<TeacherListResponse> getFeaturedTeachers(int page, int size, String subject, String grade, String keyword) {
+    public List<TeacherListResponseDTO> getFeaturedTeachers(int page, int size, String subject, String grade, String keyword) {
         // 获取精选教师列表（分页+筛选）
         List<Teacher> teachers = getFeaturedTeacherList(page, size, subject, grade, keyword);
         // 批量装配，消除 N+1
@@ -302,7 +302,7 @@ public class TeacherServiceImpl implements TeacherService {
 
 
     // 批量装配教师列表响应，消除 N+1 查询
-    private List<TeacherListResponse> assembleTeacherListResponses(List<Teacher> teachers) {
+    private List<TeacherListResponseDTO> assembleTeacherListResponses(List<Teacher> teachers) {
         if (teachers == null || teachers.isEmpty()) {
             return new ArrayList<>();
         }
@@ -362,7 +362,7 @@ public class TeacherServiceImpl implements TeacherService {
         }
 
         // 5) 组装DTO
-        List<TeacherListResponse> list = new ArrayList<>();
+        List<TeacherListResponseDTO> list = new ArrayList<>();
         for (Teacher t : teachers) {
             User user = userMap.get(t.getUserId());
             List<Long> sids = teacherToSubjectIds.getOrDefault(t.getId(), Collections.emptyList());
@@ -376,7 +376,7 @@ public class TeacherServiceImpl implements TeacherService {
             String intro = t.getIntroduction();
             String shortIntro = (intro != null && intro.length() > 160) ? intro.substring(0, 160) + "…" : intro;
 
-            TeacherListResponse dto = TeacherListResponse.builder()
+            TeacherListResponseDTO dto = TeacherListResponseDTO.builder()
                     .id(t.getId())
                     .realName(t.getRealName())
                     .avatarUrl(user != null ? user.getAvatarUrl() : null)
@@ -406,7 +406,7 @@ public class TeacherServiceImpl implements TeacherService {
         @CacheEvict(cacheNames = "teacherList", allEntries = true),
         @CacheEvict(cacheNames = "teacherMatch", allEntries = true)
     })
-    public Teacher updateTeacherInfo(Long userId, TeacherInfoRequest request) {
+    public Teacher updateTeacherInfo(Long userId, TeacherInfoRequestDTO request) {
         Teacher teacher = getTeacherByUserId(userId);
         if (teacher == null) {
             throw new RuntimeException("教师信息不存在");
@@ -480,7 +480,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Cacheable(cacheNames = "teacherMatch",
                keyGenerator = "teacherCacheKeyGenerator",
                sync = true)
-    public List<TeacherMatchResponse> matchTeachers(TeacherMatchRequest request) {
+    public List<TeacherMatchResponseDTO> matchTeachers(TeacherMatchRequestDTO request) {
         log.info("开始匹配教师，请求参数: {}", request);
 
         // 前端现在直接发送1-7格式，不需要转换
@@ -492,10 +492,10 @@ public class TeacherServiceImpl implements TeacherService {
         List<Teacher> teachers = matchTeachersOptimized(request);
 
         // 转换为响应DTO并计算匹配分数
-        List<TeacherMatchResponse> responses = teachers.stream()
+        List<TeacherMatchResponseDTO> responses = teachers.stream()
                 .filter(teacher -> matchesGenderPreference(teacher, request)) // 添加性别过滤
                 .map(teacher -> convertToMatchResponse(teacher, request))
-                .sorted(Comparator.comparing(TeacherMatchResponse::getMatchScore).reversed())
+                .sorted(Comparator.comparing(TeacherMatchResponseDTO::getMatchScore).reversed())
                 .limit(request.getLimit() != null ? request.getLimit() : 3)
                 .collect(Collectors.toList());
 
@@ -507,7 +507,7 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 优化的教师匹配查询 - 使用JOIN减少数据库查询次数
      */
-    private List<Teacher> matchTeachersOptimized(TeacherMatchRequest request) {
+    private List<Teacher> matchTeachersOptimized(TeacherMatchRequestDTO request) {
         // 如果同时指定了科目和年级，使用联合查询
         if (StringUtils.hasText(request.getSubject()) && StringUtils.hasText(request.getGrade())) {
             return teacherMapper.findTeachersBySubjectAndGrade(request.getSubject(), request.getGrade());
@@ -564,14 +564,14 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 将Teacher实体转换为TeacherMatchResponse并计算匹配分数
      */
-    private TeacherMatchResponse convertToMatchResponse(Teacher teacher, TeacherMatchRequest request) {
+    private TeacherMatchResponseDTO convertToMatchResponse(Teacher teacher, TeacherMatchRequestDTO request) {
         // 解析教师的可上课时间
         List<TimeSlotDTO> availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
 
         // 生成可读的时间安排描述
         List<String> scheduleDescriptions = generateScheduleDescriptions(availableTimeSlots);
 
-        TeacherMatchResponse response = TeacherMatchResponse.builder()
+        TeacherMatchResponseDTO response = TeacherMatchResponseDTO.builder()
                 .id(teacher.getId())
                 .name(teacher.getRealName())
                 .subject(getFirstSubject(teacher.getId()))
@@ -604,7 +604,7 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 计算匹配分数 - 基于学生填写信息的智能匹配
      */
-    private int calculateMatchScore(Teacher teacher, TeacherMatchRequest request) {
+    private int calculateMatchScore(Teacher teacher, TeacherMatchRequestDTO request) {
         int totalScore = 0;
 
         // 1. 科目匹配 (30分) - 最重要的匹配因素
@@ -630,7 +630,7 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 计算科目匹配分数 (0-30分)
      */
-    private int calculateSubjectMatchScore(Teacher teacher, TeacherMatchRequest request) {
+    private int calculateSubjectMatchScore(Teacher teacher, TeacherMatchRequestDTO request) {
         if (!StringUtils.hasText(request.getSubject())) {
             return 20; // 没有科目要求时给予中等分数
         }
@@ -656,7 +656,7 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 计算年级匹配分数 (0-25分)
      */
-    private int calculateGradeMatchScore(Teacher teacher, TeacherMatchRequest request) {
+    private int calculateGradeMatchScore(Teacher teacher, TeacherMatchRequestDTO request) {
         if (!StringUtils.hasText(request.getGrade())) {
             return 15; // 没有年级要求时给予中等分数
         }
@@ -676,7 +676,7 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 计算性别匹配分数 (0-10分)
      */
-    private int calculateGenderMatchScore(Teacher teacher, TeacherMatchRequest request) {
+    private int calculateGenderMatchScore(Teacher teacher, TeacherMatchRequestDTO request) {
         if (!StringUtils.hasText(request.getPreferredGender())) {
             return 8; // 没有性别偏好时给予较高分数
         }
@@ -898,7 +898,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Cacheable(cacheNames = "teacherSchedule",
                keyGenerator = "teacherCacheKeyGenerator",
                sync = true)
-    public TeacherScheduleResponse getTeacherPublicSchedule(Long teacherId, LocalDate startDate, LocalDate endDate) {
+    public TeacherScheduleResponseDTO getTeacherPublicSchedule(Long teacherId, LocalDate startDate, LocalDate endDate) {
         // 获取教师信息
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
@@ -927,7 +927,7 @@ public class TeacherServiceImpl implements TeacherService {
         try { teacherScheduleCacheService.putBusySlotsBatch(teacherId, busyMap); } catch (Exception ignore) {}
 
         // 生成每日课表
-        List<TeacherScheduleResponse.DaySchedule> daySchedules = new ArrayList<>();
+        List<TeacherScheduleResponseDTO.DaySchedule> daySchedules = new ArrayList<>();
         LocalDate currentDate = startDate;
 
         while (!currentDate.isAfter(endDate)) {
@@ -935,13 +935,13 @@ public class TeacherServiceImpl implements TeacherService {
             List<Schedule> daySchedules_raw = schedulesByDate.getOrDefault(currentDate, new ArrayList<>());
 
             // 生成该日的时间段信息（使用内存 busy 判定占用）
-            List<TeacherScheduleResponse.TimeSlotInfo> timeSlots = generateTimeSlotsWithBusy(teacherId, daySchedules_raw, currentDate, busySlots);
+            List<TeacherScheduleResponseDTO.TimeSlotInfo> timeSlots = generateTimeSlotsWithBusy(teacherId, daySchedules_raw, currentDate, busySlots);
 
-            int availableCount = (int) timeSlots.stream().filter(TeacherScheduleResponse.TimeSlotInfo::getAvailable).count();
-            int bookedCount = (int) timeSlots.stream().filter(TeacherScheduleResponse.TimeSlotInfo::getBooked).count();
+            int availableCount = (int) timeSlots.stream().filter(TeacherScheduleResponseDTO.TimeSlotInfo::getAvailable).count();
+            int bookedCount = (int) timeSlots.stream().filter(TeacherScheduleResponseDTO.TimeSlotInfo::getBooked).count();
 
 
-            TeacherScheduleResponse.DaySchedule daySchedule = TeacherScheduleResponse.DaySchedule.builder()
+            TeacherScheduleResponseDTO.DaySchedule daySchedule = TeacherScheduleResponseDTO.DaySchedule.builder()
                     .date(currentDate)
                     .dayOfWeek(currentDate.getDayOfWeek().getValue()) // 使用ISO标准：1=周一, 7=周日
                     .timeSlots(timeSlots)
@@ -953,7 +953,7 @@ public class TeacherServiceImpl implements TeacherService {
             currentDate = currentDate.plusDays(1);
         }
 
-        return TeacherScheduleResponse.builder()
+        return TeacherScheduleResponseDTO.builder()
                 .teacherId(teacherId)
                 .teacherName(teacher.getRealName())
                 .startDate(startDate)
@@ -966,8 +966,8 @@ public class TeacherServiceImpl implements TeacherService {
     @Cacheable(cacheNames = "teacherAvailability",
                keyGenerator = "teacherCacheKeyGenerator",
                sync = true)
-    public List<TimeSlotAvailability> checkTeacherAvailability(Long teacherId, LocalDate startDate, LocalDate endDate, List<String> timeSlots) {
-        List<TimeSlotAvailability> availabilities = new ArrayList<>();
+    public List<TimeSlotAvailabilityDTO> checkTeacherAvailability(Long teacherId, LocalDate startDate, LocalDate endDate, List<String> timeSlots) {
+        List<TimeSlotAvailabilityDTO> availabilities = new ArrayList<>();
 
         // 获取教师设置的可上课时间
         Teacher teacher = teacherMapper.selectById(teacherId);
@@ -984,7 +984,7 @@ public class TeacherServiceImpl implements TeacherService {
             }
             for (int weekday = 1; weekday <= 7; weekday++) {
                 for (String timeSlot : timeSlots) {
-                    TimeSlotAvailability availability = TimeSlotAvailability.builder()
+                    TimeSlotAvailabilityDTO availability = TimeSlotAvailabilityDTO.builder()
                             .weekday(TimeSlotUtil.convertBackendWeekdayToFrontend(weekday))
                             .timeSlot(timeSlot)
                             .available(false)
@@ -1015,7 +1015,7 @@ public class TeacherServiceImpl implements TeacherService {
                 List<String> slotTimes = teacherSlot.getTimeSlots();
                 if (slotTimes != null) {
                     for (String timeSlot : slotTimes) {
-                        TimeSlotAvailability availability = checkWeekdayTimeSlotAvailabilityFromBusyMap(
+                        TimeSlotAvailabilityDTO availability = checkWeekdayTimeSlotAvailabilityFromBusyMap(
                             teacherId, weekday, timeSlot, startDate, endDate, busyMap);
                         availability.setWeekday(TimeSlotUtil.convertBackendWeekdayToFrontend(weekday));
                         availabilities.add(availability);
@@ -1030,7 +1030,7 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 生成时间段信息 - 根据教师设置的可上课时间和实际课表安排
      */
-    private List<TeacherScheduleResponse.TimeSlotInfo> generateTimeSlotsWithBusy(Long teacherId, List<Schedule> daySchedules, LocalDate date, List<String> busySlots) {
+    private List<TeacherScheduleResponseDTO.TimeSlotInfo> generateTimeSlotsWithBusy(Long teacherId, List<Schedule> daySchedules, LocalDate date, List<String> busySlots) {
         // 获取该日期对应的星期几（ISO标准：1=周一, 7=周日）
         int weekday = date.getDayOfWeek().getValue();
 
@@ -1042,7 +1042,7 @@ public class TeacherServiceImpl implements TeacherService {
             return new ArrayList<>();
         }
 
-        List<TeacherScheduleResponse.TimeSlotInfo> timeSlots = new ArrayList<>();
+        List<TeacherScheduleResponseDTO.TimeSlotInfo> timeSlots = new ArrayList<>();
 
         // 将已有课程按时间段分组
         Map<String, Schedule> scheduleByTimeSlot = new HashMap<>();
@@ -1066,7 +1066,7 @@ public class TeacherServiceImpl implements TeacherService {
                 isBooked = existingSchedule != null && !"cancelled".equals(existingSchedule.getStatus());
             }
 
-            TeacherScheduleResponse.TimeSlotInfo timeSlotInfo = TeacherScheduleResponse.TimeSlotInfo.builder()
+            TeacherScheduleResponseDTO.TimeSlotInfo timeSlotInfo = TeacherScheduleResponseDTO.TimeSlotInfo.builder()
                     .timeSlot(timeSlot)
                     .startTime(startTime)
                     .endTime(endTime)
@@ -1097,14 +1097,14 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 检查特定星期几和时间段的可用性
      */
-    private TimeSlotAvailability checkWeekdayTimeSlotAvailabilityFromBusyMap(Long teacherId, int weekday, String timeSlot,
-                                                                             LocalDate startDate, LocalDate endDate,
-                                                                             Map<LocalDate, List<String>> busyMap) {
+    private TimeSlotAvailabilityDTO checkWeekdayTimeSlotAvailabilityFromBusyMap(Long teacherId, int weekday, String timeSlot,
+                                                                                LocalDate startDate, LocalDate endDate,
+                                                                                Map<LocalDate, List<String>> busyMap) {
         // 检查教师是否设置了该时间段为可上课时间
         List<String> teacherAvailableSlots = getTeacherAvailableTimeSlotsForWeekday(teacherId, weekday);
         boolean isTeacherAvailable = teacherAvailableSlots.isEmpty() || teacherAvailableSlots.contains(timeSlot);
         if (!isTeacherAvailable) {
-            return TimeSlotAvailability.builder()
+            return TimeSlotAvailabilityDTO.builder()
                     .weekday(weekday)
                     .timeSlot(timeSlot)
                     .available(false)
@@ -1140,7 +1140,7 @@ public class TeacherServiceImpl implements TeacherService {
         double availabilityRate = totalWeeks > 0 ? (double) (totalWeeks - conflictWeeks) / totalWeeks : 1.0;
         boolean available = availabilityRate >= 0.5;
         String availabilityLevel = calculateAvailabilityLevel(availabilityRate);
-        return TimeSlotAvailability.builder()
+        return TimeSlotAvailabilityDTO.builder()
                 .weekday(weekday)
                 .timeSlot(timeSlot)
                 .available(available)
@@ -1237,7 +1237,7 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 计算时间匹配度 - 修复版本，正确处理星期几和时间段的匹配
      */
-    private int calculateTimeMatchScore(List<TimeSlotDTO> availableTimeSlots, TeacherMatchRequest request) {
+    private int calculateTimeMatchScore(List<TimeSlotDTO> availableTimeSlots, TeacherMatchRequestDTO request) {
         log.info("=== 开始计算时间匹配度 ===");
         log.info("教师可用时间段: {}", availableTimeSlots);
         log.info("学生偏好星期几: {}", request.getPreferredWeekdays());
@@ -1353,7 +1353,7 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 检查教师是否匹配性别偏好
      */
-    private boolean matchesGenderPreference(Teacher teacher, TeacherMatchRequest request) {
+    private boolean matchesGenderPreference(Teacher teacher, TeacherMatchRequestDTO request) {
         // 如果没有性别偏好，则不过滤
         if (request.getPreferredGender() == null || request.getPreferredGender().trim().isEmpty()) {
             return true;
