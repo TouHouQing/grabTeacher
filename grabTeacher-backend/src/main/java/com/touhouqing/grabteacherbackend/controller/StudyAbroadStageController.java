@@ -1,9 +1,9 @@
 package com.touhouqing.grabteacherbackend.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.ApiResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.StudyAbroadStageRequestDTO;
-import com.touhouqing.grabteacherbackend.entity.StudyAbroadStage;
+import com.touhouqing.grabteacherbackend.common.result.CommonResult;
+import com.touhouqing.grabteacherbackend.model.dto.StudyAbroadStageDTO;
+import com.touhouqing.grabteacherbackend.model.entity.StudyAbroadStage;
 import com.touhouqing.grabteacherbackend.service.StudyAbroadStageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,13 +32,13 @@ public class StudyAbroadStageController {
     @SecurityRequirement(name = "Bearer Authentication")
     @PostMapping("/admin/study-abroad/stages")
     @Operation(summary = "创建阶段")
-    public ResponseEntity<ApiResponseDTO<StudyAbroadStage>> create(@Valid @RequestBody StudyAbroadStageRequestDTO request) {
+    public ResponseEntity<CommonResult<StudyAbroadStage>> create(@Valid @RequestBody StudyAbroadStageDTO request) {
         try {
-            return ResponseEntity.ok(ApiResponseDTO.success("创建成功", stageService.create(request)));
+            return ResponseEntity.ok(CommonResult.success("创建成功", stageService.create(request)));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(ApiResponseDTO.error(e.getMessage()));
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("创建失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("创建失败"));
         }
     }
 
@@ -46,13 +46,13 @@ public class StudyAbroadStageController {
     @SecurityRequirement(name = "Bearer Authentication")
     @PutMapping("/admin/study-abroad/stages/{id}")
     @Operation(summary = "更新阶段")
-    public ResponseEntity<ApiResponseDTO<StudyAbroadStage>> update(@PathVariable Long id, @Valid @RequestBody StudyAbroadStageRequestDTO request) {
+    public ResponseEntity<CommonResult<StudyAbroadStage>> update(@PathVariable Long id, @Valid @RequestBody StudyAbroadStageDTO request) {
         try {
-            return ResponseEntity.ok(ApiResponseDTO.success("更新成功", stageService.update(id, request)));
+            return ResponseEntity.ok(CommonResult.success("更新成功", stageService.update(id, request)));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(ApiResponseDTO.error(e.getMessage()));
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("更新失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("更新失败"));
         }
     }
 
@@ -60,14 +60,14 @@ public class StudyAbroadStageController {
     @SecurityRequirement(name = "Bearer Authentication")
     @DeleteMapping("/admin/study-abroad/stages/{id}")
     @Operation(summary = "删除阶段")
-    public ResponseEntity<ApiResponseDTO<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<CommonResult<Void>> delete(@PathVariable Long id) {
         try {
             stageService.delete(id);
-            return ResponseEntity.ok(ApiResponseDTO.success("删除成功", null));
+            return ResponseEntity.ok(CommonResult.success("删除成功", null));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(ApiResponseDTO.error(e.getMessage()));
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("删除失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("删除失败"));
         }
     }
 
@@ -75,14 +75,14 @@ public class StudyAbroadStageController {
     @SecurityRequirement(name = "Bearer Authentication")
     @PatchMapping("/admin/study-abroad/stages/{id}/status")
     @Operation(summary = "更新阶段状态")
-    public ResponseEntity<ApiResponseDTO<Void>> updateStatus(@PathVariable Long id, @RequestParam Boolean isActive) {
+    public ResponseEntity<CommonResult<Void>> updateStatus(@PathVariable Long id, @RequestParam Boolean isActive) {
         try {
             stageService.updateStatus(id, isActive);
-            return ResponseEntity.ok(ApiResponseDTO.success("更新状态成功", null));
+            return ResponseEntity.ok(CommonResult.success("更新状态成功", null));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(ApiResponseDTO.error(e.getMessage()));
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("更新失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("更新失败"));
         }
     }
 
@@ -90,7 +90,7 @@ public class StudyAbroadStageController {
     @SecurityRequirement(name = "Bearer Authentication")
     @GetMapping("/admin/study-abroad/stages")
     @Operation(summary = "阶段分页列表")
-    public ResponseEntity<ApiResponseDTO<Map<String, Object>>> list(
+    public ResponseEntity<CommonResult<Map<String, Object>>> list(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String keyword,
@@ -104,20 +104,20 @@ public class StudyAbroadStageController {
             data.put("current", p.getCurrent());
             data.put("size", p.getSize());
             data.put("pages", p.getPages());
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", data));
+            return ResponseEntity.ok(CommonResult.success("获取成功", data));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("获取失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("获取失败"));
         }
     }
 
     // 公开端
     @GetMapping("/public/study-abroad/stages")
     @Operation(summary = "获取所有启用阶段（公开）")
-    public ResponseEntity<ApiResponseDTO<List<StudyAbroadStage>>> listActive() {
+    public ResponseEntity<CommonResult<List<StudyAbroadStage>>> listActive() {
         try {
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", stageService.listActive()));
+            return ResponseEntity.ok(CommonResult.success("获取成功", stageService.listActive()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("获取失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("获取失败"));
         }
     }
 }

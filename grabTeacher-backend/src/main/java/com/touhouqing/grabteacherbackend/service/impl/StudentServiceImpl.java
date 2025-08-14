@@ -1,18 +1,18 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.touhouqing.grabteacherbackend.dto.StudentInfoRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.StudentProfileResponseDTO;
-import com.touhouqing.grabteacherbackend.entity.Student;
-import com.touhouqing.grabteacherbackend.entity.StudentSubject;
-import com.touhouqing.grabteacherbackend.entity.BookingRequest;
-import com.touhouqing.grabteacherbackend.entity.Schedule;
+import com.touhouqing.grabteacherbackend.model.dto.StudentInfoDTO;
+import com.touhouqing.grabteacherbackend.model.vo.StudentProfileVO;
+import com.touhouqing.grabteacherbackend.model.entity.Student;
+import com.touhouqing.grabteacherbackend.model.entity.StudentSubject;
+import com.touhouqing.grabteacherbackend.model.entity.BookingRequest;
+import com.touhouqing.grabteacherbackend.model.entity.Schedule;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.UserMapper;
-import com.touhouqing.grabteacherbackend.entity.User;
+import com.touhouqing.grabteacherbackend.model.entity.User;
 import com.touhouqing.grabteacherbackend.service.StudentService;
 import java.util.Map;
 import java.util.HashMap;
@@ -50,7 +50,7 @@ public class StudentServiceImpl implements StudentService {
      * 根据用户ID获取学生个人信息（包含出生年月）
      */
     @Override
-    public StudentProfileResponseDTO getStudentProfileByUserId(Long userId) {
+    public StudentProfileVO getStudentProfileByUserId(Long userId) {
         Student student = getStudentByUserId(userId);
         if (student == null) {
             return null;
@@ -63,7 +63,7 @@ public class StudentServiceImpl implements StudentService {
         // 获取学生感兴趣的科目ID列表
         List<Long> subjectIds = studentSubjectMapper.getSubjectIdsByStudentId(student.getId());
 
-        return StudentProfileResponseDTO.builder()
+        return StudentProfileVO.builder()
                 .id(student.getId())
                 .userId(student.getUserId())
                 .realName(student.getRealName())
@@ -85,7 +85,7 @@ public class StudentServiceImpl implements StudentService {
      */
     @Override
     @Transactional
-    public Student updateStudentInfo(Long userId, StudentInfoRequestDTO request) {
+    public Student updateStudentInfo(Long userId, StudentInfoDTO request) {
         Student student = getStudentByUserId(userId);
         if (student == null) {
             throw new RuntimeException("学生信息不存在");

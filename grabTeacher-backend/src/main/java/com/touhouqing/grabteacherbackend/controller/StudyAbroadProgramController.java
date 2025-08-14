@@ -1,9 +1,9 @@
 package com.touhouqing.grabteacherbackend.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.ApiResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.StudyAbroadProgramRequestDTO;
-import com.touhouqing.grabteacherbackend.entity.StudyAbroadProgram;
+import com.touhouqing.grabteacherbackend.common.result.CommonResult;
+import com.touhouqing.grabteacherbackend.model.dto.StudyAbroadProgramDTO;
+import com.touhouqing.grabteacherbackend.model.entity.StudyAbroadProgram;
 import com.touhouqing.grabteacherbackend.service.StudyAbroadProgramService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,13 +32,13 @@ public class StudyAbroadProgramController {
     @SecurityRequirement(name = "Bearer Authentication")
     @PostMapping("/admin/study-abroad/programs")
     @Operation(summary = "创建项目")
-    public ResponseEntity<ApiResponseDTO<StudyAbroadProgram>> create(@Valid @RequestBody StudyAbroadProgramRequestDTO request) {
+    public ResponseEntity<CommonResult<StudyAbroadProgram>> create(@Valid @RequestBody StudyAbroadProgramDTO request) {
         try {
-            return ResponseEntity.ok(ApiResponseDTO.success("创建成功", programService.create(request)));
+            return ResponseEntity.ok(CommonResult.success("创建成功", programService.create(request)));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(ApiResponseDTO.error(e.getMessage()));
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("创建失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("创建失败"));
         }
     }
 
@@ -46,13 +46,13 @@ public class StudyAbroadProgramController {
     @SecurityRequirement(name = "Bearer Authentication")
     @PutMapping("/admin/study-abroad/programs/{id}")
     @Operation(summary = "更新项目")
-    public ResponseEntity<ApiResponseDTO<StudyAbroadProgram>> update(@PathVariable Long id, @Valid @RequestBody StudyAbroadProgramRequestDTO request) {
+    public ResponseEntity<CommonResult<StudyAbroadProgram>> update(@PathVariable Long id, @Valid @RequestBody StudyAbroadProgramDTO request) {
         try {
-            return ResponseEntity.ok(ApiResponseDTO.success("更新成功", programService.update(id, request)));
+            return ResponseEntity.ok(CommonResult.success("更新成功", programService.update(id, request)));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(ApiResponseDTO.error(e.getMessage()));
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("更新失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("更新失败"));
         }
     }
 
@@ -60,14 +60,14 @@ public class StudyAbroadProgramController {
     @SecurityRequirement(name = "Bearer Authentication")
     @DeleteMapping("/admin/study-abroad/programs/{id}")
     @Operation(summary = "删除项目")
-    public ResponseEntity<ApiResponseDTO<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<CommonResult<Void>> delete(@PathVariable Long id) {
         try {
             programService.delete(id);
-            return ResponseEntity.ok(ApiResponseDTO.success("删除成功", null));
+            return ResponseEntity.ok(CommonResult.success("删除成功", null));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(ApiResponseDTO.error(e.getMessage()));
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("删除失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("删除失败"));
         }
     }
 
@@ -75,14 +75,14 @@ public class StudyAbroadProgramController {
     @SecurityRequirement(name = "Bearer Authentication")
     @PatchMapping("/admin/study-abroad/programs/{id}/status")
     @Operation(summary = "更新项目状态")
-    public ResponseEntity<ApiResponseDTO<Void>> updateStatus(@PathVariable Long id, @RequestParam Boolean isActive) {
+    public ResponseEntity<CommonResult<Void>> updateStatus(@PathVariable Long id, @RequestParam Boolean isActive) {
         try {
             programService.updateStatus(id, isActive);
-            return ResponseEntity.ok(ApiResponseDTO.success("更新状态成功", null));
+            return ResponseEntity.ok(CommonResult.success("更新状态成功", null));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(ApiResponseDTO.error(e.getMessage()));
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("更新失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("更新失败"));
         }
     }
 
@@ -90,15 +90,15 @@ public class StudyAbroadProgramController {
     @SecurityRequirement(name = "Bearer Authentication")
     @PatchMapping("/admin/study-abroad/programs/{id}/flags")
     @Operation(summary = "更新项目热门标记")
-    public ResponseEntity<ApiResponseDTO<Void>> updateFlags(@PathVariable Long id,
-                                                            @RequestParam(required = false) Boolean isHot) {
+    public ResponseEntity<CommonResult<Void>> updateFlags(@PathVariable Long id,
+                                                          @RequestParam(required = false) Boolean isHot) {
         try {
             programService.updateFlags(id, isHot, null);
-            return ResponseEntity.ok(ApiResponseDTO.success("更新标记成功", null));
+            return ResponseEntity.ok(CommonResult.success("更新标记成功", null));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(ApiResponseDTO.error(e.getMessage()));
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("更新失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("更新失败"));
         }
     }
 
@@ -106,7 +106,7 @@ public class StudyAbroadProgramController {
     @SecurityRequirement(name = "Bearer Authentication")
     @GetMapping("/admin/study-abroad/programs")
     @Operation(summary = "项目分页列表")
-    public ResponseEntity<ApiResponseDTO<Map<String, Object>>> list(
+    public ResponseEntity<CommonResult<Map<String, Object>>> list(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String keyword,
@@ -123,24 +123,24 @@ public class StudyAbroadProgramController {
             data.put("current", p.getCurrent());
             data.put("size", p.getSize());
             data.put("pages", p.getPages());
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", data));
+            return ResponseEntity.ok(CommonResult.success("获取成功", data));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("获取失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("获取失败"));
         }
     }
 
     // 公开端
     @GetMapping("/public/study-abroad/programs")
     @Operation(summary = "获取启用的项目（可按国家/阶段过滤，公开）")
-    public ResponseEntity<ApiResponseDTO<List<StudyAbroadProgram>>> listActive(
+    public ResponseEntity<CommonResult<List<StudyAbroadProgram>>> listActive(
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) Long countryId,
             @RequestParam(required = false) Long stageId
     ) {
         try {
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", programService.listActive(limit, countryId, stageId)));
+            return ResponseEntity.ok(CommonResult.success("获取成功", programService.listActive(limit, countryId, stageId)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponseDTO.error("获取失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("获取失败"));
         }
     }
 }

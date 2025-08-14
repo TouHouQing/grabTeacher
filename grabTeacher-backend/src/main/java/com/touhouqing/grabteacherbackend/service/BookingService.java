@@ -1,11 +1,11 @@
 package com.touhouqing.grabteacherbackend.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.entity.BookingRequest;
-import com.touhouqing.grabteacherbackend.dto.BookingApprovalDTO;
-import com.touhouqing.grabteacherbackend.dto.BookingRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.BookingResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.ScheduleResponseDTO;
+import com.touhouqing.grabteacherbackend.model.entity.BookingRequest;
+import com.touhouqing.grabteacherbackend.model.dto.BookingApprovalDTO;
+import com.touhouqing.grabteacherbackend.model.dto.BookingApplyDTO;
+import com.touhouqing.grabteacherbackend.model.vo.BookingVO;
+import com.touhouqing.grabteacherbackend.model.vo.ScheduleVO;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -18,7 +18,7 @@ public interface BookingService {
      * @param studentUserId 学生用户ID
      * @return 预约申请响应数据
      */
-    BookingResponseDTO createBookingRequest(BookingRequestDTO request, Long studentUserId);
+    BookingVO createBookingRequest(BookingApplyDTO request, Long studentUserId);
     
     /**
      * 审批预约申请（管理员操作）
@@ -27,7 +27,7 @@ public interface BookingService {
      * @param adminUserId 管理员用户ID
      * @return 预约申请响应数据
      */
-    BookingResponseDTO approveBookingRequest(Long bookingId, BookingApprovalDTO approval, Long adminUserId);
+    BookingVO approveBookingRequest(Long bookingId, BookingApprovalDTO approval, Long adminUserId);
     
     /**
      * 取消预约申请（学生操作）
@@ -35,14 +35,14 @@ public interface BookingService {
      * @param studentUserId 学生用户ID
      * @return 预约申请响应数据
      */
-    BookingResponseDTO cancelBookingRequest(Long bookingId, Long studentUserId);
+    BookingVO cancelBookingRequest(Long bookingId, Long studentUserId);
     
     /**
      * 根据ID获取预约申请详情
      * @param bookingId 预约申请ID
      * @return 预约申请响应数据
      */
-    BookingResponseDTO getBookingRequestById(Long bookingId);
+    BookingVO getBookingRequestById(Long bookingId);
     
     /**
      * 获取学生的预约申请列表
@@ -52,7 +52,7 @@ public interface BookingService {
      * @param status 状态筛选
      * @return 分页预约申请列表
      */
-    Page<BookingResponseDTO> getStudentBookingRequests(Long studentUserId, int page, int size, String status);
+    Page<BookingVO> getStudentBookingRequests(Long studentUserId, int page, int size, String status);
     
     /**
      * 获取教师的预约申请列表
@@ -62,7 +62,7 @@ public interface BookingService {
      * @param status 状态筛选
      * @return 分页预约申请列表
      */
-    Page<BookingResponseDTO> getTeacherBookingRequests(Long teacherUserId, int page, int size, String status);
+    Page<BookingVO> getTeacherBookingRequests(Long teacherUserId, int page, int size, String status);
     
     /**
      * 获取教师的课程安排列表
@@ -71,7 +71,7 @@ public interface BookingService {
      * @param endDate 结束日期
      * @return 课程安排列表
      */
-    List<ScheduleResponseDTO> getTeacherSchedules(Long teacherUserId, LocalDate startDate, LocalDate endDate);
+    List<ScheduleVO> getTeacherSchedules(Long teacherUserId, LocalDate startDate, LocalDate endDate);
     
     /**
      * 获取学生的课程安排列表
@@ -80,14 +80,14 @@ public interface BookingService {
      * @param endDate 结束日期
      * @return 课程安排列表
      */
-    List<ScheduleResponseDTO> getStudentSchedules(Long studentUserId, LocalDate startDate, LocalDate endDate);
+    List<ScheduleVO> getStudentSchedules(Long studentUserId, LocalDate startDate, LocalDate endDate);
 
     /**
      * 获取学生的所有课程安排列表（不限日期范围）
      * @param studentUserId 学生用户ID
      * @return 课程安排列表
      */
-    List<ScheduleResponseDTO> getAllStudentSchedules(Long studentUserId);
+    List<ScheduleVO> getAllStudentSchedules(Long studentUserId);
     
     /**
      * 检查用户是否可以使用免费试听
@@ -143,7 +143,7 @@ public interface BookingService {
      * @param keyword 搜索关键词
      * @return 分页预约申请列表
      */
-    Page<BookingResponseDTO> getAdminBookingRequests(int page, int size, String status, String keyword);
+    Page<BookingVO> getAdminBookingRequests(int page, int size, String status, String keyword);
     
 
 }

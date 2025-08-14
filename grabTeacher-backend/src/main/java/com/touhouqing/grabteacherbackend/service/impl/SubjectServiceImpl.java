@@ -2,11 +2,11 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.SubjectRequestDTO;
-import com.touhouqing.grabteacherbackend.entity.BookingRequest;
-import com.touhouqing.grabteacherbackend.entity.Course;
-import com.touhouqing.grabteacherbackend.entity.Schedule;
-import com.touhouqing.grabteacherbackend.entity.Subject;
+import com.touhouqing.grabteacherbackend.model.dto.SubjectDTO;
+import com.touhouqing.grabteacherbackend.model.entity.BookingRequest;
+import com.touhouqing.grabteacherbackend.model.entity.Course;
+import com.touhouqing.grabteacherbackend.model.entity.Schedule;
+import com.touhouqing.grabteacherbackend.model.entity.Subject;
 import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseGradeMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
@@ -45,7 +45,7 @@ public class SubjectServiceImpl implements SubjectService {
     @Override
     @Transactional
     @CacheEvict(cacheNames = {"activeSubjects", "subjects"}, allEntries = true)
-    public Subject createSubject(SubjectRequestDTO request) {
+    public Subject createSubject(SubjectDTO request) {
         // 检查科目名称是否已存在
         QueryWrapper<Subject> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("name", request.getName());
@@ -74,7 +74,7 @@ public class SubjectServiceImpl implements SubjectService {
     @Override
     @Transactional
     @CacheEvict(cacheNames = {"activeSubjects", "subjects"}, allEntries = true)
-    public Subject updateSubject(Long id, SubjectRequestDTO request) {
+    public Subject updateSubject(Long id, SubjectDTO request) {
         Subject subject = subjectMapper.selectById(id);
         if (subject == null || subject.getIsDeleted()) {
             throw new RuntimeException("科目不存在");

@@ -1,13 +1,12 @@
 package com.touhouqing.grabteacherbackend.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.touhouqing.grabteacherbackend.entity.Schedule;
+import com.touhouqing.grabteacherbackend.model.entity.Schedule;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 

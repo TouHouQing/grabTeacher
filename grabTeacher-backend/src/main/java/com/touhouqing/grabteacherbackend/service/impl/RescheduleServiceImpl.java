@@ -2,10 +2,10 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.RescheduleApprovalDTO;
-import com.touhouqing.grabteacherbackend.dto.RescheduleRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.RescheduleResponseDTO;
-import com.touhouqing.grabteacherbackend.entity.*;
+import com.touhouqing.grabteacherbackend.model.dto.RescheduleApprovalDTO;
+import com.touhouqing.grabteacherbackend.model.dto.RescheduleApplyDTO;
+import com.touhouqing.grabteacherbackend.model.entity.*;
+import com.touhouqing.grabteacherbackend.model.vo.RescheduleVO;
 import com.touhouqing.grabteacherbackend.mapper.*;
 import com.touhouqing.grabteacherbackend.service.RescheduleService;
 import com.touhouqing.grabteacherbackend.service.TeacherCacheWarmupService;
@@ -58,7 +58,7 @@ public class RescheduleServiceImpl implements RescheduleService {
 
     @Override
     @Transactional
-    public RescheduleResponseDTO createRescheduleRequest(RescheduleRequestDTO request, Long studentUserId) {
+    public RescheduleVO createRescheduleRequest(RescheduleApplyDTO request, Long studentUserId) {
         log.info("创建调课申请，学生用户ID: {}, 课程安排ID: {}", studentUserId, request.getScheduleId());
 
         // 获取学生信息
@@ -131,7 +131,7 @@ public class RescheduleServiceImpl implements RescheduleService {
 
     @Override
     @Transactional
-    public RescheduleResponseDTO approveRescheduleRequest(Long rescheduleId, RescheduleApprovalDTO approval, Long teacherUserId) {
+    public RescheduleVO approveRescheduleRequest(Long rescheduleId, RescheduleApprovalDTO approval, Long teacherUserId) {
         log.info("教师审批调课申请，申请ID: {}, 教师用户ID: {}, 状态: {}", rescheduleId, teacherUserId, approval.getStatus());
 
         RescheduleRequest rescheduleRequest = rescheduleRequestMapper.selectById(rescheduleId);
@@ -224,7 +224,7 @@ public class RescheduleServiceImpl implements RescheduleService {
 
     @Override
     @Transactional
-    public RescheduleResponseDTO cancelRescheduleRequest(Long rescheduleId, Long studentUserId) {
+    public RescheduleVO cancelRescheduleRequest(Long rescheduleId, Long studentUserId) {
         log.info("取消调课申请，申请ID: {}, 学生用户ID: {}", rescheduleId, studentUserId);
 
         RescheduleRequest rescheduleRequest = rescheduleRequestMapper.selectById(rescheduleId);
@@ -258,7 +258,7 @@ public class RescheduleServiceImpl implements RescheduleService {
     }
 
     @Override
-    public Page<RescheduleResponseDTO> getStudentRescheduleRequests(Long studentUserId, int page, int size, String status) {
+    public Page<RescheduleVO> getStudentRescheduleRequests(Long studentUserId, int page, int size, String status) {
         log.info("获取学生调课申请列表，学生用户ID: {}, 页码: {}, 大小: {}, 状态: {}", studentUserId, page, size, status);
 
         Student student = studentMapper.findByUserId(studentUserId);
@@ -270,7 +270,7 @@ public class RescheduleServiceImpl implements RescheduleService {
         Page<RescheduleRequest> resultPage = rescheduleRequestMapper.findByApplicantWithPage(
             requestPage, student.getId(), "student", status);
 
-        Page<RescheduleResponseDTO> responsePage = new Page<>(page, size);
+        Page<RescheduleVO> responsePage = new Page<>(page, size);
         responsePage.setTotal(resultPage.getTotal());
         responsePage.setRecords(
             resultPage.getRecords().stream()
@@ -282,7 +282,7 @@ public class RescheduleServiceImpl implements RescheduleService {
     }
 
     @Override
-    public Page<RescheduleResponseDTO> getTeacherRescheduleRequests(Long teacherUserId, int page, int size, String status) {
+    public Page<RescheduleVO> getTeacherRescheduleRequests(Long teacherUserId, int page, int size, String status) {
         log.info("获取教师调课申请列表，教师用户ID: {}, 页码: {}, 大小: {}, 状态: {}", teacherUserId, page, size, status);
 
         Teacher teacher = teacherMapper.findByUserId(teacherUserId);
@@ -294,7 +294,7 @@ public class RescheduleServiceImpl implements RescheduleService {
         Page<RescheduleRequest> resultPage = rescheduleRequestMapper.findByTeacherIdWithPage(
             requestPage, teacher.getId(), status);
 
-        Page<RescheduleResponseDTO> responsePage = new Page<>(page, size);
+        Page<RescheduleVO> responsePage = new Page<>(page, size);
         responsePage.setTotal(resultPage.getTotal());
         responsePage.setRecords(
             resultPage.getRecords().stream()
@@ -306,7 +306,7 @@ public class RescheduleServiceImpl implements RescheduleService {
     }
 
     @Override
-    public RescheduleResponseDTO getRescheduleRequestById(Long rescheduleId, Long currentUserId, String userType) {
+    public RescheduleVO getRescheduleRequestById(Long rescheduleId, Long currentUserId, String userType) {
         log.info("获取调课申请详情，申请ID: {}, 用户ID: {}, 用户类型: {}", rescheduleId, currentUserId, userType);
 
         RescheduleRequest rescheduleRequest = rescheduleRequestMapper.selectById(rescheduleId);
@@ -548,8 +548,8 @@ public class RescheduleServiceImpl implements RescheduleService {
     /**
      * 转换为响应DTO
      */
-    private RescheduleResponseDTO convertToRescheduleResponseDTO(RescheduleRequest rescheduleRequest) {
-        RescheduleResponseDTO.RescheduleResponseDTOBuilder builder = RescheduleResponseDTO.builder()
+    private RescheduleVO convertToRescheduleResponseDTO(RescheduleRequest rescheduleRequest) {
+        RescheduleVO.RescheduleVOBuilder builder = RescheduleVO.builder()
                 .id(rescheduleRequest.getId())
                 .scheduleId(rescheduleRequest.getScheduleId())
                 .applicantId(rescheduleRequest.getApplicantId())

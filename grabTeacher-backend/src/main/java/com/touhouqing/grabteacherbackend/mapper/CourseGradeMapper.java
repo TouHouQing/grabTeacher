@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.touhouqing.grabteacherbackend.entity.CourseGrade;
+import com.touhouqing.grabteacherbackend.model.entity.CourseGrade;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;

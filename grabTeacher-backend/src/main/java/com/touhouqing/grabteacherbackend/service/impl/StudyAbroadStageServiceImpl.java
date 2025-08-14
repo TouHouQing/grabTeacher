@@ -2,12 +2,12 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.StudyAbroadStageRequestDTO;
-import com.touhouqing.grabteacherbackend.entity.StudyAbroadStage;
+import com.touhouqing.grabteacherbackend.model.dto.StudyAbroadStageDTO;
+import com.touhouqing.grabteacherbackend.model.entity.StudyAbroadStage;
 import com.touhouqing.grabteacherbackend.mapper.StudyAbroadStageMapper;
 import com.touhouqing.grabteacherbackend.service.StudyAbroadStageService;
 import com.touhouqing.grabteacherbackend.mapper.StudyAbroadProgramMapper;
-import com.touhouqing.grabteacherbackend.entity.StudyAbroadProgram;
+import com.touhouqing.grabteacherbackend.model.entity.StudyAbroadProgram;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -30,7 +30,7 @@ public class StudyAbroadStageServiceImpl implements StudyAbroadStageService {
     @Override
     @Transactional
     @CacheEvict(cacheNames = {"abroad:stages:list", "abroad:stages:active"}, allEntries = true)
-    public StudyAbroadStage create(StudyAbroadStageRequestDTO request) {
+    public StudyAbroadStage create(StudyAbroadStageDTO request) {
         // 重名检查（忽略软删除）
         QueryWrapper<StudyAbroadStage> qw = new QueryWrapper<>();
         qw.eq("stage_name", request.getStageName())
@@ -55,7 +55,7 @@ public class StudyAbroadStageServiceImpl implements StudyAbroadStageService {
     @Override
     @Transactional
     @CacheEvict(cacheNames = {"abroad:stages:list", "abroad:stages:active"}, allEntries = true)
-    public StudyAbroadStage update(Long id, StudyAbroadStageRequestDTO request) {
+    public StudyAbroadStage update(Long id, StudyAbroadStageDTO request) {
         StudyAbroadStage entity = stageMapper.selectById(id);
         if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
             throw new RuntimeException("阶段不存在");

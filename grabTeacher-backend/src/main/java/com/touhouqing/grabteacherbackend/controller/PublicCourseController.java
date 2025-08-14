@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.controller;
 
-import com.touhouqing.grabteacherbackend.dto.ApiResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.CourseResponseDTO;
+import com.touhouqing.grabteacherbackend.common.result.CommonResult;
+import com.touhouqing.grabteacherbackend.model.vo.CourseVO;
 import com.touhouqing.grabteacherbackend.service.CourseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -51,7 +51,7 @@ public class PublicCourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功")
     })
     @GetMapping
-    public ResponseEntity<ApiResponseDTO<Map<String, Object>>> getPublicCourseList(
+    public ResponseEntity<CommonResult<Map<String, Object>>> getPublicCourseList(
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
@@ -61,7 +61,7 @@ public class PublicCourseController {
             @Parameter(description = "适用年级") @RequestParam(required = false) String grade) {
         try {
             // 只返回活跃状态的课程
-            Page<CourseResponseDTO> coursePage = courseService.getCourseList(page, size, keyword,
+            Page<CourseVO> coursePage = courseService.getCourseList(page, size, keyword,
                     subjectId, teacherId, "active", courseType, grade);
             
             Map<String, Object> response = new HashMap<>();
@@ -71,11 +71,11 @@ public class PublicCourseController {
             response.put("size", coursePage.getSize());
             response.put("pages", coursePage.getPages());
             
-            return ResponseEntity.ok(ApiResponseDTO.success("获取课程列表成功", response));
+            return ResponseEntity.ok(CommonResult.success("获取课程列表成功", response));
         } catch (Exception e) {
             logger.error("获取公开课程列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
+                    .body(CommonResult.error("获取失败，请稍后重试"));
         }
     }
 
@@ -109,12 +109,12 @@ public class PublicCourseController {
             }
 
             // 3) 回源：获取对象列表，序列化为 JSON 文本，并写回两级缓存
-            List<CourseResponseDTO> courses = (limit == null || limit <= 0)
+            List<CourseVO> courses = (limit == null || limit <= 0)
                     ? courseService.getActiveCourses()
                     : courseService.getActiveCoursesLimited(limit);
 
             // 使用项目全局 ObjectMapper 确保序列化一致
-            json = objectMapper.writeValueAsString(ApiResponseDTO.success("获取活跃课程列表成功", courses));
+            json = objectMapper.writeValueAsString(CommonResult.success("获取活跃课程列表成功", courses));
 
             activeCoursesLocalCache.put(cacheKey, json);
             // 与 activeCoursesLimited TTL 对齐（5 分钟）；全量也使用 5 分钟，避免过期不一致
@@ -124,7 +124,7 @@ public class PublicCourseController {
         } catch (Exception e) {
             logger.error("获取活跃课程列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
+                    .body(CommonResult.error("获取失败，请稍后重试"));
         }
     }
 
@@ -137,24 +137,24 @@ public class PublicCourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "课程不存在")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponseDTO<CourseResponseDTO>> getCourseById(
+    public ResponseEntity<CommonResult<CourseVO>> getCourseById(
             @Parameter(description = "课程ID", required = true) @PathVariable Long id) {
         try {
-            CourseResponseDTO course = courseService.getCourseById(id);
+            CourseVO course = courseService.getCourseById(id);
             if (course == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponseDTO.error("课程不存在"));
+                        .body(CommonResult.error("课程不存在"));
             }
             // 只返回活跃状态的课程
             if (!"active".equals(course.getStatus())) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponseDTO.error("课程不存在或已下架"));
+                        .body(CommonResult.error("课程不存在或已下架"));
             }
-            return ResponseEntity.ok(ApiResponseDTO.success("获取课程成功", course));
+            return ResponseEntity.ok(CommonResult.success("获取课程成功", course));
         } catch (Exception e) {
             logger.error("获取课程异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
+                    .body(CommonResult.error("获取失败，请稍后重试"));
         }
     }
 
@@ -166,14 +166,14 @@ public class PublicCourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功")
     })
     @GetMapping("/latest")
-    public ResponseEntity<ApiResponseDTO<Map<String, Object>>> getLatestCourses(
+    public ResponseEntity<CommonResult<Map<String, Object>>> getLatestCourses(
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "6") int size,
             @Parameter(description = "科目ID") @RequestParam(required = false) Long subjectId,
             @Parameter(description = "适用年级") @RequestParam(required = false) String grade) {
         try {
             // 获取精选课程列表
-            Page<CourseResponseDTO> coursePage = courseService.getFeaturedCourses(page, size, subjectId, grade);
+            Page<CourseVO> coursePage = courseService.getFeaturedCourses(page, size, subjectId, grade);
 
             Map<String, Object> response = new HashMap<>();
             response.put("courses", coursePage.getRecords());
@@ -182,11 +182,11 @@ public class PublicCourseController {
             response.put("size", coursePage.getSize());
             response.put("pages", coursePage.getPages());
 
-            return ResponseEntity.ok(ApiResponseDTO.success("获取最新课程列表成功", response));
+            return ResponseEntity.ok(CommonResult.success("获取最新课程列表成功", response));
         } catch (Exception e) {
             logger.error("获取最新课程列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
+                    .body(CommonResult.error("获取失败，请稍后重试"));
         }
     }
 }

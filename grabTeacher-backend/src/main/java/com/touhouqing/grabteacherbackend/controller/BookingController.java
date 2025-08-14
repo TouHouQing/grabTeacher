@@ -1,9 +1,13 @@
 package com.touhouqing.grabteacherbackend.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.*;
+import com.touhouqing.grabteacherbackend.common.result.CommonResult;
+import com.touhouqing.grabteacherbackend.model.vo.BookingVO;
+import com.touhouqing.grabteacherbackend.model.dto.BookingApplyDTO;
+import com.touhouqing.grabteacherbackend.model.dto.BookingApprovalDTO;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.BookingService;
+import com.touhouqing.grabteacherbackend.model.vo.ScheduleVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -44,25 +48,25 @@ public class BookingController {
     @Operation(summary = "创建预约申请", description = "学生创建课程预约申请")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "预约申请创建成功",
-                    content = @Content(schema = @Schema(implementation = BookingResponseDTO.class))),
+                    content = @Content(schema = @Schema(implementation = BookingVO.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "请求参数错误"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
     })
-    public ResponseEntity<ApiResponseDTO<BookingResponseDTO>> createBookingRequest(
-            @Valid @RequestBody BookingRequestDTO request,
+    public ResponseEntity<CommonResult<BookingVO>> createBookingRequest(
+            @Valid @RequestBody BookingApplyDTO request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
-            BookingResponseDTO response = bookingService.createBookingRequest(request, currentUser.getId());
-            return ResponseEntity.ok(ApiResponseDTO.success("预约申请创建成功", response));
+            BookingVO response = bookingService.createBookingRequest(request, currentUser.getId());
+            return ResponseEntity.ok(CommonResult.success("预约申请创建成功", response));
         } catch (RuntimeException e) {
             logger.warn("创建预约申请失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("创建预约申请异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("创建预约申请失败"));
+                    .body(CommonResult.error("创建预约申请失败"));
         }
     }
 
@@ -74,27 +78,27 @@ public class BookingController {
     @Operation(summary = "管理员审批预约申请", description = "管理员审批学生的预约申请")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "审批成功",
-                    content = @Content(schema = @Schema(implementation = BookingResponseDTO.class))),
+                    content = @Content(schema = @Schema(implementation = BookingVO.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "请求参数错误"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "预约申请不存在")
     })
-    public ResponseEntity<ApiResponseDTO<BookingResponseDTO>> approveBookingRequest(
+    public ResponseEntity<CommonResult<BookingVO>> approveBookingRequest(
             @Parameter(description = "预约申请ID", required = true) @PathVariable Long id,
             @Valid @RequestBody BookingApprovalDTO approval,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
-            BookingResponseDTO response = bookingService.approveBookingRequest(id, approval, currentUser.getId());
-            return ResponseEntity.ok(ApiResponseDTO.success("审批成功", response));
+            BookingVO response = bookingService.approveBookingRequest(id, approval, currentUser.getId());
+            return ResponseEntity.ok(CommonResult.success("审批成功", response));
         } catch (RuntimeException e) {
             logger.warn("审批预约申请失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("审批预约申请异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("审批失败"));
+                    .body(CommonResult.error("审批失败"));
         }
     }
 
@@ -106,26 +110,26 @@ public class BookingController {
     @Operation(summary = "学生取消预约申请", description = "学生取消自己的预约申请")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "取消成功",
-                    content = @Content(schema = @Schema(implementation = BookingResponseDTO.class))),
+                    content = @Content(schema = @Schema(implementation = BookingVO.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "请求参数错误"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "预约申请不存在")
     })
-    public ResponseEntity<ApiResponseDTO<BookingResponseDTO>> cancelBookingRequest(
+    public ResponseEntity<CommonResult<BookingVO>> cancelBookingRequest(
             @Parameter(description = "预约申请ID", required = true) @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
-            BookingResponseDTO response = bookingService.cancelBookingRequest(id, currentUser.getId());
-            return ResponseEntity.ok(ApiResponseDTO.success("取消成功", response));
+            BookingVO response = bookingService.cancelBookingRequest(id, currentUser.getId());
+            return ResponseEntity.ok(CommonResult.success("取消成功", response));
         } catch (RuntimeException e) {
             logger.warn("取消预约申请失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("取消预约申请异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("取消失败"));
+                    .body(CommonResult.error("取消失败"));
         }
     }
 
@@ -137,23 +141,23 @@ public class BookingController {
     @Operation(summary = "获取预约申请详情", description = "根据ID获取预约申请的详细信息")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功",
-                    content = @Content(schema = @Schema(implementation = BookingResponseDTO.class))),
+                    content = @Content(schema = @Schema(implementation = BookingVO.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "预约申请不存在")
     })
-    public ResponseEntity<ApiResponseDTO<BookingResponseDTO>> getBookingRequest(
+    public ResponseEntity<CommonResult<BookingVO>> getBookingRequest(
             @Parameter(description = "预约申请ID", required = true) @PathVariable Long id) {
         try {
-            BookingResponseDTO response = bookingService.getBookingRequestById(id);
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", response));
+            BookingVO response = bookingService.getBookingRequestById(id);
+            return ResponseEntity.ok(CommonResult.success("获取成功", response));
         } catch (RuntimeException e) {
             logger.warn("获取预约申请失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("获取预约申请异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -168,18 +172,18 @@ public class BookingController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
     })
-    public ResponseEntity<ApiResponseDTO<Page<BookingResponseDTO>>> getStudentBookingRequests(
+    public ResponseEntity<CommonResult<Page<BookingVO>>> getStudentBookingRequests(
             @Parameter(description = "页码", example = "1") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小", example = "10") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "状态筛选") @RequestParam(required = false) String status,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
-            Page<BookingResponseDTO> response = bookingService.getStudentBookingRequests(currentUser.getId(), page, size, status);
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", response));
+            Page<BookingVO> response = bookingService.getStudentBookingRequests(currentUser.getId(), page, size, status);
+            return ResponseEntity.ok(CommonResult.success("获取成功", response));
         } catch (Exception e) {
             logger.error("获取学生预约申请列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -194,18 +198,18 @@ public class BookingController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
     })
-    public ResponseEntity<ApiResponseDTO<Page<BookingResponseDTO>>> getTeacherBookingRequests(
+    public ResponseEntity<CommonResult<Page<BookingVO>>> getTeacherBookingRequests(
             @Parameter(description = "页码", example = "1") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小", example = "10") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "状态筛选") @RequestParam(required = false) String status,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
-            Page<BookingResponseDTO> response = bookingService.getTeacherBookingRequests(currentUser.getId(), page, size, status);
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", response));
+            Page<BookingVO> response = bookingService.getTeacherBookingRequests(currentUser.getId(), page, size, status);
+            return ResponseEntity.ok(CommonResult.success("获取成功", response));
         } catch (Exception e) {
             logger.error("获取教师预约申请列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -220,19 +224,19 @@ public class BookingController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
     })
-    public ResponseEntity<ApiResponseDTO<List<ScheduleResponseDTO>>> getTeacherSchedules(
+    public ResponseEntity<CommonResult<List<ScheduleVO>>> getTeacherSchedules(
             @Parameter(description = "开始日期", example = "2024-01-01")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "结束日期", example = "2024-01-31")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
-            List<ScheduleResponseDTO> response = bookingService.getTeacherSchedules(currentUser.getId(), startDate, endDate);
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", response));
+            List<ScheduleVO> response = bookingService.getTeacherSchedules(currentUser.getId(), startDate, endDate);
+            return ResponseEntity.ok(CommonResult.success("获取成功", response));
         } catch (Exception e) {
             logger.error("获取教师课程安排列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -247,19 +251,19 @@ public class BookingController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
     })
-    public ResponseEntity<ApiResponseDTO<List<ScheduleResponseDTO>>> getStudentSchedules(
+    public ResponseEntity<CommonResult<List<ScheduleVO>>> getStudentSchedules(
             @Parameter(description = "开始日期", example = "2024-01-01")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "结束日期", example = "2024-01-31")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
-            List<ScheduleResponseDTO> response = bookingService.getStudentSchedules(currentUser.getId(), startDate, endDate);
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", response));
+            List<ScheduleVO> response = bookingService.getStudentSchedules(currentUser.getId(), startDate, endDate);
+            return ResponseEntity.ok(CommonResult.success("获取成功", response));
         } catch (Exception e) {
             logger.error("获取学生课程安排列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -274,15 +278,15 @@ public class BookingController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
     })
-    public ResponseEntity<ApiResponseDTO<List<ScheduleResponseDTO>>> getAllStudentSchedules(
+    public ResponseEntity<CommonResult<List<ScheduleVO>>> getAllStudentSchedules(
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
-            List<ScheduleResponseDTO> response = bookingService.getAllStudentSchedules(currentUser.getId());
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", response));
+            List<ScheduleVO> response = bookingService.getAllStudentSchedules(currentUser.getId());
+            return ResponseEntity.ok(CommonResult.success("获取成功", response));
         } catch (Exception e) {
             logger.error("获取学生所有课程安排列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -297,15 +301,15 @@ public class BookingController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
     })
-    public ResponseEntity<ApiResponseDTO<Boolean>> checkTrialEligibility(
+    public ResponseEntity<CommonResult<Boolean>> checkTrialEligibility(
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             boolean canUseTrial = bookingService.canUseFreeTrial(currentUser.getId());
-            return ResponseEntity.ok(ApiResponseDTO.success("检查成功", canUseTrial));
+            return ResponseEntity.ok(CommonResult.success("检查成功", canUseTrial));
         } catch (Exception e) {
             logger.error("检查试听资格异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("检查失败"));
+                    .body(CommonResult.error("检查失败"));
         }
     }
 
@@ -320,18 +324,18 @@ public class BookingController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
     })
-    public ResponseEntity<ApiResponseDTO<Page<BookingResponseDTO>>> getAdminBookingRequests(
+    public ResponseEntity<CommonResult<Page<BookingVO>>> getAdminBookingRequests(
             @Parameter(description = "页码", example = "1") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小", example = "10") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "状态筛选") @RequestParam(required = false) String status,
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword) {
         try {
-            Page<BookingResponseDTO> response = bookingService.getAdminBookingRequests(page, size, status, keyword);
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", response));
+            Page<BookingVO> response = bookingService.getAdminBookingRequests(page, size, status, keyword);
+            return ResponseEntity.ok(CommonResult.success("获取成功", response));
         } catch (Exception e) {
             logger.error("获取管理员预约申请列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 

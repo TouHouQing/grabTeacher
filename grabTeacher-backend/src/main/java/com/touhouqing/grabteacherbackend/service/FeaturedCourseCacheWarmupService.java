@@ -1,5 +1,6 @@
 package com.touhouqing.grabteacherbackend.service;
 
+import com.touhouqing.grabteacherbackend.model.entity.Subject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
@@ -97,8 +98,8 @@ public class FeaturedCourseCacheWarmupService implements ApplicationRunner {
     private void warmupFeaturedCoursesBySubjects() {
         try {
             // 预热科目的精选课程（动态获取激活科目）
-            List<com.touhouqing.grabteacherbackend.entity.Subject> activeSubjects = subjectService.getAllActiveSubjects();
-            for (com.touhouqing.grabteacherbackend.entity.Subject s : activeSubjects) {
+            List<Subject> activeSubjects = subjectService.getAllActiveSubjects();
+            for (Subject s : activeSubjects) {
                 try {
                     courseService.getFeaturedCourses(1, 6, s.getId(), null);
                     log.debug("预热科目{}的精选课程完成", s.getName());

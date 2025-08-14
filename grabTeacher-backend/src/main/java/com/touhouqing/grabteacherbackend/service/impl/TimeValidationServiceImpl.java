@@ -1,10 +1,11 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
-import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
-import com.touhouqing.grabteacherbackend.dto.TimeValidationResultDTO;
-import com.touhouqing.grabteacherbackend.entity.Teacher;
+import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.model.dto.TimeValidationResultDTO;
+import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
+import com.touhouqing.grabteacherbackend.model.entity.Schedule;
 import com.touhouqing.grabteacherbackend.service.TimeValidationService;
 import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
@@ -345,10 +346,10 @@ public class TimeValidationServiceImpl implements TimeValidationService {
 
     // 一次性构建范围 busyMap 并批量回填 Redis
     private Map<LocalDate, List<String>> buildBusyMapAndBackfill(Long teacherId, LocalDate startDate, LocalDate endDate) {
-        List<com.touhouqing.grabteacherbackend.entity.Schedule> range =
+        List<Schedule> range =
                 scheduleMapper.findByTeacherIdAndDateRange(teacherId, startDate, endDate);
         Map<LocalDate, List<String>> busyMap = new HashMap<>();
-        for (com.touhouqing.grabteacherbackend.entity.Schedule s : range) {
+        for (Schedule s : range) {
             LocalDate d = s.getScheduledDate();
             String slot = s.getStartTime().toString() + "-" + s.getEndTime().toString();
             busyMap.computeIfAbsent(d, k -> new ArrayList<>()).add(slot);

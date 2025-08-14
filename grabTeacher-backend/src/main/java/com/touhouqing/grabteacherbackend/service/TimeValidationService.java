@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
-import com.touhouqing.grabteacherbackend.dto.TimeValidationResultDTO;
+import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.model.dto.TimeValidationResultDTO;
 
 import java.time.LocalDate;
 import java.util.List;

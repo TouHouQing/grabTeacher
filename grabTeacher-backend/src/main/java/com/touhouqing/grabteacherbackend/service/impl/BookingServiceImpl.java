@@ -2,15 +2,19 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.*;
-import com.touhouqing.grabteacherbackend.entity.*;
+import com.touhouqing.grabteacherbackend.model.entity.*;
+import com.touhouqing.grabteacherbackend.model.vo.BookingVO;
 import com.touhouqing.grabteacherbackend.mapper.*;
+import com.touhouqing.grabteacherbackend.model.dto.BookingApplyDTO;
+import com.touhouqing.grabteacherbackend.model.dto.BookingApprovalDTO;
+import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.service.BookingService;
 import com.touhouqing.grabteacherbackend.service.DistributedLockService;
 import com.touhouqing.grabteacherbackend.service.TeacherCacheWarmupService;
 import com.touhouqing.grabteacherbackend.service.CacheKeyEvictor;
 import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
+import com.touhouqing.grabteacherbackend.model.vo.ScheduleVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -63,7 +67,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
-    public BookingResponseDTO createBookingRequest(BookingRequestDTO request, Long studentUserId) {
+    public BookingVO createBookingRequest(BookingApplyDTO request, Long studentUserId) {
         log.info("创建预约申请，学生用户ID: {}, 教师ID: {}", studentUserId, request.getTeacherId());
 
         // 获取学生信息
@@ -133,7 +137,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
-    public BookingResponseDTO approveBookingRequest(Long bookingId, BookingApprovalDTO approval, Long adminUserId) {
+    public BookingVO approveBookingRequest(Long bookingId, BookingApprovalDTO approval, Long adminUserId) {
         log.info("管理员审批预约申请，预约ID: {}, 管理员用户ID: {}, 状态: {}", bookingId, adminUserId, approval.getStatus());
 
         BookingRequest bookingRequest = bookingRequestMapper.selectById(bookingId);
@@ -234,7 +238,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public BookingResponseDTO cancelBookingRequest(Long bookingId, Long studentUserId) {
+    public BookingVO cancelBookingRequest(Long bookingId, Long studentUserId) {
         log.info("学生取消预约申请，预约ID: {}, 学生用户ID: {}", bookingId, studentUserId);
 
         BookingRequest bookingRequest = bookingRequestMapper.selectById(bookingId);
@@ -268,7 +272,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public BookingResponseDTO getBookingRequestById(Long bookingId) {
+    public BookingVO getBookingRequestById(Long bookingId) {
         BookingRequest bookingRequest = bookingRequestMapper.selectById(bookingId);
         if (bookingRequest == null) {
             throw new RuntimeException("预约申请不存在");
@@ -277,7 +281,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public Page<BookingResponseDTO> getStudentBookingRequests(Long studentUserId, int page, int size, String status) {
+    public Page<BookingVO> getStudentBookingRequests(Long studentUserId, int page, int size, String status) {
         Student student = studentMapper.findByUserId(studentUserId);
         if (student == null) {
             throw new RuntimeException("学生信息不存在");
@@ -295,7 +299,7 @@ public class BookingServiceImpl implements BookingService {
 
         Page<BookingRequest> bookingPage = bookingRequestMapper.selectPage(new Page<>(page, size), queryWrapper);
         
-        Page<BookingResponseDTO> responsePage = new Page<>(page, size);
+        Page<BookingVO> responsePage = new Page<>(page, size);
         responsePage.setTotal(bookingPage.getTotal());
         responsePage.setRecords(bookingPage.getRecords().stream()
                 .map(this::convertToBookingResponseDTO)
@@ -305,7 +309,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public Page<BookingResponseDTO> getTeacherBookingRequests(Long teacherUserId, int page, int size, String status) {
+    public Page<BookingVO> getTeacherBookingRequests(Long teacherUserId, int page, int size, String status) {
         Teacher teacher = teacherMapper.findByUserId(teacherUserId);
         if (teacher == null) {
             throw new RuntimeException("教师信息不存在");
@@ -323,7 +327,7 @@ public class BookingServiceImpl implements BookingService {
 
         Page<BookingRequest> bookingPage = bookingRequestMapper.selectPage(new Page<>(page, size), queryWrapper);
         
-        Page<BookingResponseDTO> responsePage = new Page<>(page, size);
+        Page<BookingVO> responsePage = new Page<>(page, size);
         responsePage.setTotal(bookingPage.getTotal());
         responsePage.setRecords(bookingPage.getRecords().stream()
                 .map(this::convertToBookingResponseDTO)
@@ -333,7 +337,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public List<ScheduleResponseDTO> getTeacherSchedules(Long teacherUserId, LocalDate startDate, LocalDate endDate) {
+    public List<ScheduleVO> getTeacherSchedules(Long teacherUserId, LocalDate startDate, LocalDate endDate) {
         Teacher teacher = teacherMapper.findByUserId(teacherUserId);
         if (teacher == null) {
             throw new RuntimeException("教师信息不存在");
@@ -346,7 +350,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public List<ScheduleResponseDTO> getStudentSchedules(Long studentUserId, LocalDate startDate, LocalDate endDate) {
+    public List<ScheduleVO> getStudentSchedules(Long studentUserId, LocalDate startDate, LocalDate endDate) {
         Student student = studentMapper.findByUserId(studentUserId);
         if (student == null) {
             throw new RuntimeException("学生信息不存在");
@@ -359,7 +363,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public List<ScheduleResponseDTO> getAllStudentSchedules(Long studentUserId) {
+    public List<ScheduleVO> getAllStudentSchedules(Long studentUserId) {
         Student student = studentMapper.findByUserId(studentUserId);
         if (student == null) {
             throw new RuntimeException("学生信息不存在");
@@ -591,7 +595,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public Page<BookingResponseDTO> getAdminBookingRequests(int page, int size, String status, String keyword) {
+    public Page<BookingVO> getAdminBookingRequests(int page, int size, String status, String keyword) {
         QueryWrapper<BookingRequest> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("is_deleted", false);
 
@@ -610,7 +614,7 @@ public class BookingServiceImpl implements BookingService {
 
         Page<BookingRequest> bookingPage = bookingRequestMapper.selectPage(new Page<>(page, size), queryWrapper);
 
-        Page<BookingResponseDTO> responsePage = new Page<>(page, size);
+        Page<BookingVO> responsePage = new Page<>(page, size);
         responsePage.setTotal(bookingPage.getTotal());
         responsePage.setRecords(bookingPage.getRecords().stream()
                 .map(this::convertToBookingResponseDTO)
@@ -626,7 +630,7 @@ public class BookingServiceImpl implements BookingService {
     /**
      * 验证预约时间
      */
-    private void validateBookingTime(BookingRequestDTO request, Long studentId, Long teacherId) {
+    private void validateBookingTime(BookingApplyDTO request, Long studentId, Long teacherId) {
         if ("single".equals(request.getBookingType())) {
             // 单次预约验证
             if (request.getRequestedDate() == null || request.getRequestedStartTime() == null || request.getRequestedEndTime() == null) {
@@ -753,7 +757,7 @@ public class BookingServiceImpl implements BookingService {
     /**
      * 将BookingRequest转换为BookingResponseDTO
      */
-    private BookingResponseDTO convertToBookingResponseDTO(BookingRequest bookingRequest) {
+    private BookingVO convertToBookingResponseDTO(BookingRequest bookingRequest) {
         // 获取学生信息
         Student student = studentMapper.selectById(bookingRequest.getStudentId());
         String studentName = student != null ? student.getRealName() : "未知学生";
@@ -777,7 +781,7 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        return BookingResponseDTO.builder()
+        return BookingVO.builder()
                 .id(bookingRequest.getId())
                 .studentId(bookingRequest.getStudentId())
                 .studentName(studentName)
@@ -811,7 +815,7 @@ public class BookingServiceImpl implements BookingService {
     /**
      * 将Schedule转换为ScheduleResponseDTO
      */
-    private ScheduleResponseDTO convertToScheduleResponseDTO(Schedule schedule) {
+    private ScheduleVO convertToScheduleResponseDTO(Schedule schedule) {
         // 获取学生信息
         Student student = studentMapper.selectById(schedule.getStudentId());
         String studentName = student != null ? student.getRealName() : "未知学生";
@@ -838,7 +842,7 @@ public class BookingServiceImpl implements BookingService {
             durationMinutes = (int) java.time.Duration.between(schedule.getStartTime(), schedule.getEndTime()).toMinutes();
         }
 
-        return ScheduleResponseDTO.builder()
+        return ScheduleVO.builder()
                 .id(schedule.getId())
                 .teacherId(schedule.getTeacherId())
                 .teacherName(teacherName)
@@ -867,7 +871,7 @@ public class BookingServiceImpl implements BookingService {
     /**
      * 验证单次预约时间是否在教师可预约时间范围内
      */
-    private void validateSingleBookingTime(BookingRequestDTO request, Long teacherId) {
+    private void validateSingleBookingTime(BookingApplyDTO request, Long teacherId) {
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
             throw new RuntimeException("教师信息不存在");
@@ -908,7 +912,7 @@ public class BookingServiceImpl implements BookingService {
     /**
      * 验证周期性预约时间是否在教师可预约时间范围内
      */
-    private void validateRecurringBookingTime(BookingRequestDTO request, Long teacherId) {
+    private void validateRecurringBookingTime(BookingApplyDTO request, Long teacherId) {
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
             throw new RuntimeException("教师信息不存在");

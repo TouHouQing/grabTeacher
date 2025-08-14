@@ -1,9 +1,9 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
-import com.touhouqing.grabteacherbackend.dto.AvailableTimeRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.AvailableTimeResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.TimeSlotDTO;
-import com.touhouqing.grabteacherbackend.entity.Teacher;
+import com.touhouqing.grabteacherbackend.model.dto.AvailableTimeQueryDTO;
+import com.touhouqing.grabteacherbackend.model.vo.AvailableTimeVO;
+import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.service.AvailableTimeService;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
@@ -28,7 +28,7 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Override
-    public AvailableTimeResponseDTO getTeacherAvailableTime(Long teacherId) {
+    public AvailableTimeVO getTeacherAvailableTime(Long teacherId) {
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
             throw new RuntimeException("教师不存在");
@@ -36,7 +36,7 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
 
         List<TimeSlotDTO> timeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
         
-        AvailableTimeResponseDTO response = AvailableTimeResponseDTO.builder()
+        AvailableTimeVO response = AvailableTimeVO.builder()
                 .teacherId(teacher.getId())
                 .teacherName(teacher.getRealName())
                 .availableTimeSlots(timeSlots)
@@ -53,7 +53,7 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
 
     @Override
     @Transactional
-    public AvailableTimeResponseDTO setTeacherAvailableTime(AvailableTimeRequestDTO request) {
+    public AvailableTimeVO setTeacherAvailableTime(AvailableTimeQueryDTO request) {
         Teacher teacher = teacherMapper.selectById(request.getTeacherId());
         if (teacher == null) {
             throw new RuntimeException("教师不存在");

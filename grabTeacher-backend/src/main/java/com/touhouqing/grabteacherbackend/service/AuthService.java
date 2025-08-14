@@ -1,22 +1,22 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.dto.AuthResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.LoginRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.RegisterRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.UserUpdateRequestDTO;
-import com.touhouqing.grabteacherbackend.entity.User;
+import com.touhouqing.grabteacherbackend.model.vo.AuthVO;
+import com.touhouqing.grabteacherbackend.model.dto.LoginDTO;
+import com.touhouqing.grabteacherbackend.model.dto.RegisterDTO;
+import com.touhouqing.grabteacherbackend.model.dto.UserUpdateDTO;
+import com.touhouqing.grabteacherbackend.model.entity.User;
 
 public interface AuthService {
     
     /**
      * 用户注册
      */
-    AuthResponseDTO registerUser(RegisterRequestDTO registerRequestDTO);
+    AuthVO registerUser(RegisterDTO registerDTO);
     
     /**
      * 用户登录
      */
-    AuthResponseDTO authenticateUser(LoginRequestDTO loginRequestDTO);
+    AuthVO authenticateUser(LoginDTO loginDTO);
     
     /**
      * 检查用户名是否可用
@@ -51,10 +51,10 @@ public interface AuthService {
     /**
      * 管理员登录
      */
-    AuthResponseDTO authenticateAdmin(LoginRequestDTO loginRequestDTO);
+    AuthVO authenticateAdmin(LoginDTO loginDTO);
 
     /**
      * 更新用户基本信息
      */
-    boolean updateUserProfile(Long userId, UserUpdateRequestDTO request);
+    boolean updateUserProfile(Long userId, UserUpdateDTO request);
 }

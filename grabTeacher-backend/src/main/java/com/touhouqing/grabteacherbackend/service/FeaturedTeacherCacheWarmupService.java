@@ -1,6 +1,7 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.dto.TeacherListResponseDTO;
+import com.touhouqing.grabteacherbackend.model.entity.Subject;
+import com.touhouqing.grabteacherbackend.model.vo.TeacherListVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -46,27 +47,27 @@ public class FeaturedTeacherCacheWarmupService implements CommandLineRunner {
             
             for (int pageSize : pageSizes) {
                 // 预热第一页数据
-                List<TeacherListResponseDTO> teachers = teacherService.getFeaturedTeachers(1, pageSize, null, null, null);
+                List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(1, pageSize, null, null, null);
                 log.debug("预热精选教师缓存: page=1, size={}, count={}", pageSize, teachers.size());
                 
                 // 如果有数据，预热第二页
                 if (teachers.size() == pageSize) {
-                    List<TeacherListResponseDTO> secondPage = teacherService.getFeaturedTeachers(2, pageSize, null, null, null);
+                    List<TeacherListVO> secondPage = teacherService.getFeaturedTeachers(2, pageSize, null, null, null);
                     log.debug("预热精选教师缓存: page=2, size={}, count={}", pageSize, secondPage.size());
                 }
             }
             
             // 预热科目的精选教师列表（动态获取激活科目）
-            List<com.touhouqing.grabteacherbackend.entity.Subject> activeSubjects = subjectService.getAllActiveSubjects();
-            for (com.touhouqing.grabteacherbackend.entity.Subject s : activeSubjects) {
-                List<TeacherListResponseDTO> teachers = teacherService.getFeaturedTeachers(1, 10, s.getName(), null, null);
+            List<Subject> activeSubjects = subjectService.getAllActiveSubjects();
+            for (Subject s : activeSubjects) {
+                List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(1, 10, s.getName(), null, null);
                 log.debug("预热精选教师缓存: subject={}, count={}", s.getName(), teachers.size());
             }
 
             // 预热年级的精选教师列表（动态获取可用年级）
             List<String> dbGrades = teacherService.getAvailableGrades();
             for (String grade : dbGrades) {
-                List<TeacherListResponseDTO> teachers = teacherService.getFeaturedTeachers(1, 10, null, grade, null);
+                List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(1, 10, null, grade, null);
                 log.debug("预热精选教师缓存: grade={}, count={}", grade, teachers.size());
             }
 

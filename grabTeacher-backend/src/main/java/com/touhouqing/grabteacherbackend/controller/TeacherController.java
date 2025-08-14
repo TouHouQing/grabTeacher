@@ -1,16 +1,16 @@
 package com.touhouqing.grabteacherbackend.controller;
 
-import com.touhouqing.grabteacherbackend.dto.ApiResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.TeacherDetailResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.TeacherListResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.TeacherMatchResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.TeacherProfileResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.TeacherScheduleResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.TimeSlotAvailabilityDTO;
-import com.touhouqing.grabteacherbackend.dto.TimeValidationResultDTO;
-import com.touhouqing.grabteacherbackend.entity.Teacher;
+import com.touhouqing.grabteacherbackend.common.result.CommonResult;
+import com.touhouqing.grabteacherbackend.model.vo.TeacherDetailVO;
+import com.touhouqing.grabteacherbackend.model.dto.TeacherInfoDTO;
+import com.touhouqing.grabteacherbackend.model.vo.TeacherListVO;
+import com.touhouqing.grabteacherbackend.model.dto.TeacherMatchDTO;
+import com.touhouqing.grabteacherbackend.model.vo.TeacherMatchVO;
+import com.touhouqing.grabteacherbackend.model.vo.TeacherProfileVO;
+import com.touhouqing.grabteacherbackend.model.vo.TeacherScheduleVO;
+import com.touhouqing.grabteacherbackend.model.dto.TimeSlotAvailabilityDTO;
+import com.touhouqing.grabteacherbackend.model.dto.TimeValidationResultDTO;
+import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
 import com.touhouqing.grabteacherbackend.service.TimeValidationService;
@@ -47,21 +47,21 @@ public class TeacherController {
      */
     @GetMapping("/profile")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<ApiResponseDTO<TeacherProfileResponseDTO>> getProfile(Authentication authentication) {
+    public ResponseEntity<CommonResult<TeacherProfileVO>> getProfile(Authentication authentication) {
         try {
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-            TeacherProfileResponseDTO teacherProfile = teacherService.getTeacherProfileByUserId(userPrincipal.getId());
+            TeacherProfileVO teacherProfile = teacherService.getTeacherProfileByUserId(userPrincipal.getId());
 
             if (teacherProfile == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponseDTO.error("教师信息不存在"));
+                        .body(CommonResult.error("教师信息不存在"));
             }
 
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", teacherProfile));
+            return ResponseEntity.ok(CommonResult.success("获取成功", teacherProfile));
         } catch (Exception e) {
             logger.error("获取教师信息异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -70,22 +70,22 @@ public class TeacherController {
      */
     @PutMapping("/profile")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<ApiResponseDTO<Teacher>> updateProfile(
-            @Valid @RequestBody TeacherInfoRequestDTO request,
+    public ResponseEntity<CommonResult<Teacher>> updateProfile(
+            @Valid @RequestBody TeacherInfoDTO request,
             Authentication authentication) {
         try {
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
             Teacher updatedTeacher = teacherService.updateTeacherInfo(userPrincipal.getId(), request);
 
-            return ResponseEntity.ok(ApiResponseDTO.success("更新成功", updatedTeacher));
+            return ResponseEntity.ok(CommonResult.success("更新成功", updatedTeacher));
         } catch (RuntimeException e) {
             logger.warn("更新教师信息失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("更新教师信息异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("更新失败"));
+                    .body(CommonResult.error("更新失败"));
         }
     }
 
@@ -93,7 +93,7 @@ public class TeacherController {
      * 获取教师列表（公开接口，用于学生浏览）
      */
     @GetMapping("/list")
-    public ResponseEntity<ApiResponseDTO<List<TeacherListResponseDTO>>> getTeacherList(
+    public ResponseEntity<CommonResult<List<TeacherListVO>>> getTeacherList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String subject,
@@ -105,12 +105,12 @@ public class TeacherController {
             String normGrade = normalizeParam(grade);
             String normKeyword = normalizeKeyword(keyword);
 
-            List<TeacherListResponseDTO> teachers = teacherService.getTeacherListWithSubjects(page, size, normSubject, normGrade, normKeyword);
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", teachers));
+            List<TeacherListVO> teachers = teacherService.getTeacherListWithSubjects(page, size, normSubject, normGrade, normKeyword);
+            return ResponseEntity.ok(CommonResult.success("获取成功", teachers));
         } catch (Exception e) {
             logger.error("获取教师列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -118,7 +118,7 @@ public class TeacherController {
      * 获取精选教师列表（天下名师页面使用）
      */
     @GetMapping("/featured")
-    public ResponseEntity<ApiResponseDTO<List<TeacherListResponseDTO>>> getFeaturedTeachers(
+    public ResponseEntity<CommonResult<List<TeacherListVO>>> getFeaturedTeachers(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String subject,
@@ -129,12 +129,12 @@ public class TeacherController {
             String normGrade = normalizeParam(grade);
             String normKeyword = normalizeKeyword(keyword);
 
-            List<TeacherListResponseDTO> teachers = teacherService.getFeaturedTeachers(page, size, normSubject, normGrade, normKeyword);
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", teachers));
+            List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(page, size, normSubject, normGrade, normKeyword);
+            return ResponseEntity.ok(CommonResult.success("获取成功", teachers));
         } catch (Exception e) {
             logger.error("获取精选教师列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -142,20 +142,20 @@ public class TeacherController {
      * 获取教师详情（公开接口）
      */
     @GetMapping("/{teacherId}")
-    public ResponseEntity<ApiResponseDTO<TeacherDetailResponseDTO>> getTeacherDetail(@PathVariable Long teacherId) {
+    public ResponseEntity<CommonResult<TeacherDetailVO>> getTeacherDetail(@PathVariable Long teacherId) {
         try {
-            TeacherDetailResponseDTO teacherDetail = teacherService.getTeacherDetailById(teacherId);
+            TeacherDetailVO teacherDetail = teacherService.getTeacherDetailById(teacherId);
 
             if (teacherDetail == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponseDTO.error("教师不存在"));
+                        .body(CommonResult.error("教师不存在"));
             }
 
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", teacherDetail));
+            return ResponseEntity.ok(CommonResult.success("获取成功", teacherDetail));
         } catch (Exception e) {
             logger.error("获取教师详情异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -163,15 +163,15 @@ public class TeacherController {
      * 匹配教师（公开接口）
      */
     @PostMapping("/match")
-    public ResponseEntity<ApiResponseDTO<List<TeacherMatchResponseDTO>>> matchTeachers(
-            @Valid @RequestBody TeacherMatchRequestDTO request) {
+    public ResponseEntity<CommonResult<List<TeacherMatchVO>>> matchTeachers(
+            @Valid @RequestBody TeacherMatchDTO request) {
         try {
-            List<TeacherMatchResponseDTO> matchedTeachers = teacherService.matchTeachers(request);
-            return ResponseEntity.ok(ApiResponseDTO.success("匹配成功", matchedTeachers));
+            List<TeacherMatchVO> matchedTeachers = teacherService.matchTeachers(request);
+            return ResponseEntity.ok(CommonResult.success("匹配成功", matchedTeachers));
         } catch (Exception e) {
             logger.error("匹配教师异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("匹配失败"));
+                    .body(CommonResult.error("匹配失败"));
         }
     }
 
@@ -179,14 +179,14 @@ public class TeacherController {
      * 获取所有可用的年级选项（公开接口）
      */
     @GetMapping("/grades")
-    public ResponseEntity<ApiResponseDTO<List<String>>> getAvailableGrades() {
+    public ResponseEntity<CommonResult<List<String>>> getAvailableGrades() {
         try {
             List<String> grades = teacherService.getAvailableGrades();
-            return ResponseEntity.ok(ApiResponseDTO.success("获取年级选项成功", grades));
+            return ResponseEntity.ok(CommonResult.success("获取年级选项成功", grades));
         } catch (Exception e) {
             logger.error("获取年级选项异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -194,17 +194,17 @@ public class TeacherController {
      * 获取教师的公开课表（供学生查看）
      */
     @GetMapping("/{teacherId}/schedule")
-    public ResponseEntity<ApiResponseDTO<TeacherScheduleResponseDTO>> getTeacherPublicSchedule(
+    public ResponseEntity<CommonResult<TeacherScheduleVO>> getTeacherPublicSchedule(
             @PathVariable Long teacherId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
-            TeacherScheduleResponseDTO schedule = teacherService.getTeacherPublicSchedule(teacherId, startDate, endDate);
-            return ResponseEntity.ok(ApiResponseDTO.success("获取教师课表成功", schedule));
+            TeacherScheduleVO schedule = teacherService.getTeacherPublicSchedule(teacherId, startDate, endDate);
+            return ResponseEntity.ok(CommonResult.success("获取教师课表成功", schedule));
         } catch (Exception e) {
             logger.error("获取教师课表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -212,18 +212,18 @@ public class TeacherController {
      * 检查教师时间段可用性（供学生预约时查看）
      */
     @GetMapping("/{teacherId}/availability")
-    public ResponseEntity<ApiResponseDTO<List<TimeSlotAvailabilityDTO>>> checkTeacherAvailability(
+    public ResponseEntity<CommonResult<List<TimeSlotAvailabilityDTO>>> checkTeacherAvailability(
             @PathVariable Long teacherId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) List<String> timeSlots) {
         try {
             List<TimeSlotAvailabilityDTO> availability = teacherService.checkTeacherAvailability(teacherId, startDate, endDate, timeSlots);
-            return ResponseEntity.ok(ApiResponseDTO.success("获取时间段可用性成功", availability));
+            return ResponseEntity.ok(CommonResult.success("获取时间段可用性成功", availability));
         } catch (Exception e) {
             logger.error("检查教师时间段可用性异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -232,16 +232,16 @@ public class TeacherController {
      */
     @GetMapping("/statistics")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<ApiResponseDTO<Map<String, Object>>> getStatistics(Authentication authentication) {
+    public ResponseEntity<CommonResult<Map<String, Object>>> getStatistics(Authentication authentication) {
         try {
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
             Map<String, Object> statistics = teacherService.getTeacherStatistics(userPrincipal.getId());
 
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", statistics));
+            return ResponseEntity.ok(CommonResult.success("获取成功", statistics));
         } catch (Exception e) {
             logger.error("获取教师统计数据异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -249,7 +249,7 @@ public class TeacherController {
      * 验证学生预约时间匹配度（供学生预约时使用）
      */
     @PostMapping("/{teacherId}/validate-booking-time")
-    public ResponseEntity<ApiResponseDTO<TimeValidationResultDTO>> validateStudentBookingTime(
+    public ResponseEntity<CommonResult<TimeValidationResultDTO>> validateStudentBookingTime(
             @PathVariable Long teacherId,
             @RequestBody Map<String, Object> request) {
         try {
@@ -263,7 +263,7 @@ public class TeacherController {
 
             if (weekdays == null || timeSlots == null) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponseDTO.error("星期几和时间段不能为空"));
+                        .body(CommonResult.error("星期几和时间段不能为空"));
             }
 
             TimeValidationResultDTO result;
@@ -280,11 +280,11 @@ public class TeacherController {
                         teacherId, weekdays, timeSlots);
             }
 
-            return ResponseEntity.ok(ApiResponseDTO.success("验证完成", result));
+            return ResponseEntity.ok(CommonResult.success("验证完成", result));
         } catch (Exception e) {
             logger.error("验证学生预约时间异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("验证失败"));
+                    .body(CommonResult.error("验证失败"));
         }
     }
 

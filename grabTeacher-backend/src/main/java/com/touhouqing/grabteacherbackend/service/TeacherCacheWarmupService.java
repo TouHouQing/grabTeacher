@@ -1,7 +1,8 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.dto.TeacherMatchRequestDTO;
+import com.touhouqing.grabteacherbackend.model.dto.TeacherMatchDTO;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
+import com.touhouqing.grabteacherbackend.model.entity.Subject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -104,8 +105,8 @@ public class TeacherCacheWarmupService {
             teacherService.getTeacherListWithSubjects(1, 10, null, null, null);
             
             // 预热科目的教师列表（从数据库动态获取激活科目）
-            List<com.touhouqing.grabteacherbackend.entity.Subject> activeSubjects = subjectService.getAllActiveSubjects();
-            for (com.touhouqing.grabteacherbackend.entity.Subject s : activeSubjects) {
+            List<Subject> activeSubjects = subjectService.getAllActiveSubjects();
+            for (Subject s : activeSubjects) {
                 try {
                     teacherService.getTeacherListWithSubjects(1, 10, s.getName(), null, null);
                 } catch (Exception e) {
@@ -137,13 +138,13 @@ public class TeacherCacheWarmupService {
             log.info("预热教师匹配缓存...");
             
             // 预热教师匹配请求（从数据库动态获取科目与年级）
-            List<com.touhouqing.grabteacherbackend.entity.Subject> activeSubjects = subjectService.getAllActiveSubjects();
+            List<Subject> activeSubjects = subjectService.getAllActiveSubjects();
             List<String> dbGrades = teacherService.getAvailableGrades();
 
-            for (com.touhouqing.grabteacherbackend.entity.Subject s : activeSubjects) {
+            for (Subject s : activeSubjects) {
                 for (String grade : dbGrades) {
                     try {
-                        TeacherMatchRequestDTO request = new TeacherMatchRequestDTO();
+                        TeacherMatchDTO request = new TeacherMatchDTO();
                         request.setSubject(s.getName());
                         request.setGrade(grade);
                         request.setLimit(10);

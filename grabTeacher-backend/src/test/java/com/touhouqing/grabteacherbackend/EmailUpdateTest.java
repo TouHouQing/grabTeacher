@@ -1,6 +1,6 @@
 package com.touhouqing.grabteacherbackend;
 
-import com.touhouqing.grabteacherbackend.entity.User;
+import com.touhouqing.grabteacherbackend.model.entity.User;
 import com.touhouqing.grabteacherbackend.mapper.UserMapper;
 import com.touhouqing.grabteacherbackend.service.AuthService;
 import org.junit.jupiter.api.Test;

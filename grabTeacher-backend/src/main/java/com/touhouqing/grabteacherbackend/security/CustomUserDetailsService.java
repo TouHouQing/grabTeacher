@@ -1,6 +1,6 @@
 package com.touhouqing.grabteacherbackend.security;
 
-import com.touhouqing.grabteacherbackend.entity.User;
+import com.touhouqing.grabteacherbackend.model.entity.User;
 import com.touhouqing.grabteacherbackend.mapper.UserMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

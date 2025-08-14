@@ -1,10 +1,10 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.entity.User;
-import com.touhouqing.grabteacherbackend.entity.Student;
-import com.touhouqing.grabteacherbackend.entity.Teacher;
-import com.touhouqing.grabteacherbackend.dto.StudentInfoRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.TeacherInfoRequestDTO;
+import com.touhouqing.grabteacherbackend.model.entity.User;
+import com.touhouqing.grabteacherbackend.model.entity.Student;
+import com.touhouqing.grabteacherbackend.model.entity.Teacher;
+import com.touhouqing.grabteacherbackend.model.dto.StudentInfoDTO;
+import com.touhouqing.grabteacherbackend.model.dto.TeacherInfoDTO;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import java.util.List;
@@ -42,12 +42,12 @@ public interface AdminService {
     /**
      * 添加学生
      */
-    Student addStudent(StudentInfoRequestDTO request);
+    Student addStudent(StudentInfoDTO request);
     
     /**
      * 更新学生信息
      */
-    Student updateStudent(Long studentId, StudentInfoRequestDTO request);
+    Student updateStudent(Long studentId, StudentInfoDTO request);
     
     /**
      * 删除学生
@@ -69,12 +69,12 @@ public interface AdminService {
     /**
      * 添加教师
      */
-    Teacher addTeacher(TeacherInfoRequestDTO request);
+    Teacher addTeacher(TeacherInfoDTO request);
     
     /**
      * 更新教师信息
      */
-    Teacher updateTeacher(Long teacherId, TeacherInfoRequestDTO request);
+    Teacher updateTeacher(Long teacherId, TeacherInfoDTO request);
     
     /**
      * 删除教师

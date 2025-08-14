@@ -1,10 +1,10 @@
 package com.touhouqing.grabteacherbackend.controller;
 
-import com.touhouqing.grabteacherbackend.dto.ApiResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.PasswordChangeRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.EmailUpdateRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.UserUpdateRequestDTO;
-import com.touhouqing.grabteacherbackend.entity.User;
+import com.touhouqing.grabteacherbackend.common.result.CommonResult;
+import com.touhouqing.grabteacherbackend.model.dto.PasswordChangeDTO;
+import com.touhouqing.grabteacherbackend.model.dto.EmailUpdateDTO;
+import com.touhouqing.grabteacherbackend.model.dto.UserUpdateDTO;
+import com.touhouqing.grabteacherbackend.model.entity.User;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,11 +36,11 @@ public class UserController {
      */
     @Operation(summary = "获取用户信息", description = "获取当前登录用户的基本信息")
     @GetMapping("/info")
-    public ResponseEntity<ApiResponseDTO<User>> getUserInfo(Authentication authentication) {
+    public ResponseEntity<CommonResult<User>> getUserInfo(Authentication authentication) {
         try {
             if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponseDTO.error(401, "未登录"));
+                        .body(CommonResult.error(401, "未登录"));
             }
 
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
@@ -48,17 +48,17 @@ public class UserController {
             
             if (user == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponseDTO.error("用户不存在"));
+                        .body(CommonResult.error("用户不存在"));
             }
             
             // 清除敏感信息
             user.setPassword(null);
             
-            return ResponseEntity.ok(ApiResponseDTO.success("获取成功", user));
+            return ResponseEntity.ok(CommonResult.success("获取成功", user));
         } catch (Exception e) {
             logger.error("获取用户信息异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败"));
+                    .body(CommonResult.error("获取失败"));
         }
     }
 
@@ -66,13 +66,13 @@ public class UserController {
      * 修改密码
      */
     @PutMapping("/change-password")
-    public ResponseEntity<ApiResponseDTO<String>> changePassword(
-            @Valid @RequestBody PasswordChangeRequestDTO request,
+    public ResponseEntity<CommonResult<String>> changePassword(
+            @Valid @RequestBody PasswordChangeDTO request,
             Authentication authentication) {
         try {
             if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponseDTO.error(401, "未登录"));
+                        .body(CommonResult.error(401, "未登录"));
             }
 
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
@@ -80,22 +80,22 @@ public class UserController {
             // 验证新密码和确认密码是否一致
             if (!request.getNewPassword().equals(request.getConfirmPassword())) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponseDTO.error("新密码和确认密码不一致"));
+                        .body(CommonResult.error("新密码和确认密码不一致"));
             }
 
             boolean success = authService.changePassword(userPrincipal.getId(),
                     request.getCurrentPassword(), request.getNewPassword());
 
             if (success) {
-                return ResponseEntity.ok(ApiResponseDTO.success("密码修改成功", null));
+                return ResponseEntity.ok(CommonResult.success("密码修改成功", null));
             } else {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponseDTO.error("当前密码错误"));
+                        .body(CommonResult.error("当前密码错误"));
             }
         } catch (Exception e) {
             logger.error("修改密码异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("修改密码失败"));
+                    .body(CommonResult.error("修改密码失败"));
         }
     }
 
@@ -104,13 +104,13 @@ public class UserController {
      */
     @Operation(summary = "更新邮箱", description = "更新当前登录用户的邮箱地址")
     @PutMapping("/update-email")
-    public ResponseEntity<ApiResponseDTO<String>> updateEmail(
-            @Valid @RequestBody EmailUpdateRequestDTO request,
+    public ResponseEntity<CommonResult<String>> updateEmail(
+            @Valid @RequestBody EmailUpdateDTO request,
             Authentication authentication) {
         try {
             if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponseDTO.error(401, "未登录"));
+                        .body(CommonResult.error(401, "未登录"));
             }
 
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
@@ -119,15 +119,15 @@ public class UserController {
                     request.getNewEmail(), request.getCurrentPassword());
 
             if (success) {
-                return ResponseEntity.ok(ApiResponseDTO.success("邮箱更新成功", null));
+                return ResponseEntity.ok(CommonResult.success("邮箱更新成功", null));
             } else {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponseDTO.error("邮箱更新失败，请检查密码是否正确或邮箱是否已被使用"));
+                        .body(CommonResult.error("邮箱更新失败，请检查密码是否正确或邮箱是否已被使用"));
             }
         } catch (Exception e) {
             logger.error("更新邮箱异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("邮箱更新失败"));
+                    .body(CommonResult.error("邮箱更新失败"));
         }
     }
 
@@ -136,13 +136,13 @@ public class UserController {
      */
     @Operation(summary = "更新用户基本信息", description = "更新当前登录用户的基本信息（如出生年月）")
     @PutMapping("/update-profile")
-    public ResponseEntity<ApiResponseDTO<String>> updateUserProfile(
-            @Valid @RequestBody UserUpdateRequestDTO request,
+    public ResponseEntity<CommonResult<String>> updateUserProfile(
+            @Valid @RequestBody UserUpdateDTO request,
             Authentication authentication) {
         try {
             if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponseDTO.error(401, "未登录"));
+                        .body(CommonResult.error(401, "未登录"));
             }
 
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
@@ -150,15 +150,15 @@ public class UserController {
             boolean success = authService.updateUserProfile(userPrincipal.getId(), request);
 
             if (success) {
-                return ResponseEntity.ok(ApiResponseDTO.success("用户信息更新成功", null));
+                return ResponseEntity.ok(CommonResult.success("用户信息更新成功", null));
             } else {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponseDTO.error("用户信息更新失败"));
+                        .body(CommonResult.error("用户信息更新失败"));
             }
         } catch (Exception e) {
             logger.error("更新用户信息异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("更新用户信息失败"));
+                    .body(CommonResult.error("更新用户信息失败"));
         }
     }
 }

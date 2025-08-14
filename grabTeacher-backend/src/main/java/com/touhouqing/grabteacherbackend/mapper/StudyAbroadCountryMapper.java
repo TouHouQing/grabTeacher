@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.touhouqing.grabteacherbackend.entity.StudyAbroadCountry;
+import com.touhouqing.grabteacherbackend.model.entity.StudyAbroadCountry;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

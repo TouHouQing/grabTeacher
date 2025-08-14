@@ -1,9 +1,9 @@
 package com.touhouqing.grabteacherbackend.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.CourseRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.CourseResponseDTO;
-import com.touhouqing.grabteacherbackend.entity.Course;
+import com.touhouqing.grabteacherbackend.model.dto.CourseDTO;
+import com.touhouqing.grabteacherbackend.model.vo.CourseVO;
+import com.touhouqing.grabteacherbackend.model.entity.Course;
 
 import java.util.List;
 
@@ -16,7 +16,7 @@ public interface CourseService {
      * @param userType 用户类型
      * @return 创建的课程
      */
-    Course createCourse(CourseRequestDTO request, Long currentUserId, String userType);
+    Course createCourse(CourseDTO request, Long currentUserId, String userType);
     
     /**
      * 更新课程
@@ -26,7 +26,7 @@ public interface CourseService {
      * @param userType 用户类型
      * @return 更新后的课程
      */
-    Course updateCourse(Long id, CourseRequestDTO request, Long currentUserId, String userType);
+    Course updateCourse(Long id, CourseDTO request, Long currentUserId, String userType);
     
     /**
      * 删除课程（软删除）
@@ -41,7 +41,7 @@ public interface CourseService {
      * @param id 课程ID
      * @return 课程响应数据
      */
-    CourseResponseDTO getCourseById(Long id);
+    CourseVO getCourseById(Long id);
     
     /**
      * 获取课程列表（分页）
@@ -54,8 +54,8 @@ public interface CourseService {
      * @param courseType 课程类型
      * @return 分页课程列表
      */
-    Page<CourseResponseDTO> getCourseList(int page, int size, String keyword, Long subjectId,
-                                          Long teacherId, String status, String courseType, String grade);
+    Page<CourseVO> getCourseList(int page, int size, String keyword, Long subjectId,
+                                 Long teacherId, String status, String courseType, String grade);
     
     /**
      * 获取教师的课程列表
@@ -64,18 +64,18 @@ public interface CourseService {
      * @param userType 用户类型
      * @return 课程列表
      */
-    List<CourseResponseDTO> getTeacherCourses(Long teacherId, Long currentUserId, String userType);
+    List<CourseVO> getTeacherCourses(Long teacherId, Long currentUserId, String userType);
     
     /**
      * 获取活跃状态的课程列表
      * @return 活跃课程列表
      */
-    List<CourseResponseDTO> getActiveCourses();
+    List<CourseVO> getActiveCourses();
 
     /**
      * 获取活跃状态的课程（限制条数）
      */
-    List<CourseResponseDTO> getActiveCoursesLimited(Integer limit);
+    List<CourseVO> getActiveCoursesLimited(Integer limit);
 
     /**
      * 更新课程状态
@@ -103,7 +103,7 @@ public interface CourseService {
      * @param grade 年级
      * @return 分页精选课程列表
      */
-    Page<CourseResponseDTO> getFeaturedCourses(int page, int size, Long subjectId, String grade);
+    Page<CourseVO> getFeaturedCourses(int page, int size, Long subjectId, String grade);
 
     /**
      * 设置课程为精选课程

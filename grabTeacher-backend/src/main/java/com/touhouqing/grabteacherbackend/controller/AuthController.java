@@ -1,10 +1,10 @@
 package com.touhouqing.grabteacherbackend.controller;
 
-import com.touhouqing.grabteacherbackend.dto.ApiResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.AuthResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.LoginRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.RegisterRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.PasswordChangeRequestDTO;
+import com.touhouqing.grabteacherbackend.common.result.CommonResult;
+import com.touhouqing.grabteacherbackend.model.vo.AuthVO;
+import com.touhouqing.grabteacherbackend.model.dto.LoginDTO;
+import com.touhouqing.grabteacherbackend.model.dto.RegisterDTO;
+import com.touhouqing.grabteacherbackend.model.dto.PasswordChangeDTO;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,24 +38,24 @@ public class AuthController {
      */
     @Operation(summary = "用户注册", description = "注册新用户（学生或教师）")
     @PostMapping("/register")
-    public ResponseEntity<ApiResponseDTO<AuthResponseDTO>> registerUser(@Valid @RequestBody RegisterRequestDTO registerRequestDTO) {
+    public ResponseEntity<CommonResult<AuthVO>> registerUser(@Valid @RequestBody RegisterDTO registerDTO) {
         try {
             logger.info("收到注册请求: 用户名={}, 邮箱={}, 类型={}", 
-                       registerRequestDTO.getUsername(),
-                       registerRequestDTO.getEmail(),
-                       registerRequestDTO.getUserType());
+                       registerDTO.getUsername(),
+                       registerDTO.getEmail(),
+                       registerDTO.getUserType());
             
-            AuthResponseDTO authResponse = authService.registerUser(registerRequestDTO);
+            AuthVO authResponse = authService.registerUser(registerDTO);
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponseDTO.success("注册成功", authResponse));
+                    .body(CommonResult.success("注册成功", authResponse));
         } catch (RuntimeException e) {
             logger.warn("注册失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("注册异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("注册失败，请稍后重试"));
+                    .body(CommonResult.error("注册失败，请稍后重试"));
         }
     }
 
@@ -64,20 +64,20 @@ public class AuthController {
      */
     @Operation(summary = "用户登录", description = "用户登录验证")
     @PostMapping("/login")
-    public ResponseEntity<ApiResponseDTO<AuthResponseDTO>> authenticateUser(@Valid @RequestBody LoginRequestDTO loginRequestDTO) {
+    public ResponseEntity<CommonResult<AuthVO>> authenticateUser(@Valid @RequestBody LoginDTO loginDTO) {
         try {
-            logger.info("收到登录请求: {}", loginRequestDTO.getUsername());
+            logger.info("收到登录请求: {}", loginDTO.getUsername());
             
-            AuthResponseDTO authResponse = authService.authenticateUser(loginRequestDTO);
-            return ResponseEntity.ok(ApiResponseDTO.success("登录成功", authResponse));
+            AuthVO authResponse = authService.authenticateUser(loginDTO);
+            return ResponseEntity.ok(CommonResult.success("登录成功", authResponse));
         } catch (RuntimeException e) {
             logger.warn("登录失败: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponseDTO.error(401, e.getMessage()));
+                    .body(CommonResult.error(401, e.getMessage()));
         } catch (Exception e) {
             logger.error("登录异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("登录失败，请稍后重试"));
+                    .body(CommonResult.error("登录失败，请稍后重试"));
         }
     }
 
@@ -85,7 +85,7 @@ public class AuthController {
      * 用户退出登录
      */
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponseDTO<Object>> logout() {
+    public ResponseEntity<CommonResult<Object>> logout() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal) {
@@ -95,10 +95,10 @@ public class AuthController {
             
             // JWT 是无状态的，前端删除 token 即可
             SecurityContextHolder.clearContext();
-            return ResponseEntity.ok(ApiResponseDTO.success("退出登录成功", null));
+            return ResponseEntity.ok(CommonResult.success("退出登录成功", null));
         } catch (Exception e) {
             logger.error("退出登录异常: ", e);
-            return ResponseEntity.ok(ApiResponseDTO.success("退出登录成功", null));
+            return ResponseEntity.ok(CommonResult.success("退出登录成功", null));
         }
     }
 
@@ -106,11 +106,11 @@ public class AuthController {
      * 获取当前用户信息
      */
     @GetMapping("/me")
-    public ResponseEntity<ApiResponseDTO<Object>> getCurrentUser(Authentication authentication) {
+    public ResponseEntity<CommonResult<Object>> getCurrentUser(Authentication authentication) {
         try {
             if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponseDTO.error(401, "未登录"));
+                        .body(CommonResult.error(401, "未登录"));
             }
 
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
@@ -121,11 +121,11 @@ public class AuthController {
             userInfo.put("email", userPrincipal.getEmail());
             userInfo.put("authorities", userPrincipal.getAuthorities());
             
-            return ResponseEntity.ok(ApiResponseDTO.success("获取用户信息成功", userInfo));
+            return ResponseEntity.ok(CommonResult.success("获取用户信息成功", userInfo));
         } catch (Exception e) {
             logger.error("获取用户信息异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取用户信息失败"));
+                    .body(CommonResult.error("获取用户信息失败"));
         }
     }
 
@@ -133,14 +133,14 @@ public class AuthController {
      * 检查用户名是否可用
      */
     @GetMapping("/check-username")
-    public ResponseEntity<ApiResponseDTO<Boolean>> checkUsername(@RequestParam String username) {
+    public ResponseEntity<CommonResult<Boolean>> checkUsername(@RequestParam String username) {
         try {
             boolean available = authService.isUsernameAvailable(username);
-            return ResponseEntity.ok(ApiResponseDTO.success("检查完成", available));
+            return ResponseEntity.ok(CommonResult.success("检查完成", available));
         } catch (Exception e) {
             logger.error("检查用户名异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("检查失败"));
+                    .body(CommonResult.error("检查失败"));
         }
     }
 
@@ -148,14 +148,14 @@ public class AuthController {
      * 检查邮箱是否可用
      */
     @GetMapping("/check-email")
-    public ResponseEntity<ApiResponseDTO<Boolean>> checkEmail(@RequestParam String email) {
+    public ResponseEntity<CommonResult<Boolean>> checkEmail(@RequestParam String email) {
         try {
             boolean available = authService.isEmailAvailable(email);
-            return ResponseEntity.ok(ApiResponseDTO.success("检查完成", available));
+            return ResponseEntity.ok(CommonResult.success("检查完成", available));
         } catch (Exception e) {
             logger.error("检查邮箱异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("检查失败"));
+                    .body(CommonResult.error("检查失败"));
         }
     }
 
@@ -163,40 +163,40 @@ public class AuthController {
      * API 测试接口
      */
     @GetMapping("/test")
-    public ResponseEntity<ApiResponseDTO<String>> test() {
-        return ResponseEntity.ok(ApiResponseDTO.success("API 测试成功", "服务器运行正常"));
+    public ResponseEntity<CommonResult<String>> test() {
+        return ResponseEntity.ok(CommonResult.success("API 测试成功", "服务器运行正常"));
     }
 
     /**
      * 修改密码
      */
     @PostMapping("/change-password")
-    public ResponseEntity<ApiResponseDTO<Object>> changePassword(
-            @Valid @RequestBody PasswordChangeRequestDTO request,
+    public ResponseEntity<CommonResult<Object>> changePassword(
+            @Valid @RequestBody PasswordChangeDTO request,
             Authentication authentication) {
         try {
             if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponseDTO.error(401, "未登录"));
+                        .body(CommonResult.error(401, "未登录"));
             }
 
             if (!request.getNewPassword().equals(request.getConfirmPassword())) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponseDTO.error("新密码和确认密码不匹配"));
+                        .body(CommonResult.error("新密码和确认密码不匹配"));
             }
 
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
             authService.updatePassword(userPrincipal.getId(), request.getCurrentPassword(), request.getNewPassword());
             
-            return ResponseEntity.ok(ApiResponseDTO.success("密码修改成功", null));
+            return ResponseEntity.ok(CommonResult.success("密码修改成功", null));
         } catch (RuntimeException e) {
             logger.warn("密码修改失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("密码修改异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("密码修改失败"));
+                    .body(CommonResult.error("密码修改失败"));
         }
     }
 
@@ -205,20 +205,20 @@ public class AuthController {
      */
     @Operation(summary = "管理员登录", description = "管理员专用登录接口")
     @PostMapping("/admin/login")
-    public ResponseEntity<ApiResponseDTO<AuthResponseDTO>> authenticateAdmin(@Valid @RequestBody LoginRequestDTO loginRequestDTO) {
+    public ResponseEntity<CommonResult<AuthVO>> authenticateAdmin(@Valid @RequestBody LoginDTO loginDTO) {
         try {
-            logger.info("收到管理员登录请求: {}", loginRequestDTO.getUsername());
+            logger.info("收到管理员登录请求: {}", loginDTO.getUsername());
             
-            AuthResponseDTO authResponse = authService.authenticateAdmin(loginRequestDTO);
-            return ResponseEntity.ok(ApiResponseDTO.success("登录成功", authResponse));
+            AuthVO authResponse = authService.authenticateAdmin(loginDTO);
+            return ResponseEntity.ok(CommonResult.success("登录成功", authResponse));
         } catch (RuntimeException e) {
             logger.warn("管理员登录失败: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponseDTO.error(401, e.getMessage()));
+                    .body(CommonResult.error(401, e.getMessage()));
         } catch (Exception e) {
             logger.error("管理员登录异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("登录失败，请稍后重试"));
+                    .body(CommonResult.error("登录失败，请稍后重试"));
         }
     }
 } 

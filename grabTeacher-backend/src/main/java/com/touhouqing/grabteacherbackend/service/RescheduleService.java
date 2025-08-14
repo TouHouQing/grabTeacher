@@ -1,9 +1,9 @@
 package com.touhouqing.grabteacherbackend.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.RescheduleApprovalDTO;
-import com.touhouqing.grabteacherbackend.dto.RescheduleRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.RescheduleResponseDTO;
+import com.touhouqing.grabteacherbackend.model.dto.RescheduleApprovalDTO;
+import com.touhouqing.grabteacherbackend.model.dto.RescheduleApplyDTO;
+import com.touhouqing.grabteacherbackend.model.vo.RescheduleVO;
 
 /**
  * 调课服务接口
@@ -16,7 +16,7 @@ public interface RescheduleService {
      * @param studentUserId 学生用户ID
      * @return 调课申请响应数据
      */
-    RescheduleResponseDTO createRescheduleRequest(RescheduleRequestDTO request, Long studentUserId);
+    RescheduleVO createRescheduleRequest(RescheduleApplyDTO request, Long studentUserId);
 
     /**
      * 审批调课申请（教师操作）
@@ -25,7 +25,7 @@ public interface RescheduleService {
      * @param teacherUserId 教师用户ID
      * @return 调课申请响应数据
      */
-    RescheduleResponseDTO approveRescheduleRequest(Long rescheduleId, RescheduleApprovalDTO approval, Long teacherUserId);
+    RescheduleVO approveRescheduleRequest(Long rescheduleId, RescheduleApprovalDTO approval, Long teacherUserId);
 
     /**
      * 取消调课申请（学生操作）
@@ -33,7 +33,7 @@ public interface RescheduleService {
      * @param studentUserId 学生用户ID
      * @return 调课申请响应数据
      */
-    RescheduleResponseDTO cancelRescheduleRequest(Long rescheduleId, Long studentUserId);
+    RescheduleVO cancelRescheduleRequest(Long rescheduleId, Long studentUserId);
 
     /**
      * 获取学生的调课申请列表
@@ -43,7 +43,7 @@ public interface RescheduleService {
      * @param status 状态筛选
      * @return 分页调课申请列表
      */
-    Page<RescheduleResponseDTO> getStudentRescheduleRequests(Long studentUserId, int page, int size, String status);
+    Page<RescheduleVO> getStudentRescheduleRequests(Long studentUserId, int page, int size, String status);
 
     /**
      * 获取教师需要审批的调课申请列表
@@ -53,7 +53,7 @@ public interface RescheduleService {
      * @param status 状态筛选
      * @return 分页调课申请列表
      */
-    Page<RescheduleResponseDTO> getTeacherRescheduleRequests(Long teacherUserId, int page, int size, String status);
+    Page<RescheduleVO> getTeacherRescheduleRequests(Long teacherUserId, int page, int size, String status);
 
     /**
      * 根据ID获取调课申请详情
@@ -62,7 +62,7 @@ public interface RescheduleService {
      * @param userType 用户类型
      * @return 调课申请详情
      */
-    RescheduleResponseDTO getRescheduleRequestById(Long rescheduleId, Long currentUserId, String userType);
+    RescheduleVO getRescheduleRequestById(Long rescheduleId, Long currentUserId, String userType);
 
     /**
      * 获取教师待处理的调课申请数量

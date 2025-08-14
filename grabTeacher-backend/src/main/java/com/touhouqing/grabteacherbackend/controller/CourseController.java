@@ -1,10 +1,10 @@
 package com.touhouqing.grabteacherbackend.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.dto.ApiResponseDTO;
-import com.touhouqing.grabteacherbackend.dto.CourseRequestDTO;
-import com.touhouqing.grabteacherbackend.dto.CourseResponseDTO;
-import com.touhouqing.grabteacherbackend.entity.Course;
+import com.touhouqing.grabteacherbackend.common.result.CommonResult;
+import com.touhouqing.grabteacherbackend.model.dto.CourseDTO;
+import com.touhouqing.grabteacherbackend.model.vo.CourseVO;
+import com.touhouqing.grabteacherbackend.model.entity.Course;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.CourseService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,21 +48,21 @@ public class CourseController {
     })
     @PostMapping
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<ApiResponseDTO<Course>> createCourse(
-            @Valid @RequestBody CourseRequestDTO request,
+    public ResponseEntity<CommonResult<Course>> createCourse(
+            @Valid @RequestBody CourseDTO request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             Course course = courseService.createCourse(request, currentUser.getId(), 
                     currentUser.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "").toLowerCase());
-            return ResponseEntity.ok(ApiResponseDTO.success("课程创建成功", course));
+            return ResponseEntity.ok(CommonResult.success("课程创建成功", course));
         } catch (RuntimeException e) {
             logger.warn("创建课程失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("创建课程异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("创建失败，请稍后重试"));
+                    .body(CommonResult.error("创建失败，请稍后重试"));
         }
     }
 
@@ -78,22 +78,22 @@ public class CourseController {
     })
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<ApiResponseDTO<Course>> updateCourse(
+    public ResponseEntity<CommonResult<Course>> updateCourse(
             @Parameter(description = "课程ID", required = true) @PathVariable Long id,
-            @Valid @RequestBody CourseRequestDTO request,
+            @Valid @RequestBody CourseDTO request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             Course course = courseService.updateCourse(id, request, currentUser.getId(), 
                     currentUser.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "").toLowerCase());
-            return ResponseEntity.ok(ApiResponseDTO.success("课程更新成功", course));
+            return ResponseEntity.ok(CommonResult.success("课程更新成功", course));
         } catch (RuntimeException e) {
             logger.warn("更新课程失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("更新课程异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("更新失败，请稍后重试"));
+                    .body(CommonResult.error("更新失败，请稍后重试"));
         }
     }
 
@@ -108,21 +108,21 @@ public class CourseController {
     })
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<ApiResponseDTO<Void>> deleteCourse(
+    public ResponseEntity<CommonResult<Void>> deleteCourse(
             @Parameter(description = "课程ID", required = true) @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             courseService.deleteCourse(id, currentUser.getId(), 
                     currentUser.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "").toLowerCase());
-            return ResponseEntity.ok(ApiResponseDTO.success("课程删除成功", null));
+            return ResponseEntity.ok(CommonResult.success("课程删除成功", null));
         } catch (RuntimeException e) {
             logger.warn("删除课程失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("删除课程异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("删除失败，请稍后重试"));
+                    .body(CommonResult.error("删除失败，请稍后重试"));
         }
     }
 
@@ -135,19 +135,19 @@ public class CourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "课程不存在")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponseDTO<CourseResponseDTO>> getCourseById(
+    public ResponseEntity<CommonResult<CourseVO>> getCourseById(
             @Parameter(description = "课程ID", required = true) @PathVariable Long id) {
         try {
-            CourseResponseDTO course = courseService.getCourseById(id);
+            CourseVO course = courseService.getCourseById(id);
             if (course == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponseDTO.error("课程不存在"));
+                        .body(CommonResult.error("课程不存在"));
             }
-            return ResponseEntity.ok(ApiResponseDTO.success("获取课程成功", course));
+            return ResponseEntity.ok(CommonResult.success("获取课程成功", course));
         } catch (Exception e) {
             logger.error("获取课程异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
+                    .body(CommonResult.error("获取失败，请稍后重试"));
         }
     }
 
@@ -159,7 +159,7 @@ public class CourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功")
     })
     @GetMapping
-    public ResponseEntity<ApiResponseDTO<Map<String, Object>>> getCourseList(
+    public ResponseEntity<CommonResult<Map<String, Object>>> getCourseList(
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
@@ -169,7 +169,7 @@ public class CourseController {
             @Parameter(description = "课程类型") @RequestParam(required = false) String courseType,
             @Parameter(description = "适用年级") @RequestParam(required = false) String grade) {
         try {
-            Page<CourseResponseDTO> coursePage = courseService.getCourseList(page, size, keyword,
+            Page<CourseVO> coursePage = courseService.getCourseList(page, size, keyword,
                     subjectId, teacherId, status, courseType, grade);
             
             Map<String, Object> response = new HashMap<>();
@@ -179,11 +179,11 @@ public class CourseController {
             response.put("size", coursePage.getSize());
             response.put("pages", coursePage.getPages());
             
-            return ResponseEntity.ok(ApiResponseDTO.success("获取课程列表成功", response));
+            return ResponseEntity.ok(CommonResult.success("获取课程列表成功", response));
         } catch (Exception e) {
             logger.error("获取课程列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
+                    .body(CommonResult.error("获取失败，请稍后重试"));
         }
     }
 
@@ -195,14 +195,14 @@ public class CourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功")
     })
     @GetMapping("/active")
-    public ResponseEntity<ApiResponseDTO<List<CourseResponseDTO>>> getActiveCourses() {
+    public ResponseEntity<CommonResult<List<CourseVO>>> getActiveCourses() {
         try {
-            List<CourseResponseDTO> courses = courseService.getActiveCourses();
-            return ResponseEntity.ok(ApiResponseDTO.success("获取活跃课程列表成功", courses));
+            List<CourseVO> courses = courseService.getActiveCourses();
+            return ResponseEntity.ok(CommonResult.success("获取活跃课程列表成功", courses));
         } catch (Exception e) {
             logger.error("获取活跃课程列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
+                    .body(CommonResult.error("获取失败，请稍后重试"));
         }
     }
 
@@ -216,21 +216,21 @@ public class CourseController {
     })
     @GetMapping("/teacher/{teacherId}")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<ApiResponseDTO<List<CourseResponseDTO>>> getTeacherCourses(
+    public ResponseEntity<CommonResult<List<CourseVO>>> getTeacherCourses(
             @Parameter(description = "教师ID", required = true) @PathVariable Long teacherId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
-            List<CourseResponseDTO> courses = courseService.getTeacherCourses(teacherId, currentUser.getId(),
+            List<CourseVO> courses = courseService.getTeacherCourses(teacherId, currentUser.getId(),
                     currentUser.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "").toLowerCase());
-            return ResponseEntity.ok(ApiResponseDTO.success("获取教师课程列表成功", courses));
+            return ResponseEntity.ok(CommonResult.success("获取教师课程列表成功", courses));
         } catch (RuntimeException e) {
             logger.warn("获取教师课程列表失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("获取教师课程列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
+                    .body(CommonResult.error("获取失败，请稍后重试"));
         }
     }
 
@@ -244,21 +244,21 @@ public class CourseController {
     })
     @GetMapping("/my-courses")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<ApiResponseDTO<List<CourseResponseDTO>>> getMyTeacherCourses(
+    public ResponseEntity<CommonResult<List<CourseVO>>> getMyTeacherCourses(
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             // 需要先获取当前用户对应的教师ID
             // 这里简化处理，实际应该通过service获取
-            List<CourseResponseDTO> courses = courseService.getTeacherCourses(null, currentUser.getId(), "teacher");
-            return ResponseEntity.ok(ApiResponseDTO.success("获取我的课程列表成功", courses));
+            List<CourseVO> courses = courseService.getTeacherCourses(null, currentUser.getId(), "teacher");
+            return ResponseEntity.ok(CommonResult.success("获取我的课程列表成功", courses));
         } catch (RuntimeException e) {
             logger.warn("获取我的课程列表失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("获取我的课程列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
+                    .body(CommonResult.error("获取失败，请稍后重试"));
         }
     }
 
@@ -271,19 +271,19 @@ public class CourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "教师不存在")
     })
     @GetMapping("/public/teacher/{teacherId}")
-    public ResponseEntity<ApiResponseDTO<List<CourseResponseDTO>>> getTeacherPublicCourses(
+    public ResponseEntity<CommonResult<List<CourseVO>>> getTeacherPublicCourses(
             @Parameter(description = "教师ID", required = true) @PathVariable Long teacherId) {
         try {
-            List<CourseResponseDTO> courses = courseService.getTeacherCourses(teacherId, null, "public");
-            return ResponseEntity.ok(ApiResponseDTO.success("获取教师课程列表成功", courses));
+            List<CourseVO> courses = courseService.getTeacherCourses(teacherId, null, "public");
+            return ResponseEntity.ok(CommonResult.success("获取教师课程列表成功", courses));
         } catch (RuntimeException e) {
             logger.warn("获取教师课程列表失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("获取教师课程列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("获取失败，请稍后重试"));
+                    .body(CommonResult.error("获取失败，请稍后重试"));
         }
     }
 
@@ -299,22 +299,22 @@ public class CourseController {
     })
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<ApiResponseDTO<Void>> updateCourseStatus(
+    public ResponseEntity<CommonResult<Void>> updateCourseStatus(
             @Parameter(description = "课程ID", required = true) @PathVariable Long id,
             @Parameter(description = "课程状态", required = true) @RequestParam String status,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             courseService.updateCourseStatus(id, status, currentUser.getId(),
                     currentUser.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "").toLowerCase());
-            return ResponseEntity.ok(ApiResponseDTO.success("课程状态更新成功", null));
+            return ResponseEntity.ok(CommonResult.success("课程状态更新成功", null));
         } catch (RuntimeException e) {
             logger.warn("更新课程状态失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(ApiResponseDTO.error(e.getMessage()));
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
             logger.error("更新课程状态异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponseDTO.error("更新失败，请稍后重试"));
+                    .body(CommonResult.error("更新失败，请稍后重试"));
         }
     }
 }
