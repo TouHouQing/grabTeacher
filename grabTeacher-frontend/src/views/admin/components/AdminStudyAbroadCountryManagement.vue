@@ -12,7 +12,7 @@ const searchForm = reactive({ keyword: '', status: '' as '' | '启用' | '停用
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
-const form = reactive({ id: 0, countryName: '', sortOrder: 0, isActive: true })
+const form = reactive({ id: 0, countryName: '', sortOrder: 0, active: true })
 
 const rules = {
   countryName: [{ required: true, message: '请输入国家名称', trigger: 'blur' }]
@@ -45,7 +45,7 @@ const onReset = () => { searchForm.keyword = ''; searchForm.status = ''; paginat
 
 const onAdd = () => {
   dialogTitle.value = '添加国家'
-  Object.assign(form, { id: 0, countryName: '', sortOrder: 0, isActive: true })
+  Object.assign(form, { id: 0, countryName: '', sortOrder: 0, active: true })
   dialogVisible.value = true
 }
 
@@ -58,7 +58,7 @@ const onEdit = (row: any) => {
 const onSave = async () => {
   try {
     loading.value = true
-    const payload = { countryName: form.countryName, sortOrder: form.sortOrder, isActive: form.isActive }
+    const payload = { countryName: form.countryName, sortOrder: form.sortOrder, active: form.active }
     const res = form.id === 0
       ? await studyAbroadAPI.adminCreateCountry(payload)
       : await studyAbroadAPI.adminUpdateCountry(form.id, payload)
@@ -86,8 +86,8 @@ const onDelete = async (row: any) => {
 
 const onToggleStatus = async (row: any) => {
   try {
-    const res = await studyAbroadAPI.adminUpdateCountryStatus(row.id, !row.isActive)
-    if (res?.success) { ElMessage.success(row.isActive ? '已停用' : '已启用'); loadList() } else { ElMessage.error(res?.message || '操作失败') }
+    const res = await studyAbroadAPI.adminUpdateCountryStatus(row.id, !row.active)
+    if (res?.success) { ElMessage.success(row.active ? '已停用' : '已启用'); loadList() } else { ElMessage.error(res?.message || '操作失败') }
   } catch (e: any) { ElMessage.error(e?.message || '操作失败') }
 }
 
@@ -125,13 +125,13 @@ onMounted(loadList)
       <el-table-column prop="sortOrder" label="排序" width="100" />
       <el-table-column label="状态" width="120">
         <template #default="{ row }">
-          <el-tag :type="row.isActive ? 'success' : 'danger'">{{ row.isActive ? '启用' : '停用' }}</el-tag>
+          <el-tag :type="row.active ? 'success' : 'danger'">{{ row.active ? '启用' : '停用' }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="260" fixed="right" align="center">
         <template #default="{ row }">
           <el-button size="small" :icon="Edit" @click="onEdit(row)">编辑</el-button>
-          <el-button size="small" :type="row.isActive ? 'warning' : 'success'" @click="onToggleStatus(row)">{{ row.isActive ? '停用' : '启用' }}</el-button>
+          <el-button size="small" :type="row.active ? 'warning' : 'success'" @click="onToggleStatus(row)">{{ row.active ? '停用' : '启用' }}</el-button>
           <el-button size="small" type="danger" :icon="Delete" @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -152,7 +152,7 @@ onMounted(loadList)
           <el-input v-model.number="form.sortOrder" type="number" />
         </el-form-item>
         <el-form-item label="状态">
-          <el-switch v-model="form.isActive" active-text="启用" inactive-text="停用" />
+          <el-switch v-model="form.active" active-text="启用" inactive-text="停用" />
         </el-form-item>
       </el-form>
       <template #footer>

@@ -42,8 +42,8 @@ public class StudyAbroadStageServiceImpl implements StudyAbroadStageService {
         StudyAbroadStage entity = StudyAbroadStage.builder()
                 .stageName(request.getStageName())
                 .sortOrder(request.getSortOrder() == null ? 0 : request.getSortOrder())
-                .isActive(request.getIsActive() == null ? true : request.getIsActive())
-                .isDeleted(false)
+                .active(request.getActive() == null ? true : request.getActive())
+                .deleted(false)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -57,7 +57,7 @@ public class StudyAbroadStageServiceImpl implements StudyAbroadStageService {
     @CacheEvict(cacheNames = {"abroad:stages:list", "abroad:stages:active"}, allEntries = true)
     public StudyAbroadStage update(Long id, StudyAbroadStageDTO request) {
         StudyAbroadStage entity = stageMapper.selectById(id);
-        if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
+        if (entity == null || Boolean.TRUE.equals(entity.getDeleted())) {
             throw new RuntimeException("阶段不存在");
         }
 
@@ -72,7 +72,7 @@ public class StudyAbroadStageServiceImpl implements StudyAbroadStageService {
 
         entity.setStageName(request.getStageName());
         if (request.getSortOrder() != null) entity.setSortOrder(request.getSortOrder());
-        if (request.getIsActive() != null) entity.setIsActive(request.getIsActive());
+        if (request.getActive() != null) entity.setActive(request.getActive());
         entity.setUpdatedAt(LocalDateTime.now());
         stageMapper.updateById(entity);
         log.info("更新留学阶段: {}", entity.getStageName());
@@ -84,7 +84,7 @@ public class StudyAbroadStageServiceImpl implements StudyAbroadStageService {
     @CacheEvict(cacheNames = {"abroad:stages:list", "abroad:stages:active"}, allEntries = true)
     public void delete(Long id) {
         StudyAbroadStage entity = stageMapper.selectById(id);
-        if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
+        if (entity == null || Boolean.TRUE.equals(entity.getDeleted())) {
             throw new RuntimeException("阶段不存在");
         }
         // 检查是否存在关联项目
@@ -95,7 +95,7 @@ public class StudyAbroadStageServiceImpl implements StudyAbroadStageService {
             throw new RuntimeException("该阶段下仍有留学项目，无法删除。请先删除所有关联项目。");
         }
 
-        entity.setIsDeleted(true);
+        entity.setDeleted(true);
         entity.setDeletedAt(LocalDateTime.now());
         stageMapper.updateById(entity);
         log.info("删除留学阶段: {}", entity.getStageName());
@@ -139,10 +139,10 @@ public class StudyAbroadStageServiceImpl implements StudyAbroadStageService {
     @CacheEvict(cacheNames = {"abroad:stages:list", "abroad:stages:active", "abroad:stages:get"}, allEntries = true)
     public void updateStatus(Long id, Boolean isActive) {
         StudyAbroadStage entity = stageMapper.selectById(id);
-        if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
+        if (entity == null || Boolean.TRUE.equals(entity.getDeleted())) {
             throw new RuntimeException("阶段不存在");
         }
-        entity.setIsActive(isActive);
+        entity.setActive(isActive);
         stageMapper.updateById(entity);
         log.info("更新阶段状态: {} -> {}", entity.getStageName(), isActive);
     }

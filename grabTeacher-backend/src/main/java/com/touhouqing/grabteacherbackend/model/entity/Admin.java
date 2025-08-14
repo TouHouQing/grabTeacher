@@ -28,7 +28,7 @@ public class Admin {
     private String notes;
     
     @TableField("is_deleted")
-    private Boolean isDeleted;
+    private Boolean deleted;
     
     @TableField("deleted_at")
     private LocalDateTime deletedAt;

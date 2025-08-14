@@ -54,7 +54,7 @@ public class StudentProfileVO {
     private String gender;
     
     @Schema(description = "是否已删除", example = "false")
-    private Boolean isDeleted;
+    private Boolean deleted;
     
     @Schema(description = "删除时间")
     private LocalDateTime deletedAt;

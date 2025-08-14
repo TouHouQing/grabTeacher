@@ -60,7 +60,7 @@ public class Course {
     @TableField("is_featured")
     @Builder.Default
     @Schema(description = "是否为精选课程，在最新课程页面展示", example = "false")
-    private Boolean isFeatured = false;
+    private Boolean featured = false;
 
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     @Schema(description = "课程创建时间")
@@ -69,7 +69,7 @@ public class Course {
     @TableField("is_deleted")
     @Builder.Default
     @Schema(description = "是否删除", example = "false", hidden = true)
-    private Boolean isDeleted = false;
+    private Boolean deleted = false;
 
     @TableField("deleted_at")
     @Schema(description = "删除时间", hidden = true)
@@ -83,7 +83,7 @@ public class Course {
         this.courseType = courseType;
         this.durationMinutes = durationMinutes;
         this.status = "pending";
-        this.isFeatured = false;
-        this.isDeleted = false;
+        this.featured = false;
+        this.deleted = false;
     }
 }

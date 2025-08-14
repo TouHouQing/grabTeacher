@@ -52,15 +52,15 @@ public class Teacher {
 
     @TableField("is_verified")
     @Builder.Default
-    private Boolean isVerified = false;
+    private Boolean verified = false;
 
     @TableField("is_featured")
     @Builder.Default
-    private Boolean isFeatured = false;
+    private Boolean featured = false;
 
     @TableField("is_deleted")
     @Builder.Default
-    private Boolean isDeleted = false;
+    private Boolean deleted = false;
 
     @TableField("deleted_at")
     private LocalDateTime deletedAt;
@@ -69,7 +69,7 @@ public class Teacher {
     public Teacher(Long userId, String realName) {
         this.userId = userId;
         this.realName = realName;
-        this.isVerified = false;
-        this.isDeleted = false;
+        this.verified = false;
+        this.deleted = false;
     }
 } 

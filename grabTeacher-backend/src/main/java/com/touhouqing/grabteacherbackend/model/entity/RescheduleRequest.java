@@ -128,7 +128,7 @@ public class RescheduleRequest {
     @TableField("is_deleted")
     @Builder.Default
     @Schema(description = "是否删除", example = "false", hidden = true)
-    private Boolean isDeleted = false;
+    private Boolean deleted = false;
 
     @TableField("deleted_at")
     @Schema(description = "删除时间", hidden = true)

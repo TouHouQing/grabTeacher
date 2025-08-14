@@ -86,7 +86,7 @@ public class Schedule {
     @TableField("is_deleted")
     @Builder.Default
     @Schema(description = "是否删除", example = "false", hidden = true)
-    private Boolean isDeleted = false;
+    private Boolean deleted = false;
 
     @TableField("deleted_at")
     @Schema(description = "删除时间", hidden = true)
@@ -104,7 +104,7 @@ public class Schedule {
     @TableField("is_trial")
     @Builder.Default
     @Schema(description = "是否为试听课", example = "false")
-    private Boolean isTrial = false;
+    private Boolean trial = false;
 
     // 新增字段：课程序号（在周期性课程中的第几次课）
     @TableField("session_number")
@@ -122,7 +122,7 @@ public class Schedule {
         this.endTime = endTime;
         this.status = "progressing";
         this.bookingSource = "request";
-        this.isDeleted = false;
-        this.isTrial = false;
+        this.deleted = false;
+        this.trial = false;
     }
 }

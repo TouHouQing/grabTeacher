@@ -80,7 +80,7 @@ public class AuthServiceImpl implements AuthService {
                     .birthDate(registerDTO.getBirthDate())
                     .userType(registerDTO.getUserType().name())
                     .status("active")
-                    .isDeleted(false)
+                    .deleted(false)
                     .hasUsedTrial(false) // 新用户默认未使用免费试听
                     .build();
 
@@ -98,7 +98,7 @@ public class AuthServiceImpl implements AuthService {
                         .preferredTeachingStyle(StringUtils.hasText(registerDTO.getPreferredTeachingStyle()) ? registerDTO.getPreferredTeachingStyle() : null)
                         .budgetRange(StringUtils.hasText(registerDTO.getBudgetRange()) ? registerDTO.getBudgetRange() : null)
                         .gender(StringUtils.hasText(registerDTO.getGender()) ? registerDTO.getGender() : "不愿透露")
-                        .isDeleted(false)
+                        .deleted(false)
                         .build();
                 
                 studentMapper.insert(student);
@@ -144,8 +144,8 @@ public class AuthServiceImpl implements AuthService {
                         .introduction(StringUtils.hasText(registerDTO.getIntroduction()) ? registerDTO.getIntroduction() : null)
                         .gender(StringUtils.hasText(registerDTO.getGender()) ? registerDTO.getGender() : "不愿透露")
                         .availableTimeSlots(availableTimeSlotsJson)
-                        .isVerified(false)
-                        .isDeleted(false)
+                        .verified(false)
+                        .deleted(false)
                         .build();
 
                 teacherMapper.insert(teacher);

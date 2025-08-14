@@ -106,7 +106,7 @@ public class BookingRequest {
     @TableField("is_deleted")
     @Builder.Default
     @Schema(description = "是否删除", example = "false", hidden = true)
-    private Boolean isDeleted = false;
+    private Boolean deleted = false;
 
     @TableField("deleted_at")
     @Schema(description = "删除时间", hidden = true)
@@ -116,7 +116,7 @@ public class BookingRequest {
     @TableField("is_trial")
     @Builder.Default
     @Schema(description = "是否为免费试听课", example = "false")
-    private Boolean isTrial = false;
+    private Boolean trial = false;
 
     // 新增字段：试听课时长（分钟）
     @TableField("trial_duration_minutes")
@@ -129,7 +129,7 @@ public class BookingRequest {
         this.teacherId = teacherId;
         this.bookingType = bookingType;
         this.status = "pending";
-        this.isDeleted = false;
-        this.isTrial = false;
+        this.deleted = false;
+        this.trial = false;
     }
 }

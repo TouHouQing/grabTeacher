@@ -219,7 +219,7 @@ public class AdminServiceImpl implements AdminService {
                 .phone(request.getPhone())
                 .userType("student")
                 .status("active")
-                .isDeleted(false)
+                .deleted(false)
                 .hasUsedTrial(false)
                 .build();
 
@@ -327,7 +327,7 @@ public class AdminServiceImpl implements AdminService {
         }
 
         // 逻辑删除学生
-        student.setIsDeleted(true);
+        student.setDeleted(true);
         student.setDeletedAt(LocalDateTime.now());
         studentMapper.updateById(student);
 
@@ -335,7 +335,7 @@ public class AdminServiceImpl implements AdminService {
         if (student.getUserId() != null) {
             User user = userMapper.selectById(student.getUserId());
             if (user != null) {
-                user.setIsDeleted(true);
+                user.setDeleted(true);
                 user.setDeletedAt(LocalDateTime.now());
                 userMapper.updateById(user);
             }
@@ -408,7 +408,7 @@ public class AdminServiceImpl implements AdminService {
                 .phone(request.getPhone())
                 .userType("teacher")
                 .status("active")
-                .isDeleted(false)
+                .deleted(false)
                 .hasUsedTrial(false)
                 .build();
 
@@ -447,7 +447,7 @@ public class AdminServiceImpl implements AdminService {
                 .videoIntroUrl(request.getVideoIntroUrl())
                 .gender(request.getGender() != null ? request.getGender() : "不愿透露")
                 .availableTimeSlots(availableTimeSlotsJson)
-                .isVerified(true) // 管理员添加的教师默认已审核
+                .verified(true) // 管理员添加的教师默认已审核
                 .build();
 
         teacherMapper.insert(teacher);
@@ -553,7 +553,7 @@ public class AdminServiceImpl implements AdminService {
         }
 
         // 逻辑删除教师
-        teacher.setIsDeleted(true);
+        teacher.setDeleted(true);
         teacher.setDeletedAt(LocalDateTime.now());
         teacherMapper.updateById(teacher);
 
@@ -561,7 +561,7 @@ public class AdminServiceImpl implements AdminService {
         if (teacher.getUserId() != null) {
             User user = userMapper.selectById(teacher.getUserId());
             if (user != null) {
-                user.setIsDeleted(true);
+                user.setDeleted(true);
                 user.setDeletedAt(LocalDateTime.now());
                 userMapper.updateById(user);
             }
@@ -575,7 +575,7 @@ public class AdminServiceImpl implements AdminService {
             throw new RuntimeException("教师不存在");
         }
 
-        teacher.setIsVerified(isVerified);
+        teacher.setVerified(isVerified);
         teacherMapper.updateById(teacher);
     }
 
@@ -587,7 +587,7 @@ public class AdminServiceImpl implements AdminService {
             throw new RuntimeException("教师不存在");
         }
 
-        teacher.setIsFeatured(isFeatured);
+        teacher.setFeatured(isFeatured);
         teacherMapper.updateById(teacher);
 
         log.info("设置教师精选状态成功: teacherId={}, isFeatured={}", teacherId, isFeatured);

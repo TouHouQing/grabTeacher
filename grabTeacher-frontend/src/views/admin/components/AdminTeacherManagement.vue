@@ -51,7 +51,7 @@ const teacherForm = reactive({
   introduction: '',
   videoIntroUrl: '',
   gender: '不愿透露',
-  isVerified: false
+  isVerified: false, // 表单内部仍使用 isVerified，编辑时从 row.verified 映射
 })
 
 // 可上课时间
@@ -263,6 +263,7 @@ const handleAddTeacher = () => {
 const handleEditTeacher = async (teacher: any) => {
   teacherDialogTitle.value = '编辑教师'
   Object.assign(teacherForm, teacher)
+  teacherForm.isVerified = !!teacher.verified
 
   // 获取教师的科目ID列表
   try {
@@ -375,7 +376,7 @@ const handleDeleteTeacher = async (teacher: any) => {
 // 切换认证状态
 const toggleVerification = async (teacher: any) => {
   try {
-    const result = await teacherAPI.updateVerification(teacher.id, !teacher.isVerified)
+    const result = await teacherAPI.updateVerification(teacher.id, !teacher.verified)
     if (result.success) {
       ElMessage.success(teacher.isVerified ? '已取消认证' : '认证成功')
       await loadTeacherList()
@@ -391,7 +392,7 @@ const toggleVerification = async (teacher: any) => {
 // 切换精选教师状态
 const toggleFeatured = async (teacher: any) => {
   try {
-    const result = await teacherAPI.setFeatured(teacher.id, !teacher.isFeatured)
+    const result = await teacherAPI.setFeatured(teacher.id, !teacher.featured)
     if (result.success) {
       ElMessage.success(teacher.isFeatured ? '已取消天下名师' : '设置为天下名师成功')
       await loadTeacherList()
@@ -490,17 +491,17 @@ onMounted(async () => {
           ¥{{ row.hourlyRate }}
         </template>
       </el-table-column>
-      <el-table-column prop="isVerified" label="认证状态" width="100">
+      <el-table-column prop="verified" label="认证状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="row.isVerified ? 'success' : 'warning'">
-            {{ row.isVerified ? '已认证' : '未认证' }}
+          <el-tag :type="row.verified ? 'success' : 'warning'">
+            {{ row.verified ? '已认证' : '未认证' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="isFeatured" label="名师状态" width="100">
+      <el-table-column prop="featured" label="名师状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="row.isFeatured ? 'success' : 'info'">
-            {{ row.isFeatured ? '天下名师' : '普通教师' }}
+          <el-tag :type="row.featured ? 'success' : 'info'">
+            {{ row.featured ? '天下名师' : '普通教师' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -510,18 +511,18 @@ onMounted(async () => {
             <el-button size="small" :icon="Edit" @click="handleEditTeacher(row)">编辑</el-button>
             <el-button
               size="small"
-              :type="row.isVerified ? 'warning' : 'success'"
-              :icon="row.isVerified ? Close : Check"
+              :type="row.verified ? 'warning' : 'success'"
+              :icon="row.verified ? Close : Check"
               @click="toggleVerification(row)"
             >
-              {{ row.isVerified ? '取消认证' : '认证' }}
+              {{ row.verified ? '取消认证' : '认证' }}
             </el-button>
             <el-button
               size="small"
-              :type="row.isFeatured ? 'warning' : 'primary'"
+              :type="row.featured ? 'warning' : 'primary'"
               @click="toggleFeatured(row)"
             >
-              {{ row.isFeatured ? '取消名师' : '设为名师' }}
+              {{ row.featured ? '取消名师' : '设为名师' }}
             </el-button>
             <el-button size="small" type="danger" :icon="Delete" @click="handleDeleteTeacher(row)">删除</el-button>
           </div>

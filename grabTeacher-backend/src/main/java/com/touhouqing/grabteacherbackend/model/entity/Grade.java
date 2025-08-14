@@ -45,7 +45,7 @@ public class Grade {
 
     @TableField("is_deleted")
     @Schema(description = "是否删除", hidden = true)
-    private Boolean isDeleted;
+    private Boolean deleted;
 
     @TableField("deleted_at")
     @Schema(description = "删除时间", hidden = true)

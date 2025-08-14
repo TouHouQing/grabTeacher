@@ -33,7 +33,7 @@ public class StudyAbroadCountry {
     @TableField("is_active")
     @Builder.Default
     @Schema(description = "是否启用")
-    private Boolean isActive = true;
+    private Boolean active = true;
 
     @TableField("created_at")
     @Schema(description = "创建时间", hidden = true)
@@ -46,7 +46,7 @@ public class StudyAbroadCountry {
     @TableField("is_deleted")
     @Builder.Default
     @Schema(description = "是否删除", hidden = true)
-    private Boolean isDeleted = false;
+    private Boolean deleted = false;
 
     @TableField("deleted_at")
     @Schema(description = "删除时间", hidden = true)

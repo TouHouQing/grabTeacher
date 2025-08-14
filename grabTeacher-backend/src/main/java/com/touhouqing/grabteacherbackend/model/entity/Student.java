@@ -45,7 +45,7 @@ public class Student {
 
     @TableField("is_deleted")
     @Builder.Default
-    private Boolean isDeleted = false;
+    private Boolean deleted = false;
     
     @TableField("deleted_at")
     private LocalDateTime deletedAt;
@@ -54,6 +54,6 @@ public class Student {
     public Student(Long userId, String realName) {
         this.userId = userId;
         this.realName = realName;
-        this.isDeleted = false;
+        this.deleted = false;
     }
 } 

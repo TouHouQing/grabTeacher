@@ -80,8 +80,8 @@
         </el-table-column>
         <el-table-column label="精选状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.isFeatured ? 'success' : 'info'">
-              {{ row.isFeatured ? '已精选' : '未精选' }}
+            <el-tag :type="row.featured ? 'success' : 'info'">
+              {{ row.featured ? '已精选' : '未精选' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -93,7 +93,7 @@
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button
-              v-if="!row.isFeatured"
+              v-if="!row.featured"
               type="primary"
               size="small"
               @click="toggleFeatured(row)"
@@ -149,7 +149,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { courseAPI, subjectAPI } from '@/utils/api'
+import { courseAPI, subjectAPI } from '../../../utils/api'
 
 // 接口定义
 interface Course {
@@ -165,7 +165,7 @@ interface Course {
   durationMinutes: number
   status: string
   statusDisplay: string
-  isFeatured: boolean
+  featured: boolean
   createdAt: string
 }
 
@@ -215,7 +215,7 @@ const fetchCourses = async () => {
 
       // 根据精选状态筛选
       if (filter.featured !== null) {
-        courseList = courseList.filter(course => course.isFeatured === filter.featured)
+        courseList = courseList.filter(course => course.featured === filter.featured)
       }
 
       courses.value = courseList
@@ -258,7 +258,7 @@ const fetchSubjects = async () => {
 // 切换精选状态
 const toggleFeatured = async (course: Course) => {
   try {
-    const action = course.isFeatured ? '取消精选' : '设为精选'
+    const action = course.featured ? '取消精选' : '设为精选'
     await ElMessageBox.confirm(
       `确定要${action}课程"${course.title}"吗？`,
       '确认操作',
@@ -269,7 +269,7 @@ const toggleFeatured = async (course: Course) => {
       }
     )
 
-    const response = await courseAPI.setCourseAsFeatured(course.id, !course.isFeatured)
+    const response = await courseAPI.setCourseAsFeatured(course.id, !course.featured)
     if (response.success) {
       ElMessage.success(`${action}成功`)
       await refreshData()

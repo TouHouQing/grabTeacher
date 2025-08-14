@@ -30,13 +30,13 @@ public class StudyAbroadProgramDTO {
     private String tags;
 
     @Schema(description = "是否热门")
-    private Boolean isHot;
+    private Boolean hot;
 
 
     @Schema(description = "排序权重")
     private Integer sortOrder;
 
     @Schema(description = "是否启用")
-    private Boolean isActive;
+    private Boolean active;
 }
 

@@ -15,6 +15,6 @@ public class StudyAbroadStageDTO {
     private Integer sortOrder;
 
     @Schema(description = "是否启用")
-    private Boolean isActive;
+    private Boolean active;
 }
 

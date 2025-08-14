@@ -78,7 +78,7 @@ public class ScheduleVO {
     private String bookingSource;
 
     @Schema(description = "是否为试听课", example = "false")
-    private Boolean isTrial;
+    private Boolean trial;
 
     @Schema(description = "课程序号（在周期性课程中的第几次课）", example = "1")
     private Integer sessionNumber;

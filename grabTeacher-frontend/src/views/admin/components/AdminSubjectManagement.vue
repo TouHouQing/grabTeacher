@@ -28,7 +28,7 @@ const subjectForm = reactive({
   id: 0,
   name: '',
   iconUrl: '',
-  isActive: true
+  active: true
 })
 
 // 表单验证规则
@@ -92,7 +92,7 @@ const handleAddSubject = () => {
     id: 0,
     name: '',
     iconUrl: '',
-    isActive: true
+    active: true
   })
   subjectDialogVisible.value = true
 }
@@ -111,7 +111,7 @@ const saveSubject = async () => {
     const subjectData = {
       name: subjectForm.name,
       iconUrl: subjectForm.iconUrl,
-      isActive: subjectForm.isActive
+      active: subjectForm.active
     }
 
     let result
@@ -168,9 +168,9 @@ const handleDeleteSubject = async (subject: any) => {
 // 切换科目状态
 const toggleSubjectStatus = async (subject: any) => {
   try {
-    const result = await subjectAPI.updateStatus(subject.id, !subject.isActive)
+    const result = await subjectAPI.updateStatus(subject.id, !subject.active)
     if (result.success) {
-      ElMessage.success(subject.isActive ? '已停用' : '已启用')
+      ElMessage.success(subject.active ? '已停用' : '已启用')
       await loadSubjectList()
     } else {
       ElMessage.error(result.message || '操作失败')
@@ -246,10 +246,10 @@ onMounted(() => {
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column prop="isActive" label="状态" width="200">
+      <el-table-column prop="active" label="状态" width="200">
         <template #default="{ row }">
-          <el-tag :type="row.isActive ? 'success' : 'danger'">
-            {{ row.isActive ? '启用' : '停用' }}
+          <el-tag :type="row.active ? 'success' : 'danger'">
+            {{ row.active ? '启用' : '停用' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -259,10 +259,10 @@ onMounted(() => {
             <el-button size="small" :icon="Edit" @click="handleEditSubject(row)">编辑</el-button>
             <el-button
               size="small"
-              :type="row.isActive ? 'warning' : 'success'"
+              :type="row.active ? 'warning' : 'success'"
               @click="toggleSubjectStatus(row)"
             >
-              {{ row.isActive ? '停用' : '启用' }}
+              {{ row.active ? '停用' : '启用' }}
             </el-button>
             <el-button size="small" type="danger" :icon="Delete" @click="handleDeleteSubject(row)">删除</el-button>
           </div>
@@ -298,7 +298,7 @@ onMounted(() => {
           <el-input v-model="subjectForm.iconUrl" placeholder="请输入图标链接地址" />
         </el-form-item>
         <el-form-item label="状态">
-          <el-switch v-model="subjectForm.isActive" active-text="启用" inactive-text="停用" />
+          <el-switch v-model="subjectForm.active" active-text="启用" inactive-text="停用" />
         </el-form-item>
       </el-form>
       <template #footer>

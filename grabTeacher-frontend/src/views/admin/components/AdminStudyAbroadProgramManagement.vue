@@ -17,7 +17,7 @@ const stageMap = computed<Record<number, string>>(() => Object.fromEntries(stage
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
-const form = reactive({ id: 0, title: '', countryId: null as number | null, stageId: null as number | null, description: '', imageUrl: '', tags: '[]', isHot: false, sortOrder: 0, isActive: true })
+const form = reactive({ id: 0, title: '', countryId: null as number | null, stageId: null as number | null, description: '', imageUrl: '', tags: '[]', hot: false, sortOrder: 0, active: true })
 
 const rules = {
   title: [{ required: true, message: '请输入项目标题', trigger: 'blur' }],
@@ -62,7 +62,7 @@ const onReset = () => { Object.assign(searchForm, { keyword: '', countryId: null
 const onAdd = async () => {
   dialogTitle.value = '添加项目'
   await loadMeta()
-  Object.assign(form, { id: 0, title: '', countryId: null, stageId: null, description: '', imageUrl: '', tags: '[]', isHot: false, sortOrder: 0, isActive: true })
+  Object.assign(form, { id: 0, title: '', countryId: null, stageId: null, description: '', imageUrl: '', tags: '[]', hot: false, sortOrder: 0, active: true })
   dialogVisible.value = true
 }
 
@@ -90,7 +90,7 @@ const onSave = async () => {
     }
 
     loading.value = true
-    const payload = { title: form.title, countryId: form.countryId!, stageId: form.stageId!, description: form.description, imageUrl: form.imageUrl, tags: form.tags, isHot: form.isHot, sortOrder: form.sortOrder, isActive: form.isActive }
+    const payload = { title: form.title, countryId: form.countryId!, stageId: form.stageId!, description: form.description, imageUrl: form.imageUrl, tags: form.tags, hot: form.hot, sortOrder: form.sortOrder, active: form.active }
     const res = form.id === 0 ? await studyAbroadAPI.adminCreateProgram(payload) : await studyAbroadAPI.adminUpdateProgram(form.id, payload)
     if (res?.success) { ElMessage.success(form.id === 0 ? '添加成功' : '更新成功'); dialogVisible.value = false; await loadList() } else { ElMessage.error(res?.message || '操作失败') }
   } catch (e: any) { ElMessage.error(e?.message || '操作失败') } finally { loading.value = false }
@@ -106,25 +106,25 @@ const onDelete = async (row: any) => {
 
 const onToggleStatus = async (row: any) => {
   try {
-    const res = await studyAbroadAPI.adminUpdateProgramStatus(row.id, !row.isActive)
-    if (res?.success) { ElMessage.success(row.isActive ? '已停用' : '已启用'); loadList() } else { ElMessage.error(res?.message || '操作失败') }
+    const res = await studyAbroadAPI.adminUpdateProgramStatus(row.id, !row.active)
+    if (res?.success) { ElMessage.success(row.active ? '已停用' : '已启用'); loadList() } else { ElMessage.error(res?.message || '操作失败') }
   } catch (e: any) { ElMessage.error(e?.message || '操作失败') }
 }
 
 const onToggleHot = async (row: any, val: any) => {
   const next = !!val
-  const prev = !!row.isHot
-  row.isHot = next
+  const prev = !!row.hot
+  row.hot = next
   try {
     const res = await studyAbroadAPI.adminUpdateProgramFlags(row.id, next, undefined)
     if (res?.success) {
       ElMessage.success('已更新热门状态')
     } else {
-      row.isHot = prev
+      row.hot = prev
       ElMessage.error(res?.message || '操作失败')
     }
   } catch (e: any) {
-    row.isHot = prev
+    row.hot = prev
     ElMessage.error(e?.message || '操作失败')
   }
 }
@@ -184,19 +184,19 @@ onMounted(async () => { await loadMeta(); await loadList() })
       </el-table-column>
       <el-table-column label="热门" width="90">
         <template #default="{ row }">
-          <el-switch v-model="row.isHot" @change="val => onToggleHot(row, val)" />
+          <el-switch v-model="row.hot" @change="val => onToggleHot(row, val)" />
         </template>
       </el-table-column>
       <el-table-column prop="sortOrder" label="排序" width="90" />
       <el-table-column label="状态" width="120">
         <template #default="{ row }">
-          <el-tag :type="row.isActive ? 'success' : 'danger'">{{ row.isActive ? '启用' : '停用' }}</el-tag>
+          <el-tag :type="row.active ? 'success' : 'danger'">{{ row.active ? '启用' : '停用' }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="300" fixed="right" align="center">
         <template #default="{ row }">
           <el-button size="small" :icon="Edit" @click="onEdit(row)">编辑</el-button>
-          <el-button size="small" :type="row.isActive ? 'warning' : 'success'" @click="onToggleStatus(row)">{{ row.isActive ? '停用' : '启用' }}</el-button>
+          <el-button size="small" :type="row.active ? 'warning' : 'success'" @click="onToggleStatus(row)">{{ row.active ? '停用' : '启用' }}</el-button>
           <el-button size="small" type="danger" :icon="Delete" @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -238,13 +238,13 @@ onMounted(async () => { await loadMeta(); await loadList() })
           <el-input v-model="form.description" type="textarea" :rows="4" />
         </el-form-item>
         <el-form-item label="热门">
-          <el-switch v-model="form.isHot" active-text="热门" inactive-text="非热门" />
+          <el-switch v-model="form.hot" active-text="热门" inactive-text="非热门" />
         </el-form-item>
         <el-form-item label="排序">
           <el-input v-model.number="form.sortOrder" type="number" />
         </el-form-item>
         <el-form-item label="状态">
-          <el-switch v-model="form.isActive" active-text="启用" inactive-text="停用" />
+          <el-switch v-model="form.active" active-text="启用" inactive-text="停用" />
         </el-form-item>
       </el-form>
       <template #footer>

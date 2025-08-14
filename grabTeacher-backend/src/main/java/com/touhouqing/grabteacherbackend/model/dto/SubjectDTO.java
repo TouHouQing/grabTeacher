@@ -24,5 +24,5 @@ public class SubjectDTO {
     private String iconUrl;
 
     @Schema(description = "是否启用", example = "true", defaultValue = "true")
-    private Boolean isActive = true;
+    private Boolean active = true;
 } 

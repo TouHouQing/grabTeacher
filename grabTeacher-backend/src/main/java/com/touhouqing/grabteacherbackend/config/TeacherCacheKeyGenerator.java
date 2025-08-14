@@ -27,7 +27,7 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
     @Override
     public Object generate(Object target, Method method, Object... params) {
         String methodName = method.getName();
-        
+
         switch (methodName) {
             case "getTeacherDetailById":
                 return generateTeacherDetailKey(params);
@@ -65,13 +65,13 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
         if (params == null || params.length < 2) {
             return "teacherList:default";
         }
-        
+
         StringBuilder key = new StringBuilder("teacherList:");
-        
+
         // page, size, subject, grade, keyword
         key.append("page_").append(params[0] != null ? params[0] : "1");
         key.append(":size_").append(params[1] != null ? params[1] : "10");
-        
+
         if (params.length > 2 && StringUtils.hasText((String) params[2])) {
             key.append(":subject_").append(params[2]);
         }
@@ -81,52 +81,51 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
         if (params.length > 4 && StringUtils.hasText((String) params[4])) {
             key.append(":keyword_").append(params[4]);
         }
-        
+
         String finalKey = key.toString();
         return finalKey.length() > MAX_KEY_LENGTH ? generateHashKey(finalKey) : finalKey;
     }
 
     /**
      * 生成教师匹配缓存Key
+     * 注意：必须包含时间偏好相关字段，否则不同时间偏好的请求会命中同一缓存
      */
     private String generateTeacherMatchKey(Object... params) {
         if (params == null || params.length < 1 || params[0] == null) {
             return "teacherMatch:unknown";
         }
-        
-        // 假设参数是TeacherMatchRequest对象
+
+        // 参数应为 TeacherMatchDTO
         Object request = params[0];
         StringBuilder key = new StringBuilder("teacherMatch:");
-        
+
         try {
-            // 使用反射获取请求对象的关键字段
+            // 基础字段
             String subject = getFieldValue(request, "subject");
             String grade = getFieldValue(request, "grade");
-            String gender = getFieldValue(request, "genderPreference");
-            String budget = getFieldValue(request, "budgetRange");
+            String preferredGender = getFieldValue(request, "preferredGender");
+            String preferredDateStart = getFieldValue(request, "preferredDateStart");
+            String preferredDateEnd = getFieldValue(request, "preferredDateEnd");
             Integer limit = getIntFieldValue(request, "limit");
-            
-            if (StringUtils.hasText(subject)) {
-                key.append("subject_").append(subject).append(":");
-            }
-            if (StringUtils.hasText(grade)) {
-                key.append("grade_").append(grade).append(":");
-            }
-            if (StringUtils.hasText(gender)) {
-                key.append("gender_").append(gender).append(":");
-            }
-            if (StringUtils.hasText(budget)) {
-                key.append("budget_").append(budget).append(":");
-            }
-            if (limit != null) {
-                key.append("limit_").append(limit);
-            }
-            
+
+            // 列表字段（星期几与时间段）
+            String weekdays = getListFieldAsString(request, "preferredWeekdays");
+            String timeSlots = getListFieldAsString(request, "preferredTimeSlots");
+
+            if (StringUtils.hasText(subject)) key.append("subject_").append(subject).append(":");
+            if (StringUtils.hasText(grade)) key.append("grade_").append(grade).append(":");
+            if (StringUtils.hasText(preferredGender)) key.append("gender_").append(preferredGender).append(":");
+            if (StringUtils.hasText(weekdays)) key.append("wd_").append(weekdays).append(":");
+            if (StringUtils.hasText(timeSlots)) key.append("ts_").append(timeSlots).append(":");
+            if (StringUtils.hasText(preferredDateStart)) key.append("ds_").append(preferredDateStart).append(":");
+            if (StringUtils.hasText(preferredDateEnd)) key.append("de_").append(preferredDateEnd).append(":");
+            if (limit != null) key.append("limit_").append(limit);
+
         } catch (Exception e) {
             log.warn("生成教师匹配缓存Key失败，使用默认策略", e);
             key.append("hash_").append(Math.abs(request.hashCode()));
         }
-        
+
         String finalKey = key.toString();
         return finalKey.length() > MAX_KEY_LENGTH ? generateHashKey(finalKey) : finalKey;
     }
@@ -148,12 +147,12 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
         if (params == null || params.length < 3) {
             return "teacherSchedule:unknown";
         }
-        
+
         StringBuilder key = new StringBuilder("teacherSchedule:");
         key.append("teacher_").append(params[0] != null ? params[0] : "null");
         key.append(":start_").append(params[1] != null ? params[1] : "null");
         key.append(":end_").append(params[2] != null ? params[2] : "null");
-        
+
         return key.toString();
     }
 
@@ -164,12 +163,12 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
         if (params == null || params.length < 3) {
             return "teacherAvailability:unknown";
         }
-        
+
         StringBuilder key = new StringBuilder("teacherAvailability:");
         key.append("teacher_").append(params[0] != null ? params[0] : "null");
         key.append(":start_").append(params[1] != null ? params[1] : "null");
         key.append(":end_").append(params[2] != null ? params[2] : "null");
-        
+
         // 如果有时间段参数
         if (params.length > 3 && params[3] != null) {
             if (params[3] instanceof List) {
@@ -180,7 +179,7 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
                 }
             }
         }
-        
+
         String finalKey = key.toString();
         return finalKey.length() > MAX_KEY_LENGTH ? generateHashKey(finalKey) : finalKey;
     }
@@ -192,7 +191,7 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
         StringBuilder key = new StringBuilder();
         key.append(target.getClass().getSimpleName()).append(":");
         key.append(method.getName()).append(":");
-        
+
         if (params != null && params.length > 0) {
             String paramsKey = Arrays.stream(params)
                     .map(param -> param != null ? param.toString() : NULL_VALUE)
@@ -201,7 +200,7 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
         } else {
             key.append("noParams");
         }
-        
+
         String finalKey = key.toString();
         return finalKey.length() > MAX_KEY_LENGTH ? generateHashKey(finalKey) : finalKey;
     }
@@ -250,5 +249,32 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * 通过反射将 List 字段转为稳定的字符串（排序后逗号拼接）
+     */
+    @SuppressWarnings("unchecked")
+    private String getListFieldAsString(Object obj, String fieldName) {
+        try {
+            java.lang.reflect.Field field = obj.getClass().getDeclaredField(fieldName);
+            field.setAccessible(true);
+            Object value = field.get(obj);
+            if (value instanceof List) {
+                List<Object> list = (List<Object>) value;
+                if (list == null || list.isEmpty()) {
+                    return null;
+                }
+                List<String> items = list.stream()
+                        .filter(java.util.Objects::nonNull)
+                        .map(Object::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+                return String.join("-", items);
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
     }
 }

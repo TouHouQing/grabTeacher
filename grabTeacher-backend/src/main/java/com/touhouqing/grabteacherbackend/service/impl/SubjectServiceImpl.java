@@ -59,8 +59,8 @@ public class SubjectServiceImpl implements SubjectService {
         Subject subject = Subject.builder()
                 .name(request.getName())
                 .iconUrl(request.getIconUrl())
-                .isActive(request.getIsActive() != null ? request.getIsActive() : true)
-                .isDeleted(false)
+                .active(request.getActive() != null ? request.getActive() : true)
+                .deleted(false)
                 .build();
 
         subjectMapper.insert(subject);
@@ -76,7 +76,7 @@ public class SubjectServiceImpl implements SubjectService {
     @CacheEvict(cacheNames = {"activeSubjects", "subjects"}, allEntries = true)
     public Subject updateSubject(Long id, SubjectDTO request) {
         Subject subject = subjectMapper.selectById(id);
-        if (subject == null || subject.getIsDeleted()) {
+        if (subject == null || subject.getDeleted()) {
             throw new RuntimeException("科目不存在");
         }
 
@@ -95,7 +95,7 @@ public class SubjectServiceImpl implements SubjectService {
 
         subject.setName(request.getName());
         subject.setIconUrl(request.getIconUrl());
-        subject.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
+        subject.setActive(request.getActive() != null ? request.getActive() : true);
 
         subjectMapper.updateById(subject);
         log.info("更新科目成功: {}", subject.getName());
@@ -110,7 +110,7 @@ public class SubjectServiceImpl implements SubjectService {
     @CacheEvict(cacheNames = {"activeSubjects", "subjects"}, allEntries = true)
     public void deleteSubject(Long id) {
         Subject subject = subjectMapper.selectById(id);
-        if (subject == null || subject.getIsDeleted()) {
+        if (subject == null || subject.getDeleted()) {
             throw new RuntimeException("科目不存在");
         }
 
@@ -120,12 +120,12 @@ public class SubjectServiceImpl implements SubjectService {
 
         // 2. 删除该科目下的所有课程（软删除）
         for (Course course : courses) {
-            if (!course.getIsDeleted()) {
+            if (!course.getDeleted()) {
                 // 2.1 处理该课程的预约申请（软删除）
                 List<BookingRequest> bookingRequests = bookingRequestMapper.findByCourseId(course.getId());
                 for (BookingRequest bookingRequest : bookingRequests) {
-                    if (!bookingRequest.getIsDeleted()) {
-                        bookingRequest.setIsDeleted(true);
+                    if (!bookingRequest.getDeleted()) {
+                        bookingRequest.setDeleted(true);
                         bookingRequest.setDeletedAt(LocalDateTime.now());
                         bookingRequestMapper.updateById(bookingRequest);
                     }
@@ -135,8 +135,8 @@ public class SubjectServiceImpl implements SubjectService {
                 // 2.2 处理该课程的课程安排（软删除）
                 List<Schedule> schedules = scheduleMapper.findByCourseId(course.getId());
                 for (Schedule schedule : schedules) {
-                    if (!schedule.getIsDeleted()) {
-                        schedule.setIsDeleted(true);
+                    if (!schedule.getDeleted()) {
+                        schedule.setDeleted(true);
                         schedule.setDeletedAt(LocalDateTime.now());
                         scheduleMapper.updateById(schedule);
                     }
@@ -147,7 +147,7 @@ public class SubjectServiceImpl implements SubjectService {
                 courseGradeMapper.deleteByCourseId(course.getId());
 
                 // 2.4 最后删除课程本身（软删除）
-                course.setIsDeleted(true);
+                course.setDeleted(true);
                 course.setDeletedAt(LocalDateTime.now());
                 courseMapper.updateById(course);
                 log.info("删除课程: {}", course.getTitle());
@@ -163,7 +163,7 @@ public class SubjectServiceImpl implements SubjectService {
         log.info("删除科目 {} 的教师关联", subject.getName());
 
         // 5. 最后删除科目本身（软删除）
-        subject.setIsDeleted(true);
+        subject.setDeleted(true);
         subject.setDeletedAt(LocalDateTime.now());
         subjectMapper.updateById(subject);
         log.info("删除科目成功: {}，同时删除了 {} 个相关课程", subject.getName(), courses.size());
@@ -225,11 +225,11 @@ public class SubjectServiceImpl implements SubjectService {
     @CacheEvict(cacheNames = {"activeSubjects", "subjects"}, allEntries = true)
     public void updateSubjectStatus(Long id, Boolean isActive) {
         Subject subject = subjectMapper.selectById(id);
-        if (subject == null || subject.getIsDeleted()) {
+        if (subject == null || subject.getDeleted()) {
             throw new RuntimeException("科目不存在");
         }
 
-        subject.setIsActive(isActive);
+        subject.setActive(isActive);
         subjectMapper.updateById(subject);
         log.info("更新科目状态成功: {}, status: {}", subject.getName(), isActive);
     }

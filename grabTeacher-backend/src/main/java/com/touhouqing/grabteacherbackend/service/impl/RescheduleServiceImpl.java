@@ -69,7 +69,7 @@ public class RescheduleServiceImpl implements RescheduleService {
 
         // 获取课程安排信息
         Schedule schedule = scheduleMapper.selectById(request.getScheduleId());
-        if (schedule == null || schedule.getIsDeleted()) {
+        if (schedule == null || schedule.getDeleted()) {
             throw new RuntimeException("课程安排不存在");
         }
 
@@ -120,7 +120,7 @@ public class RescheduleServiceImpl implements RescheduleService {
 
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
-                .isDeleted(false)
+                .deleted(false)
                 .build();
 
         rescheduleRequestMapper.insert(rescheduleRequest);
@@ -135,7 +135,7 @@ public class RescheduleServiceImpl implements RescheduleService {
         log.info("教师审批调课申请，申请ID: {}, 教师用户ID: {}, 状态: {}", rescheduleId, teacherUserId, approval.getStatus());
 
         RescheduleRequest rescheduleRequest = rescheduleRequestMapper.selectById(rescheduleId);
-        if (rescheduleRequest == null || rescheduleRequest.getIsDeleted()) {
+        if (rescheduleRequest == null || rescheduleRequest.getDeleted()) {
             throw new RuntimeException("调课申请不存在");
         }
 
@@ -228,7 +228,7 @@ public class RescheduleServiceImpl implements RescheduleService {
         log.info("取消调课申请，申请ID: {}, 学生用户ID: {}", rescheduleId, studentUserId);
 
         RescheduleRequest rescheduleRequest = rescheduleRequestMapper.selectById(rescheduleId);
-        if (rescheduleRequest == null || rescheduleRequest.getIsDeleted()) {
+        if (rescheduleRequest == null || rescheduleRequest.getDeleted()) {
             throw new RuntimeException("调课申请不存在");
         }
 
@@ -310,7 +310,7 @@ public class RescheduleServiceImpl implements RescheduleService {
         log.info("获取调课申请详情，申请ID: {}, 用户ID: {}, 用户类型: {}", rescheduleId, currentUserId, userType);
 
         RescheduleRequest rescheduleRequest = rescheduleRequestMapper.selectById(rescheduleId);
-        if (rescheduleRequest == null || rescheduleRequest.getIsDeleted()) {
+        if (rescheduleRequest == null || rescheduleRequest.getDeleted()) {
             throw new RuntimeException("调课申请不存在");
         }
 
@@ -334,7 +334,7 @@ public class RescheduleServiceImpl implements RescheduleService {
     @Override
     public boolean canApplyReschedule(Long scheduleId, Long studentUserId) {
         Schedule schedule = scheduleMapper.selectById(scheduleId);
-        if (schedule == null || schedule.getIsDeleted()) {
+        if (schedule == null || schedule.getDeleted()) {
             return false;
         }
 

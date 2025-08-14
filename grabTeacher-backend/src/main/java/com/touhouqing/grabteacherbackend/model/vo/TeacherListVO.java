@@ -54,5 +54,5 @@ public class TeacherListVO {
     private String gender;
 
     @Schema(description = "是否已认证", example = "true")
-    private Boolean isVerified;
+    private Boolean verified;
 }

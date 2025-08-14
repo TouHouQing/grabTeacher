@@ -55,7 +55,7 @@ public class User {
 
     @TableField("is_deleted")
     @Builder.Default
-    private Boolean isDeleted = false;
+    private Boolean deleted = false;
 
     @TableField("deleted_at")
     private LocalDateTime deletedAt;
@@ -74,7 +74,7 @@ public class User {
         this.password = password;
         this.userType = userType;
         this.status = "active";
-        this.isDeleted = false;
+        this.deleted = false;
         this.hasUsedTrial = false;
     }
 }

@@ -97,7 +97,7 @@ public class BookingVO {
     private LocalDateTime approvedAt;
 
     @Schema(description = "是否为免费试听课", example = "false")
-    private Boolean isTrial;
+    private Boolean trial;
 
     @Schema(description = "试听课时长（分钟）", example = "30")
     private Integer trialDurationMinutes;

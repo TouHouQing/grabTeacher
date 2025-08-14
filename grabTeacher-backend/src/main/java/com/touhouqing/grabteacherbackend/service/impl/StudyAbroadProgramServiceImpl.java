@@ -45,10 +45,10 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
                 .description(request.getDescription())
                 .imageUrl(request.getImageUrl())
                 .tags(request.getTags())
-                .isHot(request.getIsHot() == null ? false : request.getIsHot())
+                .hot(request.getHot() == null ? false : request.getHot())
                 .sortOrder(request.getSortOrder() == null ? 0 : request.getSortOrder())
-                .isActive(request.getIsActive() == null ? true : request.getIsActive())
-                .isDeleted(false)
+                .active(request.getActive() == null ? true : request.getActive())
+                .deleted(false)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -62,7 +62,7 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
     @CacheEvict(cacheNames = {"abroad:programs:list", "abroad:programs:active", "abroad:programs:get"}, allEntries = true)
     public StudyAbroadProgram update(Long id, StudyAbroadProgramDTO request) {
         StudyAbroadProgram entity = programMapper.selectById(id);
-        if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
+        if (entity == null || Boolean.TRUE.equals(entity.getDeleted())) {
             throw new RuntimeException("项目不存在");
         }
         // 同名冲突（排除自身，忽略软删除）
@@ -81,9 +81,9 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
         entity.setDescription(request.getDescription());
         entity.setImageUrl(request.getImageUrl());
         entity.setTags(request.getTags());
-        if (request.getIsHot() != null) entity.setIsHot(request.getIsHot());
+        if (request.getHot() != null) entity.setHot(request.getHot());
         if (request.getSortOrder() != null) entity.setSortOrder(request.getSortOrder());
-        if (request.getIsActive() != null) entity.setIsActive(request.getIsActive());
+        if (request.getActive() != null) entity.setActive(request.getActive());
         entity.setUpdatedAt(LocalDateTime.now());
         programMapper.updateById(entity);
         log.info("更新留学项目: {}", entity.getTitle());
@@ -95,10 +95,10 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
     @CacheEvict(cacheNames = {"abroad:programs:list", "abroad:programs:active", "abroad:programs:get"}, allEntries = true)
     public void delete(Long id) {
         StudyAbroadProgram entity = programMapper.selectById(id);
-        if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
+        if (entity == null || Boolean.TRUE.equals(entity.getDeleted())) {
             throw new RuntimeException("项目不存在");
         }
-        entity.setIsDeleted(true);
+        entity.setDeleted(true);
         entity.setDeletedAt(LocalDateTime.now());
         programMapper.updateById(entity);
         log.info("删除留学项目: {}", entity.getTitle());
@@ -147,10 +147,10 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
     @CacheEvict(cacheNames = {"abroad:programs:list", "abroad:programs:active", "abroad:programs:get"}, allEntries = true)
     public void updateStatus(Long id, Boolean isActive) {
         StudyAbroadProgram entity = programMapper.selectById(id);
-        if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
+        if (entity == null || Boolean.TRUE.equals(entity.getDeleted())) {
             throw new RuntimeException("项目不存在");
         }
-        entity.setIsActive(isActive);
+        entity.setActive(isActive);
         programMapper.updateById(entity);
         log.info("更新项目状态: {} -> {}", entity.getTitle(), isActive);
     }
@@ -160,10 +160,10 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
     @CacheEvict(cacheNames = {"abroad:programs:list", "abroad:programs:active", "abroad:programs:get"}, allEntries = true)
     public void updateFlags(Long id, Boolean isHot, Boolean isFeatured) {
         StudyAbroadProgram entity = programMapper.selectById(id);
-        if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
+        if (entity == null || Boolean.TRUE.equals(entity.getDeleted())) {
             throw new RuntimeException("项目不存在");
         }
-        if (isHot != null) entity.setIsHot(isHot);
+        if (isHot != null) entity.setHot(isHot);
         programMapper.updateById(entity);
         log.info("更新项目标记: {} -> hot={}", entity.getTitle(), isHot);
     }

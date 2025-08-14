@@ -52,7 +52,7 @@ public class CourseVO {
     private String statusDisplay;
 
     @Schema(description = "是否为精选课程", example = "false")
-    private Boolean isFeatured;
+    private Boolean featured;
 
     @Schema(description = "课程创建时间")
     private LocalDateTime createdAt;

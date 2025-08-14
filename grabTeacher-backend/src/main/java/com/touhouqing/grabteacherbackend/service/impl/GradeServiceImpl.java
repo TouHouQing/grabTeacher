@@ -79,7 +79,7 @@ public class GradeServiceImpl implements GradeService {
     @Override
     public GradeVO getGradeById(Long id) {
         Grade grade = gradeMapper.selectById(id);
-        if (grade == null || grade.getIsDeleted()) {
+        if (grade == null || grade.getDeleted()) {
             throw new RuntimeException("年级不存在");
         }
         return convertToGradeResponse(grade);
@@ -99,7 +99,7 @@ public class GradeServiceImpl implements GradeService {
                 .description(request.getDescription())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
-                .isDeleted(false)
+                .deleted(false)
                 .build();
 
         gradeMapper.insert(grade);
@@ -112,7 +112,7 @@ public class GradeServiceImpl implements GradeService {
     @CacheEvict(cacheNames = {"grades"}, allEntries = true)
     public GradeVO updateGrade(Long id, GradeDTO request) {
         Grade grade = gradeMapper.selectById(id);
-        if (grade == null || grade.getIsDeleted()) {
+        if (grade == null || grade.getDeleted()) {
             throw new RuntimeException("年级不存在");
         }
 
@@ -135,7 +135,7 @@ public class GradeServiceImpl implements GradeService {
     @CacheEvict(cacheNames = {"grades"}, allEntries = true)
     public void deleteGrade(Long id) {
         Grade grade = gradeMapper.selectById(id);
-        if (grade == null || grade.getIsDeleted()) {
+        if (grade == null || grade.getDeleted()) {
             throw new RuntimeException("年级不存在");
         }
 
@@ -146,12 +146,12 @@ public class GradeServiceImpl implements GradeService {
         // 2. 删除这些课程及其相关数据
         for (Long courseId : courseIds) {
             Course course = courseMapper.selectById(courseId);
-            if (course != null && !course.getIsDeleted()) {
+            if (course != null && !course.getDeleted()) {
                 // 2.1 处理该课程的预约申请（软删除）
                 List<BookingRequest> bookingRequests = bookingRequestMapper.findByCourseId(courseId);
                 for (BookingRequest bookingRequest : bookingRequests) {
-                    if (!bookingRequest.getIsDeleted()) {
-                        bookingRequest.setIsDeleted(true);
+                    if (!bookingRequest.getDeleted()) {
+                        bookingRequest.setDeleted(true);
                         bookingRequest.setDeletedAt(LocalDateTime.now());
                         bookingRequestMapper.updateById(bookingRequest);
                     }
@@ -161,8 +161,8 @@ public class GradeServiceImpl implements GradeService {
                 // 2.2 处理该课程的课程安排（软删除）
                 List<Schedule> schedules = scheduleMapper.findByCourseId(courseId);
                 for (Schedule schedule : schedules) {
-                    if (!schedule.getIsDeleted()) {
-                        schedule.setIsDeleted(true);
+                    if (!schedule.getDeleted()) {
+                        schedule.setDeleted(true);
                         schedule.setDeletedAt(LocalDateTime.now());
                         scheduleMapper.updateById(schedule);
                     }
@@ -173,7 +173,7 @@ public class GradeServiceImpl implements GradeService {
                 courseGradeMapper.deleteByCourseId(courseId);
 
                 // 2.4 最后删除课程本身（软删除）
-                course.setIsDeleted(true);
+                course.setDeleted(true);
                 course.setDeletedAt(LocalDateTime.now());
                 courseMapper.updateById(course);
                 log.info("删除课程: {}", course.getTitle());
@@ -181,7 +181,7 @@ public class GradeServiceImpl implements GradeService {
         }
 
         // 3. 最后删除年级本身（软删除）
-        grade.setIsDeleted(true);
+        grade.setDeleted(true);
         grade.setDeletedAt(LocalDateTime.now());
         gradeMapper.updateById(grade);
         log.info("删除年级成功: {}，同时删除了 {} 个相关课程", grade.getGradeName(), courseIds.size());

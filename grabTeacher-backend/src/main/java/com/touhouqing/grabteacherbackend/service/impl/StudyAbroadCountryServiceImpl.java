@@ -42,8 +42,8 @@ public class StudyAbroadCountryServiceImpl implements StudyAbroadCountryService 
         StudyAbroadCountry entity = StudyAbroadCountry.builder()
                 .countryName(request.getCountryName())
                 .sortOrder(request.getSortOrder() == null ? 0 : request.getSortOrder())
-                .isActive(request.getIsActive() == null ? true : request.getIsActive())
-                .isDeleted(false)
+                .active(request.getActive() == null ? true : request.getActive())
+                .deleted(false)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -57,7 +57,7 @@ public class StudyAbroadCountryServiceImpl implements StudyAbroadCountryService 
     @CacheEvict(cacheNames = {"abroad:countries:list", "abroad:countries:active"}, allEntries = true)
     public StudyAbroadCountry update(Long id, StudyAbroadCountryDTO request) {
         StudyAbroadCountry entity = countryMapper.selectById(id);
-        if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
+        if (entity == null || Boolean.TRUE.equals(entity.getDeleted())) {
             throw new RuntimeException("国家不存在");
         }
 
@@ -72,7 +72,7 @@ public class StudyAbroadCountryServiceImpl implements StudyAbroadCountryService 
 
         entity.setCountryName(request.getCountryName());
         if (request.getSortOrder() != null) entity.setSortOrder(request.getSortOrder());
-        if (request.getIsActive() != null) entity.setIsActive(request.getIsActive());
+        if (request.getActive() != null) entity.setActive(request.getActive());
         entity.setUpdatedAt(LocalDateTime.now());
         countryMapper.updateById(entity);
         log.info("更新留学国家: {}", entity.getCountryName());
@@ -84,7 +84,7 @@ public class StudyAbroadCountryServiceImpl implements StudyAbroadCountryService 
     @CacheEvict(cacheNames = {"abroad:countries:list", "abroad:countries:active"}, allEntries = true)
     public void delete(Long id) {
         StudyAbroadCountry entity = countryMapper.selectById(id);
-        if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
+        if (entity == null || Boolean.TRUE.equals(entity.getDeleted())) {
             throw new RuntimeException("国家不存在");
         }
         // 检查是否存在关联项目
@@ -95,7 +95,7 @@ public class StudyAbroadCountryServiceImpl implements StudyAbroadCountryService 
             throw new RuntimeException("该国家下仍有留学项目，无法删除。请先删除所有关联项目。");
         }
 
-        entity.setIsDeleted(true);
+        entity.setDeleted(true);
         entity.setDeletedAt(LocalDateTime.now());
         countryMapper.updateById(entity);
         log.info("删除留学国家: {}", entity.getCountryName());
@@ -139,10 +139,10 @@ public class StudyAbroadCountryServiceImpl implements StudyAbroadCountryService 
     @CacheEvict(cacheNames = {"abroad:countries:list", "abroad:countries:active", "abroad:countries:get"}, allEntries = true)
     public void updateStatus(Long id, Boolean isActive) {
         StudyAbroadCountry entity = countryMapper.selectById(id);
-        if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
+        if (entity == null || Boolean.TRUE.equals(entity.getDeleted())) {
             throw new RuntimeException("国家不存在");
         }
-        entity.setIsActive(isActive);
+        entity.setActive(isActive);
         countryMapper.updateById(entity);
         log.info("更新国家状态: {} -> {}", entity.getCountryName(), isActive);
     }

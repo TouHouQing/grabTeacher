@@ -879,9 +879,9 @@ export const studyAbroadAPI = {
     })
     return apiRequest(`/api/admin/study-abroad/programs?${searchParams}`)
   },
-  adminCreateProgram: (data: { title: string; countryId: number; stageId: number; description?: string; imageUrl?: string; tags?: string; isHot?: boolean; isFeatured?: boolean; sortOrder?: number; isActive?: boolean }) =>
+  adminCreateProgram: (data: { title: string; countryId: number; stageId: number; description?: string; imageUrl?: string; tags?: string; hot?: boolean; sortOrder?: number; active?: boolean }) =>
     apiRequest('/api/admin/study-abroad/programs', { method: 'POST', body: JSON.stringify(data) }),
-  adminUpdateProgram: (id: number, data: { title: string; countryId: number; stageId: number; description?: string; imageUrl?: string; tags?: string; isHot?: boolean; isFeatured?: boolean; sortOrder?: number; isActive?: boolean }) =>
+  adminUpdateProgram: (id: number, data: { title: string; countryId: number; stageId: number; description?: string; imageUrl?: string; tags?: string; hot?: boolean; sortOrder?: number; active?: boolean }) =>
     apiRequest(`/api/admin/study-abroad/programs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   adminDeleteProgram: (id: number) =>
     apiRequest(`/api/admin/study-abroad/programs/${id}`, { method: 'DELETE' }),

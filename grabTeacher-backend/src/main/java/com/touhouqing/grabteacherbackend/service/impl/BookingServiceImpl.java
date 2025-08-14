@@ -83,7 +83,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // 检查是否为试听课申请
-        boolean isTrial = request.getIsTrial() != null && request.getIsTrial();
+        boolean isTrial = request.getTrial() != null && request.getTrial();
         if (isTrial) {
             // 检查用户是否可以使用免费试听
             if (!canUseFreeTrial(studentUserId)) {
@@ -124,7 +124,7 @@ public class BookingServiceImpl implements BookingService {
                 .endDate(request.getEndDate())
                 .totalTimes(request.getTotalTimes())
                 .studentRequirements(request.getStudentRequirements())
-                .isTrial(isTrial)
+                .trial(isTrial)
                 .trialDurationMinutes(request.getTrialDurationMinutes())
                 .status("pending")
                 .build();
@@ -154,7 +154,7 @@ public class BookingServiceImpl implements BookingService {
             bookingRequest.setApprovedAt(LocalDateTime.now());
 
             // 审核通过时，试听课使用记录保持不变（申请时已标记）
-            if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
+            if (bookingRequest.getTrial() != null && bookingRequest.getTrial()) {
                 log.info("试听课审核通过，保持已使用状态，预约ID: {}", bookingId);
             }
 
@@ -222,7 +222,7 @@ public class BookingServiceImpl implements BookingService {
             }
         } else if ("rejected".equals(approval.getStatus())) {
             // 如果是试听课且审核被拒绝，恢复试听课使用记录
-            if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
+            if (bookingRequest.getTrial() != null && bookingRequest.getTrial()) {
                 Student student = studentMapper.selectById(bookingRequest.getStudentId());
                 if (student != null) {
                     resetTrialUsage(student.getUserId());
@@ -258,7 +258,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // 如果是试听课申请被取消，恢复试听课使用记录
-        if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
+        if (bookingRequest.getTrial() != null && bookingRequest.getTrial()) {
             resetTrialUsage(studentUserId);
             log.info("试听课申请取消，恢复试听课使用记录，用户ID: {}", studentUserId);
         }
@@ -491,7 +491,7 @@ public class BookingServiceImpl implements BookingService {
                                         .status("progressing")
                                         .bookingRequestId(bookingRequest.getId())
                                         .bookingSource("request")
-                                        .isTrial(bookingRequest.getIsTrial())
+                                        .trial(bookingRequest.getTrial())
                                         .sessionNumber(sessionNumber)
                                         .recurringWeekdays(bookingRequest.getRecurringWeekdays())
                                         .recurringTimeSlots(bookingRequest.getRecurringTimeSlots())
@@ -570,7 +570,7 @@ public class BookingServiceImpl implements BookingService {
                                     .status("progressing")
                                     .bookingRequestId(bookingRequest.getId())
                                     .bookingSource("request")
-                                    .isTrial(bookingRequest.getIsTrial())
+                                    .trial(bookingRequest.getTrial())
                                     .sessionNumber(sessionNumber)
                                     .recurringWeekdays(bookingRequest.getRecurringWeekdays())
                                     .recurringTimeSlots(bookingRequest.getRecurringTimeSlots())
@@ -675,7 +675,7 @@ public class BookingServiceImpl implements BookingService {
         log.info("生成单次课程安排，预约申请ID: {}", bookingRequest.getId());
 
         // 记录试听课信息
-        if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
+        if (bookingRequest.getTrial() != null && bookingRequest.getTrial()) {
             log.info("生成试听课安排，固定30分钟时长");
         }
 
@@ -702,7 +702,7 @@ public class BookingServiceImpl implements BookingService {
                 .status("progressing")
                 .bookingRequestId(bookingRequest.getId())
                 .bookingSource("request")
-                .isTrial(bookingRequest.getIsTrial())
+                .trial(bookingRequest.getTrial())
                 .sessionNumber(1)
                 .build();
 
@@ -807,7 +807,7 @@ public class BookingServiceImpl implements BookingService {
                 .createdAt(bookingRequest.getCreatedAt())
                 .updatedAt(bookingRequest.getUpdatedAt())
                 .approvedAt(bookingRequest.getApprovedAt())
-                .isTrial(bookingRequest.getIsTrial())
+                .trial(bookingRequest.getTrial())
                 .trialDurationMinutes(bookingRequest.getTrialDurationMinutes())
                 .build();
     }
@@ -862,7 +862,7 @@ public class BookingServiceImpl implements BookingService {
                 .createdAt(schedule.getCreatedAt())
                 .bookingRequestId(schedule.getBookingRequestId())
                 .bookingSource(schedule.getBookingSource())
-                .isTrial(schedule.getIsTrial())
+                .trial(schedule.getTrial())
                 .sessionNumber(schedule.getSessionNumber())
                 .courseType(courseType)
                 .build();

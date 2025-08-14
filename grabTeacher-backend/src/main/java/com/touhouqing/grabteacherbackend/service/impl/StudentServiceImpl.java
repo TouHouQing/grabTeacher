@@ -75,7 +75,7 @@ public class StudentServiceImpl implements StudentService {
                 .preferredTeachingStyle(student.getPreferredTeachingStyle())
                 .budgetRange(student.getBudgetRange())
                 .gender(student.getGender())
-                .isDeleted(student.getIsDeleted())
+                .deleted(student.getDeleted())
                 .deletedAt(student.getDeletedAt())
                 .build();
     }

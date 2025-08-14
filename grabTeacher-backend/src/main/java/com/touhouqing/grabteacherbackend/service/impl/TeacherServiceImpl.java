@@ -158,8 +158,8 @@ public class TeacherServiceImpl implements TeacherService {
                 .videoIntroUrl(teacher.getVideoIntroUrl())
                 .gender(teacher.getGender())
                 .availableTimeSlots(availableTimeSlots)
-                .isVerified(teacher.getIsVerified())
-                .isDeleted(teacher.getIsDeleted())
+                .verified(teacher.getVerified())
+                .deleted(teacher.getDeleted())
                 .deletedAt(teacher.getDeletedAt())
                 .build();
     }
@@ -200,8 +200,8 @@ public class TeacherServiceImpl implements TeacherService {
                 .videoIntroUrl(teacher.getVideoIntroUrl())
                 .gender(teacher.getGender())
                 .availableTimeSlots(availableTimeSlots)
-                .isVerified(teacher.getIsVerified())
-                .isDeleted(teacher.getIsDeleted())
+                .verified(teacher.getVerified())
+                .deleted(teacher.getDeleted())
                 .deletedAt(teacher.getDeletedAt())
                 .build();
     }
@@ -221,7 +221,7 @@ public class TeacherServiceImpl implements TeacherService {
         QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
 
         queryWrapper.eq("is_deleted", false);
-        queryWrapper.eq("is_verified", true); // 只显示已认证的教师
+        queryWrapper.eq("is_verified", true); // 数据列不变，仅实体字段改名
 
         if (StringUtils.hasText(keyword)) {
             queryWrapper.and(wrapper -> wrapper
@@ -388,7 +388,7 @@ public class TeacherServiceImpl implements TeacherService {
                     .hourlyRate(t.getHourlyRate())
                     .introduction(shortIntro)
                     .gender(t.getGender())
-                    .isVerified(t.getIsVerified())
+                    .verified(t.getVerified())
                     .build();
             list.add(dto);
         }
@@ -584,7 +584,7 @@ public class TeacherServiceImpl implements TeacherService {
                 .hourlyRate(teacher.getHourlyRate())
                 .educationBackground(teacher.getEducationBackground())
                 .specialties(teacher.getSpecialties())
-                .isVerified(teacher.getIsVerified())
+                .isVerified(teacher.getVerified())
                 .gender(teacher.getGender())
                 .availableTimeSlots(availableTimeSlots)
                 .build();
@@ -1085,7 +1085,7 @@ public class TeacherServiceImpl implements TeacherService {
                     timeSlotInfo.setCourseTitle(course.getTitle());
                 }
                 timeSlotInfo.setStatus(existingSchedule.getStatus());
-                timeSlotInfo.setIsTrial(existingSchedule.getIsTrial());
+                timeSlotInfo.setIsTrial(existingSchedule.getTrial());
             }
 
             timeSlots.add(timeSlotInfo);

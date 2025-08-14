@@ -64,7 +64,7 @@ public class CourseServiceImpl implements CourseService {
 
         // 验证科目是否存在
         Subject subject = subjectMapper.selectById(request.getSubjectId());
-        if (subject == null || subject.getIsDeleted()) {
+        if (subject == null || subject.getDeleted()) {
             throw new RuntimeException("科目不存在");
         }
 
@@ -78,7 +78,7 @@ public class CourseServiceImpl implements CourseService {
 
             // 验证教师是否存在
             Teacher teacher = teacherMapper.selectById(teacherId);
-            if (teacher == null || teacher.getIsDeleted()) {
+            if (teacher == null || teacher.getDeleted()) {
                 throw new RuntimeException("指定的教师不存在");
             }
         } else if ("teacher".equals(userType)) {
@@ -126,7 +126,7 @@ public class CourseServiceImpl implements CourseService {
                 .courseType(request.getCourseType())
                 .durationMinutes(request.getDurationMinutes())
                 .status(courseStatus)
-                .isDeleted(false)
+                .deleted(false)
                 .build();
 
         courseMapper.insert(course);
@@ -167,7 +167,7 @@ public class CourseServiceImpl implements CourseService {
         log.info("更新课程，课程ID: {}, 用户ID: {}, 用户类型: {}", id, currentUserId, userType);
 
         Course course = courseMapper.selectById(id);
-        if (course == null || course.getIsDeleted()) {
+        if (course == null || course.getDeleted()) {
             throw new RuntimeException("课程不存在");
         }
 
@@ -178,14 +178,14 @@ public class CourseServiceImpl implements CourseService {
 
         // 验证科目是否存在
         Subject subject = subjectMapper.selectById(request.getSubjectId());
-        if (subject == null || subject.getIsDeleted()) {
+        if (subject == null || subject.getDeleted()) {
             throw new RuntimeException("科目不存在");
         }
 
         // 管理员可以修改教师，教师不能修改
         if ("admin".equals(userType) && request.getTeacherId() != null) {
             Teacher teacher = teacherMapper.selectById(request.getTeacherId());
-            if (teacher == null || teacher.getIsDeleted()) {
+            if (teacher == null || teacher.getDeleted()) {
                 throw new RuntimeException("指定的教师不存在");
             }
             course.setTeacherId(request.getTeacherId());
@@ -256,7 +256,7 @@ public class CourseServiceImpl implements CourseService {
         log.info("删除课程，课程ID: {}, 用户ID: {}, 用户类型: {}", id, currentUserId, userType);
 
         Course course = courseMapper.selectById(id);
-        if (course == null || course.getIsDeleted()) {
+        if (course == null || course.getDeleted()) {
             throw new RuntimeException("课程不存在");
         }
 
@@ -265,7 +265,7 @@ public class CourseServiceImpl implements CourseService {
             throw new RuntimeException("没有权限操作此课程");
         }
 
-        course.setIsDeleted(true);
+        course.setDeleted(true);
         course.setDeletedAt(LocalDateTime.now());
         courseMapper.updateById(course);
 
@@ -282,7 +282,7 @@ public class CourseServiceImpl implements CourseService {
     @Cacheable(cacheNames = "course", key = "#id", unless = "#result == null")
     public CourseVO getCourseById(Long id) {
         Course course = courseMapper.selectById(id);
-        if (course == null || course.getIsDeleted()) {
+        if (course == null || course.getDeleted()) {
             return null;
         }
         return convertToCourseResponse(course);
@@ -388,7 +388,7 @@ public class CourseServiceImpl implements CourseService {
             }
             // 验证教师是否存在且已认证
             Teacher teacher = teacherMapper.selectById(teacherId);
-            if (teacher == null || teacher.getIsDeleted() || !teacher.getIsVerified()) {
+            if (teacher == null || teacher.getDeleted() || !teacher.getVerified()) {
                 throw new RuntimeException("教师不存在或未认证");
             }
         } else if (!"admin".equals(userType)) {
@@ -458,7 +458,7 @@ public class CourseServiceImpl implements CourseService {
         log.info("更新课程状态，课程ID: {}, 新状态: {}, 用户ID: {}", id, status, currentUserId);
 
         Course course = courseMapper.selectById(id);
-        if (course == null || course.getIsDeleted()) {
+        if (course == null || course.getDeleted()) {
             throw new RuntimeException("课程不存在");
         }
 
@@ -484,7 +484,7 @@ public class CourseServiceImpl implements CourseService {
 
         if ("teacher".equals(userType)) {
             Course course = courseMapper.selectById(courseId);
-            if (course == null || course.getIsDeleted()) {
+            if (course == null || course.getDeleted()) {
                 return false;
             }
 
@@ -528,7 +528,7 @@ public class CourseServiceImpl implements CourseService {
                 .courseType(course.getCourseType())
                 .durationMinutes(course.getDurationMinutes())
                 .status(course.getStatus())
-                .isFeatured(course.getIsFeatured())
+                .featured(course.getFeatured())
                 .createdAt(course.getCreatedAt())
                 .grade(gradeStr) // 从course_grades表获取年级信息
                 .build();
@@ -645,7 +645,7 @@ public class CourseServiceImpl implements CourseService {
                     .courseType(c.getCourseType())
                     .durationMinutes(c.getDurationMinutes())
                     .status(c.getStatus())
-                    .isFeatured(c.getIsFeatured())
+                    .featured(c.getFeatured())
                     .createdAt(c.getCreatedAt())
                     .grade(gradeStr)
                     .build();
@@ -663,11 +663,11 @@ public class CourseServiceImpl implements CourseService {
     @CacheEvict(cacheNames = {"featuredCourses", "courseList", "activeCourses"}, allEntries = true)
     public void setCourseAsFeatured(Long courseId, boolean featured) {
         Course course = courseMapper.selectById(courseId);
-        if (course == null || course.getIsDeleted()) {
+        if (course == null || course.getDeleted()) {
             throw new RuntimeException("课程不存在");
         }
 
-        course.setIsFeatured(featured);
+        course.setFeatured(featured);
         courseMapper.updateById(course);
 
         log.info("课程 {} 精选状态已更新为: {}", courseId, featured);
@@ -696,7 +696,7 @@ public class CourseServiceImpl implements CourseService {
 
         // 批量更新
         for (Course course : courses) {
-            course.setIsFeatured(featured);
+            course.setFeatured(featured);
             courseMapper.updateById(course);
         }
 

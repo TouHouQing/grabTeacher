@@ -74,10 +74,10 @@ public class TeacherDetailVO {
     private List<TimeSlotDTO> availableTimeSlots;
 
     @Schema(description = "是否已认证", example = "true")
-    private Boolean isVerified;
+    private Boolean verified;
 
     @Schema(description = "是否已删除", example = "false")
-    private Boolean isDeleted;
+    private Boolean deleted;
 
     @Schema(description = "删除时间")
     private LocalDateTime deletedAt;
