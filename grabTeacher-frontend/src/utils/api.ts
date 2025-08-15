@@ -300,6 +300,13 @@ export const teacherAPI = {
   // 获取可用年级选项
   getAvailableGrades: () => apiRequest('/api/teacher/grades'),
 
+  // 批量获取教师科目ID映射（管理员）
+  getSubjectsByTeacherIds: (ids: number[]) => apiRequest('/api/admin/teachers/subjects/batch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(ids)
+  }),
+
   // 获取教师详情（公开接口）
   getDetail: (id: number) => apiRequest(`/api/teacher/${id}`),
 

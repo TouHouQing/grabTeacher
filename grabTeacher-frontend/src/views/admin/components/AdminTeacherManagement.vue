@@ -205,9 +205,23 @@ const loadTeacherList = async () => {
         teacherPagination.total = result.data.total || result.data.records.length
       }
 
-      // 为每个教师获取科目信息
-      for (const teacher of teachers) {
-        teacher.subjects = await getTeacherSubjects(teacher.id)
+      // 批量查询科目信息，避免N+1请求
+      const ids = teachers.map((t: any) => t.id)
+      try {
+        const mapResp = await teacherAPI.getSubjectsByTeacherIds(ids)
+        const idMap: Record<number, number[]> = (mapResp && mapResp.data) ? mapResp.data : {}
+        // 预构建 subjectId->name 的字典
+        const nameMap: Record<number, string> = {}
+        for (const s of subjects.value) {
+          nameMap[s.id] = s.name
+        }
+        for (const t of teachers) {
+          const arr = idMap[t.id] || []
+          t.subjects = arr.map((sid: number) => nameMap[sid]).filter(Boolean).join(', ')
+        }
+      } catch (e) {
+        console.warn('批量获取教师科目失败，降级为空', e)
+        for (const t of teachers) t.subjects = ''
       }
 
       teacherList.value = teachers

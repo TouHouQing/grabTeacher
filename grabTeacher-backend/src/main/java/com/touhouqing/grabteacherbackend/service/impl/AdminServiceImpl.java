@@ -593,6 +593,19 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    public java.util.Map<Long, java.util.List<Long>> getSubjectsByTeacherIds(java.util.List<Long> teacherIds) {
+        if (teacherIds == null || teacherIds.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        List<TeacherSubject> list = teacherSubjectMapper.findByTeacherIds(teacherIds);
+        java.util.Map<Long, java.util.List<Long>> map = new java.util.HashMap<>();
+        for (TeacherSubject ts : list) {
+            map.computeIfAbsent(ts.getTeacherId(), k -> new java.util.ArrayList<>()).add(ts.getSubjectId());
+        }
+        return map;
+    }
+
+    @Override
     public List<Long> getStudentSubjects(Long studentId) {
         return studentSubjectMapper.getSubjectIdsByStudentId(studentId);
     }

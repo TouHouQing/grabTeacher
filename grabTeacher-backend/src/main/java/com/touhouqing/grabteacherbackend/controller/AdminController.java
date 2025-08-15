@@ -377,6 +377,19 @@ public class AdminController {
         }
     }
 
+    @Operation(summary = "批量获取教师科目映射", description = "根据多个教师ID，返回每个教师的科目ID列表映射")
+    @PostMapping("/teachers/subjects/batch")
+    public ResponseEntity<CommonResult<java.util.Map<Long, java.util.List<Long>>>> getSubjectsByTeacherIds(@RequestBody java.util.List<Long> teacherIds) {
+        try {
+            java.util.Map<Long, java.util.List<Long>> map = adminService.getSubjectsByTeacherIds(teacherIds);
+            return ResponseEntity.ok(CommonResult.success("获取成功", map));
+        } catch (Exception e) {
+            logger.error("批量获取教师科目异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
+        }
+    }
+
     /**
      * 获取学生感兴趣的科目列表
      */

@@ -115,63 +115,63 @@ const handleMenuSelect = (key: string) => {
       <!-- 主要内容区域 -->
       <div class="admin-content">
         <!-- 数据概览 -->
-        <div v-show="activeMenu === 'dashboard'" class="content-panel">
+        <div v-if="activeMenu === 'dashboard'" class="content-panel">
           <AdminDashboard />
         </div>
 
         <!-- 学生管理 -->
-        <div v-show="activeMenu === 'students'" class="content-panel">
+        <div v-if="activeMenu === 'students'" class="content-panel">
           <AdminStudentManagement />
         </div>
 
         <!-- 教师管理 -->
-        <div v-show="activeMenu === 'teachers'" class="content-panel">
+        <div v-if="activeMenu === 'teachers'" class="content-panel">
           <AdminTeacherManagement />
         </div>
 
         <!-- 科目管理 -->
-        <div v-show="activeMenu === 'subjects'" class="content-panel">
+        <div v-if="activeMenu === 'subjects'" class="content-panel">
           <AdminSubjectManagement />
         </div>
 
         <!-- 课程管理 -->
-        <div v-show="activeMenu === 'courses'" class="content-panel">
+        <div v-if="activeMenu === 'courses'" class="content-panel">
           <AdminCourseManagement />
         </div>
 
 
         <!-- 预约管理 -->
-        <div v-show="activeMenu === 'bookings'" class="content-panel">
+        <div v-if="activeMenu === 'bookings'" class="content-panel">
           <AdminBookingManagement />
         </div>
 
         <!-- 年级管理 -->
-        <div v-show="activeMenu === 'grades'" class="content-panel">
+        <div v-if="activeMenu === 'grades'" class="content-panel">
           <AdminGradeManagement />
         </div>
 
         <!-- 留学管理：国家 -->
-        <div v-show="activeMenu === 'abroad-countries'" class="content-panel">
+        <div v-if="activeMenu === 'abroad-countries'" class="content-panel">
           <AdminStudyAbroadCountryManagement />
         </div>
 
         <!-- 留学管理：阶段 -->
-        <div v-show="activeMenu === 'abroad-stages'" class="content-panel">
+        <div v-if="activeMenu === 'abroad-stages'" class="content-panel">
           <AdminStudyAbroadStageManagement />
         </div>
 
         <!-- 留学管理：项目 -->
-        <div v-show="activeMenu === 'abroad-programs'" class="content-panel">
+        <div v-if="activeMenu === 'abroad-programs'" class="content-panel">
           <AdminStudyAbroadProgramManagement />
         </div>
 
         <!-- 管理员资料 -->
-        <div v-show="activeMenu === 'profile'" class="content-panel">
+        <div v-if="activeMenu === 'profile'" class="content-panel">
           <AdminProfileSettings />
         </div>
 
         <!-- 账户设置 -->
-        <div v-show="activeMenu === 'password'" class="content-panel">
+        <div v-if="activeMenu === 'password'" class="content-panel">
           <AdminPasswordChange />
         </div>
       </div>

@@ -98,7 +98,10 @@ public interface AdminService {
      */
     List<Long> getTeacherSubjects(Long teacherId);
 
-
+    /**
+     * 批量获取多个教师的科目ID映射
+     */
+    java.util.Map<Long, java.util.List<Long>> getSubjectsByTeacherIds(java.util.List<Long> teacherIds);
 
     // ============== 管理员资料 ==============
     /** 获取当前管理员资料（根据当前登录用户） */
