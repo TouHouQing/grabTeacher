@@ -35,7 +35,7 @@ public class EmailUpdateTest {
                 .password(passwordEncoder.encode("password123"))
                 .userType("student")
                 .status("active")
-                .isDeleted(false)
+                .deleted(false)
                 .build();
         
         userMapper.insert(testUser);
@@ -59,7 +59,7 @@ public class EmailUpdateTest {
                 .password(passwordEncoder.encode("password123"))
                 .userType("student")
                 .status("active")
-                .isDeleted(false)
+                .deleted(false)
                 .build();
         
         userMapper.insert(testUser);
@@ -83,7 +83,7 @@ public class EmailUpdateTest {
                 .password(passwordEncoder.encode("password123"))
                 .userType("student")
                 .status("active")
-                .isDeleted(false)
+                .deleted(false)
                 .build();
         
         User user2 = User.builder()
@@ -92,7 +92,7 @@ public class EmailUpdateTest {
                 .password(passwordEncoder.encode("password123"))
                 .userType("student")
                 .status("active")
-                .isDeleted(false)
+                .deleted(false)
                 .build();
         
         userMapper.insert(user1);
@@ -117,7 +117,7 @@ public class EmailUpdateTest {
                 .password(passwordEncoder.encode("password123"))
                 .userType("student")
                 .status("active")
-                .isDeleted(false)
+                .deleted(false)
                 .build();
         
         userMapper.insert(testUser);

@@ -28,6 +28,22 @@ public class DataSourceConfiguration {
     @Value("${spring.datasource.driver-class-name}")
     private String driverClassName;
 
+
+    @Value("${spring.datasource.hikari.maximum-pool-size:20}")
+    private int maximumPoolSize;
+
+    @Value("${spring.datasource.hikari.minimum-idle:5}")
+    private int minimumIdle;
+
+    @Value("${spring.datasource.hikari.connection-timeout:30000}")
+    private long connectionTimeout;
+
+    @Value("${spring.datasource.hikari.idle-timeout:600000}")
+    private long idleTimeout;
+
+    @Value("${spring.datasource.hikari.max-lifetime:1800000}")
+    private long maxLifetime;
+
     @Bean
     @Primary
     public DataSource dataSource() {
@@ -36,18 +52,19 @@ public class DataSourceConfiguration {
         config.setUsername(username);
         config.setPassword(password);
         config.setDriverClassName(driverClassName);
-        
-        // 连接池配置
-        config.setMaximumPoolSize(20);
-        config.setMinimumIdle(5);
-        config.setConnectionTimeout(30000);
-        config.setIdleTimeout(600000);
-        config.setMaxLifetime(1800000);
-        
+
+        // 连接池配置（从配置文件读取，可按不同环境覆盖）
+        config.setMaximumPoolSize(maximumPoolSize);
+        config.setMinimumIdle(minimumIdle);
+        config.setConnectionTimeout(connectionTimeout);
+        config.setIdleTimeout(idleTimeout);
+        config.setMaxLifetime(maxLifetime);
+
         // 连接测试
         config.setConnectionTestQuery("SELECT 1");
         config.setValidationTimeout(5000);
-        
+
         return new HikariDataSource(config);
     }
 }
+

@@ -1,0 +1,76 @@
+# 生产环境覆盖配置（4C4G 主机，面向高并发优化）
+spring:
+  # 启用虚拟线程
+  threads:
+    virtual:
+      enabled: true
+  # 数据源 Hikari 连接池（按 4C4G、MySQL 单实例或小型集群假设）
+  datasource:
+    url: ${DB_URL:jdbc:mysql://127.0.0.1/grabteacher?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
+    hikari:
+      # 最大池大小：并发峰值下建议 CPU 核数 * 2~4，这里给 40，结合 MyBatis/事务使用情况
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:48}
+      # 最小空闲连接：维持一定热连接，避免抖动
+      minimum-idle: ${DB_POOL_MIN_IDLE:12}
+      # 等待获取连接超时（毫秒）
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      # 空闲连接最大存活（毫秒）
+      idle-timeout: ${DB_IDLE_TIMEOUT:300000}
+      # 连接最大生命周期（毫秒），略小于 MySQL wait_timeout，避免 server 侧回收
+      max-lifetime: ${DB_MAX_LIFETIME:1700000}
+
+  # 任务执行器：@Async 和异步控制器默认线程池（Spring Boot 2.6+/3.x）
+  task:
+    execution:
+      pool:
+        # 核心线程数：与 CPU 相当或略高
+        core-size: ${TASK_CORE_SIZE:12}
+        # 最大线程数：可短时扩容
+        max-size: ${TASK_MAX_SIZE:96}
+        # 队列容量：避免过早回退到拒绝策略
+        queue-capacity: ${TASK_QUEUE_CAPACITY:4000}
+        # 线程空闲回收时间
+        keep-alive: ${TASK_KEEP_ALIVE:60s}
+      thread-name-prefix: gt-async-
+    scheduling:
+      pool:
+        size: ${SCHEDULER_POOL_SIZE:8}
+
+  # Redis 连接池（Lettuce）
+  data:
+    redis:
+      timeout: ${REDIS_TIMEOUT:15000ms}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:300}
+          max-idle: ${REDIS_POOL_MAX_IDLE:120}
+          min-idle: ${REDIS_POOL_MIN_IDLE:20}
+          max-wait: ${REDIS_POOL_MAX_WAIT:15000ms}
+        shutdown-timeout: ${REDIS_SHUTDOWN_TIMEOUT:300ms}
+
+# 内置 Tomcat 线程/连接设置（高并发）
+server:
+  tomcat:
+    threads:
+      min-spare: ${TOMCAT_MIN_SPARE:16}
+      max: ${TOMCAT_MAX_THREADS:400}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:4000}
+    max-connections: ${TOMCAT_MAX_CONNECTIONS:6000}
+    connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:20000}
+  compression:
+    enabled: false
+    min-response-size: 1024
+
+# 日志级别：生产默认 INFO，热点模块可按需下调
+logging:
+  level:
+    "com.touhouqing.grabteacherbackend": ${LOG_LEVEL_APP:INFO}
+    "org.springframework.web": ${LOG_LEVEL_WEB:INFO}
+    "org.springframework.security": ${LOG_LEVEL_SECURITY:INFO}
+
+# 其他建议：
+# - 设置 JVM 启动参数：-Xms2g -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200
+# - 数据库 my.cnf：确保 max_connections 足够（>= 500），并确认 wait_timeout >= 1800
+# - Nginx/反向代理：开启 keepalive、合理的超时与限流
+# - 使用环境变量覆盖以上 ${...} 值以做灰度与针对性调优
+
