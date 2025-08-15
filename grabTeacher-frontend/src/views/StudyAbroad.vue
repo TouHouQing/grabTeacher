@@ -185,7 +185,7 @@ const resetFilter = () => {
           <div class="program-card" v-for="(program, index) in displayPrograms" :key="index">
             <div class="program-image">
               <img :src="resolveImage(program.imageUrl || program.image)" :alt="program.title" @error="handleImageError">
-              <div class="program-badge" v-if="program.isHot">热门</div>
+              <div class="program-badge" v-if="program.hot">热门</div>
             </div>
             <div class="program-info">
               <h3>{{ program.title }}</h3>
