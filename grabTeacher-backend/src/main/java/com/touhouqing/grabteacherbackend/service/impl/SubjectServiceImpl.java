@@ -14,6 +14,7 @@ import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.SubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
+import com.touhouqing.grabteacherbackend.mapper.JobPostSubjectMapper;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ public class SubjectServiceImpl implements SubjectService {
     private final TeacherSubjectMapper teacherSubjectMapper;
     private final BookingRequestMapper bookingRequestMapper;
     private final ScheduleMapper scheduleMapper;
+    private final JobPostSubjectMapper jobPostSubjectMapper;
 
     /**
      * 创建科目
@@ -112,6 +114,12 @@ public class SubjectServiceImpl implements SubjectService {
         Subject subject = subjectMapper.selectById(id);
         if (subject == null || subject.getDeleted()) {
             throw new RuntimeException("科目不存在");
+        }
+
+        // 0. 保护性检查：是否被教师招聘引用（未删除）
+        long jobCount = jobPostSubjectMapper.countActiveJobPostsBySubjectId(id);
+        if (jobCount > 0) {
+            throw new RuntimeException("该科目存在未删除的教师招聘信息，无法删除");
         }
 
         // 1. 查询该科目下的所有课程

@@ -12,6 +12,7 @@ import com.touhouqing.grabteacherbackend.mapper.CourseGradeMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
 import com.touhouqing.grabteacherbackend.mapper.GradeMapper;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
+import com.touhouqing.grabteacherbackend.mapper.JobPostGradeMapper;
 import com.touhouqing.grabteacherbackend.service.GradeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ public class GradeServiceImpl implements GradeService {
     private final CourseMapper courseMapper;
     private final BookingRequestMapper bookingRequestMapper;
     private final ScheduleMapper scheduleMapper;
+    private final JobPostGradeMapper jobPostGradeMapper;
 
     @Override
     @Cacheable(cacheNames = "grades", key = "'all'")
@@ -137,6 +139,12 @@ public class GradeServiceImpl implements GradeService {
         Grade grade = gradeMapper.selectById(id);
         if (grade == null || grade.getDeleted()) {
             throw new RuntimeException("年级不存在");
+        }
+
+        // 0. 保护性检查：是否被教师招聘引用（未删除）
+        long jobCount = jobPostGradeMapper.countActiveJobPostsByGradeId(id);
+        if (jobCount > 0) {
+            throw new RuntimeException("该年级存在未删除的教师招聘信息，无法删除");
         }
 
         // 1. 查询使用该年级的所有课程ID

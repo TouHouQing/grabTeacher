@@ -914,6 +914,28 @@ export const jobPostAPI = {
     return apiRequest(`/api/job-posts/public/list${query ? `?${query}` : ''}`)
   },
   // 公开详情（fast JSON）
-  getDetailFast: (id: number) => apiRequest(`/api/job-posts/public/${id}/fast`)
+  getDetailFast: (id: number) => apiRequest(`/api/job-posts/public/${id}/fast`),
+
+  // 管理端：分页列表
+  adminList: (params: { page?: number; size?: number; gradeId?: number; subjectId?: number; status?: string; keyword?: string; createdStart?: string; createdEnd?: string; includeDeleted?: boolean }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null) searchParams.append(key, v.toString())
+    })
+    return apiRequest(`/api/job-posts/admin/list?${searchParams}`)
+  },
+  // 管理端：详情
+  adminGetById: (id: number) => apiRequest(`/api/job-posts/admin/${id}`),
+  // 创建
+  create: (data: { title: string; introduction?: string; gradeIds: number[]; subjectIds: number[]; tags?: string[]; status?: string; priority?: number }) =>
+    apiRequest('/api/job-posts', { method: 'POST', body: JSON.stringify(data) }),
+  // 更新
+  update: (id: number, data: { title?: string; introduction?: string; gradeIds?: number[]; subjectIds?: number[]; tags?: string[]; status?: string; priority?: number }) =>
+    apiRequest(`/api/job-posts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  // 删除
+  delete: (id: number) => apiRequest(`/api/job-posts/${id}`, { method: 'DELETE' }),
+  // 批量删除
+  batchDelete: (ids: number[]) => apiRequest('/api/job-posts/batch-delete', { method: 'POST', body: JSON.stringify(ids) })
 }
 

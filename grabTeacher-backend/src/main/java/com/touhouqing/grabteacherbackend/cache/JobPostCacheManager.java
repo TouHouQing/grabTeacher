@@ -27,6 +27,22 @@ public class JobPostCacheManager {
         return LIST_PREFIX + "page_" + page + ":size_" + size + ":grade_" + g + ":subject_" + s;
     }
 
+    // 管理端列表缓存键（包含更多筛选维度）
+    public String buildAdminListKey(int page, int size,
+                                    Long gradeId, Long subjectId,
+                                    String status, String keyword,
+                                    java.time.LocalDateTime createdStart, java.time.LocalDateTime createdEnd,
+                                    Boolean includeDeleted) {
+        String g = gradeId == null ? "ALL" : String.valueOf(gradeId);
+        String s = subjectId == null ? "ALL" : String.valueOf(subjectId);
+        String st = status == null ? "ALL" : status;
+        String kw = (keyword == null || keyword.isEmpty()) ? "NONE" : keyword.replace(":","_");
+        String cs = createdStart == null ? "NONE" : createdStart.toString();
+        String ce = createdEnd == null ? "NONE" : createdEnd.toString();
+        String del = includeDeleted == null ? "NULL" : (includeDeleted ? "Y" : "N");
+        return LIST_PREFIX + "admin:page_" + page + ":size_" + size + ":g_" + g + ":s_" + s + ":st_" + st + ":kw_" + kw + ":cs_" + cs + ":ce_" + ce + ":del_" + del;
+    }
+
     public void saveList(String key, Object pageObj, Long gradeId, Long subjectId, Duration ttl) {
         redisTemplate.opsForValue().set(key, pageObj, jitter(ttl));
         // 将缓存key登记到维度索引
@@ -34,6 +50,19 @@ public class JobPostCacheManager {
         String s = subjectId == null ? "ALL" : String.valueOf(subjectId);
         stringRedisTemplate.opsForSet().add(INDEX_GRADE_PREFIX + g, key);
         stringRedisTemplate.opsForSet().add(INDEX_SUBJECT_PREFIX + s, key);
+    }
+
+    // 管理端保存（不登记维度索引，统一通过全清策略或按ALL驱逐）
+    public void saveAdminList(String key, Object pageObj, Duration ttl) {
+        redisTemplate.opsForValue().set(key, pageObj, jitter(ttl));
+    }
+
+    // 管理端列表全量驱逐：删除所有 admin 列表缓存键
+    public void evictAllAdminLists() {
+        Set<String> keys = stringRedisTemplate.keys(LIST_PREFIX + "admin:*");
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+        }
     }
 
     public Object getList(String key) {

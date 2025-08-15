@@ -10,6 +10,7 @@ import AdminTeacherManagement from './components/AdminTeacherManagement.vue'
 import AdminSubjectManagement from './components/AdminSubjectManagement.vue'
 import AdminCourseManagement from './AdminCourseManagement.vue'
 import AdminGradeManagement from '../../components/AdminGradeManagement.vue'
+import AdminJobPostManagement from './components/AdminJobPostManagement.vue'
 import AdminPasswordChange from './components/AdminPasswordChange.vue'
 import AdminProfileSettings from './components/AdminProfileSettings.vue'
 import AdminBookingManagement from './components/AdminBookingManagement.vue'
@@ -81,6 +82,10 @@ const handleMenuSelect = (key: string) => {
               <el-icon><Reading /></el-icon>
               <span>课程管理</span>
             </el-menu-item>
+            <el-menu-item index="jobposts">
+              <el-icon><Reading /></el-icon>
+              <span>招聘管理</span>
+            </el-menu-item>
           </el-sub-menu>
 
           <el-sub-menu index="abroad-mgmt">
@@ -137,6 +142,11 @@ const handleMenuSelect = (key: string) => {
         <!-- 课程管理 -->
         <div v-if="activeMenu === 'courses'" class="content-panel">
           <AdminCourseManagement />
+        </div>
+
+        <!-- 招聘管理 -->
+        <div v-if="activeMenu === 'jobposts'" class="content-panel">
+          <AdminJobPostManagement />
         </div>
 
 

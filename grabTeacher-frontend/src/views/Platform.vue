@@ -163,6 +163,8 @@ const resetForm = () => {
               <div class="position-tags">
                 <el-tag size="small" type="info">{{ job.gradeNames || '不限年级' }}</el-tag>
                 <el-tag size="small" type="success">{{ job.subjectNames || '不限科目' }}</el-tag>
+                <el-tag v-for="(t, idx) in (Array.isArray(job.positionTags) ? job.positionTags : (job.positionTags ? JSON.parse(job.positionTags) : []))"
+                        :key="`t-${idx}`" size="small" type="warning">{{ t }}</el-tag>
               </div>
               <p>{{ job.introduction || '加入我们的团队，为学生提供高质量的教学服务。' }}</p>
               <el-button type="primary" size="small">立即申请</el-button>
