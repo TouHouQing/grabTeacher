@@ -9,7 +9,11 @@ spring:
   # 激活的配置文件（通过环境变量控制）
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:prod}
-  
+  servlet:
+    multipart:
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:20MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:20MB}
+
   # ========================================
   # 数据库配置
   # ========================================
@@ -134,3 +138,14 @@ logging:
     com.touhouqing.grabteacherbackend: ${LOG_LEVEL_APP:INFO}
     org.springframework.web: ${LOG_LEVEL_WEB:INFO}
     org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}
+
+# ========================================
+# 阿里云 OSS 配置
+# ========================================
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT:oss-cn-beijing.aliyuncs.com}
+    accessKeyId: ${ALIYUN_OSS_AK:LTAI5tJzcSEY45izYsWscbz2}
+    accessKeySecret: ${ALIYUN_OSS_SK:}
+    bucket: ${ALIYUN_OSS_BUCKET:touhouqing}
+    dirPrefix: ${ALIYUN_OSS_DIR_PREFIX:uploads/}
