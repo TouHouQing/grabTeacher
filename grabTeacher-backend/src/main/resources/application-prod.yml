@@ -1,21 +1,21 @@
 # 生产环境覆盖配置（4C4G 主机，面向高并发优化）
 spring:
-  # 启用虚拟线程
+  # 禁用虚拟线程，优先稳定性和可预测的性能
   threads:
     virtual:
-      enabled: true
+      enabled: false
   # 数据源 Hikari 连接池（按 4C4G、MySQL 单实例或小型集群假设）
   datasource:
-    url: ${DB_URL:jdbc:mysql://127.0.0.1/grabteacher?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
+    url: ${DB_URL:jdbc:mysql://127.0.0.1/grabteacher?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&cachePrepStmts=true&useServerPrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useConfigs=maxPerformance}
     hikari:
-      # 最大池大小：并发峰值下建议 CPU 核数 * 2~4，这里给 40，结合 MyBatis/事务使用情况
-      maximum-pool-size: ${DB_POOL_MAX_SIZE:48}
-      # 最小空闲连接：维持一定热连接，避免抖动
-      minimum-idle: ${DB_POOL_MIN_IDLE:12}
+      # 最大池大小：进一步收敛，减少DB端排队
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:24}
+      # 最小空闲连接：保持热连接
+      minimum-idle: ${DB_POOL_MIN_IDLE:6}
       # 等待获取连接超时（毫秒）
-      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:10000}
       # 空闲连接最大存活（毫秒）
-      idle-timeout: ${DB_IDLE_TIMEOUT:300000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:120000}
       # 连接最大生命周期（毫秒），略小于 MySQL wait_timeout，避免 server 侧回收
       max-lifetime: ${DB_MAX_LIFETIME:1700000}
 
@@ -23,12 +23,12 @@ spring:
   task:
     execution:
       pool:
-        # 核心线程数：与 CPU 相当或略高
-        core-size: ${TASK_CORE_SIZE:12}
+        # 核心线程数：收敛异步任务线程
+        core-size: ${TASK_CORE_SIZE:8}
         # 最大线程数：可短时扩容
-        max-size: ${TASK_MAX_SIZE:96}
+        max-size: ${TASK_MAX_SIZE:48}
         # 队列容量：避免过早回退到拒绝策略
-        queue-capacity: ${TASK_QUEUE_CAPACITY:4000}
+        queue-capacity: ${TASK_QUEUE_CAPACITY:2000}
         # 线程空闲回收时间
         keep-alive: ${TASK_KEEP_ALIVE:60s}
       thread-name-prefix: gt-async-
@@ -39,34 +39,38 @@ spring:
   # Redis 连接池（Lettuce）
   data:
     redis:
-      timeout: ${REDIS_TIMEOUT:15000ms}
+      timeout: ${REDIS_TIMEOUT:5000ms}
       lettuce:
         pool:
-          max-active: ${REDIS_POOL_MAX_ACTIVE:300}
-          max-idle: ${REDIS_POOL_MAX_IDLE:120}
-          min-idle: ${REDIS_POOL_MIN_IDLE:20}
-          max-wait: ${REDIS_POOL_MAX_WAIT:15000ms}
+          max-active: ${REDIS_POOL_MAX_ACTIVE:150}
+          max-idle: ${REDIS_POOL_MAX_IDLE:60}
+          min-idle: ${REDIS_POOL_MIN_IDLE:15}
+          max-wait: ${REDIS_POOL_MAX_WAIT:5000ms}
         shutdown-timeout: ${REDIS_SHUTDOWN_TIMEOUT:300ms}
 
 # 内置 Tomcat 线程/连接设置（高并发）
 server:
   tomcat:
     threads:
-      min-spare: ${TOMCAT_MIN_SPARE:16}
-      max: ${TOMCAT_MAX_THREADS:400}
-    accept-count: ${TOMCAT_ACCEPT_COUNT:4000}
+      min-spare: ${TOMCAT_MIN_SPARE:24}
+      max: ${TOMCAT_MAX_THREADS:128}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:1000}
     max-connections: ${TOMCAT_MAX_CONNECTIONS:6000}
-    connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:20000}
+    connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:6000}
+    keep-alive-timeout: ${TOMCAT_KEEPALIVE_TIMEOUT:20000}
+    max-keep-alive-requests: ${TOMCAT_MAX_KEEPALIVE_REQUESTS:20000}
+    processor-cache: ${TOMCAT_PROCESSOR_CACHE:8000}
   compression:
-    enabled: false
+    enabled: true
     min-response-size: 1024
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain,application/javascript,text/css
 
 # 日志级别：生产默认 INFO，热点模块可按需下调
 logging:
   level:
     "com.touhouqing.grabteacherbackend": ${LOG_LEVEL_APP:INFO}
-    "org.springframework.web": ${LOG_LEVEL_WEB:INFO}
-    "org.springframework.security": ${LOG_LEVEL_SECURITY:INFO}
+    "org.springframework.web": ${LOG_LEVEL_WEB:WARN}
+    "org.springframework.security": ${LOG_LEVEL_SECURITY:WARN}
 
 # 其他建议：
 # - 设置 JVM 启动参数：-Xms2g -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200

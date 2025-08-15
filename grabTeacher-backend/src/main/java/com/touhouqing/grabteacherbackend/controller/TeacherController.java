@@ -14,6 +14,10 @@ import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
 import com.touhouqing.grabteacherbackend.service.TimeValidationService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.touhouqing.grabteacherbackend.cache.FeaturedTeachersLocalCache;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.MediaType;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +45,18 @@ public class TeacherController {
 
     @Autowired
     private TimeValidationService timeValidationService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private FeaturedTeachersLocalCache featuredTeachersLocalCache;
+
+    // 针对精选教师 JSON 缓存的单飞锁，避免冷启动/失效瞬间的缓存击穿
+    private final java.util.concurrent.ConcurrentHashMap<String, Object> featuredKeyLocks = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * 获取教师个人信息（包含科目信息）
@@ -118,7 +134,7 @@ public class TeacherController {
      * 获取精选教师列表（天下名师页面使用）
      */
     @GetMapping("/featured")
-    public ResponseEntity<CommonResult<List<TeacherListVO>>> getFeaturedTeachers(
+    public ResponseEntity<?> getFeaturedTeachers(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String subject,
@@ -129,8 +145,53 @@ public class TeacherController {
             String normGrade = normalizeParam(grade);
             String normKeyword = normalizeKeyword(keyword);
 
-            List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(page, size, normSubject, normGrade, normKeyword);
-            return ResponseEntity.ok(CommonResult.success("获取成功", teachers));
+            // 构造缓存键（JSON 文本缓存），与分页/筛选条件绑定
+            String kSubject = normSubject != null ? normSubject : "all";
+            String kGrade = normGrade != null ? normGrade : "all";
+            String kKeyword = normKeyword != null ? normKeyword : "all";
+            String cacheKey = String.format("featuredTeachers:json:page:%d:size:%d:subject:%s:grade:%s:keyword:%s", page, size, kSubject, kGrade, kKeyword);
+
+            // 1) 先查本地 L1 缓存（无锁）
+            String json = featuredTeachersLocalCache.get(cacheKey);
+            if (json != null) {
+                return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
+            }
+
+            // 单飞锁，避免冷启动/失效瞬间击穿
+            Object lock = featuredKeyLocks.computeIfAbsent(cacheKey, k -> new Object());
+            synchronized (lock) {
+                // 1.1) 双检 L1
+                json = featuredTeachersLocalCache.get(cacheKey);
+                if (json != null) {
+                    return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
+                }
+
+                // 2) 查 Redis L2，异常降级
+                try {
+                    json = stringRedisTemplate.opsForValue().get(cacheKey);
+                } catch (Exception re) {
+                    logger.warn("Redis GET 超时或不可用，降级回源: key={}", cacheKey);
+                    json = null;
+                }
+                if (json != null) {
+                    featuredTeachersLocalCache.put(cacheKey, json);
+                    return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
+                }
+
+                // 3) 回源：调用服务层获取列表，序列化为 JSON 并写回两级缓存
+                List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(page, size, normSubject, normGrade, normKeyword);
+                json = objectMapper.writeValueAsString(CommonResult.success("获取成功", teachers));
+
+                featuredTeachersLocalCache.put(cacheKey, json);
+                // 与 featuredTeachers 缓存策略对齐：20 分钟，异常忽略
+                try {
+                    stringRedisTemplate.opsForValue().set(cacheKey, json, java.time.Duration.ofMinutes(20));
+                } catch (Exception we) {
+                    logger.warn("Redis SET 失败(忽略): key={}", cacheKey);
+                }
+
+                return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
+            }
         } catch (Exception e) {
             logger.error("获取精选教师列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
