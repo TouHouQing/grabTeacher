@@ -256,6 +256,8 @@ CREATE TABLE `grades` (
 BEGIN;
 INSERT INTO `grades` (`id`, `grade_name`, `description`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (14, '小学', '小学阶段，适合6-12岁儿童', '2025-07-28 21:55:14', '2025-07-28 21:55:14', 0, NULL);
 INSERT INTO `grades` (`id`, `grade_name`, `description`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (15, '中学', '中学阶段，适合12-18岁学生', '2025-07-28 21:55:14', '2025-07-28 21:55:14', 0, NULL);
+INSERT INTO `grades` (`id`, `grade_name`, `description`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (16, '高中', '高中阶段，适合15-18岁学生', '2025-07-28 21:55:14', '2025-07-28 21:55:14', 0, NULL);
+
 COMMIT;
 
 -- ----------------------------
@@ -862,3 +864,33 @@ ALTER TABLE `job_post_subjects`
 -- ----------------------------
 ALTER TABLE `job_posts`
   ADD FULLTEXT `ft_title_intro` (`title`,`introduction`);
+
+
+-- ----------------------------
+-- Records of job_posts & mappings (示例数据)
+-- ----------------------------
+BEGIN;
+-- 岗位1：小学数学兼职教师（线上）
+INSERT INTO `job_posts` (`id`,`title`,`introduction`,`position_tags`,`grade_ids`,`grade_names`,`subject_ids`,`subject_names`,`status`,`priority`,`created_at`,`is_deleted`)
+VALUES (1001,'小学数学兼职教师','负责小学数学线上授课，要求有耐心，有相关教学经验。','["兼职","线上"]','14','小学','1','小学数学','active',10,NOW(),0);
+INSERT INTO `job_post_grades` (`job_post_id`,`grade_id`) VALUES (1001,14);
+INSERT INTO `job_post_subjects` (`job_post_id`,`subject_id`) VALUES (1001,1);
+
+-- 岗位2：初中英语教师（可远程）
+INSERT INTO `job_posts` (`id`,`title`,`introduction`,`position_tags`,`grade_ids`,`grade_names`,`subject_ids`,`subject_names`,`status`,`priority`,`created_at`,`is_deleted`)
+VALUES (1002,'初中英语教师','负责初中阶段英语课程，小班教学，注重口语与阅读能力提升。','["全职","远程"]','15','中学','4','英文(KET)','active',20,NOW(),0);
+INSERT INTO `job_post_grades` (`job_post_id`,`grade_id`) VALUES (1002,15);
+INSERT INTO `job_post_subjects` (`job_post_id`,`subject_id`) VALUES (1002,4);
+
+-- 岗位3：高中物理精品课主讲
+INSERT INTO `job_posts` (`id`,`title`,`introduction`,`position_tags`,`grade_ids`,`grade_names`,`subject_ids`,`subject_names`,`status`,`priority`,`created_at`,`is_deleted`)
+VALUES (1003,'高中科学精品课主讲','主讲高中科学精品课程，擅长模型化与解题思维训练；可提供讲义。','["全职","线下优先"]','16','高中','7','中学科学','active',30,NOW(),0);
+INSERT INTO `job_post_grades` (`job_post_id`,`grade_id`) VALUES (1003,16);
+INSERT INTO `job_post_subjects` (`job_post_id`,`subject_id`) VALUES (1003,7);
+
+-- 岗位4：语文阅读写作指导（小学/中学）
+INSERT INTO `job_posts` (`id`,`title`,`introduction`,`position_tags`,`grade_ids`,`grade_names`,`subject_ids`,`subject_names`,`status`,`priority`,`created_at`,`is_deleted`)
+VALUES (1004,'华文阅读写作指导','教授阅读理解与写作技巧，面向小学和中学段学生；支持晚间时段授课。','["兼职","晚间"]','14,15','小学,中学','3,8','小学华文,中学华文','active',40,NOW(),0);
+INSERT INTO `job_post_grades` (`job_post_id`,`grade_id`) VALUES (1004,14),(1004,15);
+INSERT INTO `job_post_subjects` (`job_post_id`,`subject_id`) VALUES (1004,3),(1004,8);
+COMMIT;

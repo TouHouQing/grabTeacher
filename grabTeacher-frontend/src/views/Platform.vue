@@ -1,22 +1,33 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { jobPostAPI } from '../utils/api'
 
 // 组件名称
 const name = 'PlatformView'
 defineOptions({ name })
 
-// 职位类型
-const positions = ref([
-  { label: '数学教师', value: '数学教师' },
-  { label: '英语教师', value: '英语教师' },
-  { label: '物理教师', value: '物理教师' },
-  { label: '化学教师', value: '化学教师' },
-  { label: '生物教师', value: '生物教师' },
-  { label: '历史教师', value: '历史教师' },
-  { label: '地理教师', value: '地理教师' },
-  { label: '政治教师', value: '政治教师' }
-])
+// 后端招聘数据
+const loading = ref(false)
+const jobPosts = ref<any[]>([])
+const page = ref(1)
+const size = ref(9)
+
+const loadJobPosts = async () => {
+  try {
+    loading.value = true
+    const res = await jobPostAPI.list({ page: page.value, size: size.value })
+    // 兼容 CommonResult 结构 { code, message, data }
+    const data = (res && res.data) ? res.data : res
+    jobPosts.value = data.records || []
+  } catch (e) {
+    console.error('加载招聘列表失败', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadJobPosts)
 
 // 招聘表单
 const applicationForm = reactive({
@@ -146,18 +157,22 @@ const resetForm = () => {
       <div class="section positions">
         <h2>招聘职位</h2>
         <el-row :gutter="20">
-          <el-col :xs="24" :sm="12" :md="8" v-for="(position, index) in positions" :key="index">
+          <el-col :xs="24" :sm="12" :md="8" v-for="(job, index) in jobPosts" :key="job.id || index">
             <div class="position-card">
-              <h3>{{ position.label }}</h3>
+              <h3>{{ job.title }}</h3>
               <div class="position-tags">
-                <el-tag size="small">全职/兼职</el-tag>
-                <el-tag size="small" type="success">远程授课</el-tag>
+                <el-tag size="small" type="info">{{ job.gradeNames || '不限年级' }}</el-tag>
+                <el-tag size="small" type="success">{{ job.subjectNames || '不限科目' }}</el-tag>
               </div>
-              <p>我们正在寻找优秀的{{ position.label }}加入我们的团队，为学生提供高质量的教学服务。</p>
-              <el-button type="primary" size="small" @click="applicationForm.position = position.value">立即申请</el-button>
+              <p>{{ job.introduction || '加入我们的团队，为学生提供高质量的教学服务。' }}</p>
+              <el-button type="primary" size="small">立即申请</el-button>
             </div>
           </el-col>
+          <el-col v-if="!loading && (!jobPosts || jobPosts.length === 0)" :span="24">
+            <div style="text-align:center;color:#999;padding:16px">暂无招聘职位</div>
+          </el-col>
         </el-row>
+        <div v-if="loading" style="text-align:center;padding:12px;color:#666">加载中...</div>
       </div>
 
     </div>

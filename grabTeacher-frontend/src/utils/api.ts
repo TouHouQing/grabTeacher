@@ -900,3 +900,20 @@ export const studyAbroadAPI = {
     return apiRequest(`/api/admin/study-abroad/programs/${id}/flags?${params}`, { method: 'PATCH' })
   }
 }
+
+// 教师招聘 API
+export const jobPostAPI = {
+  // 公开列表
+  list: (params: { page?: number; size?: number; gradeId?: number; subjectId?: number }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null) searchParams.append(key, v.toString())
+    })
+    const query = searchParams.toString()
+    return apiRequest(`/api/job-posts/public/list${query ? `?${query}` : ''}`)
+  },
+  // 公开详情（fast JSON）
+  getDetailFast: (id: number) => apiRequest(`/api/job-posts/public/${id}/fast`)
+}
+
