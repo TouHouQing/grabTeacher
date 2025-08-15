@@ -771,3 +771,94 @@ ALTER TABLE `study_abroad_countries`
 
 ALTER TABLE `study_abroad_stages`
   ADD INDEX `idx_sas_active_deleted_sort` (`is_active`, `is_deleted`, `sort_order`, `id`);
+
+
+
+-- ----------------------------
+-- Table structure for job_posts (教师招聘信息) - 高性能版本
+-- ----------------------------
+DROP TABLE IF EXISTS `job_posts`;
+CREATE TABLE `job_posts` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '招聘ID，主键自增',
+  `title` varchar(200) COLLATE utf8mb4_general_ci NOT NULL COMMENT '招聘标题',
+  `introduction` text COLLATE utf8mb4_general_ci COMMENT '岗位介绍/职位描述',
+  `position_tags` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '职位标签，JSON数组字符串，如：["兼职","线上"]',
+  -- 性能优化：冗余存储年级和科目信息，避免JOIN查询
+  `grade_ids` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '关联年级ID列表，逗号分隔，如：14,15',
+  `grade_names` varchar(200) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '年级名称列表，逗号分隔，如：小学,中学',
+  `subject_ids` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '关联科目ID列表，逗号分隔，如：1,3,6',
+  `subject_names` varchar(300) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '科目名称列表，逗号分隔，如：小学数学,小学华文,中学数学',
+  -- 业务字段
+  `status` enum('active','expired') DEFAULT 'active' COMMENT '招聘状态：active-招聘中，expired-已过期',
+  `priority` int(10) DEFAULT '0' COMMENT '优先级排序，值越小越靠前',
+
+  -- 审计字段
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：1-已删除，0-未删除',
+  `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
+
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='教师招聘信息表，供前台招聘页面展示';
+
+-- ----------------------------
+-- Table structure for job_post_grades (招聘-年级 关联)
+-- ----------------------------
+DROP TABLE IF EXISTS `job_post_grades`;
+CREATE TABLE `job_post_grades` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `job_post_id` bigint(20) NOT NULL COMMENT '招聘ID，关联job_posts表',
+  `grade_id` bigint(20) NOT NULL COMMENT '年级ID，关联grades表',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_job_grade` (`job_post_id`,`grade_id`),
+  KEY `idx_job_post_id` (`job_post_id`),
+  KEY `idx_grade_id` (`grade_id`),
+  CONSTRAINT `fk_jpg_job` FOREIGN KEY (`job_post_id`) REFERENCES `job_posts` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_jpg_grade` FOREIGN KEY (`grade_id`) REFERENCES `grades` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='招聘与年级的多对多关联表';
+
+-- ----------------------------
+-- Table structure for job_post_subjects (招聘-科目 关联)
+-- ----------------------------
+DROP TABLE IF EXISTS `job_post_subjects`;
+CREATE TABLE `job_post_subjects` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `job_post_id` bigint(20) NOT NULL COMMENT '招聘ID，关联job_posts表',
+  `subject_id` bigint(20) NOT NULL COMMENT '科目ID，关联subjects表',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+
+
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_job_subject` (`job_post_id`,`subject_id`),
+  KEY `idx_job_post_id` (`job_post_id`),
+  KEY `idx_subject_id` (`subject_id`),
+  CONSTRAINT `fk_jps_job` FOREIGN KEY (`job_post_id`) REFERENCES `job_posts` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_jps_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='招聘与科目的多对多关联表';
+
+-- ----------------------------
+-- Performance indexes for job posts
+-- ----------------------------
+ALTER TABLE `job_posts`
+  ADD INDEX `idx_job_posts_deleted_created` (`is_deleted`, `created_at`),
+  ADD INDEX `idx_job_posts_created` (`created_at`);
+
+
+-- ----------------------------
+-- Performance indexes for job_posts & mappings (方案1)
+-- ----------------------------
+ALTER TABLE `job_posts`
+  ADD INDEX `idx_job_posts_list` (`is_deleted`,`status`,`priority`,`created_at`,`id`);
+
+ALTER TABLE `job_post_grades`
+  ADD INDEX `idx_grade_job` (`grade_id`,`job_post_id`);
+
+ALTER TABLE `job_post_subjects`
+  ADD INDEX `idx_subject_job` (`subject_id`,`job_post_id`);
+
+-- ----------------------------
+-- FULLTEXT index for title/introduction (方案2)
+-- ----------------------------
+ALTER TABLE `job_posts`
+  ADD FULLTEXT `ft_title_intro` (`title`,`introduction`);
