@@ -43,9 +43,7 @@ const navItems = computed(() => [
   { path: '/famous-teachers', label: t('nav.famousTeachers') },
   { path: '/study-abroad', label: t('nav.studyAbroad') },
   { path: '/about', label: t('nav.about') },
-  { path: '/campus', label: t('nav.campus') },
-  { path: '/platform', label: t('nav.platform') },
-  { path: '/contact', label: t('nav.contact') }
+  { path: '/platform', label: t('nav.platform') }
 ])
 </script>
 

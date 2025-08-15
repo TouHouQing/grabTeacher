@@ -55,10 +55,8 @@ function updateLangClass() {
         <el-menu-item index="/latest-courses">{{ $t('nav.latestCourses') }}</el-menu-item>
         <el-menu-item index="/famous-teachers">{{ $t('nav.famousTeachers') }}</el-menu-item>
         <el-menu-item index="/study-abroad">{{ $t('nav.studyAbroad') }}</el-menu-item>
-        <el-menu-item index="/about">{{ $t('nav.about') }}</el-menu-item>
-        <el-menu-item index="/campus">{{ $t('nav.campus') }}</el-menu-item>
         <el-menu-item index="/platform">{{ $t('nav.platform') }}</el-menu-item>
-        <el-menu-item index="/contact">{{ $t('nav.contact') }}</el-menu-item>
+        <el-menu-item index="/about">{{ $t('nav.about') }}</el-menu-item>
       </el-menu>
       <div class="auth-buttons" v-if="!userStore.isLoggedIn">
         <el-button type="primary" size="small" @click="$router.push('/login')">{{ $t('auth.login') || '登录' }}</el-button>

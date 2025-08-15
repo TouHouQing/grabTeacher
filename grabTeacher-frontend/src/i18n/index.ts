@@ -8,9 +8,7 @@ const en = {
     famousTeachers: 'Famous Teachers',
     studyAbroad: 'Study Abroad',
     about: 'About Us',
-    campus: 'Campus',
-    platform: 'Teacher Recruitment',
-    contact: 'Contact Us'
+    platform: 'Teacher Recruitment'
   },
   auth: {
     login: 'Login',
@@ -92,9 +90,7 @@ const zh = {
     famousTeachers: '天下名师',
     studyAbroad: '留学咨询',
     about: '关于我们',
-    campus: '校区查询',
-    platform: '教师招聘',
-    contact: '联系我们'
+    platform: '教师招聘'
   },
   auth: {
     login: '登录',
