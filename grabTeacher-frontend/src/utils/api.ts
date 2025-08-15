@@ -902,6 +902,10 @@ export const studyAbroadAPI = {
 }
 
 // 教师招聘 API
+export const adminPublicAPI = {
+  getContacts: () => apiRequest('/api/public/admins/contacts')
+}
+
 export const jobPostAPI = {
   // 公开列表
   list: (params: { page?: number; size?: number; gradeId?: number; subjectId?: number }) => {

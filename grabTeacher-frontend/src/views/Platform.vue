@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { jobPostAPI, gradeApi, subjectAPI } from '../utils/api'
+import ContactUs from '../components/ContactUs.vue'
 
 // 组件名称
 const name = 'PlatformView'
@@ -93,6 +94,13 @@ const onLoadMore = () => {
   if (hasMore.value && !loadMoreLoading.value) {
     page.value += 1
     loadJobPosts(true)
+  }
+}
+
+const scrollToContact = () => {
+  const contactElement = document.querySelector('.contact-us')
+  if (contactElement) {
+    contactElement.scrollIntoView({ behavior: 'smooth' })
   }
 }
 
@@ -259,7 +267,7 @@ const resetForm = () => {
                         :key="`t-${idx}`" size="small" type="warning">{{ t }}</el-tag>
               </div>
               <p>{{ job.introduction || '加入我们的团队，为学生提供高质量的教学服务。' }}</p>
-              <el-button type="primary" size="small">立即申请</el-button>
+              <el-button type="primary" size="small" @click="scrollToContact">联系我们</el-button>
             </div>
           </el-col>
           <el-col v-if="!loading && (!jobPosts || jobPosts.length === 0)" :span="24">
@@ -281,7 +289,11 @@ const resetForm = () => {
           </el-button>
           <div v-else-if="jobPosts.length > 0" class="no-more-text">已显示全部职位</div>
         </div>
+        <div class="contact-tip">如需了解岗位详情，欢迎联系客服咨询</div>
       </div>
+
+      <!-- 联系我们 -->
+      <ContactUs />
 
     </div>
   </div>
@@ -506,6 +518,8 @@ const resetForm = () => {
   color: #999;
   font-size: 14px;
 }
+
+.contact-tip { text-align:center; color:#909399; font-size:14px; margin-top:8px; }
 
 .application-form {
   background-color: #fff;

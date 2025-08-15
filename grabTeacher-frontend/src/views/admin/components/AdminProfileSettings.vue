@@ -50,7 +50,6 @@ async function onAvatarChange(e: Event) {
   avatarFile = input.files[0]
   // 仅做本地预览，不直传OSS
   avatarPreview.value = URL.createObjectURL(avatarFile)
-  ElMessage.success('已选择头像，点击保存后再上传至OSS')
   input.value = ''
 }
 
@@ -59,7 +58,6 @@ async function onQrcodeChange(e: Event) {
   if (!input.files || !input.files[0]) return
   qrcodeFile = input.files[0]
   qrcodePreview.value = URL.createObjectURL(qrcodeFile)
-  ElMessage.success('已选择二维码，点击保存后再上传至OSS')
   input.value = ''
 }
 
