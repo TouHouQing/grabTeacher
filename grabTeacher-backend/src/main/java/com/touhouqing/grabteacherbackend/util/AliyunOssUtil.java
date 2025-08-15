@@ -13,8 +13,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
+
 import java.util.UUID;
 
 @Slf4j
@@ -37,11 +38,10 @@ public class AliyunOssUtil {
         }
         String original = file.getOriginalFilename();
         String ext = (original != null && original.contains(".")) ? original.substring(original.lastIndexOf('.')) : "";
-        String datePath = LocalDate.now().toString(); // yyyy-MM-dd
         String uuid = UUID.randomUUID().toString().replace("-", "");
         StringBuilder key = new StringBuilder();
         String prefix = props.getDirPrefix() != null && !props.getDirPrefix().isEmpty() ? props.getDirPrefix() : "uploads/";
-        key.append(prefix).append(datePath).append('/');
+        key.append(prefix);
         if (module != null && !module.isEmpty()) {
             key.append(module).append('/');
         }
@@ -83,8 +83,21 @@ public class AliyunOssUtil {
         if (url.startsWith(expectedDomain)) {
             key = url.substring(expectedDomain.length());
             if (key.startsWith("/")) key = key.substring(1);
+            // URL 可能经过了编码，需要解码一次以获得真实 key
+            key = URLDecoder.decode(key, StandardCharsets.UTF_8);
+        } else if (url.startsWith("http://") || url.startsWith("https://")) {
+            // 传入了其他域名的完整URL，尝试从路径部分提取key
+            try {
+                java.net.URI uri = java.net.URI.create(url);
+                key = uri.getPath();
+                if (key.startsWith("/")) key = key.substring(1);
+                key = URLDecoder.decode(key, StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                // 回退为原串
+                key = url;
+            }
         } else {
-            // 兼容传入的是 key
+            // 兼容传入的是未带域名的 key
             key = url;
         }
         deleteByKey(key);

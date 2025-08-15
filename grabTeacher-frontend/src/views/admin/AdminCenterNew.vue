@@ -11,6 +11,7 @@ import AdminSubjectManagement from './components/AdminSubjectManagement.vue'
 import AdminCourseManagement from './AdminCourseManagement.vue'
 import AdminGradeManagement from '../../components/AdminGradeManagement.vue'
 import AdminPasswordChange from './components/AdminPasswordChange.vue'
+import AdminProfileSettings from './components/AdminProfileSettings.vue'
 import AdminBookingManagement from './components/AdminBookingManagement.vue'
 import AdminStudyAbroadCountryManagement from './components/AdminStudyAbroadCountryManagement.vue'
 import AdminStudyAbroadStageManagement from './components/AdminStudyAbroadStageManagement.vue'
@@ -100,6 +101,10 @@ const handleMenuSelect = (key: string) => {
               <span>留学项目</span>
             </el-menu-item>
           </el-sub-menu>
+          <el-menu-item index="profile">
+            <el-icon><User /></el-icon>
+            <span>管理员资料</span>
+          </el-menu-item>
           <el-menu-item index="password">
             <el-icon><Lock /></el-icon>
             <span>账户设置</span>
@@ -158,6 +163,11 @@ const handleMenuSelect = (key: string) => {
         <!-- 留学管理：项目 -->
         <div v-show="activeMenu === 'abroad-programs'" class="content-panel">
           <AdminStudyAbroadProgramManagement />
+        </div>
+
+        <!-- 管理员资料 -->
+        <div v-show="activeMenu === 'profile'" class="content-panel">
+          <AdminProfileSettings />
         </div>
 
         <!-- 账户设置 -->

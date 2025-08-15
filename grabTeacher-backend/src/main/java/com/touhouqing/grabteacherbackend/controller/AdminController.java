@@ -29,6 +29,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.touhouqing.grabteacherbackend.model.dto.AdminProfileUpdateDTO;
+
 @RestController
 @RequestMapping("/api/admin")
 @CrossOrigin(origins = "*", maxAge = 3600)
@@ -517,6 +519,25 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResult.error("获取失败"));
         }
+    }
+
+    // ============== 管理员资料 ==============
+    @Operation(summary = "获取当前管理员资料")
+    @GetMapping("/profile")
+    public ResponseEntity<CommonResult<Map<String, Object>>> getMyProfile(org.springframework.security.core.Authentication authentication) {
+        Long userId = ((com.touhouqing.grabteacherbackend.security.UserPrincipal) authentication.getPrincipal()).getId();
+        Map<String, Object> profile = adminService.getCurrentAdminProfile(userId);
+        return ResponseEntity.ok(CommonResult.success("获取成功", profile));
+    }
+
+    @Operation(summary = "更新当前管理员资料（覆盖头像/二维码：新传则删旧）")
+    @PutMapping("/profile")
+    public ResponseEntity<CommonResult<Object>> updateMyProfile(
+            org.springframework.security.core.Authentication authentication,
+            @RequestBody AdminProfileUpdateDTO dto) {
+        Long userId = ((com.touhouqing.grabteacherbackend.security.UserPrincipal) authentication.getPrincipal()).getId();
+        adminService.updateCurrentAdminProfile(userId, dto);
+        return ResponseEntity.ok(CommonResult.success("更新成功", null));
     }
 
     /**

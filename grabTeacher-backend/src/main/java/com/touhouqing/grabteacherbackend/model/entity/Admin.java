@@ -26,7 +26,19 @@ public class Admin {
     
     @TableField("notes")
     private String notes;
-    
+
+    @TableField("avatar_url")
+    private String avatarUrl;
+
+    @TableField("wechat_qrcode_url")
+    private String wechatQrcodeUrl;
+
+    @TableField("whatsapp_number")
+    private String whatsappNumber;
+
+    @TableField("email")
+    private String email;
+
     @TableField("is_deleted")
     private Boolean deleted;
     

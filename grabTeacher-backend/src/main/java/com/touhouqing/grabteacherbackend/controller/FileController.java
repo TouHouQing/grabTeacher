@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URL;
-import java.time.LocalDate;
+
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -129,11 +129,10 @@ public class FileController {
         String ext = "";
         int dot = filename.lastIndexOf('.');
         if (dot >= 0) ext = filename.substring(dot);
-        String datePath = LocalDate.now().toString();
         String uuid = UUID.randomUUID().toString().replace("-", "");
         String dirPrefix = props.getDirPrefix() != null && !props.getDirPrefix().isEmpty() ? props.getDirPrefix() : "uploads/";
         StringBuilder sb = new StringBuilder();
-        sb.append(dirPrefix).append(datePath).append('/');
+        sb.append(dirPrefix);
         if (module != null && !module.isEmpty()) sb.append(module).append('/');
         return sb.append(uuid).append(ext).toString();
     }

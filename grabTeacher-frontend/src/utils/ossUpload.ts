@@ -23,6 +23,9 @@ export async function getPresignedPutUrl(apiBase: string, params: PresignParams)
   const resp = await fetch(`${apiBase}/api/file/presign?${query.toString()}`, {
     method: 'GET',
     credentials: 'include',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+    },
   });
   if (!resp.ok) throw new Error(`获取预签名URL失败: ${resp.status}`);
   const data = await resp.json();
@@ -44,6 +47,18 @@ export async function uploadByPresignedUrl(presignedUrl: string, file: File): Pr
   return etag ?? 'OK';
 }
 
+export async function deleteByUrl(apiBase: string, targetUrl: string): Promise<void> {
+  const resp = await fetch(`${apiBase}/api/file/delete?target=${encodeURIComponent(targetUrl)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
+  });
+  if (!resp.ok) throw new Error(`删除失败: ${resp.status}`);
+  const data = await resp.json();
+  if (!data?.success) throw new Error(data?.message || '删除失败');
+}
+
+
 // ============== 分片并行上传（Multipart Upload） ==============
 // 原理：
 // 1) 由后端提供多段上传初始化接口，返回 uploadId 与目标 object key
@@ -63,7 +78,7 @@ export interface PartETag {
 
 export async function initMultipart(apiBase: string, module: string, filename: string): Promise<InitMultipartResp> {
   const query = new URLSearchParams({ module, filename });
-  const resp = await fetch(`${apiBase}/api/file/multipart/init?${query.toString()}`, { method: 'POST', credentials: 'include' });
+  const resp = await fetch(`${apiBase}/api/file/multipart/init?${query.toString()}`, { method: 'POST', credentials: 'include', headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` } });
   const data = await resp.json();
   if (!data?.success) throw new Error(data?.message || '初始化分片失败');
   return data.data as InitMultipartResp;
@@ -71,7 +86,7 @@ export async function initMultipart(apiBase: string, module: string, filename: s
 
 export async function getPartPresign(apiBase: string, key: string, uploadId: string, partNumber: number, contentType: string): Promise<string> {
   const query = new URLSearchParams({ key, uploadId, partNumber: String(partNumber), contentType });
-  const resp = await fetch(`${apiBase}/api/file/multipart/presign?${query.toString()}`, { method: 'GET', credentials: 'include' });
+  const resp = await fetch(`${apiBase}/api/file/multipart/presign?${query.toString()}`, { method: 'GET', credentials: 'include', headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` } });
   const data = await resp.json();
   if (!data?.success) throw new Error(data?.message || '获取分片签名失败');
   return data.data as string;
@@ -80,7 +95,7 @@ export async function getPartPresign(apiBase: string, key: string, uploadId: str
 export async function completeMultipart(apiBase: string, key: string, uploadId: string, parts: PartETag[]): Promise<string> {
   const resp = await fetch(`${apiBase}/api/file/multipart/complete`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
     credentials: 'include',
     body: JSON.stringify({ key, uploadId, parts }),
   });
@@ -93,6 +108,7 @@ export async function abortMultipart(apiBase: string, key: string, uploadId: str
   const resp = await fetch(`${apiBase}/api/file/multipart/abort?key=${encodeURIComponent(key)}&uploadId=${encodeURIComponent(uploadId)}`, {
     method: 'POST',
     credentials: 'include',
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
   });
   const data = await resp.json();
   if (!data?.success) throw new Error(data?.message || '中止分片失败');

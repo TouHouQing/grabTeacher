@@ -2,24 +2,15 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.model.entity.BookingRequest;
-import com.touhouqing.grabteacherbackend.model.entity.Course;
-import com.touhouqing.grabteacherbackend.model.entity.Student;
-import com.touhouqing.grabteacherbackend.model.entity.StudentSubject;
-import com.touhouqing.grabteacherbackend.model.entity.Teacher;
-import com.touhouqing.grabteacherbackend.model.entity.TeacherSubject;
-import com.touhouqing.grabteacherbackend.model.entity.User;
+import com.touhouqing.grabteacherbackend.mapper.*;
+import com.touhouqing.grabteacherbackend.model.entity.*;
 import com.touhouqing.grabteacherbackend.model.dto.StudentInfoDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TeacherInfoDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.util.AliyunOssUtil;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
-import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
-import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
-import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
-import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
-import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
-import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
-import com.touhouqing.grabteacherbackend.mapper.UserMapper;
+import com.touhouqing.grabteacherbackend.model.entity.Admin;
+
 import com.touhouqing.grabteacherbackend.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +38,9 @@ public class AdminServiceImpl implements AdminService {
     private final TeacherSubjectMapper teacherSubjectMapper;
     private final BookingRequestMapper bookingRequestMapper;
     private final CourseMapper courseMapper;
+    private final AdminMapper adminMapper;
+    private final AliyunOssUtil ossUtil;
+
     @Autowired
     private PasswordEncoder passwordEncoder;
 
@@ -164,7 +158,7 @@ public class AdminServiceImpl implements AdminService {
         QueryWrapper<Student> queryWrapper = new QueryWrapper<>();
 
         queryWrapper.eq("is_deleted", false); // 添加软删除条件
-        
+
         // 搜索条件
         if (StringUtils.hasText(keyword)) {
             queryWrapper.like("real_name", keyword);
@@ -172,10 +166,10 @@ public class AdminServiceImpl implements AdminService {
         if (StringUtils.hasText(gradeLevel)) {
             queryWrapper.eq("grade_level", gradeLevel);
         }
-        
+
         // 排序
         queryWrapper.orderByDesc("id");
-        
+
         return studentMapper.selectPage(pageParam, queryWrapper);
     }
 
@@ -364,10 +358,10 @@ public class AdminServiceImpl implements AdminService {
         if (isVerified != null) {
             queryWrapper.eq("is_verified", isVerified);
         }
-        
+
         // 排序
         queryWrapper.orderByDesc("id");
-        
+
         return teacherMapper.selectPage(pageParam, queryWrapper);
     }
 
@@ -601,5 +595,52 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public List<Long> getStudentSubjects(Long studentId) {
         return studentSubjectMapper.getSubjectIdsByStudentId(studentId);
+    }
+
+    // ============== 管理员资料 ==============
+    @Override
+    public Map<String, Object> getCurrentAdminProfile(Long currentUserId) {
+        Admin admin = adminMapper.findByUserId(currentUserId);
+        Map<String, Object> map = new HashMap<>();
+        if (admin != null) {
+            map.put("realName", admin.getRealName());
+            map.put("avatarUrl", admin.getAvatarUrl());
+            map.put("wechatQrcodeUrl", admin.getWechatQrcodeUrl());
+            map.put("whatsappNumber", admin.getWhatsappNumber());
+            map.put("email", admin.getEmail());
+        }
+        return map;
+    }
+
+    @Override
+    @Transactional
+    public void updateCurrentAdminProfile(Long currentUserId, com.touhouqing.grabteacherbackend.model.dto.AdminProfileUpdateDTO dto) {
+        Admin admin = adminMapper.findByUserId(currentUserId);
+        if (admin == null) {
+            admin = Admin.builder()
+                    .userId(currentUserId)
+                    .deleted(false)
+                    .build();
+            adminMapper.insert(admin);
+        }
+        if (dto.getRealName() != null) admin.setRealName(dto.getRealName());
+        if (dto.getWhatsappNumber() != null) admin.setWhatsappNumber(dto.getWhatsappNumber());
+        if (dto.getEmail() != null) admin.setEmail(dto.getEmail());
+
+        if (dto.getAvatarUrl() != null && !dto.getAvatarUrl().isEmpty()) {
+            String old = admin.getAvatarUrl();
+            if (old != null && !old.isEmpty() && !old.equals(dto.getAvatarUrl())) {
+                ossUtil.deleteByUrl(old);
+            }
+            admin.setAvatarUrl(dto.getAvatarUrl());
+        }
+        if (dto.getWechatQrcodeUrl() != null && !dto.getWechatQrcodeUrl().isEmpty()) {
+            String old = admin.getWechatQrcodeUrl();
+            if (old != null && !old.isEmpty() && !old.equals(dto.getWechatQrcodeUrl())) {
+                ossUtil.deleteByUrl(old);
+            }
+            admin.setWechatQrcodeUrl(dto.getWechatQrcodeUrl());
+        }
+        adminMapper.updateById(admin);
     }
 }
