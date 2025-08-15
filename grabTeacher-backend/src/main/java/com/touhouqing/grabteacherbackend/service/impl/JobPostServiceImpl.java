@@ -216,6 +216,8 @@ public class JobPostServiceImpl implements JobPostService {
         java.util.Set<Long> gset = dto.getGradeIds()==null?null:new java.util.HashSet<>(dto.getGradeIds());
         java.util.Set<Long> sset = dto.getSubjectIds()==null?null:new java.util.HashSet<>(dto.getSubjectIds());
         cacheManager.evictByDimensions(gset, sset);
+        // 管理端列表：短TTL缓存直接全清，保证新建后列表即时更新
+        cacheManager.evictAllAdminLists();
         // 清掉本地详情缓存
         detailLocalCache.evict(entity.getId());
 

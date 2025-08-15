@@ -117,7 +117,8 @@ const onSave = async () => {
     if (res.success) {
       ElMessage.success('保存成功')
       dialogVisible.value = false
-      loadList()
+      pagination.currentPage = 1
+      await loadList()
     } else {
       ElMessage.error(res.message || '保存失败')
     }
@@ -139,9 +140,6 @@ const onDelete = async (row: any) => {
 const onPageChange = (p: number) => { pagination.currentPage = p; loadList() }
 const onSizeChange = (s: number) => { pagination.pageSize = s; pagination.currentPage = 1; loadList() }
 
-// 保留多选状态（未来可能用于批量操作）
-const multipleSelection = ref<any[]>([])
-const onSelectionChange = (rows: any[]) => { multipleSelection.value = rows }
 
 // 标签编辑器：轻量输入 + 按回车/逗号添加
 const TAG_MAX_COUNT = 4
@@ -200,35 +198,32 @@ onMounted(async () => { await loadOptions(); await loadList() })
             <el-input v-model="searchForm.keyword" placeholder="标题关键词" :prefix-icon="Search" clearable style="width: 220px" />
           </el-form-item>
           <el-form-item label="状态">
-            <el-select v-model="searchForm.status" placeholder="全部" clearable style="width: 140px">
+            <el-select v-model="searchForm.status" placeholder="全部" clearable style="width: 110px">
               <el-option label="招聘中" value="active" />
               <el-option label="已暂停" value="expired" />
             </el-select>
           </el-form-item>
           <el-form-item label="年级">
-            <el-select v-model="searchForm.gradeId" placeholder="全部年级" clearable filterable style="width: 200px">
+            <el-select v-model="searchForm.gradeId" placeholder="全部年级" clearable filterable style="width: 160px">
               <el-option v-for="g in gradeOptions" :key="g.value" :label="g.label" :value="g.value" />
             </el-select>
           </el-form-item>
           <el-form-item label="科目">
-            <el-select v-model="searchForm.subjectId" placeholder="全部科目" clearable filterable style="width: 200px">
+            <el-select v-model="searchForm.subjectId" placeholder="全部科目" clearable filterable style="width: 160px">
               <el-option v-for="s in subjectOptions" :key="s.value" :label="s.label" :value="s.value" />
             </el-select>
           </el-form-item>
-          <el-form-item>
+          <el-form-item class="form-actions-row">
+            <el-button type="primary" :icon="Plus" @click="onAdd">新增招聘</el-button>
             <el-button type="primary" :icon="Search" @click="onSearch">搜索</el-button>
             <el-button :icon="Refresh" @click="onReset">重置</el-button>
           </el-form-item>
         </el-form>
-        <div class="search-actions">
-          <el-button type="primary" :icon="Plus" @click="onAdd">新增招聘</el-button>
-        </div>
       </div>
     </el-card>
 
 
-    <el-table :data="list" v-loading="loading" stripe style="width: 100%" @selection-change="onSelectionChange">
-      <el-table-column type="selection" width="50" />
+    <el-table :data="list" v-loading="loading" stripe style="width: 100%">
       <el-table-column prop="title" label="标题" min-width="280" />
       <el-table-column prop="gradeNames" label="年级" min-width="200" />
       <el-table-column prop="subjectNames" label="科目" min-width="200" />
@@ -330,7 +325,9 @@ onMounted(async () => { await loadOptions(); await loadList() })
 .pagination-wrapper { display: flex; justify-content: center; margin-top: 16px; }
 .search-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
 .search-form { flex: 1; display:flex; flex-wrap: wrap; column-gap: 16px; row-gap: 8px; }
-.search-actions { white-space: nowrap; }
+.search-actions { white-space: nowrap; display:flex; gap:8px; align-items:center; }
+.form-actions-row { width: 100%; margin-top: 4px; }
+.form-actions-row .el-form-item__content { display:flex; gap:8px; }
 .tag-editor { display:flex; flex-wrap:wrap; gap:6px; min-height:34px; align-items:center; border:1px solid var(--el-border-color); border-radius:4px; padding:4px 8px; }
 .tag-chip { margin: 2px 0; }
 .tag-input { flex:1; min-width:160px; border: none; outline: none; height:26px; line-height:26px; }

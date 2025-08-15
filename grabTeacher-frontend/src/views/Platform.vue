@@ -1,33 +1,105 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { jobPostAPI } from '../utils/api'
+import { jobPostAPI, gradeApi, subjectAPI } from '../utils/api'
 
 // 组件名称
 const name = 'PlatformView'
 defineOptions({ name })
 
+// 筛选条件
+const filterForm = reactive({
+  gradeId: undefined as number | undefined,
+  subjectId: undefined as number | undefined,
+})
+
+// 选项数据
+const gradeOptions = ref<any[]>([])
+const subjectOptions = ref<any[]>([])
+
 // 后端招聘数据
 const loading = ref(false)
+const loadMoreLoading = ref(false)
 const jobPosts = ref<any[]>([])
 const page = ref(1)
 const size = ref(9)
+const total = ref(0)
+const hasMore = ref(true)
 
-const loadJobPosts = async () => {
+const loadOptions = async () => {
   try {
-    loading.value = true
-    const res = await jobPostAPI.list({ page: page.value, size: size.value })
+    const [gradesRes, subjectsRes] = await Promise.all([
+      gradeApi.getAllPublic(),
+      subjectAPI.getActiveSubjects(),
+    ])
+    gradeOptions.value = (gradesRes?.data || []).map((g: any) => ({ label: g.gradeName, value: g.id }))
+    subjectOptions.value = (subjectsRes?.data || []).map((s: any) => ({ label: s.name, value: s.id }))
+  } catch (e) {
+    console.error('加载选项失败', e)
+  }
+}
+
+const loadJobPosts = async (isLoadMore = false) => {
+  try {
+    if (isLoadMore) {
+      loadMoreLoading.value = true
+    } else {
+      loading.value = true
+    }
+
+    const res = await jobPostAPI.list({
+      page: page.value,
+      size: size.value,
+      gradeId: filterForm.gradeId,
+      subjectId: filterForm.subjectId
+    })
     // 兼容 CommonResult 结构 { code, message, data }
     const data = (res && res.data) ? res.data : res
-    jobPosts.value = data.records || []
+    const records = data.records || []
+
+    if (isLoadMore) {
+      // 加载更多：追加到现有列表
+      jobPosts.value = [...jobPosts.value, ...records]
+    } else {
+      // 首次加载或筛选：替换列表
+      jobPosts.value = records
+    }
+
+    // 更新分页信息
+    total.value = data.total || 0
+    hasMore.value = jobPosts.value.length < total.value
+
   } catch (e) {
     console.error('加载招聘列表失败', e)
   } finally {
     loading.value = false
+    loadMoreLoading.value = false
   }
 }
 
-onMounted(loadJobPosts)
+const onFilterChange = () => {
+  page.value = 1
+  loadJobPosts(false)
+}
+
+const onResetFilter = () => {
+  filterForm.gradeId = undefined
+  filterForm.subjectId = undefined
+  page.value = 1
+  loadJobPosts(false)
+}
+
+const onLoadMore = () => {
+  if (hasMore.value && !loadMoreLoading.value) {
+    page.value += 1
+    loadJobPosts(true)
+  }
+}
+
+onMounted(async () => {
+  await loadOptions()
+  await loadJobPosts()
+})
 
 // 招聘表单
 const applicationForm = reactive({
@@ -156,6 +228,26 @@ const resetForm = () => {
 
       <div class="section positions">
         <h2>招聘职位</h2>
+
+        <!-- 筛选条件 -->
+        <div class="filter-section">
+          <el-form :model="filterForm" inline class="filter-form">
+            <el-form-item label="年级">
+              <el-select v-model="filterForm.gradeId" placeholder="全部年级" clearable filterable style="width: 180px" @change="onFilterChange">
+                <el-option v-for="g in gradeOptions" :key="g.value" :label="g.label" :value="g.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="科目">
+              <el-select v-model="filterForm.subjectId" placeholder="全部科目" clearable filterable style="width: 180px" @change="onFilterChange">
+                <el-option v-for="s in subjectOptions" :key="s.value" :label="s.label" :value="s.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button @click="onResetFilter">重置</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+
         <el-row :gutter="20">
           <el-col :xs="24" :sm="12" :md="8" v-for="(job, index) in jobPosts" :key="job.id || index">
             <div class="position-card">
@@ -174,7 +266,21 @@ const resetForm = () => {
             <div style="text-align:center;color:#999;padding:16px">暂无招聘职位</div>
           </el-col>
         </el-row>
-        <div v-if="loading" style="text-align:center;padding:12px;color:#666">加载中...</div>
+
+        <!-- 加载状态和加载更多按钮 -->
+        <div class="load-more-section">
+          <div v-if="loading && jobPosts.length === 0" class="loading-text">加载中...</div>
+          <el-button
+            v-else-if="hasMore"
+            type="primary"
+            :loading="loadMoreLoading"
+            @click="onLoadMore"
+            class="load-more-btn"
+          >
+            {{ loadMoreLoading ? '加载中...' : '加载更多' }}
+          </el-button>
+          <div v-else-if="jobPosts.length > 0" class="no-more-text">已显示全部职位</div>
+        </div>
       </div>
 
     </div>
@@ -369,6 +475,36 @@ const resetForm = () => {
   line-height: 1.6;
   margin-bottom: 20px;
   flex: 1;
+}
+
+.filter-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.filter-form {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.load-more-section {
+  text-align: center;
+  margin-top: 40px;
+  padding: 20px 0;
+}
+
+.load-more-btn {
+  padding: 12px 40px;
+  font-size: 16px;
+}
+
+.loading-text, .no-more-text {
+  color: #999;
+  font-size: 14px;
 }
 
 .application-form {
