@@ -136,6 +136,22 @@ const onDelete = async (row: any) => {
   } catch {}
 }
 
+// 切换招聘状态（招聘中 <-> 已暂停）
+const onToggleStatus = async (row: any) => {
+  try {
+    const next = row.status === 'active' ? 'expired' : 'active'
+    const res = await jobPostAPI.update(row.id, { status: next })
+    if (res?.success) {
+      ElMessage.success(next === 'active' ? '已启用招聘' : '已暂停招聘')
+      await loadList()
+    } else {
+      ElMessage.error(res?.message || '操作失败')
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || '操作失败')
+  }
+}
+
 // 分页
 const onPageChange = (p: number) => { pagination.currentPage = p; loadList() }
 const onSizeChange = (s: number) => { pagination.pageSize = s; pagination.currentPage = 1; loadList() }
@@ -246,10 +262,15 @@ onMounted(async () => { await loadOptions(); await loadList() })
         </template>
       </el-table-column>
       <el-table-column prop="priority" label="排序" width="100" />
-      <el-table-column label="操作" width="220" fixed="right" align="center">
+      <el-table-column label="操作" width="260" fixed="right" align="center">
         <template #default="{ row }">
           <div class="op">
             <el-button size="small" :icon="Edit" @click="onEdit(row)">编辑</el-button>
+            <el-button
+              size="small"
+              :type="row.status==='active' ? 'warning' : 'success'"
+              @click="onToggleStatus(row)"
+            >{{ row.status==='active' ? '暂停' : '招聘' }}</el-button>
             <el-button size="small" type="danger" :icon="Delete" @click="onDelete(row)">删除</el-button>
           </div>
         </template>

@@ -68,6 +68,7 @@ public class TeacherServiceImpl implements TeacherService {
 
     private final TeacherScheduleCacheService teacherScheduleCacheService;
     private final SubjectMapper subjectMapper;
+    private final com.touhouqing.grabteacherbackend.service.CacheKeyEvictor cacheKeyEvictor;
 
     /**
      * 根据用户ID获取教师信息
@@ -243,33 +244,8 @@ public class TeacherServiceImpl implements TeacherService {
      * 根据科目获取教师列表
      */
     private List<Teacher> getTeacherListBySubject(int page, int size, String subject, String keyword) {
-        // 先通过科目名称获取教师ID列表
-        List<Teacher> subjectTeachers = teacherMapper.findTeachersBySubject(subject);
-
-        // 如果有关键词筛选，进一步过滤
-        List<Teacher> filteredTeachers = new ArrayList<>();
-        for (Teacher teacher : subjectTeachers) {
-            boolean matchKeyword = true;
-
-            if (StringUtils.hasText(keyword)) {
-                matchKeyword = (teacher.getRealName() != null && teacher.getRealName().contains(keyword)) ||
-                              (teacher.getSpecialties() != null && teacher.getSpecialties().contains(keyword)) ||
-                              (teacher.getIntroduction() != null && teacher.getIntroduction().contains(keyword));
-            }
-
-            if (matchKeyword) {
-                filteredTeachers.add(teacher);
-            }
-        }
-
-        // 手动分页
-        int start = Math.max(0, (page - 1) * size);
-        int end = Math.min(start + size, filteredTeachers.size());
-        if (start >= end) {
-            return new ArrayList<>();
-        }
-
-        return filteredTeachers.subList(start, end);
+        int offset = Math.max(0, (page - 1) * size);
+        return teacherMapper.findTeachersBySubjectPaged(subject, keyword, offset, size);
     }
 
     /**
@@ -298,6 +274,31 @@ public class TeacherServiceImpl implements TeacherService {
         List<Teacher> teachers = getFeaturedTeacherList(page, size, subject, grade, keyword);
         // 批量装配，消除 N+1
         return assembleTeacherListResponses(teachers);
+    }
+
+    @Override
+    @Cacheable(cacheNames = "featuredTeachersCount",
+               keyGenerator = "teacherCacheKeyGenerator",
+               sync = true)
+    public long countFeaturedTeachers(String subject, String grade, String keyword) {
+        // 统计精选教师总数（考虑筛选条件），用于服务端分页 total
+        QueryWrapper<Teacher> qw = new QueryWrapper<>();
+        qw.eq("is_deleted", false)
+          .eq("is_verified", true)
+          .eq("is_featured", true);
+        if (org.springframework.util.StringUtils.hasText(subject)) {
+            qw.exists("SELECT 1 FROM teacher_subjects ts INNER JOIN subjects s ON ts.subject_id = s.id " +
+                     "WHERE ts.teacher_id = teachers.id AND s.name = '" + subject + "' AND s.is_deleted = 0");
+        }
+        if (org.springframework.util.StringUtils.hasText(grade)) {
+            qw.exists("SELECT 1 FROM courses c INNER JOIN course_grades cg ON c.id = cg.course_id " +
+                     "WHERE c.teacher_id = teachers.id AND c.is_deleted = 0 AND c.status = 'active' AND cg.grade = '" + grade + "'");
+        }
+        if (org.springframework.util.StringUtils.hasText(keyword)) {
+            qw.and(w -> w.like("real_name", keyword).or().like("specialties", keyword).or().like("introduction", keyword));
+        }
+        Long cnt = teacherMapper.selectCount(qw);
+        return cnt != null ? cnt : 0L;
     }
 
 
@@ -411,6 +412,7 @@ public class TeacherServiceImpl implements TeacherService {
         if (teacher == null) {
             throw new RuntimeException("教师信息不存在");
         }
+        String oldAvailableTimeSlots = teacher.getAvailableTimeSlots();
 
         // 教师只能更新基本信息，不能修改科目和收费
         if (request.getRealName() != null) {
@@ -469,6 +471,15 @@ public class TeacherServiceImpl implements TeacherService {
 
         teacherMapper.updateById(teacher);
         log.info("教师更新个人信息成功: userId={}", userId);
+
+        try {
+            if (!Objects.equals(oldAvailableTimeSlots, teacher.getAvailableTimeSlots())) {
+                cacheKeyEvictor.evictTeacherScheduleAndAvailability(teacher.getId());
+                log.info("已清理教师课表/可用性相关缓存，teacherId={}", teacher.getId());
+            }
+        } catch (Exception e) {
+            log.warn("清理教师课表/可用性缓存失败 teacherId={}", teacher.getId(), e);
+        }
 
         return teacher;
     }

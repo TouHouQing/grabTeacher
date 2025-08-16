@@ -12,6 +12,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.touhouqing.grabteacherbackend.cache.ActiveSubjectsLocalCache;
+import com.touhouqing.grabteacherbackend.config.PublicJsonCacheConfig;
 
 import java.util.List;
 
@@ -25,6 +30,21 @@ public class PublicSubjectController {
     @Autowired
     private SubjectService subjectService;
 
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private ActiveSubjectsLocalCache activeSubjectsLocalCache;
+
+    @Autowired
+    private PublicJsonCacheConfig publicJsonCacheConfig;
+
+    // 单飞锁，避免并发回源击穿
+    private final java.util.concurrent.ConcurrentHashMap<String, Object> keyLocks = new java.util.concurrent.ConcurrentHashMap<>();
+
     /**
      * 获取所有激活的科目列表
      */
@@ -32,11 +52,43 @@ public class PublicSubjectController {
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功")
     })
-    @GetMapping("/active")
-    public ResponseEntity<CommonResult<List<Subject>>> getAllActiveSubjects() {
+    @GetMapping(value = "/active", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllActiveSubjects() {
         try {
-            List<Subject> subjects = subjectService.getAllActiveSubjects();
-            return ResponseEntity.ok(CommonResult.success("获取激活科目成功", subjects));
+            final String cacheKey = "public:subjects:active:json";
+
+            // L1 本地缓存
+            String json = activeSubjectsLocalCache.get(cacheKey);
+            if (json != null) {
+                return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
+            }
+
+            // 单飞锁，避免并发回源击穿
+            Object lock = keyLocks.computeIfAbsent(cacheKey, k -> new Object());
+            synchronized (lock) {
+                // 双检 L1
+                json = activeSubjectsLocalCache.get(cacheKey);
+                if (json != null) {
+                    return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
+                }
+
+                // L2 Redis
+                json = stringRedisTemplate.opsForValue().get(cacheKey);
+                if (json != null) {
+                    activeSubjectsLocalCache.put(cacheKey, json);
+                    return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
+                }
+
+                // 回源
+                List<Subject> subjects = subjectService.getAllActiveSubjects();
+                json = objectMapper.writeValueAsString(CommonResult.success("获取激活科目成功", subjects));
+
+                // 回填两级
+                activeSubjectsLocalCache.put(cacheKey, json);
+                stringRedisTemplate.opsForValue().set(cacheKey, json, publicJsonCacheConfig.getActiveSubjectsTtl());
+
+                return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
+            }
         } catch (Exception e) {
             logger.error("获取激活科目异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

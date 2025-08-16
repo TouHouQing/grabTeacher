@@ -80,8 +80,17 @@ const onDelete = async (row: any) => {
   try {
     await ElMessageBox.confirm(`确定删除阶段“${row.stageName}”吗？`, '提示', { type: 'warning' })
     const res = await studyAbroadAPI.adminDeleteStage(row.id)
-    if (res?.success) { ElMessage.success('删除成功'); loadList() } else { ElMessage.error(res?.message || '删除失败') }
-  } catch {}
+    if (res?.success) {
+      ElMessage.success('删除成功')
+      loadList()
+    } else {
+      ElMessage.error(res?.message || '删除失败')
+    }
+  } catch (e: any) {
+    // 后端如果返回400，apiRequest会抛出异常，这里统一提示后端返回的message
+    const msg = e?.response?.message || e?.message || '删除失败'
+    ElMessage.error(msg)
+  }
 }
 
 const onToggleStatus = async (row: any) => {

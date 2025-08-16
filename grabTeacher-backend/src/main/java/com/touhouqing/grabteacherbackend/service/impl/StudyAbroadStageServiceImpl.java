@@ -95,8 +95,14 @@ public class StudyAbroadStageServiceImpl implements StudyAbroadStageService {
             throw new RuntimeException("该阶段下仍有留学项目，无法删除。请先删除所有关联项目。");
         }
 
+        // 避免唯一索引 (stage_name, is_deleted) 冲突：先改名再软删
+        String safeSuffix = "__del__" + entity.getId();
+        if (!entity.getStageName().endsWith(safeSuffix)) {
+            entity.setStageName(entity.getStageName() + safeSuffix);
+        }
         entity.setDeleted(true);
         entity.setDeletedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
         stageMapper.updateById(entity);
         log.info("删除留学阶段: {}", entity.getStageName());
     }
@@ -112,6 +118,15 @@ public class StudyAbroadStageServiceImpl implements StudyAbroadStageService {
     @Override
     @Cacheable(cacheNames = "abroad:stages:list", keyGenerator = "customCacheKeyGenerator")
     public Page<StudyAbroadStage> list(int page, int size, String keyword, Boolean isActive) {
+        return doList(page, size, keyword, isActive);
+    }
+
+    @Override
+    public Page<StudyAbroadStage> listNoCache(int page, int size, String keyword, Boolean isActive) {
+        return doList(page, size, keyword, isActive);
+    }
+
+    private Page<StudyAbroadStage> doList(int page, int size, String keyword, Boolean isActive) {
         Page<StudyAbroadStage> p = new Page<>(page, size);
         QueryWrapper<StudyAbroadStage> qw = new QueryWrapper<>();
         qw.eq("is_deleted", false);

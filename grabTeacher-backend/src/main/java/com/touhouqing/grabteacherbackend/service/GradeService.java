@@ -16,6 +16,11 @@ public interface GradeService {
     List<GradeVO> getAllGrades();
 
     /**
+     * 管理端直查DB的年级列表（不走缓存）
+     */
+    List<GradeVO> getAllGradesNoCache();
+
+    /**
      * 根据ID获取年级信息
      */
     GradeVO getGradeById(Long id);

@@ -9,6 +9,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 public class CacheWarmupService implements ApplicationRunner {
 
     @Autowired
+    @org.springframework.context.annotation.Lazy
     private CourseService courseService;
 
     @Autowired
@@ -39,6 +41,19 @@ public class CacheWarmupService implements ApplicationRunner {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private com.touhouqing.grabteacherbackend.cache.ActiveCoursesLocalCache activeCoursesLocalCache;
+
+    @Autowired
+    private com.touhouqing.grabteacherbackend.cache.GradesLocalCache gradesLocalCache;
+
+    @Autowired
+    private com.touhouqing.grabteacherbackend.cache.ActiveSubjectsLocalCache activeSubjectsLocalCache;
+
+    @Autowired
+    @org.springframework.context.annotation.Lazy
     private TeacherCacheWarmupService teacherCacheWarmupService;
 
     // 留学模块预热所需服务
@@ -50,6 +65,9 @@ public class CacheWarmupService implements ApplicationRunner {
 
     @Autowired
     private StudyAbroadProgramService programService;
+
+    @Autowired
+    private com.touhouqing.grabteacherbackend.cache.AbroadProgramsLocalCache abroadProgramsLocalCache;
 
     /**
      * 应用启动时执行缓存预热
@@ -176,9 +194,76 @@ public class CacheWarmupService implements ApplicationRunner {
     /**
      * 清理所有课程相关缓存
      */
-    @CacheEvict(cacheNames = {"course", "courseList", "teacherCourses", "activeCourses"}, allEntries = true)
+    @CacheEvict(cacheNames = {"course", "courseList", "teacherCourses", "activeCourses", "activeCoursesAll", "activeCoursesLimited", "featuredCourses"}, allEntries = true)
     public void clearAllCourseCaches() {
         log.info("清理所有课程相关缓存");
+        // 额外清理公开端 JSON 文本键（与 PublicCourseController 对齐）
+        invalidatePublicCourseCachesLightweight();
+    }
+
+    /**
+     * 轻量清理公开端课程相关 JSON 文本缓存（L1+L2），避免使用 KEYS
+     */
+    public void invalidatePublicCourseCachesLightweight() {
+        try {
+            // L1 本地 JSON 缓存
+            if (activeCoursesLocalCache != null) {
+                activeCoursesLocalCache.clear();
+            }
+        } catch (Exception e) {
+            log.warn("清理 L1 本地 JSON 缓存失败", e);
+        }
+        try {
+            // L2 Redis JSON 文本键（与 PublicCourseController 的 key 约定）
+            if (stringRedisTemplate != null) {
+                stringRedisTemplate.delete("activeCoursesAll:json:all");
+                int[] limits = new int[]{5,6,10,20,50,100};
+                for (int lim : limits) {
+                    stringRedisTemplate.delete("activeCoursesLimited:json:limit:" + lim);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("清理 Redis JSON 文本缓存失败", e);
+        }
+    }
+
+    /**
+     * 轻量清理公开端年级 JSON 文本缓存
+     */
+    public void invalidatePublicGradeNamesJson() {
+        try { if (gradesLocalCache != null) gradesLocalCache.clear(); } catch (Exception ignore) {}
+        try { if (stringRedisTemplate != null) stringRedisTemplate.delete("public:grades:names:json"); } catch (Exception ignore) {}
+    }
+
+    /**
+     * 轻量清理公开端激活科目 JSON 文本缓存
+     */
+    public void invalidatePublicActiveSubjectsJson() {
+        try { if (activeSubjectsLocalCache != null) activeSubjectsLocalCache.clear(); } catch (Exception ignore) {}
+        try { if (stringRedisTemplate != null) stringRedisTemplate.delete("public:subjects:active:json"); } catch (Exception ignore) {}
+    }
+
+    /** 轻量清理公开端留学项目 JSON 文本缓存（limit/countryId/stageId 键空间） */
+    public void invalidatePublicAbroadProgramsJson(Integer limit, Long countryId, Long stageId) {
+        try { if (abroadProgramsLocalCache != null) abroadProgramsLocalCache.clear(); } catch (Exception ignore) {}
+        try {
+            if (stringRedisTemplate != null) {
+                if (limit == null && countryId == null && stageId == null) {
+                    // 清理常用热点组合（避免 KEYS）
+                    int[] limits = new int[]{20, 50};
+                    for (int lim : limits) {
+                        String key = "public:abroad:programs:active:json:limit:" + lim;
+                        stringRedisTemplate.delete(key);
+                    }
+                } else {
+                    int lim = (limit == null || limit <= 0) ? 20 : limit;
+                    String key = "public:abroad:programs:active:json:limit:" + lim +
+                            (countryId != null ? ":country:" + countryId : "") +
+                            (stageId != null ? ":stage:" + stageId : "");
+                    stringRedisTemplate.delete(key);
+                }
+            }
+        } catch (Exception ignore) {}
     }
 
     /**

@@ -28,6 +28,30 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
     List<Teacher> findTeachersBySubject(@Param("subject") String subject);
 
     /**
+     * 按科目分页查询教师并支持关键字过滤（SQL端分页）
+     */
+    @Select({
+        "<script>",
+        "SELECT DISTINCT t.* FROM teachers t",
+        "INNER JOIN teacher_subjects ts ON t.id = ts.teacher_id",
+        "INNER JOIN subjects s ON ts.subject_id = s.id",
+        "WHERE t.is_deleted = 0 AND t.is_verified = 1",
+        "AND s.name = #{subject} AND s.is_deleted = 0",
+        "<if test='keyword != null and keyword != \"\"'>",
+        "  AND (t.real_name LIKE CONCAT('%', #{keyword}, '%')",
+        "       OR t.specialties LIKE CONCAT('%', #{keyword}, '%')",
+        "       OR t.introduction LIKE CONCAT('%', #{keyword}, '%'))",
+        "</if>",
+        "ORDER BY t.id DESC",
+        "LIMIT #{size} OFFSET #{offset}",
+        "</script>"
+    })
+    List<Teacher> findTeachersBySubjectPaged(@Param("subject") String subject,
+                                             @Param("keyword") String keyword,
+                                             @Param("offset") int offset,
+                                             @Param("size") int size);
+
+    /**
      * 根据年级查找教师 - 优化查询
      */
     @Select("SELECT DISTINCT t.* FROM teachers t " +

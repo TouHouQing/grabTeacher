@@ -108,6 +108,11 @@ public class RedisConfiguration {
         return cacheManager;
     }
 
+    @Bean
+    public org.springframework.cache.interceptor.CacheErrorHandler cacheErrorHandler() {
+        return new org.springframework.cache.interceptor.SimpleCacheErrorHandler();
+    }
+
     /**
      * 创建优化的JSON序列化器
      */
@@ -260,6 +265,20 @@ public class RedisConfiguration {
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .computePrefixWith(cacheName -> "grabTeacher:teacherAvailability:"));
+
+        // 教师可上课时间配置缓存（教师在个人中心设置的可上课时间）- 基础 5 分钟 TTL + 0~10% 抖动
+        configs.put("teacherAvailableTime", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(jitter(Duration.ofMinutes(5)))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
+                .computePrefixWith(cacheName -> "grabTeacher:teacherAvailableTime:"));
+
+        // 公共：管理员联系方式 - 30 分钟 TTL（变化极少）
+        configs.put("public:adminContacts", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(30))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
+                .computePrefixWith(cacheName -> "grabTeacher:public:adminContacts:"));
 
         // 留学相关缓存 - 国家/阶段 60分钟，项目列表 20分钟，公开列表 10分钟
         configs.put("abroad:countries:list", RedisCacheConfiguration.defaultCacheConfig()

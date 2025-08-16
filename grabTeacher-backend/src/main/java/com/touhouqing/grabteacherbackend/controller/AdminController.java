@@ -415,7 +415,8 @@ public class AdminController {
     @GetMapping("/grades")
     public ResponseEntity<CommonResult<List<GradeVO>>> getAllGrades() {
         try {
-            List<GradeVO> grades = gradeService.getAllGrades();
+            // 管理端一致性优先：直查 DB 不走缓存
+            List<GradeVO> grades = gradeService.getAllGradesNoCache();
             return ResponseEntity.ok(CommonResult.success("获取成功", grades));
         } catch (Exception e) {
             logger.error("获取年级列表异常: ", e);
@@ -517,7 +518,8 @@ public class AdminController {
             @RequestParam(required = false) Long subjectId,
             @RequestParam(required = false) String grade) {
         try {
-            Page<CourseVO> coursePage = courseService.getFeaturedCourses(page, size, subjectId, grade);
+            // 管理端一致性优先：直查 DB 不走缓存
+            Page<CourseVO> coursePage = courseService.getFeaturedCoursesNoCache(page, size, subjectId, grade);
 
             Map<String, Object> response = new HashMap<>();
             response.put("courses", coursePage.getRecords());
@@ -560,7 +562,8 @@ public class AdminController {
     @GetMapping("/featured-courses/ids")
     public ResponseEntity<CommonResult<List<Long>>> getFeaturedCourseIds() {
         try {
-            List<Long> courseIds = courseService.getFeaturedCourseIds();
+            // 管理端强一致：直查 DB 不走缓存
+            List<Long> courseIds = courseService.getFeaturedCourseIdsNoCache();
             return ResponseEntity.ok(CommonResult.success("获取精选课程ID列表成功", courseIds));
         } catch (Exception e) {
             logger.error("获取精选课程ID列表异常: ", e);

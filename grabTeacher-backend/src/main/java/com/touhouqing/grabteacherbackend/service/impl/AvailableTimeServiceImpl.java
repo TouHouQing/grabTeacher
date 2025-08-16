@@ -10,7 +10,10 @@ import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import com.touhouqing.grabteacherbackend.service.CacheKeyEvictor;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.CacheManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -27,7 +30,11 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
     private final TeacherMapper teacherMapper;
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    private final CacheKeyEvictor cacheKeyEvictor;
+    private final CacheManager cacheManager;
+
     @Override
+    @Cacheable(cacheNames = "teacherAvailableTime", key = "#teacherId")
     public AvailableTimeVO getTeacherAvailableTime(Long teacherId) {
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
@@ -35,7 +42,7 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
         }
 
         List<TimeSlotDTO> timeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
-        
+
         AvailableTimeVO response = AvailableTimeVO.builder()
                 .teacherId(teacher.getId())
                 .teacherName(teacher.getRealName())
@@ -44,10 +51,10 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
                 .build();
 
         log.info("构建的响应对象: {}", response);
-        
+
         // 计算统计信息
         response.calculateStats();
-        
+
         return response;
     }
 
@@ -83,8 +90,24 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
 
         teacherMapper.updateById(teacher);
 
-        // 返回更新后的信息
-        return getTeacherAvailableTime(request.getTeacherId());
+        // 可上课时间变化：清理教师课表/可用性缓存 + 清 teacherAvailableTime
+        try { cacheKeyEvictor.evictTeacherScheduleAndAvailability(teacher.getId()); } catch (Exception ignore) {}
+        try {
+            org.springframework.cache.Cache c = cacheManager.getCache("teacherAvailableTime");
+            if (c != null) { c.evict(teacher.getId()); }
+        } catch (Exception ignore) {}
+
+        // 返回更新后的信息（直查 DB，避免命中旧缓存）
+        Teacher fresh = teacherMapper.selectById(request.getTeacherId());
+        List<TimeSlotDTO> timeSlots = TimeSlotUtil.fromJsonString(fresh.getAvailableTimeSlots());
+        AvailableTimeVO response = AvailableTimeVO.builder()
+                .teacherId(fresh.getId())
+                .teacherName(fresh.getRealName())
+                .availableTimeSlots(timeSlots)
+                .lastUpdated(LocalDateTime.now().format(FORMATTER))
+                .build();
+        response.calculateStats();
+        return response;
     }
 
     @Override

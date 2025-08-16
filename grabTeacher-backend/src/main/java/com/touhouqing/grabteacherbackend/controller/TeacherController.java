@@ -17,6 +17,7 @@ import com.touhouqing.grabteacherbackend.service.TimeValidationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.touhouqing.grabteacherbackend.cache.FeaturedTeachersLocalCache;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import com.touhouqing.grabteacherbackend.config.PublicJsonCacheConfig;
 import org.springframework.http.MediaType;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -54,6 +55,9 @@ public class TeacherController {
 
     @Autowired
     private FeaturedTeachersLocalCache featuredTeachersLocalCache;
+
+    @Autowired
+    private PublicJsonCacheConfig publicJsonCacheConfig;
 
     // 针对精选教师 JSON 缓存的单飞锁，避免冷启动/失效瞬间的缓存击穿
     private final java.util.concurrent.ConcurrentHashMap<String, Object> featuredKeyLocks = new java.util.concurrent.ConcurrentHashMap<>();
@@ -178,14 +182,22 @@ public class TeacherController {
                     return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
                 }
 
-                // 3) 回源：调用服务层获取列表，序列化为 JSON 并写回两级缓存
+                // 3) 回源：调用服务层获取列表与总数，序列化为 JSON 并写回两级缓存
                 List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(page, size, normSubject, normGrade, normKeyword);
-                json = objectMapper.writeValueAsString(CommonResult.success("获取成功", teachers));
+                long total = teacherService.countFeaturedTeachers(normSubject, normGrade, normKeyword);
+                java.util.Map<String, Object> data = new java.util.HashMap<>();
+                data.put("records", teachers);
+                data.put("total", total);
+                data.put("current", page);
+                data.put("size", size);
+                long pages = size > 0 ? (long) Math.ceil((double) total / size) : 0L;
+                data.put("pages", pages);
+                json = objectMapper.writeValueAsString(CommonResult.success("获取成功", data));
 
                 featuredTeachersLocalCache.put(cacheKey, json);
-                // 与 featuredTeachers 缓存策略对齐：20 分钟，异常忽略
+                // TTL 配置化（默认 20 分钟），异常忽略
                 try {
-                    stringRedisTemplate.opsForValue().set(cacheKey, json, java.time.Duration.ofMinutes(20));
+                    stringRedisTemplate.opsForValue().set(cacheKey, json, publicJsonCacheConfig.getFeaturedTeachersTtl());
                 } catch (Exception we) {
                     logger.warn("Redis SET 失败(忽略): key={}", cacheKey);
                 }

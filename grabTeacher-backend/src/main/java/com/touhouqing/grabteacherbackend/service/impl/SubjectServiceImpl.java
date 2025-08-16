@@ -23,6 +23,9 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.context.ApplicationEventPublisher;
+
+import com.touhouqing.grabteacherbackend.event.SubjectChangedEvent;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,6 +41,8 @@ public class SubjectServiceImpl implements SubjectService {
     private final StudentSubjectMapper studentSubjectMapper;
     private final TeacherSubjectMapper teacherSubjectMapper;
     private final BookingRequestMapper bookingRequestMapper;
+    private final ApplicationEventPublisher eventPublisher;
+
     private final ScheduleMapper scheduleMapper;
     private final JobPostSubjectMapper jobPostSubjectMapper;
 
@@ -53,7 +58,7 @@ public class SubjectServiceImpl implements SubjectService {
         queryWrapper.eq("name", request.getName());
         queryWrapper.eq("is_deleted", false);
         Subject existingSubject = subjectMapper.selectOne(queryWrapper);
-        
+
         if (existingSubject != null) {
             throw new RuntimeException("科目名称已存在");
         }
@@ -67,6 +72,7 @@ public class SubjectServiceImpl implements SubjectService {
 
         subjectMapper.insert(subject);
         log.info("创建科目成功: {}", subject.getName());
+        try { eventPublisher.publishEvent(new SubjectChangedEvent(this, SubjectChangedEvent.ChangeType.CREATE)); } catch (Exception ignore) {}
         return subject;
     }
 
@@ -89,7 +95,7 @@ public class SubjectServiceImpl implements SubjectService {
             queryWrapper.eq("is_deleted", false);
             queryWrapper.ne("id", id);
             Subject existingSubject = subjectMapper.selectOne(queryWrapper);
-            
+
             if (existingSubject != null) {
                 throw new RuntimeException("科目名称已存在");
             }
@@ -101,6 +107,7 @@ public class SubjectServiceImpl implements SubjectService {
 
         subjectMapper.updateById(subject);
         log.info("更新科目成功: {}", subject.getName());
+        try { eventPublisher.publishEvent(new SubjectChangedEvent(this, SubjectChangedEvent.ChangeType.UPDATE)); } catch (Exception ignore) {}
         return subject;
     }
 
@@ -175,6 +182,7 @@ public class SubjectServiceImpl implements SubjectService {
         subject.setDeletedAt(LocalDateTime.now());
         subjectMapper.updateById(subject);
         log.info("删除科目成功: {}，同时删除了 {} 个相关课程", subject.getName(), courses.size());
+        try { eventPublisher.publishEvent(new SubjectChangedEvent(this, SubjectChangedEvent.ChangeType.DELETE)); } catch (Exception ignore) {}
     }
 
     /**
@@ -240,5 +248,6 @@ public class SubjectServiceImpl implements SubjectService {
         subject.setActive(isActive);
         subjectMapper.updateById(subject);
         log.info("更新科目状态成功: {}, status: {}", subject.getName(), isActive);
+        try { eventPublisher.publishEvent(new SubjectChangedEvent(this, SubjectChangedEvent.ChangeType.UPDATE)); } catch (Exception ignore) {}
     }
-} 
+}

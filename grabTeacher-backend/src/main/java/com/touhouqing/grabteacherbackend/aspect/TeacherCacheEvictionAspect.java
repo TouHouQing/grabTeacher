@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 public class TeacherCacheEvictionAspect {
 
     @Autowired
+    @org.springframework.context.annotation.Lazy
     private TeacherCacheWarmupService teacherCacheWarmupService;
 
     /**

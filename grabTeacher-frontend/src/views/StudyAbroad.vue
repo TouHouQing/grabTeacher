@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { studyAbroadAPI } from '../utils/api'
 import { Document, Check } from '@element-plus/icons-vue'
 import { getImageUrl } from '../utils/imageLoader'
@@ -11,9 +12,14 @@ defineOptions({
   name: 'StudyAbroadView'
 })
 
-// 分页参数
-const currentPage = ref(1)
-const pageSize = ref(6)
+// 路由与状态
+const route = useRoute()
+const router = useRouter()
+
+// 分页参数（从路由 query 初始化）
+const currentPage = ref(Number(route.query.page || 1))
+const pageSize = ref(Number(route.query.size || 6))
+const total = ref(0)
 
 // 图片兜底与解析
 const handleImageError = (e: Event) => {
@@ -30,8 +36,8 @@ const resolveImage = (path?: string) => {
 
 // 过滤条件（后端筛选）
 const filter = reactive({
-  countryId: null as number | null,
-  stageId: null as number | null
+  countryId: route.query.countryId ? Number(route.query.countryId) : null as number | null,
+  stageId: route.query.stageId ? Number(route.query.stageId) : null as number | null
 })
 
 // 数据源
@@ -52,8 +58,19 @@ const fetchStages = async () => {
 const fetchPrograms = async () => {
   loading.value = true
   try {
-    const res = await studyAbroadAPI.getPrograms({ countryId: filter.countryId || undefined, stageId: filter.stageId || undefined, limit: 100 })
-    programs.value = res?.data || []
+    const res = await studyAbroadAPI.getPublicProgramsPaged({
+      page: currentPage.value,
+      size: pageSize.value,
+      countryId: filter.countryId || undefined,
+      stageId: filter.stageId || undefined
+    })
+    if (res?.success && res?.data) {
+      programs.value = res.data.records || []
+      total.value = Number(res.data.total || 0)
+    } else {
+      programs.value = []
+      total.value = 0
+    }
   } finally {
     loading.value = false
   }
@@ -124,19 +141,23 @@ const studyPackages = ref([
   }
 ])
 
-// 筛选项目（前端分页，数据已按后端过滤获取）
-const filteredPrograms = computed(() => programs.value)
+// 服务端分页：直接展示当前页
+const displayPrograms = computed(() => programs.value)
 
-// 分页显示
-const displayPrograms = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return programs.value.slice(start, end)
-})
+// 同步路由 query
+const syncQuery = () => {
+  const q: any = {}
+  if (currentPage.value && currentPage.value !== 1) q.page = currentPage.value
+  if (pageSize.value && pageSize.value !== 6) q.size = pageSize.value
+  if (filter.countryId) q.countryId = filter.countryId
+  if (filter.stageId) q.stageId = filter.stageId
+  router.replace({ query: q })
+}
 
 // 筛选方法
 const handleFilter = () => {
   currentPage.value = 1
+  syncQuery()
   fetchPrograms()
 }
 
@@ -145,8 +166,14 @@ const resetFilter = () => {
   filter.countryId = null
   filter.stageId = null
   currentPage.value = 1
+  syncQuery()
   fetchPrograms()
 }
+
+// 监听分页与筛选，持久化到 query
+watch([currentPage, pageSize, () => filter.countryId, () => filter.stageId], () => {
+  syncQuery()
+})
 </script>
 
 <template>
@@ -208,9 +235,9 @@ const resetFilter = () => {
             :page-size="pageSize"
             :page-sizes="[6, 12, 24]"
             layout="total, sizes, prev, pager, next, jumper"
-            :total="filteredPrograms.length"
-            @current-change="(p)=>{ currentPage = p }"
-            @size-change="(s)=>{ pageSize = s }"
+            :total="total"
+            @current-change="async (p)=>{ currentPage = p; await fetchPrograms() }"
+            @size-change="async (s)=>{ pageSize = s; currentPage = 1; await fetchPrograms() }"
           />
         </div>
       </div>

@@ -122,32 +122,8 @@ public class JobPostServiceImpl implements JobPostService {
                                      String status, String keyword,
                                      java.time.LocalDateTime createdStart, java.time.LocalDateTime createdEnd,
                                      Boolean includeDeleted) {
-        // 管理端：支持更多维度，短TTL缓存
-        String cacheKey = cacheManager.buildAdminListKey(page, size, gradeId, subjectId, status, keyword, createdStart, createdEnd, includeDeleted);
-        Object cached = cacheManager.getList(cacheKey);
-        if (cached instanceof Page) {
-            return (Page<JobPostVO>) cached;
-        }
-        if (cached != null && "EMPTY".equals(cached)) {
-            return new Page<>(page, size);
-        }
-        boolean locked = cacheManager.tryLock(cacheKey, java.time.Duration.ofSeconds(3));
-        try {
-            if (!locked) {
-                return queryAdminFromDb(page, size, gradeId, subjectId, status, keyword, createdStart, createdEnd, includeDeleted);
-            }
-            Object second = cacheManager.getList(cacheKey);
-            if (second instanceof Page) return (Page<JobPostVO>) second;
-            Page<JobPostVO> result = queryAdminFromDb(page, size, gradeId, subjectId, status, keyword, createdStart, createdEnd, includeDeleted);
-            if (result.getTotal() == 0) {
-                cacheManager.saveAdminList(cacheKey, "EMPTY", java.time.Duration.ofSeconds(15));
-            } else {
-                cacheManager.saveAdminList(cacheKey, result, java.time.Duration.ofSeconds(20));
-            }
-            return result;
-        } finally {
-            if (locked) cacheManager.unlock(cacheKey);
-        }
+        // 管理端：一致性优先，直接查询数据库（移除缓存）
+        return queryAdminFromDb(page, size, gradeId, subjectId, status, keyword, createdStart, createdEnd, includeDeleted);
     }
 
     private Page<JobPostVO> queryAdminFromDb(int page, int size,

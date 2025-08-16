@@ -13,6 +13,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.context.ApplicationEventPublisher;
+
+import com.touhouqing.grabteacherbackend.event.ProgramChangedEvent;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,6 +26,7 @@ import java.util.List;
 public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService {
 
     private final StudyAbroadProgramMapper programMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -54,6 +58,7 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
                 .build();
         programMapper.insert(entity);
         log.info("创建留学项目: {}", entity.getTitle());
+        try { eventPublisher.publishEvent(new ProgramChangedEvent(this, ProgramChangedEvent.ChangeType.CREATE, entity.getCountryId(), entity.getStageId())); } catch (Exception ignore) {}
         return entity;
     }
 
@@ -87,6 +92,7 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
         entity.setUpdatedAt(LocalDateTime.now());
         programMapper.updateById(entity);
         log.info("更新留学项目: {}", entity.getTitle());
+        try { eventPublisher.publishEvent(new ProgramChangedEvent(this, ProgramChangedEvent.ChangeType.UPDATE, entity.getCountryId(), entity.getStageId())); } catch (Exception ignore) {}
         return entity;
     }
 
@@ -102,6 +108,7 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
         entity.setDeletedAt(LocalDateTime.now());
         programMapper.updateById(entity);
         log.info("删除留学项目: {}", entity.getTitle());
+        try { eventPublisher.publishEvent(new ProgramChangedEvent(this, ProgramChangedEvent.ChangeType.DELETE, entity.getCountryId(), entity.getStageId())); } catch (Exception ignore) {}
     }
 
     @Override
@@ -115,6 +122,15 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
     @Override
     @Cacheable(cacheNames = "abroad:programs:list", keyGenerator = "customCacheKeyGenerator")
     public Page<StudyAbroadProgram> list(int page, int size, String keyword, Boolean isActive, Long countryId, Long stageId, Boolean isHot, Boolean isFeatured) {
+        return doList(page, size, keyword, isActive, countryId, stageId, isHot, isFeatured);
+    }
+
+    @Override
+    public Page<StudyAbroadProgram> listNoCache(int page, int size, String keyword, Boolean isActive, Long countryId, Long stageId, Boolean isHot, Boolean isFeatured) {
+        return doList(page, size, keyword, isActive, countryId, stageId, isHot, isFeatured);
+    }
+
+    private Page<StudyAbroadProgram> doList(int page, int size, String keyword, Boolean isActive, Long countryId, Long stageId, Boolean isHot, Boolean isFeatured) {
         Page<StudyAbroadProgram> p = new Page<>(page, size);
         QueryWrapper<StudyAbroadProgram> qw = new QueryWrapper<>();
         qw.eq("is_deleted", false);
@@ -153,6 +169,7 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
         entity.setActive(isActive);
         programMapper.updateById(entity);
         log.info("更新项目状态: {} -> {}", entity.getTitle(), isActive);
+        try { eventPublisher.publishEvent(new ProgramChangedEvent(this, ProgramChangedEvent.ChangeType.STATUS, entity.getCountryId(), entity.getStageId())); } catch (Exception ignore) {}
     }
 
     @Override
@@ -166,6 +183,7 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
         if (isHot != null) entity.setHot(isHot);
         programMapper.updateById(entity);
         log.info("更新项目标记: {} -> hot={}", entity.getTitle(), isHot);
+        try { eventPublisher.publishEvent(new ProgramChangedEvent(this, ProgramChangedEvent.ChangeType.FLAGS, entity.getCountryId(), entity.getStageId())); } catch (Exception ignore) {}
     }
 }
 

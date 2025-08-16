@@ -12,6 +12,9 @@ public interface StudyAbroadStageService {
     void delete(Long id);
     StudyAbroadStage getById(Long id);
     Page<StudyAbroadStage> list(int page, int size, String keyword, Boolean isActive);
+
+    // 管理端直查 DB 的分页列表
+    Page<StudyAbroadStage> listNoCache(int page, int size, String keyword, Boolean isActive);
     List<StudyAbroadStage> listActive();
     void updateStatus(Long id, Boolean isActive);
 }

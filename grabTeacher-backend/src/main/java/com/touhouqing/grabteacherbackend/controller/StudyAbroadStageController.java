@@ -97,7 +97,7 @@ public class StudyAbroadStageController {
             @RequestParam(required = false) Boolean isActive
     ) {
         try {
-            Page<StudyAbroadStage> p = stageService.list(page, size, keyword, isActive);
+            Page<StudyAbroadStage> p = stageService.listNoCache(page, size, keyword, isActive);
             Map<String, Object> data = new HashMap<>();
             data.put("records", p.getRecords());
             data.put("total", p.getTotal());

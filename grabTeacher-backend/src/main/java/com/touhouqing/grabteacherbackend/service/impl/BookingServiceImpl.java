@@ -298,13 +298,61 @@ public class BookingServiceImpl implements BookingService {
         queryWrapper.orderByDesc("created_at");
 
         Page<BookingRequest> bookingPage = bookingRequestMapper.selectPage(new Page<>(page, size), queryWrapper);
-        
+
+        // 批量装配，避免 N+1
+        List<BookingRequest> records = bookingPage.getRecords();
+        List<Long> studentIds = records.stream().map(BookingRequest::getStudentId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        List<Long> teacherIds = records.stream().map(BookingRequest::getTeacherId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        List<Long> courseIds = records.stream().map(BookingRequest::getCourseId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+
+        Map<Long, Student> studentMap = new HashMap<>();
+        if (!studentIds.isEmpty()) {
+            QueryWrapper<Student> sq = new QueryWrapper<>();
+            sq.in("id", studentIds);
+            for (Student s : studentMapper.selectList(sq)) studentMap.put(s.getId(), s);
+        }
+        Map<Long, Teacher> teacherMap = new HashMap<>();
+        if (!teacherIds.isEmpty()) {
+            QueryWrapper<Teacher> tq = new QueryWrapper<>();
+            tq.in("id", teacherIds);
+            for (Teacher t : teacherMapper.selectList(tq)) teacherMap.put(t.getId(), t);
+        }
+        Map<Long, Course> courseMap = new HashMap<>();
+        if (!courseIds.isEmpty()) {
+            QueryWrapper<Course> cq = new QueryWrapper<>();
+            cq.in("id", courseIds);
+            for (Course c : courseMapper.selectList(cq)) courseMap.put(c.getId(), c);
+        }
+        Map<Long, Subject> subjectMap = new HashMap<>();
+        if (!courseMap.isEmpty()) {
+            List<Long> subjectIds = courseMap.values().stream().map(Course::getSubjectId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+            if (!subjectIds.isEmpty()) {
+                QueryWrapper<Subject> subjQ = new QueryWrapper<>();
+                subjQ.in("id", subjectIds);
+                for (Subject s : subjectMapper.selectList(subjQ)) subjectMap.put(s.getId(), s);
+            }
+        }
+
+        List<BookingVO> vos = new ArrayList<>();
+        for (BookingRequest br : records) {
+            BookingVO vo = convertToBookingResponseDTO(br);
+            Student s = studentMap.get(br.getStudentId());
+            if (s != null) vo.setStudentName(s.getRealName());
+            Teacher t = teacherMap.get(br.getTeacherId());
+            if (t != null) vo.setTeacherName(t.getRealName());
+            Course c = courseMap.get(br.getCourseId());
+            if (c != null) {
+                vo.setCourseTitle(c.getTitle());
+                Subject subj = subjectMap.get(c.getSubjectId());
+                if (subj != null) vo.setSubjectName(subj.getName());
+                vo.setCourseDurationMinutes(c.getDurationMinutes());
+            }
+            vos.add(vo);
+        }
+
         Page<BookingVO> responsePage = new Page<>(page, size);
         responsePage.setTotal(bookingPage.getTotal());
-        responsePage.setRecords(bookingPage.getRecords().stream()
-                .map(this::convertToBookingResponseDTO)
-                .collect(Collectors.toList()));
-
+        responsePage.setRecords(vos);
         return responsePage;
     }
 
@@ -326,13 +374,61 @@ public class BookingServiceImpl implements BookingService {
         queryWrapper.orderByDesc("created_at");
 
         Page<BookingRequest> bookingPage = bookingRequestMapper.selectPage(new Page<>(page, size), queryWrapper);
-        
+
+        // 批量装配，避免 N+1
+        List<BookingRequest> records = bookingPage.getRecords();
+        List<Long> studentIds = records.stream().map(BookingRequest::getStudentId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        List<Long> teacherIds = records.stream().map(BookingRequest::getTeacherId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        List<Long> courseIds = records.stream().map(BookingRequest::getCourseId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+
+        Map<Long, Student> studentMap = new HashMap<>();
+        if (!studentIds.isEmpty()) {
+            QueryWrapper<Student> sq = new QueryWrapper<>();
+            sq.in("id", studentIds);
+            for (Student s : studentMapper.selectList(sq)) studentMap.put(s.getId(), s);
+        }
+        Map<Long, Teacher> teacherMap = new HashMap<>();
+        if (!teacherIds.isEmpty()) {
+            QueryWrapper<Teacher> tq = new QueryWrapper<>();
+            tq.in("id", teacherIds);
+            for (Teacher t : teacherMapper.selectList(tq)) teacherMap.put(t.getId(), t);
+        }
+        Map<Long, Course> courseMap = new HashMap<>();
+        if (!courseIds.isEmpty()) {
+            QueryWrapper<Course> cq = new QueryWrapper<>();
+            cq.in("id", courseIds);
+            for (Course c : courseMapper.selectList(cq)) courseMap.put(c.getId(), c);
+        }
+        Map<Long, Subject> subjectMap = new HashMap<>();
+        if (!courseMap.isEmpty()) {
+            List<Long> subjectIds = courseMap.values().stream().map(Course::getSubjectId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+            if (!subjectIds.isEmpty()) {
+                QueryWrapper<Subject> subjQ = new QueryWrapper<>();
+                subjQ.in("id", subjectIds);
+                for (Subject s : subjectMapper.selectList(subjQ)) subjectMap.put(s.getId(), s);
+            }
+        }
+
+        List<BookingVO> vos = new ArrayList<>();
+        for (BookingRequest br : records) {
+            BookingVO vo = convertToBookingResponseDTO(br);
+            Student s = studentMap.get(br.getStudentId());
+            if (s != null) vo.setStudentName(s.getRealName());
+            Teacher t = teacherMap.get(br.getTeacherId());
+            if (t != null) vo.setTeacherName(t.getRealName());
+            Course c = courseMap.get(br.getCourseId());
+            if (c != null) {
+                vo.setCourseTitle(c.getTitle());
+                Subject subj = subjectMap.get(c.getSubjectId());
+                if (subj != null) vo.setSubjectName(subj.getName());
+                vo.setCourseDurationMinutes(c.getDurationMinutes());
+            }
+            vos.add(vo);
+        }
+
         Page<BookingVO> responsePage = new Page<>(page, size);
         responsePage.setTotal(bookingPage.getTotal());
-        responsePage.setRecords(bookingPage.getRecords().stream()
-                .map(this::convertToBookingResponseDTO)
-                .collect(Collectors.toList()));
-
+        responsePage.setRecords(vos);
         return responsePage;
     }
 
@@ -614,12 +710,60 @@ public class BookingServiceImpl implements BookingService {
 
         Page<BookingRequest> bookingPage = bookingRequestMapper.selectPage(new Page<>(page, size), queryWrapper);
 
+        // 批量装配，避免 N+1
+        List<BookingRequest> records = bookingPage.getRecords();
+        List<Long> studentIds = records.stream().map(BookingRequest::getStudentId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        List<Long> teacherIds = records.stream().map(BookingRequest::getTeacherId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        List<Long> courseIds = records.stream().map(BookingRequest::getCourseId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+
+        Map<Long, Student> studentMap = new HashMap<>();
+        if (!studentIds.isEmpty()) {
+            QueryWrapper<Student> sq = new QueryWrapper<>();
+            sq.in("id", studentIds);
+            for (Student s : studentMapper.selectList(sq)) studentMap.put(s.getId(), s);
+        }
+        Map<Long, Teacher> teacherMap = new HashMap<>();
+        if (!teacherIds.isEmpty()) {
+            QueryWrapper<Teacher> tq = new QueryWrapper<>();
+            tq.in("id", teacherIds);
+            for (Teacher t : teacherMapper.selectList(tq)) teacherMap.put(t.getId(), t);
+        }
+        Map<Long, Course> courseMap = new HashMap<>();
+        if (!courseIds.isEmpty()) {
+            QueryWrapper<Course> cq = new QueryWrapper<>();
+            cq.in("id", courseIds);
+            for (Course c : courseMapper.selectList(cq)) courseMap.put(c.getId(), c);
+        }
+        Map<Long, Subject> subjectMap = new HashMap<>();
+        if (!courseMap.isEmpty()) {
+            List<Long> subjectIds = courseMap.values().stream().map(Course::getSubjectId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+            if (!subjectIds.isEmpty()) {
+                QueryWrapper<Subject> subjQ = new QueryWrapper<>();
+                subjQ.in("id", subjectIds);
+                for (Subject s : subjectMapper.selectList(subjQ)) subjectMap.put(s.getId(), s);
+            }
+        }
+
+        List<BookingVO> vos = new ArrayList<>();
+        for (BookingRequest br : records) {
+            BookingVO vo = convertToBookingResponseDTO(br);
+            Student s = studentMap.get(br.getStudentId());
+            if (s != null) vo.setStudentName(s.getRealName());
+            Teacher t = teacherMap.get(br.getTeacherId());
+            if (t != null) vo.setTeacherName(t.getRealName());
+            Course c = courseMap.get(br.getCourseId());
+            if (c != null) {
+                vo.setCourseTitle(c.getTitle());
+                Subject subj = subjectMap.get(c.getSubjectId());
+                if (subj != null) vo.setSubjectName(subj.getName());
+                vo.setCourseDurationMinutes(c.getDurationMinutes());
+            }
+            vos.add(vo);
+        }
+
         Page<BookingVO> responsePage = new Page<>(page, size);
         responsePage.setTotal(bookingPage.getTotal());
-        responsePage.setRecords(bookingPage.getRecords().stream()
-                .map(this::convertToBookingResponseDTO)
-                .collect(Collectors.toList()));
-
+        responsePage.setRecords(vos);
         return responsePage;
     }
 

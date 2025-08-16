@@ -270,14 +270,70 @@ public class RescheduleServiceImpl implements RescheduleService {
         Page<RescheduleRequest> resultPage = rescheduleRequestMapper.findByApplicantWithPage(
             requestPage, student.getId(), "student", status);
 
+        // 批量装配，避免 N+1
+        java.util.List<RescheduleRequest> records = resultPage.getRecords();
+        java.util.List<Long> scheduleIds = records.stream().map(RescheduleRequest::getScheduleId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+        java.util.Map<Long, Schedule> scheduleMap = new java.util.HashMap<>();
+        if (!scheduleIds.isEmpty()) {
+            QueryWrapper<Schedule> sq = new QueryWrapper<>();
+            sq.in("id", scheduleIds);
+            for (Schedule s : scheduleMapper.selectList(sq)) scheduleMap.put(s.getId(), s);
+        }
+        java.util.Map<Long, Course> courseMap = new java.util.HashMap<>();
+        java.util.Map<Long, Subject> subjectMap = new java.util.HashMap<>();
+        java.util.Map<Long, Teacher> teacherMap = new java.util.HashMap<>();
+        java.util.Map<Long, Student> studentMap = new java.util.HashMap<>();
+        if (!scheduleMap.isEmpty()) {
+            java.util.List<Long> courseIds = scheduleMap.values().stream().map(Schedule::getCourseId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            if (!courseIds.isEmpty()) {
+                QueryWrapper<Course> cq = new QueryWrapper<>();
+                cq.in("id", courseIds);
+                for (Course c : courseMapper.selectList(cq)) {
+                    courseMap.put(c.getId(), c);
+                }
+                java.util.List<Long> subjectIds = courseMap.values().stream().map(Course::getSubjectId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+                if (!subjectIds.isEmpty()) {
+                    QueryWrapper<Subject> subjQ = new QueryWrapper<>();
+                    subjQ.in("id", subjectIds);
+                    for (Subject s : subjectMapper.selectList(subjQ)) subjectMap.put(s.getId(), s);
+                }
+            }
+            java.util.List<Long> teacherIds = scheduleMap.values().stream().map(Schedule::getTeacherId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            if (!teacherIds.isEmpty()) {
+                QueryWrapper<Teacher> tq = new QueryWrapper<>();
+                tq.in("id", teacherIds);
+                for (Teacher t : teacherMapper.selectList(tq)) teacherMap.put(t.getId(), t);
+            }
+            java.util.List<Long> studentIds = scheduleMap.values().stream().map(Schedule::getStudentId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            if (!studentIds.isEmpty()) {
+                QueryWrapper<Student> stq = new QueryWrapper<>();
+                stq.in("id", studentIds);
+                for (Student s : studentMapper.selectList(stq)) studentMap.put(s.getId(), s);
+            }
+        }
+
+        java.util.List<RescheduleVO> vos = new java.util.ArrayList<>();
+        for (RescheduleRequest rr : records) {
+            RescheduleVO vo = convertToRescheduleResponseDTO(rr);
+            Schedule s = scheduleMap.get(rr.getScheduleId());
+            if (s != null) {
+                Course c = courseMap.get(s.getCourseId());
+                if (c != null) {
+                    vo.setCourseTitle(c.getTitle());
+                    Subject subj = subjectMap.get(c.getSubjectId());
+                    if (subj != null) vo.setSubjectName(subj.getName());
+                }
+                Teacher t = teacherMap.get(s.getTeacherId());
+                if (t != null) vo.setTeacherName(t.getRealName());
+                Student stu = studentMap.get(s.getStudentId());
+                if (stu != null) vo.setStudentName(stu.getRealName());
+            }
+            vos.add(vo);
+        }
+
         Page<RescheduleVO> responsePage = new Page<>(page, size);
         responsePage.setTotal(resultPage.getTotal());
-        responsePage.setRecords(
-            resultPage.getRecords().stream()
-                .map(this::convertToRescheduleResponseDTO)
-                .collect(Collectors.toList())
-        );
-
+        responsePage.setRecords(vos);
         return responsePage;
     }
 
@@ -294,14 +350,70 @@ public class RescheduleServiceImpl implements RescheduleService {
         Page<RescheduleRequest> resultPage = rescheduleRequestMapper.findByTeacherIdWithPage(
             requestPage, teacher.getId(), status);
 
+        // 批量装配，避免 N+1
+        java.util.List<RescheduleRequest> records = resultPage.getRecords();
+        java.util.List<Long> scheduleIds = records.stream().map(RescheduleRequest::getScheduleId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+        java.util.Map<Long, Schedule> scheduleMap = new java.util.HashMap<>();
+        if (!scheduleIds.isEmpty()) {
+            QueryWrapper<Schedule> sq = new QueryWrapper<>();
+            sq.in("id", scheduleIds);
+            for (Schedule s : scheduleMapper.selectList(sq)) scheduleMap.put(s.getId(), s);
+        }
+        java.util.Map<Long, Course> courseMap = new java.util.HashMap<>();
+        java.util.Map<Long, Subject> subjectMap = new java.util.HashMap<>();
+        java.util.Map<Long, Teacher> teacherMap = new java.util.HashMap<>();
+        java.util.Map<Long, Student> studentMap = new java.util.HashMap<>();
+        if (!scheduleMap.isEmpty()) {
+            java.util.List<Long> courseIds = scheduleMap.values().stream().map(Schedule::getCourseId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            if (!courseIds.isEmpty()) {
+                QueryWrapper<Course> cq = new QueryWrapper<>();
+                cq.in("id", courseIds);
+                for (Course c : courseMapper.selectList(cq)) {
+                    courseMap.put(c.getId(), c);
+                }
+                java.util.List<Long> subjectIds = courseMap.values().stream().map(Course::getSubjectId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+                if (!subjectIds.isEmpty()) {
+                    QueryWrapper<Subject> subjQ = new QueryWrapper<>();
+                    subjQ.in("id", subjectIds);
+                    for (Subject s : subjectMapper.selectList(subjQ)) subjectMap.put(s.getId(), s);
+                }
+            }
+            java.util.List<Long> teacherIds = scheduleMap.values().stream().map(Schedule::getTeacherId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            if (!teacherIds.isEmpty()) {
+                QueryWrapper<Teacher> tq = new QueryWrapper<>();
+                tq.in("id", teacherIds);
+                for (Teacher t : teacherMapper.selectList(tq)) teacherMap.put(t.getId(), t);
+            }
+            java.util.List<Long> studentIds = scheduleMap.values().stream().map(Schedule::getStudentId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            if (!studentIds.isEmpty()) {
+                QueryWrapper<Student> stq = new QueryWrapper<>();
+                stq.in("id", studentIds);
+                for (Student s : studentMapper.selectList(stq)) studentMap.put(s.getId(), s);
+            }
+        }
+
+        java.util.List<RescheduleVO> vos = new java.util.ArrayList<>();
+        for (RescheduleRequest rr : records) {
+            RescheduleVO vo = convertToRescheduleResponseDTO(rr);
+            Schedule s = scheduleMap.get(rr.getScheduleId());
+            if (s != null) {
+                Course c = courseMap.get(s.getCourseId());
+                if (c != null) {
+                    vo.setCourseTitle(c.getTitle());
+                    Subject subj = subjectMap.get(c.getSubjectId());
+                    if (subj != null) vo.setSubjectName(subj.getName());
+                }
+                Teacher t = teacherMap.get(s.getTeacherId());
+                if (t != null) vo.setTeacherName(t.getRealName());
+                Student stu = studentMap.get(s.getStudentId());
+                if (stu != null) vo.setStudentName(stu.getRealName());
+            }
+            vos.add(vo);
+        }
+
         Page<RescheduleVO> responsePage = new Page<>(page, size);
         responsePage.setTotal(resultPage.getTotal());
-        responsePage.setRecords(
-            resultPage.getRecords().stream()
-                .map(this::convertToRescheduleResponseDTO)
-                .collect(Collectors.toList())
-        );
-
+        responsePage.setRecords(vos);
         return responsePage;
     }
 

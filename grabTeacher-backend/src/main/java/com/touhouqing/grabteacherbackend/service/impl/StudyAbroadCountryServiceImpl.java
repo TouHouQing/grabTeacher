@@ -95,8 +95,14 @@ public class StudyAbroadCountryServiceImpl implements StudyAbroadCountryService 
             throw new RuntimeException("该国家下仍有留学项目，无法删除。请先删除所有关联项目。");
         }
 
+        // 避免唯一索引 (country_name, is_deleted) 冲突：先改名再软删
+        String safeSuffix = "__del__" + entity.getId();
+        if (!entity.getCountryName().endsWith(safeSuffix)) {
+            entity.setCountryName(entity.getCountryName() + safeSuffix);
+        }
         entity.setDeleted(true);
         entity.setDeletedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
         countryMapper.updateById(entity);
         log.info("删除留学国家: {}", entity.getCountryName());
     }
@@ -112,6 +118,15 @@ public class StudyAbroadCountryServiceImpl implements StudyAbroadCountryService 
     @Override
     @Cacheable(cacheNames = "abroad:countries:list", keyGenerator = "customCacheKeyGenerator")
     public Page<StudyAbroadCountry> list(int page, int size, String keyword, Boolean isActive) {
+        return doList(page, size, keyword, isActive);
+    }
+
+    @Override
+    public Page<StudyAbroadCountry> listNoCache(int page, int size, String keyword, Boolean isActive) {
+        return doList(page, size, keyword, isActive);
+    }
+
+    private Page<StudyAbroadCountry> doList(int page, int size, String keyword, Boolean isActive) {
         Page<StudyAbroadCountry> p = new Page<>(page, size);
         QueryWrapper<StudyAbroadCountry> qw = new QueryWrapper<>();
         qw.eq("is_deleted", false);

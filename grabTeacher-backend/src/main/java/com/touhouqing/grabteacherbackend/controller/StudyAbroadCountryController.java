@@ -97,7 +97,7 @@ public class StudyAbroadCountryController {
             @RequestParam(required = false) Boolean isActive
     ) {
         try {
-            Page<StudyAbroadCountry> p = countryService.list(page, size, keyword, isActive);
+            Page<StudyAbroadCountry> p = countryService.listNoCache(page, size, keyword, isActive);
             Map<String, Object> data = new HashMap<>();
             data.put("records", p.getRecords());
             data.put("total", p.getTotal());

@@ -50,7 +50,12 @@ public interface TeacherService {
      * 获取精选教师列表（天下名师页面使用）
      */
     List<TeacherListVO> getFeaturedTeachers(int page, int size, String subject, String grade, String keyword);
-    
+
+    /**
+     * 统计精选教师总数（支持筛选）
+     */
+    long countFeaturedTeachers(String subject, String grade, String keyword);
+
     /**
      * 更新教师信息
      */

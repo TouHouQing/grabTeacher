@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 public class TeacherCacheWarmupService {
 
     @Autowired
+    @org.springframework.context.annotation.Lazy
     private TeacherService teacherService;
 
     @Autowired

@@ -27,7 +27,7 @@
 
     <!-- 年级列表 -->
     <el-table :data="grades" v-loading="loading" style="width: 100%">
-      <el-table-column prop="id" label="ID" width="80" />
+
       <el-table-column prop="gradeName" label="年级名称" />
       <el-table-column prop="description" label="描述" />
       <el-table-column prop="courseCount" label="关联课程数" width="120" />

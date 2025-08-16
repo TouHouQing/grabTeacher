@@ -45,8 +45,9 @@ const loadingSubjects = ref(false)
 // 教师相关数据
 const loadingTeachers = ref(false)
 
-// 教师数据
+// 教师数据（服务端分页）
 const teachers = ref([])
+const total = ref(0)
 
 // 默认头像数组，用于随机分配给教师
 const defaultAvatars = [
@@ -84,11 +85,21 @@ const filteredTeachers = computed(() => {
   })
 })
 
-// 分页显示
+// 分页显示（当前页记录+本地教龄过滤）
 const displayTeachers = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filteredTeachers.value.slice(start, end)
+  let list = teachers.value
+  // 本地经验过滤
+  if (filter.experience) {
+    list = list.filter((teacher: any) => {
+      const exp = parseInt((teacher.experience ?? 0).toString())
+      if (filter.experience === '0-5') return exp < 5
+      if (filter.experience === '5-10') return exp >= 5 && exp <= 10
+      if (filter.experience === '10+') return exp >= 10
+      return true
+    })
+  }
+  // 服务器已按 page/size 返回当前页，直接返回
+  return list
 })
 
 // 筛选方法
@@ -146,13 +157,13 @@ const transformTeacherData = (teacherList: any[]) => {
   })
 }
 
-// 根据筛选条件加载教师数据
+// 根据筛选条件加载教师数据（服务端分页）
 const loadTeachersWithFilter = async () => {
   try {
     loadingTeachers.value = true
     const params: any = {
-      page: 1,
-      size: 100
+      page: currentPage.value,
+      size: pageSize.value
     }
 
     if (filter.subject) {
@@ -164,8 +175,9 @@ const loadTeachersWithFilter = async () => {
 
     const response = await teacherAPI.getFeaturedList(params)
     if (response.success && response.data) {
-      const teacherList = Array.isArray(response.data) ? response.data : []
-      teachers.value = transformTeacherData(teacherList)
+      const records = Array.isArray(response.data.records) ? response.data.records : []
+      teachers.value = transformTeacherData(records)
+      total.value = Number(response.data.total || 0)
     }
   } catch (error) {
     console.error('获取教师列表失败:', error)
@@ -231,17 +243,21 @@ const loadSubjects = async () => {
   }
 }
 
-// 获取教师列表
+// 获取教师列表（服务端分页）
 const loadTeachers = async () => {
   try {
     loadingTeachers.value = true
+    const requiredSize = Math.max(pageSize.value, currentPage.value * pageSize.value)
     const response = await teacherAPI.getFeaturedList({
-      page: 1,
-      size: 100 // 获取更多教师数据
+      page: currentPage.value,
+      size: pageSize.value,
+      subject: filter.subject || undefined,
+      grade: filter.grade || undefined
     })
     if (response.success && response.data) {
-      const teacherList = Array.isArray(response.data) ? response.data : []
-      teachers.value = transformTeacherData(teacherList)
+      const records = Array.isArray(response.data.records) ? response.data.records : []
+      teachers.value = transformTeacherData(records)
+      total.value = Number(response.data.total || 0)
     }
   } catch (error) {
     console.error('获取教师列表失败:', error)
@@ -249,6 +265,21 @@ const loadTeachers = async () => {
   } finally {
     loadingTeachers.value = false
   }
+}
+
+// 分页变化事件（服务端分页）
+const handlePageChange = () => {
+  if (filter.subject || filter.grade) {
+    loadTeachersWithFilter()
+  } else {
+    loadTeachers()
+  }
+}
+
+// 页面大小变化事件
+const handleSizeChange = () => {
+  currentPage.value = 1
+  handlePageChange()
 }
 
 // 组件挂载时加载数据
@@ -345,14 +376,16 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 分页 -->
+        <!-- 分页（服务端） -->
         <div class="pagination">
           <el-pagination
-            v-model:current-page="currentPage"
-            v-model:page-size="pageSize"
+            :current-page="currentPage"
+            :page-size="pageSize"
             :page-sizes="[6, 12, 24]"
             layout="total, sizes, prev, pager, next, jumper"
-            :total="filteredTeachers.length"
+            :total="total"
+            @current-change="(p)=>{ currentPage = p; handlePageChange() }"
+            @size-change="(s)=>{ pageSize = s; handleSizeChange() }"
           />
         </div>
       </div>

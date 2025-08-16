@@ -840,6 +840,15 @@ export const studyAbroadAPI = {
     const query = searchParams.toString()
     return apiRequest(`/api/public/study-abroad/programs${query ? `?${query}` : ''}`)
   },
+  // 公开：启用项目分页列表（含 total）
+  getPublicProgramsPaged: (params: { page?: number; size?: number; countryId?: number; stageId?: number }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null) searchParams.append(key, v.toString())
+    })
+    return apiRequest(`/api/public/study-abroad/programs/page?${searchParams}`)
+  },
 
   // 管理端：国家
   adminListCountries: (params: { page?: number; size?: number; keyword?: string; isActive?: boolean }) => {

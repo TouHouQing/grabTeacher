@@ -44,19 +44,17 @@ public interface CourseService {
     CourseVO getCourseById(Long id);
     
     /**
-     * 获取课程列表（分页）
-     * @param page 页码
-     * @param size 每页大小
-     * @param keyword 搜索关键词
-     * @param subjectId 科目ID
-     * @param teacherId 教师ID
-     * @param status 课程状态
-     * @param courseType 课程类型
-     * @return 分页课程列表
+     * 获取课程列表（分页） - 公开端建议使用（带缓存）
      */
     Page<CourseVO> getCourseList(int page, int size, String keyword, Long subjectId,
                                  Long teacherId, String status, String courseType, String grade);
-    
+
+    /**
+     * 获取课程列表（分页） - 管理端使用（直查DB，不缓存）
+     */
+    Page<CourseVO> getCourseListNoCache(int page, int size, String keyword, Long subjectId,
+                                        Long teacherId, String status, String courseType, String grade);
+
     /**
      * 获取教师的课程列表
      * @param teacherId 教师ID
@@ -65,7 +63,7 @@ public interface CourseService {
      * @return 课程列表
      */
     List<CourseVO> getTeacherCourses(Long teacherId, Long currentUserId, String userType);
-    
+
     /**
      * 获取活跃状态的课程列表
      * @return 活跃课程列表
@@ -105,6 +103,9 @@ public interface CourseService {
      */
     Page<CourseVO> getFeaturedCourses(int page, int size, Long subjectId, String grade);
 
+    // 管理端：直查 DB 的精选课程分页
+    Page<CourseVO> getFeaturedCoursesNoCache(int page, int size, Long subjectId, String grade);
+
     /**
      * 设置课程为精选课程
      * @param courseId 课程ID
@@ -120,8 +121,12 @@ public interface CourseService {
     void batchSetFeaturedCourses(List<Long> courseIds, boolean featured);
 
     /**
-     * 获取所有精选课程ID列表
-     * @return 精选课程ID列表
+     * 获取所有精选课程ID列表（公开/缓存用）
      */
     List<Long> getFeaturedCourseIds();
+
+    /**
+     * 获取所有精选课程ID列表（管理端强一致，直查 DB）
+     */
+    List<Long> getFeaturedCourseIdsNoCache();
 }

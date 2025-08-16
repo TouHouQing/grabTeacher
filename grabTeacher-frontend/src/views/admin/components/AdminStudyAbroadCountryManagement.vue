@@ -80,8 +80,17 @@ const onDelete = async (row: any) => {
   try {
     await ElMessageBox.confirm(`确定删除国家“${row.countryName}”吗？`, '提示', { type: 'warning' })
     const res = await studyAbroadAPI.adminDeleteCountry(row.id)
-    if (res?.success) { ElMessage.success('删除成功'); loadList() } else { ElMessage.error(res?.message || '删除失败') }
-  } catch {}
+    if (res?.success) {
+      ElMessage.success('删除成功')
+      loadList()
+    } else {
+      ElMessage.error(res?.message || '删除失败')
+    }
+  } catch (e: any) {
+    // 后端若返回400会在 apiRequest 抛出异常，message 为后端 CommonResult.message
+    const msg = e?.response?.message || e?.message || '删除失败'
+    ElMessage.error(msg)
+  }
 }
 
 const onToggleStatus = async (row: any) => {

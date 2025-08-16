@@ -24,6 +24,18 @@ public interface GradeMapper extends BaseMapper<Grade> {
     Grade findByGradeNameExcludeId(String gradeName, Long excludeId);
 
     /**
+     * 根据年级名称查找任意年级（包含已删除的）
+     */
+    @Select("SELECT * FROM grades WHERE grade_name = #{gradeName} LIMIT 1")
+    Grade findAnyByGradeName(String gradeName);
+
+    /**
+     * 根据年级名称查找任意年级（包含已删除的，排除指定ID）
+     */
+    @Select("SELECT * FROM grades WHERE grade_name = #{gradeName} AND id != #{excludeId} LIMIT 1")
+    Grade findAnyByGradeNameExcludeId(String gradeName, Long excludeId);
+
+    /**
      * 统计使用指定年级的课程数量
      */
     @Select("SELECT COUNT(*) FROM course_grades WHERE grade = #{gradeName}")

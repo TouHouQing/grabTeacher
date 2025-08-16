@@ -20,6 +20,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
+
+import com.touhouqing.grabteacherbackend.event.GradeChangedEvent;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -38,12 +41,23 @@ public class GradeServiceImpl implements GradeService {
     private final CourseGradeMapper courseGradeMapper;
     private final CourseMapper courseMapper;
     private final BookingRequestMapper bookingRequestMapper;
+    private final ApplicationEventPublisher eventPublisher;
+
     private final ScheduleMapper scheduleMapper;
     private final JobPostGradeMapper jobPostGradeMapper;
 
     @Override
     @Cacheable(cacheNames = "grades", key = "'all'")
     public List<GradeVO> getAllGrades() {
+        return doGetAllGrades();
+    }
+
+    @Override
+    public List<GradeVO> getAllGradesNoCache() {
+        return doGetAllGrades();
+    }
+
+    private List<GradeVO> doGetAllGrades() {
         QueryWrapper<Grade> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("is_deleted", false);
 
@@ -91,13 +105,35 @@ public class GradeServiceImpl implements GradeService {
     @Transactional
     @CacheEvict(cacheNames = {"grades"}, allEntries = true)
     public GradeVO createGrade(GradeDTO request) {
-        // 检查年级名称是否已存在
-        if (isGradeNameExists(request.getGradeName())) {
-            throw new RuntimeException("年级名称已存在");
+        // 归一化名称，避免前后空格/全角半角差异
+        String normalizedName = request.getGradeName() == null ? null : request.getGradeName().trim();
+        if (normalizedName == null || normalizedName.isEmpty()) {
+            throw new RuntimeException("年级名称不能为空");
+        }
+
+        // 先检查是否存在同名记录（含已删除）
+        Grade any = gradeMapper.findAnyByGradeName(normalizedName);
+        if (any != null) {
+            boolean isDeleted = Boolean.TRUE.equals(any.getDeleted()) || (any.getDeleted() == null && any.getDeletedAt() != null);
+            if (isDeleted) {
+                // 软删除记录复活为有效
+                any.setDeleted(false);
+                any.setDeletedAt(null);
+                any.setGradeName(normalizedName);
+                any.setDescription(request.getDescription());
+                any.setUpdatedAt(LocalDateTime.now());
+                gradeMapper.updateById(any);
+                log.info("复活已删除的年级: id={}, name={}", any.getId(), any.getGradeName());
+                try { eventPublisher.publishEvent(new GradeChangedEvent(this, GradeChangedEvent.ChangeType.CREATE)); } catch (Exception ignore) {}
+                return convertToGradeResponse(any);
+            } else {
+                log.warn("创建年级冲突, 已存在同名记录: id={}, name={}, deleted={}", any.getId(), any.getGradeName(), any.getDeleted());
+                throw new RuntimeException("年级名称已存在");
+            }
         }
 
         Grade grade = Grade.builder()
-                .gradeName(request.getGradeName())
+                .gradeName(normalizedName)
                 .description(request.getDescription())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -106,6 +142,8 @@ public class GradeServiceImpl implements GradeService {
 
         gradeMapper.insert(grade);
         log.info("年级创建成功: {}", grade.getGradeName());
+        // 发布事件：交由监听器统一驱逐缓存
+        try { eventPublisher.publishEvent(new GradeChangedEvent(this, GradeChangedEvent.ChangeType.CREATE)); } catch (Exception ignore) {}
         return convertToGradeResponse(grade);
     }
 
@@ -118,17 +156,24 @@ public class GradeServiceImpl implements GradeService {
             throw new RuntimeException("年级不存在");
         }
 
-        // 检查年级名称是否已存在（排除当前年级）
-        if (isGradeNameExists(request.getGradeName(), id)) {
+        // 归一化名称
+        String normalizedName = request.getGradeName() == null ? null : request.getGradeName().trim();
+        if (normalizedName == null || normalizedName.isEmpty()) {
+            throw new RuntimeException("年级名称不能为空");
+        }
+        // 检查是否与其他记录（含已删除）重名
+        Grade anyOther = gradeMapper.findAnyByGradeNameExcludeId(normalizedName, id);
+        if (anyOther != null && !anyOther.getId().equals(id)) {
             throw new RuntimeException("年级名称已存在");
         }
 
-        grade.setGradeName(request.getGradeName());
+        grade.setGradeName(normalizedName);
         grade.setDescription(request.getDescription());
         grade.setUpdatedAt(LocalDateTime.now());
 
         gradeMapper.updateById(grade);
         log.info("年级更新成功: {}", grade.getGradeName());
+        try { eventPublisher.publishEvent(new GradeChangedEvent(this, GradeChangedEvent.ChangeType.UPDATE)); } catch (Exception ignore) {}
         return convertToGradeResponse(grade);
     }
 
@@ -193,6 +238,7 @@ public class GradeServiceImpl implements GradeService {
         grade.setDeletedAt(LocalDateTime.now());
         gradeMapper.updateById(grade);
         log.info("删除年级成功: {}，同时删除了 {} 个相关课程", grade.getGradeName(), courseIds.size());
+        try { eventPublisher.publishEvent(new GradeChangedEvent(this, GradeChangedEvent.ChangeType.DELETE)); } catch (Exception ignore) {}
     }
 
     @Override
@@ -212,7 +258,7 @@ public class GradeServiceImpl implements GradeService {
      */
     private GradeVO convertToGradeResponse(Grade grade) {
         Long courseCount = gradeMapper.countCoursesByGradeName(grade.getGradeName());
-        
+
         return GradeVO.builder()
                 .id(grade.getId())
                 .gradeName(grade.getGradeName())

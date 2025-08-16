@@ -15,10 +15,13 @@ import com.touhouqing.grabteacherbackend.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import com.touhouqing.grabteacherbackend.cache.FeaturedTeachersLocalCache;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -40,6 +43,10 @@ public class AdminServiceImpl implements AdminService {
     private final CourseMapper courseMapper;
     private final AdminMapper adminMapper;
     private final AliyunOssUtil ossUtil;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final FeaturedTeachersLocalCache featuredTeachersLocalCache;
+    @Autowired
+    private org.springframework.cache.CacheManager cacheManager;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -372,6 +379,13 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(cacheNames = "teachers", allEntries = true),
+        @CacheEvict(cacheNames = "teacherDetails", allEntries = true),
+        @CacheEvict(cacheNames = "teacherList", allEntries = true),
+        @CacheEvict(cacheNames = "teacherMatch", allEntries = true),
+        @CacheEvict(cacheNames = "featuredTeachers", allEntries = true)
+    })
     public Teacher addTeacher(TeacherInfoDTO request) {
         // 验证必填字段
         if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
@@ -446,6 +460,8 @@ public class AdminServiceImpl implements AdminService {
 
         teacherMapper.insert(teacher);
         log.info("管理员创建教师档案成功: 教师ID={}, 用户ID={}", teacher.getId(), user.getId());
+        // 公开端缓存失效（教师相关 + 精选教师 JSON）
+        invalidateFeaturedTeachersJsonCaches();
 
         // 处理教师科目关联
         if (request.getSubjectIds() != null && !request.getSubjectIds().isEmpty()) {
@@ -456,11 +472,20 @@ public class AdminServiceImpl implements AdminService {
             log.info("教师科目关联创建成功: 教师ID={}, 科目数量={}", teacher.getId(), request.getSubjectIds().size());
         }
 
+        // 公开端缓存失效（教师相关 + 精选教师 JSON）
+        invalidateFeaturedTeachersJsonCaches();
         return teacher;
     }
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(cacheNames = "teachers", allEntries = true),
+        @CacheEvict(cacheNames = "teacherDetails", allEntries = true),
+        @CacheEvict(cacheNames = "teacherList", allEntries = true),
+        @CacheEvict(cacheNames = "teacherMatch", allEntries = true),
+        @CacheEvict(cacheNames = "featuredTeachers", allEntries = true)
+    })
     public Teacher updateTeacher(Long teacherId, TeacherInfoDTO request) {
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
@@ -535,11 +560,20 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
+        // 清理精选教师 JSON 两级缓存
+        invalidateFeaturedTeachersJsonCaches();
         return teacher;
     }
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(cacheNames = "teachers", allEntries = true),
+        @CacheEvict(cacheNames = "teacherDetails", allEntries = true),
+        @CacheEvict(cacheNames = "teacherList", allEntries = true),
+        @CacheEvict(cacheNames = "teacherMatch", allEntries = true),
+        @CacheEvict(cacheNames = "featuredTeachers", allEntries = true)
+    })
     public void deleteTeacher(Long teacherId) {
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
@@ -563,6 +597,13 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Caching(evict = {
+        @CacheEvict(cacheNames = "teachers", allEntries = true),
+        @CacheEvict(cacheNames = "teacherDetails", allEntries = true),
+        @CacheEvict(cacheNames = "teacherList", allEntries = true),
+        @CacheEvict(cacheNames = "teacherMatch", allEntries = true),
+        @CacheEvict(cacheNames = "featuredTeachers", allEntries = true)
+    })
     public void verifyTeacher(Long teacherId, Boolean isVerified) {
         Teacher teacher = teacherMapper.selectById(teacherId);
         if (teacher == null) {
@@ -583,6 +624,9 @@ public class AdminServiceImpl implements AdminService {
 
         teacher.setFeatured(isFeatured);
         teacherMapper.updateById(teacher);
+
+        // 清理精选教师相关缓存（包括 JSON 两级）
+        invalidateFeaturedTeachersJsonCaches();
 
         log.info("设置教师精选状态成功: teacherId={}, isFeatured={}", teacherId, isFeatured);
     }
@@ -625,6 +669,41 @@ public class AdminServiceImpl implements AdminService {
         return map;
     }
 
+    /**
+     * 轻量清理精选教师 JSON 两级缓存（L1 本地 + L2 Redis）
+     * 与 TeacherController.getFeaturedTeachers 的 key 约定保持一致
+     */
+    private void invalidateFeaturedTeachersJsonCaches() {
+        try {
+            if (featuredTeachersLocalCache != null) {
+                featuredTeachersLocalCache.clear();
+            }
+        } catch (Exception ignore) {}
+        try {
+            if (stringRedisTemplate != null) {
+                // 常用页码/大小/筛选组合，避免使用 KEYS
+                int[] pages = new int[]{1,2,3};
+                int[] sizes = new int[]{6,10,12,20};
+                String[] subjects = new String[]{"all"};
+                String[] grades = new String[]{"all"};
+                String[] keywords = new String[]{"all"};
+                for (int p : pages) {
+                    for (int s : sizes) {
+                        for (String sub : subjects) {
+                            for (String g : grades) {
+                                for (String k : keywords) {
+                                    String key = String.format("featuredTeachers:json:page:%d:size:%d:subject:%s:grade:%s:keyword:%s", p, s, sub, g, k);
+                                    stringRedisTemplate.delete(key);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignore) {}
+    }
+
+
     @Override
     @Transactional
     public void updateCurrentAdminProfile(Long currentUserId, com.touhouqing.grabteacherbackend.model.dto.AdminProfileUpdateDTO dto) {
@@ -655,5 +734,13 @@ public class AdminServiceImpl implements AdminService {
             admin.setWechatQrcodeUrl(dto.getWechatQrcodeUrl());
         }
         adminMapper.updateById(admin);
+
+        // 轻量驱逐公开端管理员联系方式缓存
+        try {
+            org.springframework.cache.Cache cache = cacheManager.getCache("public:adminContacts");
+            if (cache != null) {
+                cache.evict("first");
+            }
+        } catch (Exception ignore) {}
     }
 }

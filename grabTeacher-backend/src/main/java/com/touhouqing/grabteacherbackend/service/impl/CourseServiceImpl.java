@@ -15,12 +15,16 @@ import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.SubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.GradeMapper;
 import com.touhouqing.grabteacherbackend.service.CourseService;
+import com.touhouqing.grabteacherbackend.service.CacheWarmupService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.context.ApplicationEventPublisher;
+
+import com.touhouqing.grabteacherbackend.event.CourseChangedEvent;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -48,6 +52,13 @@ public class CourseServiceImpl implements CourseService {
 
     @Autowired
     private GradeMapper gradeMapper;
+    @Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.touhouqing.grabteacherbackend.service.CacheWarmupService cacheWarmupService;
+
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
+
 
     @Override
     @Transactional
@@ -57,7 +68,8 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "teacherCourses", allEntries = true),
         @CacheEvict(cacheNames = "activeCourses", allEntries = true),
         @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
-        @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true)
+        @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true),
+        @CacheEvict(cacheNames = "teacherList", allEntries = true)
     })
     public Course createCourse(CourseDTO request, Long currentUserId, String userType) {
         log.info("创建课程，用户ID: {}, 用户类型: {}", currentUserId, userType);
@@ -150,6 +162,7 @@ public class CourseServiceImpl implements CourseService {
         }
 
         log.info("课程创建成功: {}", course.getTitle());
+        try { eventPublisher.publishEvent(new CourseChangedEvent(this, CourseChangedEvent.ChangeType.CREATE)); } catch (Exception ignore) {}
         return course;
     }
 
@@ -161,7 +174,8 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "teacherCourses", allEntries = true),
         @CacheEvict(cacheNames = "activeCourses", allEntries = true),
         @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
-        @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true)
+        @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true),
+        @CacheEvict(cacheNames = "teacherList", allEntries = true)
     })
     public Course updateCourse(Long id, CourseDTO request, Long currentUserId, String userType) {
         log.info("更新课程，课程ID: {}, 用户ID: {}, 用户类型: {}", id, currentUserId, userType);
@@ -239,6 +253,7 @@ public class CourseServiceImpl implements CourseService {
         }
 
         log.info("课程更新成功: {}", course.getTitle());
+        try { eventPublisher.publishEvent(new CourseChangedEvent(this, CourseChangedEvent.ChangeType.UPDATE)); } catch (Exception ignore) {}
         return course;
     }
 
@@ -250,7 +265,8 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "teacherCourses", allEntries = true),
         @CacheEvict(cacheNames = "activeCourses", allEntries = true),
         @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
-        @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true)
+        @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true),
+        @CacheEvict(cacheNames = "teacherList", allEntries = true)
     })
     public void deleteCourse(Long id, Long currentUserId, String userType) {
         log.info("删除课程，课程ID: {}, 用户ID: {}, 用户类型: {}", id, currentUserId, userType);
@@ -273,6 +289,7 @@ public class CourseServiceImpl implements CourseService {
         courseGradeMapper.deleteByCourseId(id);
 
         log.info("课程删除成功: {}", course.getTitle());
+        try { eventPublisher.publishEvent(new CourseChangedEvent(this, CourseChangedEvent.ChangeType.DELETE)); } catch (Exception ignore) {}
     }
 
     /**
@@ -307,6 +324,19 @@ public class CourseServiceImpl implements CourseService {
                unless = "#result == null || #result.records.isEmpty()")
     public Page<CourseVO> getCourseList(int page, int size, String keyword, Long subjectId,
                                         Long teacherId, String status, String courseType, String grade) {
+        return doGetCourseList(page, size, keyword, subjectId, teacherId, status, courseType, grade);
+    }
+
+    // 管理端直查 DB
+    @Override
+    public Page<CourseVO> getCourseListNoCache(int page, int size, String keyword, Long subjectId,
+                                               Long teacherId, String status, String courseType, String grade) {
+        return doGetCourseList(page, size, keyword, subjectId, teacherId, status, courseType, grade);
+    }
+
+    // 共享查询实现
+    private Page<CourseVO> doGetCourseList(int page, int size, String keyword, Long subjectId,
+                                           Long teacherId, String status, String courseType, String grade) {
         Page<Course> pageParam = new Page<>(page, size);
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
 
@@ -334,10 +364,8 @@ public class CourseServiceImpl implements CourseService {
 
         // 如果有年级筛选条件，需要通过关联表查询
         if (StringUtils.hasText(grade)) {
-            // 先从course_grades表中查询符合年级条件的课程ID
             List<Long> courseIds = courseGradeMapper.findCourseIdsByGrade(grade);
             if (courseIds.isEmpty()) {
-                // 如果没有找到符合条件的课程，返回空结果
                 Page<CourseVO> emptyPage = new Page<>(page, size, 0);
                 emptyPage.setRecords(new ArrayList<>());
                 return emptyPage;
@@ -349,7 +377,6 @@ public class CourseServiceImpl implements CourseService {
 
         Page<Course> coursePage = courseMapper.selectPage(pageParam, queryWrapper);
 
-        // 批量装配，消除 N+1
         Page<CourseVO> responsePage = new Page<>(coursePage.getCurrent(), coursePage.getSize(), coursePage.getTotal());
         List<CourseVO> responseList = assembleCourseResponses(coursePage.getRecords());
         responsePage.setRecords(responseList);
@@ -452,7 +479,8 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "teacherCourses", allEntries = true),
         @CacheEvict(cacheNames = "activeCourses", allEntries = true),
         @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
-        @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true)
+        @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true),
+        @CacheEvict(cacheNames = "teacherList", allEntries = true)
     })
     public void updateCourseStatus(Long id, String status, Long currentUserId, String userType) {
         log.info("更新课程状态，课程ID: {}, 新状态: {}, 用户ID: {}", id, status, currentUserId);
@@ -474,6 +502,7 @@ public class CourseServiceImpl implements CourseService {
         course.setStatus(status);
         courseMapper.updateById(course);
         log.info("课程状态更新成功: {} -> {}", course.getTitle(), status);
+        try { eventPublisher.publishEvent(new CourseChangedEvent(this, CourseChangedEvent.ChangeType.STATUS)); } catch (Exception ignore) {}
     }
 
     @Override
@@ -548,6 +577,15 @@ public class CourseServiceImpl implements CourseService {
                key = "'page:' + #page + ':size:' + #size + ':subject:' + (#subjectId ?: 'all') + ':grade:' + (#grade ?: 'all')",
                unless = "#result == null || #result.records.isEmpty()")
     public Page<CourseVO> getFeaturedCourses(int page, int size, Long subjectId, String grade) {
+        return doGetFeaturedCourses(page, size, subjectId, grade);
+    }
+
+    @Override
+    public Page<CourseVO> getFeaturedCoursesNoCache(int page, int size, Long subjectId, String grade) {
+        return doGetFeaturedCourses(page, size, subjectId, grade);
+    }
+
+    private Page<CourseVO> doGetFeaturedCourses(int page, int size, Long subjectId, String grade) {
         Page<Course> pageParam = new Page<>(page, size);
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
 
@@ -660,7 +698,7 @@ public class CourseServiceImpl implements CourseService {
      * 设置课程为精选课程
      */
     @Override
-    @CacheEvict(cacheNames = {"featuredCourses", "courseList", "activeCourses"}, allEntries = true)
+    @CacheEvict(cacheNames = {"featuredCourses", "featuredCourseIds", "courseList", "activeCourses", "teacherList"}, allEntries = true)
     public void setCourseAsFeatured(Long courseId, boolean featured) {
         Course course = courseMapper.selectById(courseId);
         if (course == null || course.getDeleted()) {
@@ -671,13 +709,14 @@ public class CourseServiceImpl implements CourseService {
         courseMapper.updateById(course);
 
         log.info("课程 {} 精选状态已更新为: {}", courseId, featured);
+        try { eventPublisher.publishEvent(new CourseChangedEvent(this, CourseChangedEvent.ChangeType.FEATURED)); } catch (Exception ignore) {}
     }
 
     /**
      * 批量设置精选课程
      */
     @Override
-    @CacheEvict(cacheNames = {"featuredCourses", "courseList", "activeCourses"}, allEntries = true)
+    @CacheEvict(cacheNames = {"featuredCourses", "featuredCourseIds", "courseList", "activeCourses", "teacherList"}, allEntries = true)
     public void batchSetFeaturedCourses(List<Long> courseIds, boolean featured) {
         if (courseIds == null || courseIds.isEmpty()) {
             return;
@@ -701,6 +740,7 @@ public class CourseServiceImpl implements CourseService {
         }
 
         log.info("批量更新 {} 个课程的精选状态为: {}", courses.size(), featured);
+        try { eventPublisher.publishEvent(new CourseChangedEvent(this, CourseChangedEvent.ChangeType.FEATURED)); } catch (Exception ignore) {}
     }
 
         // 列表轻载化：截断长文本，避免超大回包
@@ -716,6 +756,14 @@ public class CourseServiceImpl implements CourseService {
         @Override
         @Cacheable(cacheNames = "featuredCourseIds", key = "'all'")
         public List<Long> getFeaturedCourseIds() {
-        return courseMapper.findFeaturedCourseIds();
-    }
+            return courseMapper.findFeaturedCourseIds();
+        }
+
+        /**
+         * 管理端强一致：精选课程ID列表直查 DB
+         */
+        @Override
+        public List<Long> getFeaturedCourseIdsNoCache() {
+            return courseMapper.findFeaturedCourseIds();
+        }
 }
