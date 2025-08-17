@@ -300,12 +300,6 @@ defineOptions({
                 </el-carousel>
             </div>
 
-            <!-- 开始学习引导 -->
-            <div class="section cta">
-                <h2 class="cta-title">{{ $t('home.sections.cta.title') }}</h2>
-                <p class="cta-subtitle">{{ $t('home.sections.cta.subtitle') }}</p>
-                <el-button type="primary" size="large" @click="$router.push('/login')">{{ $t('home.sections.cta.button') }}</el-button>
-            </div>
 
         </div>
         <!-- 联系我们 -->
@@ -604,24 +598,7 @@ body {
     color: #666;
 }
 
-.cta {
-    text-align: center;
-    background-color: #f0f7ff;
-    padding: 60px;
-    border-radius: 8px;
-}
 
-.cta-title {
-    font-size: 32px;
-    margin-bottom: 20px;
-    color: #333;
-}
-
-.cta-subtitle {
-    font-size: 18px;
-    color: #666;
-    margin-bottom: 30px;
-}
 
 @media (max-width: 1200px) {
     .feature-grid {
@@ -766,21 +743,7 @@ body {
         font-size: 13px;
     }
 
-    .cta {
-        padding: 40px 20px;
-        text-align: center;
-    }
 
-    .cta-title {
-        font-size: 24px;
-        margin-bottom: 16px;
-    }
-
-    .cta-subtitle {
-        font-size: 16px;
-        margin-bottom: 24px;
-        line-height: 1.5;
-    }
 }
 
 @media (max-width: 480px) {
@@ -824,16 +787,6 @@ body {
         height: 200px;
     }
 
-    .cta {
-        padding: 32px 16px;
-    }
 
-    .cta-title {
-        font-size: 20px;
-    }
-
-    .cta-subtitle {
-        font-size: 14px;
-    }
 }
 </style>
