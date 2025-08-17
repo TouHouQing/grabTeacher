@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import ContactUs from '../components/ContactUs.vue'
 import { ElMessage } from 'element-plus'
 import {
   Timer,
@@ -363,6 +364,8 @@ onMounted(() => {
         </div>
       </div>
     </div>
+    <!-- 联系我们 -->
+    <ContactUs />
   </div>
 </template>
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import ContactUs from '../components/ContactUs.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { studyAbroadAPI } from '../utils/api'
 import { Document, Check } from '@element-plus/icons-vue'
@@ -279,6 +280,8 @@ watch([currentPage, pageSize, () => filter.countryId, () => filter.stageId], () 
         </div>
       </div>
     </div>
+      <!-- 联系我们 -->
+      <ContactUs />
   </div>
 </template>
 

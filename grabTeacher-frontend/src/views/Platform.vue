@@ -292,10 +292,9 @@ const resetForm = () => {
         <div class="contact-tip">如需了解岗位详情，欢迎联系客服咨询</div>
       </div>
 
-      <!-- 联系我们 -->
-      <ContactUs />
-
     </div>
+    <!-- 联系我们 -->
+    <ContactUs />
   </div>
 </template>
 

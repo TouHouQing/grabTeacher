@@ -3,6 +3,7 @@
 defineOptions({
   name: 'AboutView'
 })
+import ContactUs from '../components/ContactUs.vue'
 </script>
 
 <template>
@@ -127,33 +128,9 @@ defineOptions({
         </div>
       </div>
 
-      <div class="section contact-us">
-        <h2>联系我们</h2>
-        <div class="contact-info">
-          <div class="contact-item">
-            <el-icon><Location /></el-icon>
-            <div>
-              <h3>公司地址</h3>
-              <p>北京市海淀区中关村科技园区8号楼</p>
-            </div>
-          </div>
-          <div class="contact-item">
-            <el-icon><Phone /></el-icon>
-            <div>
-              <h3>联系电话</h3>
-              <p>400-888-8888</p>
-            </div>
-          </div>
-          <div class="contact-item">
-            <el-icon><Message /></el-icon>
-            <div>
-              <h3>电子邮箱</h3>
-              <p>contact@grabteacher.com</p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
+    <!-- 联系我们 -->
+    <ContactUs />
   </div>
 </template>
 

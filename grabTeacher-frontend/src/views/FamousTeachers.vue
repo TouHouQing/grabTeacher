@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import ContactUs from '../components/ContactUs.vue'
 import { useRouter } from 'vue-router'
 import { gradeApi, subjectAPI, teacherAPI } from '../utils/api'
 import { ElMessage } from 'element-plus'
@@ -390,7 +391,9 @@ onMounted(() => {
         </div>
       </div>
     </div>
-  </div>
+      <!-- 联系我们 -->
+      <ContactUs />
+    </div>
 </template>
 
 <style scoped>

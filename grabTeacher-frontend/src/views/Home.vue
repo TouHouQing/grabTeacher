@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useLangStore } from '../stores/lang'
+import ContactUs from '../components/ContactUs.vue'
 
 // 使用语言store
 const langStore = useLangStore()
@@ -305,7 +306,10 @@ defineOptions({
                 <p class="cta-subtitle">{{ $t('home.sections.cta.subtitle') }}</p>
                 <el-button type="primary" size="large" @click="$router.push('/login')">{{ $t('home.sections.cta.button') }}</el-button>
             </div>
+
         </div>
+        <!-- 联系我们 -->
+        <ContactUs />
     </div>
 </template>
 
