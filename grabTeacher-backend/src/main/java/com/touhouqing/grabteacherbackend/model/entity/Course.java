@@ -12,6 +12,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
@@ -61,6 +63,26 @@ public class Course {
     @Builder.Default
     @Schema(description = "是否为精选课程，在最新课程页面展示", example = "false")
     private Boolean featured = false;
+
+    @TableField("price")
+    @Schema(description = "课程价格（大班课专用）", example = "299.00")
+    private BigDecimal price;
+
+    @TableField("start_date")
+    @Schema(description = "开始日期（大班课专用）", example = "2024-01-15")
+    private LocalDate startDate;
+
+    @TableField("end_date")
+    @Schema(description = "结束日期（大班课专用）", example = "2024-03-15")
+    private LocalDate endDate;
+
+    @TableField("person_limit")
+    @Schema(description = "人数限制（大班课专用，为空表示不限制）", example = "30")
+    private Integer personLimit;
+
+    @TableField("image_url")
+    @Schema(description = "课程封面图URL")
+    private String imageUrl;
 
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     @Schema(description = "课程创建时间")

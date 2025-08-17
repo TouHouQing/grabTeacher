@@ -32,6 +32,11 @@ interface Course {
   statusDisplay: string
   grade?: string
   createdAt: string
+  price?: number
+  startDate?: string
+  endDate?: string
+  personLimit?: number
+  imageUrl?: string
 }
 
 // 科目接口定义
@@ -206,6 +211,21 @@ const getDefaultTeacherAvatar = () => {
   return avatars[Math.floor(Math.random() * avatars.length)]
 }
 
+// 格式化价格显示
+const formatPrice = (course: Course) => {
+  if (course.courseType === 'large_class') {
+    // 大班课显示价格（m豆）
+    if (course.price && course.price > 0) {
+      return `${course.price}m豆`
+    } else {
+      return '价格面议'
+    }
+  } else {
+    // 一对一课程显示可定制
+    return '价格可定制'
+  }
+}
+
 // 组件挂载时获取数据
 onMounted(() => {
   fetchSubjects()
@@ -267,7 +287,7 @@ onMounted(() => {
         <div class="courses-grid" v-if="courses.length > 0">
           <div class="course-card" v-for="course in courses" :key="course.id">
             <div class="course-image">
-              <img :src="$getImageUrl(getDefaultCourseImage(course.subjectName))" :alt="course.title">
+              <img :src="course.imageUrl ? course.imageUrl : $getImageUrl(getDefaultCourseImage(course.subjectName))" :alt="course.title">
               <div class="course-badge new" v-if="isNewCourse(course.createdAt)">最新</div>
               <div class="course-badge status" :class="course.status">{{ course.statusDisplay }}</div>
             </div>
@@ -300,8 +320,13 @@ onMounted(() => {
                 <el-tag size="small" class="course-tag">{{ course.grade }}</el-tag>
                 <el-tag size="small" class="course-tag" type="success">{{ course.subjectName }}</el-tag>
               </div>
+              <div class="course-price-section">
+                <div class="course-price" :class="{ 'customizable': course.courseType === 'one_on_one' }">
+                  {{ formatPrice(course) }}
+                </div>
+                <div class="course-status-text">{{ course.statusDisplay }}</div>
+              </div>
               <div class="course-actions">
-                <span class="course-status">{{ course.statusDisplay }}</span>
                 <el-button type="primary" size="small" :disabled="course.status !== 'active'">立即报名</el-button>
                 <el-button type="info" size="small" plain>查看详情</el-button>
               </div>
@@ -611,16 +636,41 @@ export default {
   margin-bottom: 5px;
 }
 
+.course-price-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  padding: 10px 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.course-price {
+  font-size: 18px;
+  color: #f56c6c;
+  font-weight: bold;
+}
+
+.course-price.customizable {
+  color: #409eff;
+  font-size: 16px;
+}
+
+.course-status-text {
+  font-size: 14px;
+  color: #67c23a;
+  font-weight: 500;
+}
+
 .course-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
 }
 
-.course-price {
-  font-size: 20px;
-  color: #f56c6c;
-  font-weight: bold;
+.course-actions .el-button {
+  flex: 1;
 }
 
 .course-status {
@@ -779,9 +829,19 @@ export default {
     font-size: 12px;
   }
 
+  .course-price-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
   .course-price {
     font-size: 16px;
-    margin-bottom: 12px;
+  }
+
+  .course-status-text {
+    font-size: 13px;
   }
 
   .course-actions {

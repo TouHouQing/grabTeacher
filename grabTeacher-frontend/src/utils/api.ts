@@ -568,6 +568,11 @@ export const courseAPI = {
     status?: string
     grade?: string
     gender?: string
+    price?: number | null
+    startDate?: string
+    endDate?: string
+    personLimit?: number | null
+    imageUrl?: string
   }) => apiRequest('/api/courses', {
     method: 'POST',
     body: JSON.stringify(data)
@@ -584,6 +589,11 @@ export const courseAPI = {
     status?: string
     grade?: string
     gender?: string
+    price?: number | null
+    startDate?: string
+    endDate?: string
+    personLimit?: number | null
+    imageUrl?: string
   }) => apiRequest(`/api/courses/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)
@@ -950,5 +960,40 @@ export const jobPostAPI = {
   delete: (id: number) => apiRequest(`/api/job-posts/${id}`, { method: 'DELETE' }),
   // 批量删除
   batchDelete: (ids: number[]) => apiRequest('/api/job-posts/batch-delete', { method: 'POST', body: JSON.stringify(ids) })
+}
+
+// 文件上传 API
+export const fileAPI = {
+  // 单次直传：获取预签名URL并PUT直传
+  presignAndPut: async (file: File, module = 'course-cover') => {
+    const token = localStorage.getItem('token')
+    const qs = new URLSearchParams({
+      module,
+      filename: file.name,
+      contentType: file.type || 'application/octet-stream'
+    })
+    const presignUrl = `${API_BASE_URL}/api/file/presign?${qs}`
+    const presignRes = await fetch(presignUrl, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    })
+    const presignData = await presignRes.json()
+    if (!presignRes.ok || !presignData?.success) {
+      const msg = presignData?.message || `获取预签名URL失败(${presignRes.status})`
+      throw new Error(msg)
+    }
+    const signedUrl: string = presignData.data
+
+    // 直传到 OSS（PUT）
+    const putRes = await fetch(signedUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file
+    })
+    if (!putRes.ok) {
+      throw new Error(`直传OSS失败(${putRes.status})`)
+    }
+    // 返回最终可访问URL（去掉查询串即可）
+    return signedUrl.split('?')[0]
+  }
 }
 

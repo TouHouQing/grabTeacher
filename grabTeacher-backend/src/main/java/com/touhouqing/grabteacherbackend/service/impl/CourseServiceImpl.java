@@ -57,6 +57,9 @@ public class CourseServiceImpl implements CourseService {
     private com.touhouqing.grabteacherbackend.service.CacheWarmupService cacheWarmupService;
 
     @Autowired
+    private com.touhouqing.grabteacherbackend.util.AliyunOssUtil ossUtil;
+
+    @Autowired
     private ApplicationEventPublisher eventPublisher;
 
 
@@ -69,7 +72,9 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "activeCourses", allEntries = true),
         @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
         @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true),
-        @CacheEvict(cacheNames = "teacherList", allEntries = true)
+        @CacheEvict(cacheNames = "teacherList", allEntries = true),
+        @CacheEvict(cacheNames = "featuredCourses", allEntries = true),
+        @CacheEvict(cacheNames = "featuredCourseIds", allEntries = true)
     })
     public Course createCourse(CourseDTO request, Long currentUserId, String userType) {
         log.info("创建课程，用户ID: {}, 用户类型: {}", currentUserId, userType);
@@ -118,6 +123,9 @@ public class CourseServiceImpl implements CourseService {
             throw new RuntimeException("无效的课程状态");
         }
 
+        // 验证大班课专用字段
+        validateLargeClassFields(request);
+
         // 确定课程状态：教师创建的课程默认为pending，管理员创建的课程可以直接设置状态
         String courseStatus;
         if ("teacher".equals(userType)) {
@@ -139,7 +147,16 @@ public class CourseServiceImpl implements CourseService {
                 .durationMinutes(request.getDurationMinutes())
                 .status(courseStatus)
                 .deleted(false)
+                .imageUrl(request.getImageUrl())
                 .build();
+
+        // 设置大班课专用字段
+        if ("large_class".equals(request.getCourseType())) {
+            course.setPrice(request.getPrice());
+            course.setStartDate(request.getStartDate());
+            course.setEndDate(request.getEndDate());
+            course.setPersonLimit(request.getPersonLimit());
+        }
 
         courseMapper.insert(course);
 
@@ -175,7 +192,9 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "activeCourses", allEntries = true),
         @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
         @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true),
-        @CacheEvict(cacheNames = "teacherList", allEntries = true)
+        @CacheEvict(cacheNames = "teacherList", allEntries = true),
+        @CacheEvict(cacheNames = "featuredCourses", allEntries = true),
+        @CacheEvict(cacheNames = "featuredCourseIds", allEntries = true)
     })
     public Course updateCourse(Long id, CourseDTO request, Long currentUserId, String userType) {
         log.info("更新课程，课程ID: {}, 用户ID: {}, 用户类型: {}", id, currentUserId, userType);
@@ -213,11 +232,33 @@ public class CourseServiceImpl implements CourseService {
             throw new RuntimeException("无效的课程状态");
         }
 
+        // 验证大班课专用字段
+        validateLargeClassFields(request);
+
         course.setSubjectId(request.getSubjectId());
         course.setTitle(request.getTitle());
         course.setDescription(request.getDescription());
         course.setCourseType(request.getCourseType());
         course.setDurationMinutes(request.getDurationMinutes());
+        // 记录旧封面，若请求带新图则覆盖
+        String oldImageUrl = course.getImageUrl();
+        if (request.getImageUrl() != null && !request.getImageUrl().isEmpty()) {
+            course.setImageUrl(request.getImageUrl());
+        }
+
+        // 更新大班课专用字段
+        if ("large_class".equals(request.getCourseType())) {
+            course.setPrice(request.getPrice());
+            course.setStartDate(request.getStartDate());
+            course.setEndDate(request.getEndDate());
+            course.setPersonLimit(request.getPersonLimit());
+        } else {
+            // 一对一课程清空这些字段
+            course.setPrice(null);
+            course.setStartDate(null);
+            course.setEndDate(null);
+            course.setPersonLimit(null);
+        }
 
         // 状态更新逻辑：教师编辑课程时状态强制重置为pending，需要重新审批
         if ("teacher".equals(userType)) {
@@ -231,7 +272,18 @@ public class CourseServiceImpl implements CourseService {
             }
         }
 
+        // 执行更新
         courseMapper.updateById(course);
+
+        // 如果封面发生变更，删除旧图
+        if (oldImageUrl != null && !oldImageUrl.equals(course.getImageUrl())) {
+            try {
+                ossUtil.deleteByUrl(oldImageUrl);
+                log.info("已删除旧课程封面: {}", oldImageUrl);
+            } catch (Exception ex) {
+                log.warn("删除旧课程封面失败: {}", oldImageUrl, ex);
+            }
+        }
 
         // 更新年级数据：先删除原有关联，再插入新的关联
         courseGradeMapper.deleteByCourseId(course.getId());
@@ -313,6 +365,30 @@ public class CourseServiceImpl implements CourseService {
     // 辅助方法：验证课程状态
     private boolean isValidCourseStatus(String status) {
         return "active".equals(status) || "inactive".equals(status) || "full".equals(status) || "pending".equals(status);
+    }
+
+    // 辅助方法：验证大班课专用字段
+    private void validateLargeClassFields(CourseDTO request) {
+        if ("large_class".equals(request.getCourseType())) {
+            // 大班课必须设置开始日期和结束日期
+            if (request.getStartDate() == null) {
+                throw new RuntimeException("大班课必须设置开始日期");
+            }
+            if (request.getEndDate() == null) {
+                throw new RuntimeException("大班课必须设置结束日期");
+            }
+            // 结束日期必须晚于开始日期
+            if (!request.getEndDate().isAfter(request.getStartDate())) {
+                throw new RuntimeException("结束日期必须晚于开始日期");
+            }
+            // 价格和人数限制可以为空（表示可定制价格和不限制人数）
+            if (request.getPrice() != null && request.getPrice().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                throw new RuntimeException("课程价格必须大于0");
+            }
+            if (request.getPersonLimit() != null && request.getPersonLimit() <= 0) {
+                throw new RuntimeException("人数限制必须大于0");
+            }
+        }
     }
 
     /**
@@ -480,7 +556,9 @@ public class CourseServiceImpl implements CourseService {
         @CacheEvict(cacheNames = "activeCourses", allEntries = true),
         @CacheEvict(cacheNames = "activeCoursesAll", allEntries = true),
         @CacheEvict(cacheNames = "activeCoursesLimited", allEntries = true),
-        @CacheEvict(cacheNames = "teacherList", allEntries = true)
+        @CacheEvict(cacheNames = "teacherList", allEntries = true),
+        @CacheEvict(cacheNames = "featuredCourses", allEntries = true),
+        @CacheEvict(cacheNames = "featuredCourseIds", allEntries = true)
     })
     public void updateCourseStatus(Long id, String status, Long currentUserId, String userType) {
         log.info("更新课程状态，课程ID: {}, 新状态: {}, 用户ID: {}", id, status, currentUserId);
@@ -560,6 +638,11 @@ public class CourseServiceImpl implements CourseService {
                 .featured(course.getFeatured())
                 .createdAt(course.getCreatedAt())
                 .grade(gradeStr) // 从course_grades表获取年级信息
+                .price(course.getPrice())
+                .startDate(course.getStartDate())
+                .endDate(course.getEndDate())
+                .personLimit(course.getPersonLimit())
+                .imageUrl(course.getImageUrl())
                 .build();
 
         // 设置显示名称
@@ -686,6 +769,11 @@ public class CourseServiceImpl implements CourseService {
                     .featured(c.getFeatured())
                     .createdAt(c.getCreatedAt())
                     .grade(gradeStr)
+                    .price(c.getPrice())
+                    .startDate(c.getStartDate())
+                    .endDate(c.getEndDate())
+                    .personLimit(c.getPersonLimit())
+                    .imageUrl(c.getImageUrl())
                     .build();
             resp.setCourseTypeDisplay(resp.getCourseTypeDisplay());
             resp.setStatusDisplay(resp.getStatusDisplay());

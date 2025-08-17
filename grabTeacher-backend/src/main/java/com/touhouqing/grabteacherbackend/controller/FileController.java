@@ -138,6 +138,13 @@ public class FileController {
     }
 
     @Data
+    public static class PresignResp {
+        private String key;
+        private String signedUrl;
+        private String publicUrl;
+    }
+
+    @Data
     public static class InitMultipartResp {
         private String uploadId;
         private String key;

@@ -9,6 +9,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.time.LocalDate;
+import java.math.BigDecimal;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -44,4 +47,19 @@ public class CourseDTO {
 
     @Schema(description = "课程适用年级", example = "小学一年级,小学二年级")
     private String grade;
+
+    @Schema(description = "课程价格（大班课专用，为空表示可定制价格）", example = "299.00")
+    private BigDecimal price;
+
+    @Schema(description = "开始日期（大班课专用）", example = "2024-01-15")
+    private LocalDate startDate;
+
+    @Schema(description = "结束日期（大班课专用）", example = "2024-03-15")
+    private LocalDate endDate;
+
+    @Schema(description = "人数限制（大班课专用，为空表示不限制）", example = "30")
+    private Integer personLimit;
+
+    @Schema(description = "课程封面图URL（保存课程时确定，预览阶段不上传）")
+    private String imageUrl;
 }

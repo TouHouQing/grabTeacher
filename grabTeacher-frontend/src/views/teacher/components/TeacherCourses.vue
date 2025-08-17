@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, View, Search, Refresh } from '@element-plus/icons-vue'
-import { courseAPI, subjectAPI, gradeApi } from '@/utils/api'
+import { courseAPI, subjectAPI, gradeApi, fileAPI } from '../../../utils/api'
 
 // 课程接口定义
 interface Course {
@@ -20,6 +20,10 @@ interface Course {
   statusDisplay: string
   grade?: string
   createdAt: string
+  price?: number
+  startDate?: string
+  endDate?: string
+  personLimit?: number
 }
 
 interface Subject {
@@ -57,8 +61,42 @@ const courseForm = reactive({
   courseType: 'one_on_one',
   durationMinutes: 120,
   status: 'active',
-  grade: ''
+  grade: '',
+  price: null as number | null,
+  startDate: '',
+  endDate: '',
+  personLimit: null as number | null,
+  imageUrl: '' as string,
+  _localImageFile: null as File | null,
+  _localPreviewUrl: '' as string
 })
+
+// 选择封面图片（仅本地预览，不立即上传）
+const onSelectCover = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files && input.files[0]
+  if (!file) return
+  if (!/^image\//.test(file.type)) {
+    ElMessage.warning('请选择图片文件')
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.warning('图片大小不能超过10MB')
+    return
+  }
+  courseForm._localImageFile = file
+  const reader = new FileReader()
+  reader.onload = () => {
+    courseForm._localPreviewUrl = reader.result as string
+  }
+  reader.readAsDataURL(file)
+}
+
+// 保存时上传封面图片到 OSS，并更新 imageUrl
+const uploadCoverIfNeeded = async () => {
+  if (!courseForm._localImageFile) return null
+  return await fileAPI.presignAndPut(courseForm._localImageFile, 'course-cover')
+}
 
 // 表单验证规则
 const formRules = {
@@ -81,13 +119,79 @@ const formRules = {
       required: true,
       message: '请选择适用年级',
       trigger: 'change',
-      validator: (rule: any, value: any, callback: any) => {
+      validator: (_rule: any, _value: any, callback: any) => {
         if (selectedGrades.value.length === 0) {
           callback(new Error('请选择适用年级'))
         } else {
           callback()
         }
       }
+    }
+  ],
+  price: [
+    {
+      validator: (_rule: any, value: any, callback: any) => {
+        if (courseForm.courseType === 'large_class') {
+          if (value !== null && value !== undefined && value <= 0) {
+            callback(new Error('价格必须大于0（不填表示可定制价格）'))
+          } else {
+            callback()
+          }
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
+  ],
+  startDate: [
+    {
+      validator: (_rule: any, value: any, callback: any) => {
+        if (courseForm.courseType === 'large_class') {
+          if (!value) {
+            callback(new Error('大班课必须设置开始日期'))
+          } else {
+            callback()
+          }
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change'
+    }
+  ],
+  endDate: [
+    {
+      validator: (_rule: any, value: any, callback: any) => {
+        if (courseForm.courseType === 'large_class') {
+          if (!value) {
+            callback(new Error('大班课必须设置结束日期'))
+          } else if (courseForm.startDate && value <= courseForm.startDate) {
+            callback(new Error('结束日期必须晚于开始日期'))
+          } else {
+            callback()
+          }
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change'
+    }
+  ],
+  personLimit: [
+    {
+      validator: (_rule: any, value: any, callback: any) => {
+        if (courseForm.courseType === 'large_class') {
+          if (value !== null && value !== undefined && value <= 0) {
+            callback(new Error('人数限制必须大于0（不填表示不限制）'))
+          } else {
+            callback()
+          }
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
     }
   ]
 }
@@ -187,6 +291,10 @@ const resetForm = () => {
   courseForm.durationMinutes = 120
   courseForm.status = 'pending' // 教师创建的课程始终为待审批状态
   courseForm.grade = ''
+  courseForm.price = null
+  courseForm.startDate = ''
+  courseForm.endDate = ''
+  courseForm.personLimit = null
 
   // 清空选中的年级
   selectedGrades.value = []
@@ -210,9 +318,18 @@ const openEditDialog = (course: Course) => {
   courseForm.durationMinutes = course.durationMinutes
   courseForm.status = 'pending' // 教师编辑课程时状态重置为待审批
   courseForm.grade = course.grade || ''
+  courseForm.price = course.price || null
+  courseForm.startDate = course.startDate || ''
+  courseForm.endDate = course.endDate || ''
+  courseForm.personLimit = course.personLimit || null
 
   // 将年级字符串转换为数组
   selectedGrades.value = course.grade ? course.grade.split(',').map(g => g.trim()) : []
+
+  // 封面回显与清理本地预览
+  courseForm.imageUrl = course.imageUrl || ''
+  courseForm._localPreviewUrl = ''
+  courseForm._localImageFile = null
 
   dialogTitle.value = '编辑课程'
   isEditing.value = true
@@ -224,6 +341,17 @@ const saveCourse = async () => {
   try {
     loading.value = true
 
+    // 若选择了新封面，先上传获取 URL
+    let coverUrl: string | null = null
+    try {
+      coverUrl = await uploadCoverIfNeeded()
+    } catch (e) {
+      console.error('封面上传失败', e)
+      ElMessage.error('封面上传失败，请重试')
+      loading.value = false
+      return
+    }
+
     const courseData = {
       subjectId: courseForm.subjectId!,
       title: courseForm.title,
@@ -231,10 +359,17 @@ const saveCourse = async () => {
       courseType: courseForm.courseType,
       durationMinutes: courseForm.durationMinutes,
       status: 'pending', // 教师创建/编辑的课程始终为待审批状态
-      grade: selectedGrades.value.join(',') // 将选中的年级转换为逗号分隔的字符串
+      grade: selectedGrades.value.join(','), // 将选中的年级转换为逗号分隔的字符串
+      ...(courseForm.courseType === 'large_class' && {
+        price: courseForm.price,
+        startDate: courseForm.startDate,
+        endDate: courseForm.endDate,
+        personLimit: courseForm.personLimit
+      }),
+      ...(coverUrl ? { imageUrl: coverUrl } : {})
     }
 
-    let response
+    let response: any
     if (isEditing.value && courseForm.id) {
       response = await courseAPI.update(courseForm.id, courseData)
     } else {
@@ -419,6 +554,38 @@ onMounted(() => {
                   <span class="label">时长：</span>
                   <span class="value">{{ course.durationMinutes }}分钟</span>
                 </div>
+
+                <!-- 大班课专用信息 -->
+                <template v-if="course.courseType === 'large_class'">
+                  <div class="large-class-section">
+                    <div class="section-title">大班课信息</div>
+                    <div class="info-row">
+                      <div class="info-item">
+                        <span class="label">价格：</span>
+                        <span class="value" :class="{ 'custom-price': !course.price }">
+                          {{ course.price ? `¥${course.price}` : '可定制' }}
+                        </span>
+                      </div>
+                      <div class="info-item">
+                        <span class="label">人数限制：</span>
+                        <span class="value" :class="{ 'unlimited': !course.personLimit }">
+                          {{ course.personLimit ? `${course.personLimit}人` : '不限制' }}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="info-row">
+                      <div class="info-item">
+                        <span class="label">开课时间：</span>
+                        <span class="value">{{ course.startDate || '未设置' }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="label">结课时间：</span>
+                        <span class="value">{{ course.endDate || '未设置' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+
                 <div class="info-item">
                   <span class="label">创建时间：</span>
                   <span class="value">{{ new Date(course.createdAt).toLocaleDateString() }}</span>
@@ -475,6 +642,19 @@ onMounted(() => {
               :value="subject.id"
             />
           </el-select>
+        </el-form-item>
+
+        <!-- 课程封面（本地预览，保存时上传） -->
+        <el-form-item label="课程封面">
+          <div class="cover-upload">
+            <div class="cover-preview" v-if="courseForm._localPreviewUrl || courseForm.imageUrl">
+              <img :src="courseForm._localPreviewUrl || courseForm.imageUrl" alt="课程封面预览" />
+            </div>
+            <div class="cover-actions">
+              <input type="file" accept="image/*" @change="onSelectCover" />
+              <div class="tip">支持 jpg/png，最大10MB。</div>
+            </div>
+          </div>
         </el-form-item>
 
         <el-form-item label="适用年级" prop="grade">
@@ -539,6 +719,69 @@ onMounted(() => {
           />
           <span style="margin-left: 10px; color: #909399;">分钟</span>
         </el-form-item>
+
+        <!-- 大班课专用字段 -->
+        <template v-if="courseForm.courseType === 'large_class'">
+          <el-divider content-position="left">
+            <span style="color: #409eff; font-weight: 500;">大班课设置</span>
+          </el-divider>
+
+          <el-form-item label="课程价格" prop="price">
+            <el-input-number
+              v-model="courseForm.price"
+              :min="0"
+              :precision="2"
+              :step="10"
+              style="width: 200px"
+              placeholder="不填表示可定制价格"
+              clearable
+            />
+            <span style="margin-left: 10px; color: #909399;">元（不填表示可定制价格）</span>
+          </el-form-item>
+
+          <el-form-item label="开始日期" prop="startDate" required>
+            <el-date-picker
+              v-model="courseForm.startDate"
+              type="date"
+              placeholder="请选择开始日期"
+              style="width: 200px"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              :disabled-date="(time) => time.getTime() < Date.now() - 24 * 60 * 60 * 1000"
+            />
+            <span style="margin-left: 10px; color: #909399;">大班课必须设置开始日期</span>
+          </el-form-item>
+
+          <el-form-item label="结束日期" prop="endDate" required>
+            <el-date-picker
+              v-model="courseForm.endDate"
+              type="date"
+              placeholder="请选择结束日期"
+              style="width: 200px"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              :disabled-date="(time) => {
+                const today = Date.now() - 24 * 60 * 60 * 1000
+                const startTime = courseForm.startDate ? new Date(courseForm.startDate).getTime() : 0
+                return time.getTime() < Math.max(today, startTime)
+              }"
+            />
+            <span style="margin-left: 10px; color: #909399;">必须晚于开始日期</span>
+          </el-form-item>
+
+          <el-form-item label="人数限制" prop="personLimit">
+            <el-input-number
+              v-model="courseForm.personLimit"
+              :min="1"
+              :max="1000"
+              :step="1"
+              style="width: 200px"
+              placeholder="不填表示不限制"
+              clearable
+            />
+            <span style="margin-left: 10px; color: #909399;">人（不填表示不限制人数）</span>
+          </el-form-item>
+        </template>
 
         <!-- 教师不能选择课程状态，新增和编辑时都会自动设置为待审批状态 -->
       </el-form>
@@ -659,6 +902,12 @@ onMounted(() => {
 .course-description p {
   margin: 0;
   color: #606266;
+
+  /* 课程封面上传样式 */
+  .cover-upload { display: flex; align-items: center; gap: 12px; }
+  .cover-preview img { width: 120px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid #ebeef5; }
+  .cover-actions .tip { color: #909399; font-size: 12px; margin-top: 6px; }
+
   font-size: 14px;
   line-height: 1.5;
 }
@@ -679,5 +928,46 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+/* 大班课信息样式 */
+.large-class-section {
+  margin: 12px 0;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid #409eff;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #409eff;
+  margin-bottom: 8px;
+}
+
+.info-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 6px;
+}
+
+.info-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-row .info-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.custom-price {
+  color: #e6a23c !important;
+  font-weight: 500;
+}
+
+.unlimited {
+  color: #67c23a !important;
+  font-weight: 500;
 }
 </style>

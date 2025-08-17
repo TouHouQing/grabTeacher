@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
@@ -59,6 +61,21 @@ public class CourseVO {
 
     @Schema(description = "课程适用年级", example = "小学一年级,小学二年级")
     private String grade;
+
+    @Schema(description = "课程价格（大班课专用）", example = "299.00")
+    private BigDecimal price;
+
+    @Schema(description = "开始日期（大班课专用）", example = "2024-01-15")
+    private LocalDate startDate;
+
+    @Schema(description = "结束日期（大班课专用）", example = "2024-03-15")
+    private LocalDate endDate;
+
+    @Schema(description = "人数限制（大班课专用）", example = "30")
+    private Integer personLimit;
+
+    @Schema(description = "课程封面图URL")
+    private String imageUrl;
 
     // 辅助方法：获取课程类型显示名称
     public String getCourseTypeDisplay() {
