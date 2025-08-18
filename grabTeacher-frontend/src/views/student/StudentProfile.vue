@@ -1,8 +1,68 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useUserStore, type StudentInfo, type PasswordChangeRequest } from '../../stores/user'
 import { ElMessage } from 'element-plus'
-import { getApiBaseUrl } from '@/utils/env'
+import { getApiBaseUrl } from '../../utils/env'
+import { fileAPI } from '../../utils/api'
+import defaultAvatar from '../../assets/pictures/studentBoy2.jpeg'
+
+
+const userStore = useUserStore()
+const _localAvatarFile = ref<File | null>(null)
+const _localAvatarPreview = ref<string | null>(null)
+
+const onSelectAvatar = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files && input.files[0]
+  if (!file) {
+    _localAvatarFile.value = null
+    _localAvatarPreview.value = null
+    return
+  }
+  if (!/^image\//.test(file.type)) {
+    ElMessage.warning('请选择图片文件')
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.warning('图片大小不能超过10MB')
+    return
+  }
+  _localAvatarFile.value = file
+  // 立即预览新头像
+  _localAvatarPreview.value = URL.createObjectURL(file)
+}
+
+const saveAvatar = async () => {
+  if (!_localAvatarFile.value) return
+  try {
+    const url = await fileAPI.presignAndPut(_localAvatarFile.value, 'avatar')
+    const finalUrl = url.split('?')[0]
+    const resp = await userStore.updateStudentProfile({ avatarUrl: finalUrl } as Partial<StudentInfo>)
+    if (resp.success) {
+      // 立即更新表单中的头像URL，用于页面显示
+      studentForm.avatarUrl = finalUrl
+      // 立即刷新本地用户头像用于左上角显示
+      if (userStore.user) userStore.user.avatarUrl = finalUrl
+      ElMessage.success('头像已更新')
+      _localAvatarFile.value = null
+      // 清理预览URL
+      if (_localAvatarPreview.value) {
+        URL.revokeObjectURL(_localAvatarPreview.value)
+        _localAvatarPreview.value = null
+      }
+    } else {
+      ElMessage.error(resp.message || '头像更新失败')
+    }
+  } catch (e: any) {
+    ElMessage.error(e.message || '头像上传失败')
+  }
+}
+// 组件卸载时清理预览URL
+onUnmounted(() => {
+  if (_localAvatarPreview.value) {
+    URL.revokeObjectURL(_localAvatarPreview.value)
+  }
+})
 
 // 科目接口
 interface Subject {
@@ -16,8 +76,6 @@ interface Grade {
   gradeName: string
   description?: string
 }
-
-const userStore = useUserStore()
 
 // 学生信息表单
 const studentForm = reactive<StudentInfo>({
@@ -285,6 +343,8 @@ onMounted(async () => {
   await fetchGrades()
   await fetchStudentProfile() // 这里会自动从profile中获取科目信息
 })
+
+
 </script>
 
 <template>
@@ -293,12 +353,15 @@ onMounted(async () => {
 
     <el-tabs>
       <el-tab-pane label="基本信息">
+
+
         <div class="profile-container" v-loading="loading">
           <div class="avatar-container">
             <div class="avatar">
-              <img src="@/assets/pictures/studentBoy2.jpeg" alt="头像">
+              <img :src="_localAvatarPreview || studentForm.avatarUrl || defaultAvatar" alt="头像">
             </div>
-            <el-button size="small" type="primary">更换头像</el-button>
+            <input type="file" accept="image/*" @change="onSelectAvatar" style="margin-bottom: 8px;" />
+            <el-button size="small" type="primary" @click="saveAvatar" :disabled="!_localAvatarFile">保存头像</el-button>
           </div>
 
           <div class="form-container">

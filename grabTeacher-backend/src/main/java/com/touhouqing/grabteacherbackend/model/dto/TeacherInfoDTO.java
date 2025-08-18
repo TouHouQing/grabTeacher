@@ -31,6 +31,10 @@ public class TeacherInfoDTO {
     @Schema(description = "可上课时间安排")
     private List<TimeSlotDTO> availableTimeSlots;
 
+
+    @Schema(description = "头像URL")
+    private String avatarUrl;
+
     // 管理员添加教师时需要的账号信息
     @Schema(description = "用户名（管理员添加教师时必填）")
     private String username;

@@ -151,6 +151,7 @@ export const studentAPI = {
     preferredTeachingStyle?: string
     budgetRange?: string
     gender?: string
+    avatarUrl?: string
   }) => apiRequest('/api/admin/students', {
     method: 'POST',
     body: JSON.stringify(data)
@@ -169,6 +170,7 @@ export const studentAPI = {
     preferredTeachingStyle?: string
     budgetRange?: string
     gender?: string
+    avatarUrl?: string
   }) => apiRequest(`/api/admin/students/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)
@@ -221,6 +223,7 @@ export const teacherAPI = {
     videoIntroUrl?: string
     gender?: string
     availableTimeSlots?: any[]
+    avatarUrl?: string
   }) => apiRequest('/api/admin/teachers', {
     method: 'POST',
     body: JSON.stringify(data)

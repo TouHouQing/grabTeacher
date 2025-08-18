@@ -34,6 +34,8 @@ import com.touhouqing.grabteacherbackend.mapper.RescheduleRequestMapper;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
 import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
+import com.touhouqing.grabteacherbackend.util.AliyunOssUtil;
+
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -68,6 +70,8 @@ public class TeacherServiceImpl implements TeacherService {
 
     private final TeacherScheduleCacheService teacherScheduleCacheService;
     private final SubjectMapper subjectMapper;
+    private final AliyunOssUtil ossUtil;
+
     private final com.touhouqing.grabteacherbackend.service.CacheKeyEvictor cacheKeyEvictor;
 
     /**
@@ -183,9 +187,10 @@ public class TeacherServiceImpl implements TeacherService {
             availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
         }
 
-        // 获取用户的出生年月
+        // 获取用户的出生年月和头像
         User user = userMapper.selectById(teacher.getUserId());
         String birthDate = user != null ? user.getBirthDate() : null;
+        String avatarUrl = user != null ? user.getAvatarUrl() : null;
 
         return TeacherProfileVO.builder()
                 .id(teacher.getId())
@@ -200,6 +205,7 @@ public class TeacherServiceImpl implements TeacherService {
                 .introduction(teacher.getIntroduction())
                 .videoIntroUrl(teacher.getVideoIntroUrl())
                 .gender(teacher.getGender())
+                .avatarUrl(avatarUrl)
                 .availableTimeSlots(availableTimeSlots)
                 .verified(teacher.getVerified())
                 .deleted(teacher.getDeleted())
@@ -419,12 +425,22 @@ public class TeacherServiceImpl implements TeacherService {
             teacher.setRealName(request.getRealName());
         }
 
-        // 更新用户表中的出生年月
-        if (request.getBirthDate() != null) {
+        // 更新用户表中的出生年月/头像
+        if (request.getBirthDate() != null || request.getAvatarUrl() != null) {
             User user = userMapper.selectById(userId);
             if (user != null) {
-                user.setBirthDate(request.getBirthDate());
+                String oldAvatar = user.getAvatarUrl();
+                if (request.getBirthDate() != null) {
+                    user.setBirthDate(request.getBirthDate());
+                }
+                if (request.getAvatarUrl() != null && !request.getAvatarUrl().isEmpty()) {
+                    user.setAvatarUrl(request.getAvatarUrl());
+                }
                 userMapper.updateById(user);
+                // 删除旧头像
+                if (request.getAvatarUrl() != null && oldAvatar != null && !oldAvatar.isEmpty() && !oldAvatar.equals(request.getAvatarUrl())) {
+                    ossUtil.deleteByUrl(oldAvatar);
+                }
             }
         }
 

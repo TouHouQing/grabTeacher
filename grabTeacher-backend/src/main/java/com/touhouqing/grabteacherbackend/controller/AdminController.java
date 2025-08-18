@@ -5,6 +5,8 @@ import com.touhouqing.grabteacherbackend.model.vo.CourseVO;
 import com.touhouqing.grabteacherbackend.model.entity.User;
 import com.touhouqing.grabteacherbackend.model.entity.Student;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
+import com.touhouqing.grabteacherbackend.model.vo.AdminStudentDetailVO;
+import com.touhouqing.grabteacherbackend.model.vo.AdminTeacherDetailVO;
 import com.touhouqing.grabteacherbackend.model.dto.GradeDTO;
 import com.touhouqing.grabteacherbackend.model.dto.StudentInfoDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TeacherInfoDTO;
@@ -133,9 +135,9 @@ public class AdminController {
      */
     @Operation(summary = "获取学生详细信息", description = "根据学生ID获取详细信息")
     @GetMapping("/students/{studentId}")
-    public ResponseEntity<CommonResult<Student>> getStudentById(@PathVariable Long studentId) {
+    public ResponseEntity<CommonResult<AdminStudentDetailVO>> getStudentById(@PathVariable Long studentId) {
         try {
-            Student student = adminService.getStudentById(studentId);
+            AdminStudentDetailVO student = adminService.getStudentDetailById(studentId);
             if (student == null) {
                 return ResponseEntity.notFound().build();
             }
@@ -238,9 +240,9 @@ public class AdminController {
      */
     @Operation(summary = "获取教师详细信息", description = "根据教师ID获取详细信息")
     @GetMapping("/teachers/{teacherId}")
-    public ResponseEntity<CommonResult<Teacher>> getTeacherById(@PathVariable Long teacherId) {
+    public ResponseEntity<CommonResult<AdminTeacherDetailVO>> getTeacherById(@PathVariable Long teacherId) {
         try {
-            Teacher teacher = adminService.getTeacherById(teacherId);
+            AdminTeacherDetailVO teacher = adminService.getTeacherDetailById(teacherId);
             if (teacher == null) {
                 return ResponseEntity.notFound().build();
             }

@@ -24,6 +24,7 @@ interface Course {
   startDate?: string
   endDate?: string
   personLimit?: number
+  imageUrl?: string
 }
 
 interface Subject {

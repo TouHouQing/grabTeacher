@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, Check, Close } from '@element-plus/icons-vue'
 import { teacherAPI } from '../../../utils/api'
 import { getApiBaseUrl } from '../../../utils/env'
+import AvatarUploader from '../../../components/AvatarUploader.vue'
 import WideTimeSlotSelector from '../../../components/WideTimeSlotSelector.vue'
 
 // 时间段接口
@@ -52,7 +53,13 @@ const teacherForm = reactive({
   videoIntroUrl: '',
   gender: '不愿透露',
   isVerified: false, // 表单内部仍使用 isVerified，编辑时从 row.verified 映射
+  avatarUrl: ''
 })
+const handleTeacherAvatarUploadSuccess = (url: string) => {
+  teacherForm.avatarUrl = url
+}
+
+
 
 // 可上课时间
 const availableTimeSlots = ref<TimeSlot[]>([])
@@ -269,15 +276,29 @@ const handleAddTeacher = () => {
     gender: '不愿透露',
     isVerified: false
   })
+  // 重置头像
+  teacherForm.avatarUrl = ''
+
   availableTimeSlots.value = []
   teacherDialogVisible.value = true
 }
 
-// 编辑教师
+// 编辑教师（从后端拉取详情，保证头像等字段完整回显）
 const handleEditTeacher = async (teacher: any) => {
   teacherDialogTitle.value = '编辑教师'
-  Object.assign(teacherForm, teacher)
-  teacherForm.isVerified = !!teacher.verified
+  try {
+    const detail = await teacherAPI.getById(teacher.id)
+    if (detail.success && detail.data) {
+      Object.assign(teacherForm, detail.data)
+      teacherForm.isVerified = !!detail.data.verified
+    } else {
+      Object.assign(teacherForm, teacher)
+      teacherForm.isVerified = !!teacher.verified
+    }
+  } catch (e) {
+    Object.assign(teacherForm, teacher)
+    teacherForm.isVerified = !!teacher.verified
+  }
 
   // 获取教师的科目ID列表
   try {
@@ -324,6 +345,8 @@ const handleEditTeacher = async (teacher: any) => {
 const saveTeacher = async () => {
   try {
     loading.value = true
+    // 头像已通过 AvatarUploader 组件处理
+
     const teacherData = {
       realName: teacherForm.realName,
       username: teacherForm.username,
@@ -338,7 +361,8 @@ const saveTeacher = async () => {
       videoIntroUrl: teacherForm.videoIntroUrl,
       gender: teacherForm.gender,
       isVerified: teacherForm.isVerified,
-      availableTimeSlots: availableTimeSlots.value
+      availableTimeSlots: availableTimeSlots.value,
+      avatarUrl: teacherForm.avatarUrl
     }
 
     let result: any
@@ -636,6 +660,15 @@ onMounted(async () => {
         <el-form-item label="教育背景">
           <el-input v-model="teacherForm.educationBackground" placeholder="请输入教育背景" />
         </el-form-item>
+        <el-form-item label="头像">
+          <AvatarUploader
+            v-model="teacherForm.avatarUrl"
+            :show-upload-button="false"
+            upload-module="admin/teacher/avatar"
+            @upload-success="handleTeacherAvatarUploadSuccess"
+          />
+        </el-form-item>
+
         <el-form-item label="教学科目">
           <el-select
             v-model="teacherForm.subjectIds"

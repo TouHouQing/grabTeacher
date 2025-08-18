@@ -22,6 +22,10 @@ public class    StudentInfoDTO {
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     private String gender;
 
+
+    @Schema(description = "头像URL")
+    private String avatarUrl;
+
     // 管理员添加学生时需要的账号信息
     @Schema(description = "用户名（管理员添加学生时必填）")
     private String username;

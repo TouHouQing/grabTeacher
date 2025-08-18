@@ -1,16 +1,74 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useUserStore, type TeacherInfo, type PasswordChangeRequest } from '../../stores/user'
 import { ElMessage } from 'element-plus'
 import WideTimeSlotSelector from '../../components/WideTimeSlotSelector.vue'
+import { fileAPI } from '../../utils/api'
+import defaultAvatar from '../../assets/pictures/teacherBoy2.jpeg'
+
+const userStore = useUserStore()
+const _localAvatarFile = ref<File | null>(null)
+const _localAvatarPreview = ref<string | null>(null)
+
+const onSelectAvatar = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files && input.files[0]
+  if (!file) {
+    _localAvatarFile.value = null
+    _localAvatarPreview.value = null
+    return
+  }
+  if (!/^image\//.test(file.type)) {
+    ElMessage.warning('请选择图片文件')
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.warning('图片大小不能超过10MB')
+    return
+  }
+  _localAvatarFile.value = file
+  // 立即预览新头像
+  _localAvatarPreview.value = URL.createObjectURL(file)
+}
+
+const saveAvatar = async () => {
+  if (!_localAvatarFile.value) return
+  try {
+    const url = await fileAPI.presignAndPut(_localAvatarFile.value, 'avatar')
+    const finalUrl = url.split('?')[0]
+    // 更新教师资料中的头像（调用已有的更新接口）
+    const resp = await userStore.updateTeacherProfile({ avatarUrl: finalUrl } as Partial<TeacherInfo>)
+    if (resp.success) {
+      // 立即更新表单中的头像URL，用于页面显示
+      teacherForm.avatarUrl = finalUrl
+      // 立即刷新本地用户头像用于左上角显示
+      if (userStore.user) userStore.user.avatarUrl = finalUrl
+      ElMessage.success('头像已更新')
+      _localAvatarFile.value = null
+      // 清理预览URL
+      if (_localAvatarPreview.value) {
+        URL.revokeObjectURL(_localAvatarPreview.value)
+        _localAvatarPreview.value = null
+      }
+    } else {
+      ElMessage.error(resp.message || '头像更新失败')
+    }
+  } catch (e: any) {
+    ElMessage.error(e.message || '头像上传失败')
+  }
+}
+// 组件卸载时清理预览URL
+onUnmounted(() => {
+  if (_localAvatarPreview.value) {
+    URL.revokeObjectURL(_localAvatarPreview.value)
+  }
+})
 
 // 时间段接口
 interface TimeSlot {
   weekday: number
   timeSlots: string[]
 }
-
-const userStore = useUserStore()
 
 // 科目相关数据
 const subjects = ref<{id: number, name: string}[]>([])
@@ -224,7 +282,7 @@ const changeEmail = async () => {
   emailLoading.value = true
   try {
     // 临时使用fetch直接调用API
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/user/update-email`, {
+    const response = await fetch(`${(window as any).__GT_API_BASE_URL__ || 'http://localhost:8080'}/api/user/update-email`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -269,9 +327,10 @@ onMounted(() => {
         <div class="profile-container" v-loading="loading">
           <div class="avatar-section">
             <div class="avatar">
-              <img src="@/assets/pictures/teacherBoy2.jpeg" alt="头像">
+              <img :src="_localAvatarPreview || teacherForm.avatarUrl || defaultAvatar" alt="头像">
             </div>
-            <el-button size="small" type="primary">更换头像</el-button>
+            <input type="file" accept="image/*" @change="onSelectAvatar" style="margin-bottom: 8px;" />
+            <el-button size="small" type="primary" @click="saveAvatar" :disabled="!_localAvatarFile">保存头像</el-button>
           </div>
 
           <div class="form-section">

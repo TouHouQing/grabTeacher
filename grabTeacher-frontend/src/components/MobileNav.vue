@@ -93,8 +93,10 @@ const navItems = computed(() => [
         <div v-if="userStore.isLoggedIn" class="user-section">
           <div class="user-info">
             <div class="user-avatar">
-              <el-avatar :size="40">
-                <el-icon><User /></el-icon>
+              <el-avatar :size="40" :src="userStore.user?.avatarUrl">
+                <template v-if="!userStore.user?.avatarUrl">
+                  <el-icon><User /></el-icon>
+                </template>
               </el-avatar>
             </div>
             <div class="user-details">

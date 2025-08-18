@@ -19,6 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
+import com.touhouqing.grabteacherbackend.util.AliyunOssUtil;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,8 @@ public class StudentServiceImpl implements StudentService {
     private final BookingRequestMapper bookingRequestMapper;
     private final ScheduleMapper scheduleMapper;
     private final UserMapper userMapper;
+
+    private final AliyunOssUtil ossUtil;
 
     /**
      * 根据用户ID获取学生信息
@@ -56,9 +60,10 @@ public class StudentServiceImpl implements StudentService {
             return null;
         }
 
-        // 获取用户的出生年月
+        // 获取用户的出生年月和头像
         User user = userMapper.selectById(userId);
         String birthDate = user != null ? user.getBirthDate() : null;
+        String avatarUrl = user != null ? user.getAvatarUrl() : null;
 
         // 获取学生感兴趣的科目ID列表
         List<Long> subjectIds = studentSubjectMapper.getSubjectIdsByStudentId(student.getId());
@@ -75,6 +80,7 @@ public class StudentServiceImpl implements StudentService {
                 .preferredTeachingStyle(student.getPreferredTeachingStyle())
                 .budgetRange(student.getBudgetRange())
                 .gender(student.getGender())
+                .avatarUrl(avatarUrl)
                 .deleted(student.getDeleted())
                 .deletedAt(student.getDeletedAt())
                 .build();
@@ -96,12 +102,22 @@ public class StudentServiceImpl implements StudentService {
             student.setRealName(request.getRealName());
         }
 
-        // 更新用户表中的出生年月
-        if (request.getBirthDate() != null) {
+        // 更新用户表中的出生年月/头像
+        if (request.getBirthDate() != null || request.getAvatarUrl() != null) {
             User user = userMapper.selectById(userId);
             if (user != null) {
-                user.setBirthDate(request.getBirthDate());
+                String oldAvatar = user.getAvatarUrl();
+                if (request.getBirthDate() != null) {
+                    user.setBirthDate(request.getBirthDate());
+                }
+                if (request.getAvatarUrl() != null && !request.getAvatarUrl().isEmpty()) {
+                    user.setAvatarUrl(request.getAvatarUrl());
+                }
                 userMapper.updateById(user);
+                // 删除旧头像
+                if (request.getAvatarUrl() != null && oldAvatar != null && !oldAvatar.isEmpty() && !oldAvatar.equals(request.getAvatarUrl())) {
+                    ossUtil.deleteByUrl(oldAvatar);
+                }
             }
         }
 

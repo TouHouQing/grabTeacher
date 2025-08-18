@@ -6,6 +6,7 @@ export interface User {
   username: string
   email: string
   userType: 'student' | 'teacher' | 'admin'
+  avatarUrl?: string
   token?: string
 }
 
@@ -43,6 +44,7 @@ export interface StudentInfo {
   preferredTeachingStyle?: string
   budgetRange?: string
   gender?: string
+  avatarUrl?: string
 }
 
 export interface TeacherInfo {
@@ -59,6 +61,7 @@ export interface TeacherInfo {
   introduction?: string
   videoIntroUrl?: string
   gender?: string
+  avatarUrl?: string
   availableTimeSlots?: {
     weekday: number
     timeSlots: string[]
@@ -202,10 +205,13 @@ export const useUserStore = defineStore('user', () => {
                 username: result.data.username,
                 email: result.data.email,
                 userType: result.data.authorities?.[0]?.authority?.replace('ROLE_', '').toLowerCase() || 'student',
-                token: storedToken
+                token: storedToken,
               }
               token.value = storedToken
               isLoggedIn.value = true
+
+              // 额外拉取头像等资料，用于侧边栏回显
+              await loadUserAvatar()
             } else {
               console.log('Token验证失败，清除登录状态')
               clearUser()
@@ -232,6 +238,31 @@ export const useUserStore = defineStore('user', () => {
       console.error('初始化认证时发生错误:', error)
       // 发生错误时清除状态
       clearUser()
+    }
+  }
+
+  // 加载用户头像
+  const loadUserAvatar = async () => {
+    if (!user.value) return
+
+    try {
+      console.log('开始加载用户头像...')
+      let profileResult: ApiResponse<StudentInfo | TeacherInfo> | null = null
+
+      if (user.value.userType === 'student') {
+        profileResult = await getStudentProfile()
+      } else if (user.value.userType === 'teacher') {
+        profileResult = await getTeacherProfile()
+      }
+
+      if (profileResult?.success && profileResult.data?.avatarUrl) {
+        user.value.avatarUrl = profileResult.data.avatarUrl
+        console.log('用户头像加载成功:', profileResult.data.avatarUrl)
+      } else {
+        console.log('用户头像加载失败或无头像')
+      }
+    } catch (error) {
+      console.error('加载用户头像时发生错误:', error)
     }
   }
 
@@ -264,7 +295,11 @@ export const useUserStore = defineStore('user', () => {
         },
         body: JSON.stringify(data),
       })
-      return await response.json()
+      const result: ApiResponse<StudentInfo> = await response.json()
+      if (result.success && result.data?.avatarUrl && user.value) {
+        user.value.avatarUrl = result.data.avatarUrl
+      }
+      return result
     } catch (error) {
       console.error('更新学生信息失败:', error)
       return {
@@ -303,7 +338,11 @@ export const useUserStore = defineStore('user', () => {
         },
         body: JSON.stringify(data),
       })
-      return await response.json()
+      const result: ApiResponse<TeacherInfo> = await response.json()
+      if (result.success && result.data?.avatarUrl && user.value) {
+        user.value.avatarUrl = result.data.avatarUrl
+      }
+      return result
     } catch (error) {
       console.error('更新教师信息失败:', error)
       return {
@@ -408,6 +447,7 @@ export const useUserStore = defineStore('user', () => {
     login,
     logout,
     initializeAuth,
+    loadUserAvatar,
     getStudentProfile,
     updateStudentProfile,
     getTeacherProfile,

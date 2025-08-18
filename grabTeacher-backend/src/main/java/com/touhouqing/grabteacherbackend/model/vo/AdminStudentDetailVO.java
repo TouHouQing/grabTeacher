@@ -10,15 +10,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 学生个人信息响应DTO
- * 包含学生基本信息和用户信息
+ * 管理员端学生详情响应VO
+ * 包含学生基本信息、用户信息、科目信息等完整信息
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Schema(description = "学生个人信息响应")
-public class StudentProfileVO {
+@Schema(description = "管理员端学生详情响应")
+public class AdminStudentDetailVO {
 
     @Schema(description = "学生ID", example = "1")
     private Long id;
@@ -28,6 +28,18 @@ public class StudentProfileVO {
 
     @Schema(description = "真实姓名", example = "张同学")
     private String realName;
+
+    @Schema(description = "用户名", example = "zhangstudent")
+    private String username;
+
+    @Schema(description = "邮箱", example = "zhang@example.com")
+    private String email;
+
+    @Schema(description = "电话", example = "+65 8888 8888")
+    private String phone;
+
+    @Schema(description = "头像URL", example = "https://example.com/avatar.jpg")
+    private String avatarUrl;
 
     @Schema(description = "出生年月", example = "2005-01")
     private String birthDate;
@@ -52,10 +64,6 @@ public class StudentProfileVO {
 
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     private String gender;
-
-    @Schema(description = "头像URL")
-    private String avatarUrl;
-
 
     @Schema(description = "是否已删除", example = "false")
     private Boolean deleted;

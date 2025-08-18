@@ -127,7 +127,11 @@ const loadStatistics = async () => {
 }
 
 // 组件挂载时获取数据
-onMounted(() => {
+onMounted(async () => {
+  // 确保用户头像已加载
+  if (userStore.user && !userStore.user.avatarUrl) {
+    await userStore.loadUserAvatar()
+  }
   fetchUpcomingCourses()
   loadStatistics()
 })
@@ -140,9 +144,7 @@ onMounted(() => {
         <div class="sidebar">
           <div class="user-info">
             <div class="avatar">
-              <el-avatar :size="64">
-                <img :src="$getImageUrl('@/assets/pictures/teacherBoy2.jpeg')" alt="用户头像">
-              </el-avatar>
+              <el-avatar :size="64" :src="userStore.user?.avatarUrl || $getImageUrl('@/assets/pictures/teacherBoy2.jpeg')" />
             </div>
             <div class="info">
               <h3>{{ userStore.user?.username }}</h3>

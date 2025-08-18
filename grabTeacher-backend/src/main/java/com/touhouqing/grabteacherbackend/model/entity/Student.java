@@ -50,10 +50,14 @@ public class Student {
     @TableField("deleted_at")
     private LocalDateTime deletedAt;
 
+    // 非持久化字段：用户头像URL，用于回显
+    @TableField(exist = false)
+    private String avatarUrl;
+
     // 保留必要的构造函数
     public Student(Long userId, String realName) {
         this.userId = userId;
         this.realName = realName;
         this.deleted = false;
     }
-} 
+}

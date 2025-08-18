@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue'
 import { studentAPI, gradeApi, subjectAPI } from '../../../utils/api'
 import { getApiBaseUrl } from '../../../utils/env'
+import AvatarUploader from '../../../components/AvatarUploader.vue'
 
 // 学生列表
 const studentList = ref([])
@@ -42,8 +43,13 @@ const studentForm = reactive({
   learningGoals: '',
   preferredTeachingStyle: '',
   budgetRange: '',
-  gender: '不愿透露'
+  gender: '不愿透露',
+  avatarUrl: ''
 })
+
+const handleStudentAvatarUploadSuccess = (url: string) => {
+  studentForm.avatarUrl = url
+}
 
 // 性别选项
 const genderOptions = [
@@ -194,14 +200,26 @@ const handleAddStudent = () => {
     preferredTeachingStyle: '',
     budgetRange: '',
     gender: '不愿透露'
-  })
+})
+  // 重置头像
+  studentForm.avatarUrl = ''
+
   studentDialogVisible.value = true
 }
 
-// 编辑学生
-const handleEditStudent = (student: any) => {
+// 编辑学生（从后端拉取详情，保证头像等字段完整回显）
+const handleEditStudent = async (student: any) => {
   studentDialogTitle.value = '编辑学生'
-  Object.assign(studentForm, student)
+  try {
+    const resp = await studentAPI.getById(student.id)
+    if (resp.success && resp.data) {
+      Object.assign(studentForm, resp.data)
+    } else {
+      Object.assign(studentForm, student)
+    }
+  } catch (e) {
+    Object.assign(studentForm, student)
+  }
   studentDialogVisible.value = true
 }
 
@@ -220,7 +238,8 @@ const saveStudent = async () => {
       learningGoals: studentForm.learningGoals,
       preferredTeachingStyle: studentForm.preferredTeachingStyle,
       budgetRange: studentForm.budgetRange,
-      gender: studentForm.gender
+      gender: studentForm.gender,
+      avatarUrl: studentForm.avatarUrl
     }
 
     let result: any
@@ -437,6 +456,15 @@ onMounted(() => {
             </el-form-item>
           </el-col>
         </el-row>
+
+        <el-form-item label="头像">
+          <AvatarUploader
+            v-model="studentForm.avatarUrl"
+            :show-upload-button="false"
+            upload-module="admin/student/avatar"
+            @upload-success="handleStudentAvatarUploadSuccess"
+          />
+        </el-form-item>
 
         <!-- 基本信息 -->
         <el-row :gutter="20">

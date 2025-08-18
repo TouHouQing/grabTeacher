@@ -7,6 +7,8 @@ import com.touhouqing.grabteacherbackend.model.entity.*;
 import com.touhouqing.grabteacherbackend.model.dto.StudentInfoDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TeacherInfoDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
+import com.touhouqing.grabteacherbackend.model.vo.AdminStudentDetailVO;
+import com.touhouqing.grabteacherbackend.model.vo.AdminTeacherDetailVO;
 import com.touhouqing.grabteacherbackend.util.AliyunOssUtil;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.model.entity.Admin;
@@ -185,7 +187,44 @@ public class AdminServiceImpl implements AdminService {
         QueryWrapper<Student> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("id", studentId);
         queryWrapper.eq("is_deleted", false);
-        return studentMapper.selectOne(queryWrapper);
+        Student student = studentMapper.selectOne(queryWrapper);
+        if (student != null && student.getUserId() != null) {
+            User u = userMapper.selectById(student.getUserId());
+            if (u != null) {
+                student.setAvatarUrl(u.getAvatarUrl());
+            }
+        }
+        return student;
+    }
+    @Override
+    public AdminStudentDetailVO getStudentDetailById(Long studentId) {
+        Student student = getStudentById(studentId);
+        if (student == null) {
+            return null;
+        }
+
+        User user = userMapper.selectById(student.getUserId());
+        List<Long> subjectIds = studentSubjectMapper.getSubjectIdsByStudentId(studentId);
+
+        return AdminStudentDetailVO.builder()
+                .id(student.getId())
+                .userId(student.getUserId())
+                .realName(student.getRealName())
+                .username(user != null ? user.getUsername() : null)
+                .email(user != null ? user.getEmail() : null)
+                .phone(user != null ? user.getPhone() : null)
+                .avatarUrl(user != null ? user.getAvatarUrl() : null)
+                .birthDate(user != null ? user.getBirthDate() : null)
+                .gradeLevel(student.getGradeLevel())
+                .subjectsInterested(student.getSubjectsInterested())
+                .subjectIds(subjectIds)
+                .learningGoals(student.getLearningGoals())
+                .preferredTeachingStyle(student.getPreferredTeachingStyle())
+                .budgetRange(student.getBudgetRange())
+                .gender(student.getGender())
+                .deleted(student.getDeleted())
+                .deletedAt(student.getDeletedAt())
+                .build();
     }
 
     @Override
@@ -218,6 +257,7 @@ public class AdminServiceImpl implements AdminService {
                 .email(request.getEmail().trim())
                 .password(passwordEncoder.encode("123456")) // 默认密码
                 .phone(request.getPhone())
+                .avatarUrl(request.getAvatarUrl())
                 .userType("student")
                 .status("active")
                 .deleted(false)
@@ -266,6 +306,7 @@ public class AdminServiceImpl implements AdminService {
         if (student.getUserId() != null) {
             User currentUser = userMapper.selectById(student.getUserId());
             if (currentUser != null) {
+                String oldAvatar = currentUser.getAvatarUrl();
                 // 检查用户名是否与其他用户冲突（排除当前用户）
                 if (request.getUsername() != null && !request.getUsername().equals(currentUser.getUsername())) {
                     if (userMapper.existsByUsername(request.getUsername())) {
@@ -282,12 +323,18 @@ public class AdminServiceImpl implements AdminService {
                     currentUser.setEmail(request.getEmail());
                 }
 
-                // 更新用户表中的其他信息
+                // 更新用户表中的其他信息（含头像）
                 if (request.getPhone() != null) {
                     currentUser.setPhone(request.getPhone());
                 }
+                if (request.getAvatarUrl() != null && !request.getAvatarUrl().isEmpty()) {
+                    currentUser.setAvatarUrl(request.getAvatarUrl());
+                }
                 currentUser.setUpdatedAt(LocalDateTime.now());
                 userMapper.updateById(currentUser);
+                if (request.getAvatarUrl() != null && oldAvatar != null && !oldAvatar.isEmpty() && !oldAvatar.equals(request.getAvatarUrl())) {
+                    ossUtil.deleteByUrl(oldAvatar);
+                }
             }
         }
 
@@ -374,7 +421,60 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public Teacher getTeacherById(Long teacherId) {
-        return teacherMapper.selectById(teacherId);
+        Teacher teacher = teacherMapper.selectById(teacherId);
+        if (teacher != null && teacher.getUserId() != null) {
+            User u = userMapper.selectById(teacher.getUserId());
+            if (u != null) {
+                teacher.setAvatarUrl(u.getAvatarUrl());
+            }
+        }
+        return teacher;
+    }
+
+    @Override
+    public AdminTeacherDetailVO getTeacherDetailById(Long teacherId) {
+        Teacher teacher = getTeacherById(teacherId);
+        if (teacher == null) {
+            return null;
+        }
+
+        User user = userMapper.selectById(teacher.getUserId());
+        List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacherId);
+
+        // 解析可上课时间
+        List<TimeSlotDTO> availableTimeSlots = null;
+        if (teacher.getAvailableTimeSlots() != null) {
+            try {
+                availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
+            } catch (Exception e) {
+                log.warn("解析教师可上课时间失败: teacherId={}, error={}", teacherId, e.getMessage());
+                availableTimeSlots = null;
+            }
+        }
+
+        return AdminTeacherDetailVO.builder()
+                .id(teacher.getId())
+                .userId(teacher.getUserId())
+                .realName(teacher.getRealName())
+                .username(user != null ? user.getUsername() : null)
+                .email(user != null ? user.getEmail() : null)
+                .phone(user != null ? user.getPhone() : null)
+                .avatarUrl(user != null ? user.getAvatarUrl() : null)
+                .birthDate(user != null ? user.getBirthDate() : null)
+                .educationBackground(teacher.getEducationBackground())
+                .teachingExperience(teacher.getTeachingExperience())
+                .specialties(teacher.getSpecialties())
+                .subjectIds(subjectIds)
+                .hourlyRate(teacher.getHourlyRate())
+                .introduction(teacher.getIntroduction())
+                .videoIntroUrl(teacher.getVideoIntroUrl())
+                .gender(teacher.getGender())
+                .availableTimeSlots(availableTimeSlots)
+                .verified(teacher.getVerified())
+                .featured(teacher.getFeatured())
+                .deleted(teacher.getDeleted())
+                .deletedAt(teacher.getDeletedAt())
+                .build();
     }
 
     @Override
@@ -414,6 +514,8 @@ public class AdminServiceImpl implements AdminService {
                 .email(request.getEmail().trim())
                 .password(passwordEncoder.encode("123456")) // 默认密码
                 .phone(request.getPhone())
+                .avatarUrl(request.getAvatarUrl())
+
                 .userType("teacher")
                 .status("active")
                 .deleted(false)
@@ -512,12 +614,19 @@ public class AdminServiceImpl implements AdminService {
                     currentUser.setEmail(request.getEmail());
                 }
 
-                // 更新用户表中的其他信息
+                // 更新用户表中的其他信息（含头像）
+                String oldAvatar = currentUser.getAvatarUrl();
                 if (request.getPhone() != null) {
                     currentUser.setPhone(request.getPhone());
                 }
+                if (request.getAvatarUrl() != null && !request.getAvatarUrl().isEmpty()) {
+                    currentUser.setAvatarUrl(request.getAvatarUrl());
+                }
                 currentUser.setUpdatedAt(LocalDateTime.now());
                 userMapper.updateById(currentUser);
+                if (request.getAvatarUrl() != null && oldAvatar != null && !oldAvatar.isEmpty() && !oldAvatar.equals(request.getAvatarUrl())) {
+                    ossUtil.deleteByUrl(oldAvatar);
+                }
             }
         }
 

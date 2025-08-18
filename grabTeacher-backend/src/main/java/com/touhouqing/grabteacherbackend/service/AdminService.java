@@ -3,6 +3,8 @@ package com.touhouqing.grabteacherbackend.service;
 import com.touhouqing.grabteacherbackend.model.entity.User;
 import com.touhouqing.grabteacherbackend.model.entity.Student;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
+import com.touhouqing.grabteacherbackend.model.vo.AdminStudentDetailVO;
+import com.touhouqing.grabteacherbackend.model.vo.AdminTeacherDetailVO;
 import com.touhouqing.grabteacherbackend.model.dto.StudentInfoDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TeacherInfoDTO;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -42,6 +44,11 @@ public interface AdminService {
     Student getStudentById(Long studentId);
 
     /**
+     * 根据ID获取学生详情（管理员端）
+     */
+    AdminStudentDetailVO getStudentDetailById(Long studentId);
+
+    /**
      * 添加学生
      */
     Student addStudent(StudentInfoDTO request);
@@ -67,6 +74,11 @@ public interface AdminService {
      * 根据ID获取教师信息
      */
     Teacher getTeacherById(Long teacherId);
+
+    /**
+     * 根据ID获取教师详情（管理员端）
+     */
+    AdminTeacherDetailVO getTeacherDetailById(Long teacherId);
 
     /**
      * 添加教师

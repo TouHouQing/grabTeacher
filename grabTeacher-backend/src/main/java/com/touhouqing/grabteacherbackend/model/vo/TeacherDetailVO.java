@@ -45,7 +45,7 @@ public class TeacherDetailVO {
     
     @Schema(description = "教育背景", example = "北京大学数学系硕士")
     private String educationBackground;
-    
+
     @Schema(description = "教学经验年数", example = "5")
     private Integer teachingExperience;
     
