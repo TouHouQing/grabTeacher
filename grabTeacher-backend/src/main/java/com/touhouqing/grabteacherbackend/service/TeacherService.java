@@ -47,6 +47,11 @@ public interface TeacherService {
     List<TeacherListVO> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword);
 
     /**
+     * 统计教师总数（用于分页）
+     */
+    long countTeachers(String subject, String grade, String keyword);
+
+    /**
      * 获取精选教师列表（天下名师页面使用）
      */
     List<TeacherListVO> getFeaturedTeachers(int page, int size, String subject, String grade, String keyword);

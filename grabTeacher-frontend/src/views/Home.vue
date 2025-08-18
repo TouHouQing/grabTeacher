@@ -1,74 +1,92 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useLangStore } from '../stores/lang'
+import { courseAPI, teacherAPI } from '../utils/api'
 import ContactUs from '../components/ContactUs.vue'
 
-// 使用语言store
+// 使用语言store和路由
 const langStore = useLangStore()
+const router = useRouter()
 
-// 根据当前语言获取教师数据
-const recommendedTeachers = computed(() => {
-  if (langStore.currentLang === 'zh') {
-    return [
-      {
-        name: '张老师',
-        subject: '数学',
-        experience: 10,
-        rating: 4.8,
-        description: '数学教育专家，专注于中小学数学教学，善于激发学生学习兴趣。',
-        avatar: '@/assets/pictures/teacherBoy1.jpeg',
-        schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00']
-      },
-      {
-        name: '李老师',
-        subject: '英语',
-        experience: 8,
-        rating: 4.9,
-        description: '毕业于英国剑桥大学，拥有TESOL证书，擅长英语口语教学。',
-        avatar: '@/assets/pictures/teacherBoy2.jpeg',
-        schedule: ['周二 18:00-20:00', '周四 18:00-20:00', '周日 14:00-16:00']
-      },
-      {
-        name: '王老师',
-        subject: '物理',
-        experience: 12,
-        rating: 4.7,
-        description: '物理学博士，有丰富的教学经验，能将复杂概念简单化。',
-        avatar: '@/assets/pictures/teacherBoy3.jpeg',
-        schedule: ['周一 16:00-18:00', '周三 16:00-18:00', '周六 14:00-16:00']
+// 首页推荐教师：来自“精选课程”（courses.is_featured=1）的教师集合
+interface RecommendedTeacherItem {
+  teacherId: number
+  name: string
+  subject?: string
+  teachingExperience?: number
+  introduction?: string
+  educationBackground?: string
+  specialties?: string
+  avatarUrl?: string
+  image?: string // 课程封面图作为备用
+}
+
+const recommendedTeachers = ref<RecommendedTeacherItem[]>([])
+const marqueeList = computed(() => recommendedTeachers.value.concat(recommendedTeachers.value))
+const isMarqueeHovered = ref(false)
+
+const loadRecommendedTeachers = async () => {
+  try {
+    // 取前 12 个精选课程，去重老师，然后获取详细信息
+    const resp = await courseAPI.getPublicLatestCourses({ page: 1, size: 12 })
+    if (resp.success && resp.data && Array.isArray(resp.data.courses)) {
+      const courses = resp.data.courses as Array<any>
+      const teacherIds = new Set<number>()
+      const courseMap = new Map<number, any>()
+
+      for (const c of courses) {
+        const tid = Number(c.teacherId)
+        if (!tid || teacherIds.has(tid)) continue
+        teacherIds.add(tid)
+        courseMap.set(tid, c)
       }
-    ]
-  } else {
-    return [
-      {
-        name: 'Mr. Zhang',
-        subject: 'Mathematics',
-        experience: 10,
-        rating: 4.8,
-        description: 'Math education expert, focusing on primary and secondary school mathematics teaching, good at stimulating students\' interest in learning.',
-        avatar: '@/assets/pictures/teacherBoy1.jpeg',
-        schedule: ['Mon 18:00-20:00', 'Wed 18:00-20:00', 'Sat 10:00-12:00']
-      },
-      {
-        name: 'Mr. Li',
-        subject: 'English',
-        experience: 8,
-        rating: 4.9,
-        description: 'Graduated from Cambridge University, UK, with a TESOL certificate, specializing in English speaking teaching.',
-        avatar: '@/assets/pictures/teacherBoy2.jpeg',
-        schedule: ['Tue 18:00-20:00', 'Thu 18:00-20:00', 'Sun 14:00-16:00']
-      },
-      {
-        name: 'Mr. Wang',
-        subject: 'Physics',
-        experience: 12,
-        rating: 4.7,
-        description: 'PhD in Physics, with rich teaching experience, able to simplify complex concepts.',
-        avatar: '@/assets/pictures/teacherBoy3.jpeg',
-        schedule: ['Mon 16:00-18:00', 'Wed 16:00-18:00', 'Sat 14:00-16:00']
-      }
-    ]
+
+      // 获取教师详细信息
+      const teacherDetails = await Promise.all(
+        Array.from(teacherIds).map(async (teacherId) => {
+          try {
+            const teacherResp = await teacherAPI.getPublicList({ page: 1, size: 100 })
+            if (teacherResp.success && teacherResp.data?.records) {
+              const teacher = teacherResp.data.records.find((t: any) => t.id === teacherId)
+              if (teacher) {
+                const course = courseMap.get(teacherId)
+                return {
+                  teacherId,
+                  name: teacher.realName || '名师',
+                  subject: course?.subjectName || '',
+                  teachingExperience: teacher.teachingExperience || 0,
+                  introduction: teacher.introduction || '',
+                  educationBackground: teacher.educationBackground || '',
+                  specialties: teacher.specialties || '',
+                  avatarUrl: teacher.avatarUrl || '',
+                  image: course?.imageUrl || ''
+                }
+              }
+            }
+            return null
+          } catch (e) {
+            console.warn(`获取教师${teacherId}详情失败`, e)
+            return null
+          }
+        })
+      )
+
+      recommendedTeachers.value = teacherDetails.filter(Boolean) as RecommendedTeacherItem[]
+    }
+  } catch (e) {
+    // 安静降级：不阻塞主页渲染
+    console.warn('加载推荐教师失败', e)
   }
+}
+
+const handleTeacherClick = (teacher: RecommendedTeacherItem) => {
+  // 跳转到教师详情页面
+  router.push(`/teacher/${teacher.teacherId}`)
+}
+
+onMounted(() => {
+  loadRecommendedTeachers()
 })
 
 // 根据当前语言获取课程数据
@@ -224,28 +242,36 @@ defineOptions({
                 </div>
             </div>
 
-            <!-- 推荐教师 -->
+            <!-- 推荐教师（来自精选课程 is_featured=1），横向无缝右向左滚动 -->
             <div class="section">
                 <h2 class="section-title">{{ $t('home.sections.recommendedTeachers.title') }}</h2>
                 <div class="section-subtitle">{{ $t('home.sections.recommendedTeachers.subtitle') }}</div>
-                <div class="teachers-grid">
-                    <div class="teacher-card" v-for="(teacher, index) in recommendedTeachers" :key="index">
-                        <div class="teacher-avatar">
-                            <img :src="$getImageUrl(teacher.avatar)" :alt="teacher.name">
-                            <div class="teacher-rating">
-                                <el-rate v-model="teacher.rating" disabled text-color="#ff9900"></el-rate>
-                            </div>
-                        </div>
-                        <div class="teacher-info">
-                            <h3>{{ teacher.name }}</h3>
-                            <p>{{ teacher.subject }} | {{ teacher.experience }}{{ $t('home.sections.recommendedTeachers.experience') }}</p>
-                            <p class="teacher-description">{{ teacher.description }}</p>
-                            <div class="teacher-schedule">
-                                <span v-for="(time, i) in teacher.schedule" :key="i" class="schedule-tag">{{ time }}</span>
-                            </div>
-                            <el-button type="primary" size="small" class="booking-btn">{{ $t('home.sections.recommendedTeachers.bookingBtn') }}</el-button>
-                        </div>
+                <div class="marquee" v-if="marqueeList.length">
+                  <div
+                    class="marquee-track"
+                    :class="{ 'paused': isMarqueeHovered }"
+                    @mouseenter="isMarqueeHovered = true"
+                    @mouseleave="isMarqueeHovered = false"
+                  >
+                    <div
+                      class="marquee-item"
+                      v-for="(item, idx) in marqueeList"
+                      :key="idx"
+                      @click="handleTeacherClick(item)"
+                    >
+                      <div class="mi-avatar">
+                        <img :src="item.avatarUrl ? $getImageUrl(item.avatarUrl) : $getImageUrl('@/assets/pictures/teacherBoy1.jpeg')" :alt="item.name">
+                      </div>
+                      <div class="mi-info">
+                        <div class="mi-name">{{ item.name }}</div>
+                        <div class="mi-subject" v-if="item.subject">{{ item.subject }}</div>
+                        <div class="mi-experience" v-if="item.teachingExperience">{{ item.teachingExperience }}年教学经验</div>
+                        <div class="mi-education" v-if="item.educationBackground">{{ item.educationBackground }}</div>
+                        <div class="mi-specialties" v-if="item.specialties">{{ item.specialties }}</div>
+                        <div class="mi-intro" v-if="item.introduction">{{ item.introduction }}</div>
+                      </div>
                     </div>
+                  </div>
                 </div>
                 <div class="view-more">
                     <el-button type="primary" plain @click="$router.push('/famous-teachers')">{{ $t('home.sections.hotCourses.viewMore') }}</el-button>
@@ -341,6 +367,104 @@ body {
     color: white;
     text-align: center;
     position: relative;
+}
+
+/* 推荐教师横向滚动 */
+.marquee {
+  overflow: hidden;
+  width: 100%;
+  padding: 20px 0;
+}
+.marquee-track {
+  display: flex;
+  gap: 20px;
+  width: max-content;
+  animation: marquee-left 60s linear infinite;
+  will-change: transform;
+}
+.marquee-track.paused {
+  animation-play-state: paused;
+}
+.marquee-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  min-width: 320px;
+  max-width: 380px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+.marquee-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  border-color: #409eff;
+}
+.mi-avatar {
+  flex-shrink: 0;
+}
+.mi-avatar img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #f0f0f0;
+}
+.mi-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.mi-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: #303133;
+  margin-bottom: 4px;
+}
+.mi-subject {
+  font-size: 13px;
+  color: #409eff;
+  font-weight: 500;
+}
+.mi-experience {
+  font-size: 12px;
+  color: #67c23a;
+  font-weight: 500;
+}
+.mi-education {
+  font-size: 12px;
+  color: #606266;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mi-specialties {
+  font-size: 12px;
+  color: #e6a23c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mi-intro {
+  font-size: 11px;
+  color: #909399;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+}
+
+@keyframes marquee-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 .banner::before {

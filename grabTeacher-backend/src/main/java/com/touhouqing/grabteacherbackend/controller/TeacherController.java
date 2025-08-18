@@ -31,6 +31,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -113,7 +114,7 @@ public class TeacherController {
      * 获取教师列表（公开接口，用于学生浏览）
      */
     @GetMapping("/list")
-    public ResponseEntity<CommonResult<List<TeacherListVO>>> getTeacherList(
+    public ResponseEntity<CommonResult<Map<String, Object>>> getTeacherList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String subject,
@@ -126,7 +127,17 @@ public class TeacherController {
             String normKeyword = normalizeKeyword(keyword);
 
             List<TeacherListVO> teachers = teacherService.getTeacherListWithSubjects(page, size, normSubject, normGrade, normKeyword);
-            return ResponseEntity.ok(CommonResult.success("获取成功", teachers));
+            long total = teacherService.countTeachers(normSubject, normGrade, normKeyword);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("records", teachers);
+            data.put("total", total);
+            data.put("current", page);
+            data.put("size", size);
+            long pages = size > 0 ? (long) Math.ceil((double) total / size) : 0L;
+            data.put("pages", pages);
+
+            return ResponseEntity.ok(CommonResult.success("获取成功", data));
         } catch (Exception e) {
             logger.error("获取教师列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

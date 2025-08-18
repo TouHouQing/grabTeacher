@@ -247,6 +247,73 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     /**
+     * 统计教师总数（用于分页）
+     */
+    @Override
+    public long countTeachers(String subject, String grade, String keyword) {
+        // 如果有科目筛选，需要通过关联表查询
+        if (StringUtils.hasText(subject)) {
+            return countTeachersBySubject(subject, grade, keyword);
+        }
+
+        // 没有科目筛选时的简单统计
+        QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("is_deleted", false);
+        queryWrapper.eq("is_verified", true);
+
+        if (StringUtils.hasText(keyword)) {
+            queryWrapper.and(wrapper -> wrapper
+                    .like("real_name", keyword)
+                    .or()
+                    .like("specialties", keyword)
+                    .or()
+                    .like("introduction", keyword)
+            );
+        }
+
+        return teacherMapper.selectCount(queryWrapper);
+    }
+
+    /**
+     * 根据科目统计教师数量
+     */
+    private long countTeachersBySubject(String subject, String grade, String keyword) {
+        QueryWrapper<TeacherSubject> tsWrapper = new QueryWrapper<>();
+        tsWrapper.eq("subject_name", subject);
+
+        if (StringUtils.hasText(grade)) {
+            tsWrapper.like("grade_levels", grade);
+        }
+
+        List<TeacherSubject> teacherSubjects = teacherSubjectMapper.selectList(tsWrapper);
+        if (teacherSubjects.isEmpty()) {
+            return 0L;
+        }
+
+        List<Long> teacherIds = teacherSubjects.stream()
+                .map(TeacherSubject::getTeacherId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        QueryWrapper<Teacher> teacherWrapper = new QueryWrapper<>();
+        teacherWrapper.in("id", teacherIds);
+        teacherWrapper.eq("is_deleted", false);
+        teacherWrapper.eq("is_verified", true);
+
+        if (StringUtils.hasText(keyword)) {
+            teacherWrapper.and(wrapper -> wrapper
+                    .like("real_name", keyword)
+                    .or()
+                    .like("specialties", keyword)
+                    .or()
+                    .like("introduction", keyword)
+            );
+        }
+
+        return teacherMapper.selectCount(teacherWrapper);
+    }
+
+    /**
      * 根据科目获取教师列表
      */
     private List<Teacher> getTeacherListBySubject(int page, int size, String subject, String keyword) {

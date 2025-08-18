@@ -529,7 +529,7 @@ CREATE TABLE `teachers` (
   `photo_url` varchar(255)  DEFAULT NULL COMMENT '个人照片',
   `gender` enum('男','女','不愿透露') DEFAULT '不愿透露' COMMENT '性别：男、女、不愿透露',
   `is_verified` tinyint(1) DEFAULT '0' COMMENT '是否已认证：true-已认证，false-未认证',
-  `is_featured` tinyint(1) DEFAULT '0' COMMENT '是否为天下名师：true-是，false-否',
+  `is_featured` tinyint(1) DEFAULT '0' COMMENT '是否展示到首页：true-是，false-否',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   `available_time_slots` text COMMENT '可上课时间安排，JSON格式存储：[{"weekday":1,"timeSlots":["08:00-09:00","10:00-11:00"]},{"weekday":2,"timeSlots":["14:00-15:00"]}]，weekday: 1=周一,2=周二...7=周日',

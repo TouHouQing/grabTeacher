@@ -282,7 +282,7 @@ const fetchGrades = async () => {
   }
 }
 
-// 重置表单
+// 重置表单（包含封面预览与文件清理）
 const resetForm = () => {
   courseForm.id = null
   courseForm.subjectId = null
@@ -296,6 +296,11 @@ const resetForm = () => {
   courseForm.startDate = ''
   courseForm.endDate = ''
   courseForm.personLimit = null
+
+  // 清空封面与本地预览
+  courseForm.imageUrl = ''
+  courseForm._localPreviewUrl = ''
+  courseForm._localImageFile = null
 
   // 清空选中的年级
   selectedGrades.value = []

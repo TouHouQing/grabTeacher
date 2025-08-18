@@ -174,7 +174,7 @@ const loadTeachersWithFilter = async () => {
       params.grade = filter.grade
     }
 
-    const response = await teacherAPI.getFeaturedList(params)
+    const response = await teacherAPI.getPublicList(params)
     if (response.success && response.data) {
       const records = Array.isArray(response.data.records) ? response.data.records : []
       teachers.value = transformTeacherData(records)
@@ -249,7 +249,7 @@ const loadTeachers = async () => {
   try {
     loadingTeachers.value = true
     const requiredSize = Math.max(pageSize.value, currentPage.value * pageSize.value)
-    const response = await teacherAPI.getFeaturedList({
+    const response = await teacherAPI.getPublicList({
       page: currentPage.value,
       size: pageSize.value,
       subject: filter.subject || undefined,
