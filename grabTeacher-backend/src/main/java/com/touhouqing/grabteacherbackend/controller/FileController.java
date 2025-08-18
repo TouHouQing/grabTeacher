@@ -11,12 +11,14 @@ import com.aliyun.oss.model.CompleteMultipartUploadResult;
 import com.touhouqing.grabteacherbackend.common.result.CommonResult;
 import com.touhouqing.grabteacherbackend.config.AliyunOssProperties;
 import com.touhouqing.grabteacherbackend.util.AliyunOssUtil;
+import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -59,8 +61,10 @@ public class FileController {
     public CommonResult<String> presign(@RequestParam("module") String module,
                                         @RequestParam("filename") String filename,
                                         @RequestParam("contentType") String contentType,
-                                        @RequestParam(value = "ttlSeconds", required = false, defaultValue = "300") int ttlSeconds) {
-        String key = buildObjectKey(module, filename);
+                                        @RequestParam(value = "ttlSeconds", required = false, defaultValue = "300") int ttlSeconds,
+                                        @RequestParam(value = "targetUserId", required = false) Long targetUserId,
+                                        Authentication authentication) {
+        String key = buildObjectKey(module, filename, authentication, targetUserId);
         Date expiration = new Date(System.currentTimeMillis() + Math.max(60, ttlSeconds) * 1000L);
         GeneratePresignedUrlRequest req = new GeneratePresignedUrlRequest(props.getBucket(), key, HttpMethod.PUT);
         req.setExpiration(expiration);
@@ -74,8 +78,9 @@ public class FileController {
     @PostMapping("/multipart/init")
     @PreAuthorize("isAuthenticated()")
     public CommonResult<InitMultipartResp> initMultipart(@RequestParam("module") String module,
-                                                         @RequestParam("filename") String filename) {
-        String key = buildObjectKey(module, filename);
+                                                         @RequestParam("filename") String filename,
+                                                         Authentication authentication) {
+        String key = buildObjectKey(module, filename, authentication);
         InitiateMultipartUploadRequest request = new InitiateMultipartUploadRequest(props.getBucket(), key);
         InitiateMultipartUploadResult result = ossClient.initiateMultipartUpload(request);
         InitMultipartResp resp = new InitMultipartResp();
@@ -125,16 +130,81 @@ public class FileController {
         return CommonResult.success(null);
     }
 
-    private String buildObjectKey(String module, String filename) {
+    private String buildObjectKey(String module, String filename, Authentication authentication) {
+        return buildObjectKey(module, filename, authentication, null);
+    }
+
+    private String buildObjectKey(String module, String filename, Authentication authentication, Long targetUserId) {
         String ext = "";
         int dot = filename.lastIndexOf('.');
         if (dot >= 0) ext = filename.substring(dot);
         String uuid = UUID.randomUUID().toString().replace("-", "");
         String dirPrefix = props.getDirPrefix() != null && !props.getDirPrefix().isEmpty() ? props.getDirPrefix() : "uploads/";
+
         StringBuilder sb = new StringBuilder();
         sb.append(dirPrefix);
-        if (module != null && !module.isEmpty()) sb.append(module).append('/');
+
+        if (module != null && !module.isEmpty()) {
+            String dynamicPath = buildDynamicPath(module, authentication, targetUserId);
+            sb.append(dynamicPath);
+        }
+
         return sb.append(uuid).append(ext).toString();
+    }
+
+    private String buildDynamicPath(String module, Authentication authentication, Long targetUserId) {
+        // 获取当前用户信息
+        Long userId = null;
+        String userType = null;
+
+        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal) {
+            UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+            userId = userPrincipal.getId();
+            userType = userPrincipal.getUserType();
+        }
+
+        // 根据模块和用户类型构建路径
+        switch (module) {
+            // 课程封面：/uploads/course-cover/id/
+            case "course-cover":
+                return "course-cover/" + (userId != null ? userId : "unknown") + "/";
+
+            // 教师头像：/uploads/teacher/id/avatar/
+            case "avatar":
+                if ("teacher".equals(userType)) {
+                    return "teacher/" + (userId != null ? userId : "unknown") + "/avatar/";
+                } else if ("student".equals(userType)) {
+                    return "student/" + (userId != null ? userId : "unknown") + "/avatar/";
+                } else {
+                    return "avatar/";
+                }
+
+            // 管理员教师头像：/uploads/teacher/targetUserId/avatar/
+            case "admin/teacher/avatar":
+                Long teacherId = targetUserId != null ? targetUserId : userId;
+                return "teacher/" + (teacherId != null ? teacherId : "unknown") + "/avatar/";
+
+            // 管理员学生头像：/uploads/student/targetUserId/avatar/
+            case "admin/student/avatar":
+                Long studentId = targetUserId != null ? targetUserId : userId;
+                return "student/" + (studentId != null ? studentId : "unknown") + "/avatar/";
+
+            // 管理员头像：/uploads/admin/avatar/
+            case "admin/avatar":
+                return "admin/avatar/";
+
+            // 管理员微信二维码：/uploads/admin/wechat/
+            case "admin/qrcode":
+                return "admin/wechat/";
+
+            // 微信二维码等其他文件：根据字段区分
+            case "admin/wechat":
+                return "admin/wechat/";
+
+            // 默认保持原有逻辑
+            default:
+                return module + "/";
+        }
     }
 
     @Data

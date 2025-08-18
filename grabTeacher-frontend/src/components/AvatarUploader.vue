@@ -44,12 +44,14 @@ interface Props {
   readonly?: boolean
   showUploadButton?: boolean
   uploadModule?: string
+  immediateUpload?: boolean  // 是否立即上传，false时仅做预览
 }
 
 interface Emits {
   (e: 'update:modelValue', value: string): void
   (e: 'upload-success', url: string): void
   (e: 'upload-error', error: string): void
+  (e: 'file-selected', file: File | null): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -57,7 +59,8 @@ const props = withDefaults(defineProps<Props>(), {
   altText: '头像',
   readonly: false,
   showUploadButton: true,
-  uploadModule: 'avatar'
+  uploadModule: 'avatar',
+  immediateUpload: true
 })
 
 const emit = defineEmits<Emits>()
@@ -96,8 +99,11 @@ const handleFileSelect = (event: Event) => {
   selectedFile.value = file
   previewUrl.value = URL.createObjectURL(file)
 
-  // 如果不显示上传按钮，直接上传
-  if (!props.showUploadButton) {
+  // 通知父组件文件已选择
+  emit('file-selected', file)
+
+  // 如果不显示上传按钮且需要立即上传，直接上传
+  if (!props.showUploadButton && props.immediateUpload) {
     handleUpload()
   }
 }
@@ -133,10 +139,19 @@ const handleImageError = (event: Event) => {
 }
 
 // 清理预览URL
-watch(previewUrl, (newUrl, oldUrl) => {
+watch(previewUrl, (_newUrl: string | null, oldUrl: string | null) => {
   if (oldUrl && oldUrl.startsWith('blob:')) {
     URL.revokeObjectURL(oldUrl)
   }
+})
+
+// 当外部 modelValue 变化时，清理本地预览，避免跨记录残留
+watch(() => props.modelValue, () => {
+  if (previewUrl.value && previewUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(previewUrl.value)
+  }
+  previewUrl.value = null
+  selectedFile.value = null
 })
 </script>
 

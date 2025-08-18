@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, Check, Close } from '@element-plus/icons-vue'
-import { teacherAPI } from '../../../utils/api'
+import { teacherAPI, fileAPI } from '../../../utils/api'
 import { getApiBaseUrl } from '../../../utils/env'
 import AvatarUploader from '../../../components/AvatarUploader.vue'
 import WideTimeSlotSelector from '../../../components/WideTimeSlotSelector.vue'
@@ -55,8 +55,18 @@ const teacherForm = reactive({
   isVerified: false, // 表单内部仍使用 isVerified，编辑时从 row.verified 映射
   avatarUrl: ''
 })
-const handleTeacherAvatarUploadSuccess = (url: string) => {
-  teacherForm.avatarUrl = url
+const _teacherAvatarFile = ref<File | null>(null)
+
+const handleTeacherAvatarFileSelected = (file: File | null) => {
+  _teacherAvatarFile.value = file
+}
+
+// 上传教师头像到OSS（仅在保存时调用）
+const uploadTeacherAvatarIfNeeded = async (): Promise<string | null> => {
+  if (!_teacherAvatarFile.value) return null
+  // 传递目标教师ID，如果是新建教师则为undefined
+  const targetId = teacherForm.id !== 0 ? teacherForm.id : undefined
+  return await fileAPI.presignAndPut(_teacherAvatarFile.value, 'admin/teacher/avatar', targetId)
 }
 
 
@@ -276,8 +286,9 @@ const handleAddTeacher = () => {
     gender: '不愿透露',
     isVerified: false
   })
-  // 重置头像
+  // 重置头像与本地文件
   teacherForm.avatarUrl = ''
+  _teacherAvatarFile.value = null
 
   availableTimeSlots.value = []
   teacherDialogVisible.value = true
@@ -345,9 +356,9 @@ const handleEditTeacher = async (teacher: any) => {
 const saveTeacher = async () => {
   try {
     loading.value = true
-    // 头像已通过 AvatarUploader 组件处理
 
-    const teacherData = {
+    // 组装基础数据（不带头像）
+    const baseData = {
       realName: teacherForm.realName,
       username: teacherForm.username,
       email: teacherForm.email,
@@ -361,24 +372,46 @@ const saveTeacher = async () => {
       videoIntroUrl: teacherForm.videoIntroUrl,
       gender: teacherForm.gender,
       isVerified: teacherForm.isVerified,
-      availableTimeSlots: availableTimeSlots.value,
-      avatarUrl: teacherForm.avatarUrl
+      availableTimeSlots: availableTimeSlots.value
     }
 
     let result: any
+    let currentId = teacherForm.id
+
     if (teacherForm.id === 0) {
-      result = await teacherAPI.create(teacherData)
+      // 新建：先创建拿到ID
+      result = await teacherAPI.create(baseData)
+      if (!result.success || !result.data?.id) {
+        ElMessage.error(result.message || '创建教师失败')
+        return
+      }
+      currentId = result.data.id
+      teacherForm.id = currentId
     } else {
-      result = await teacherAPI.update(teacherForm.id, teacherData)
+      // 编辑：先更新基础资料
+      result = await teacherAPI.update(currentId, baseData)
+      if (!result.success) {
+        ElMessage.error(result.message || '更新失败')
+        return
+      }
     }
 
-    if (result.success) {
-      ElMessage.success(teacherForm.id === 0 ? '添加成功，默认密码为123456' : '更新成功')
-      teacherDialogVisible.value = false
-      await loadTeacherList()
-    } else {
-      ElMessage.error(result.message || '操作失败')
+    // 若选择了新头像：按最终ID上传并二次更新头像URL
+    if (_teacherAvatarFile.value) {
+      const uploadedAvatarUrl = await fileAPI.presignAndPut(_teacherAvatarFile.value, 'admin/teacher/avatar', currentId)
+      const updateAvatarResp = await teacherAPI.update(currentId, { realName: teacherForm.realName, avatarUrl: uploadedAvatarUrl } as any)
+      if (!updateAvatarResp.success) {
+        ElMessage.error(updateAvatarResp.message || '头像更新失败')
+        return
+      }
+      teacherForm.avatarUrl = uploadedAvatarUrl
     }
+
+    ElMessage.success(teacherForm.id === 0 ? '添加成功，默认密码为123456' : '更新成功')
+    // 清理状态
+    _teacherAvatarFile.value = null
+    teacherDialogVisible.value = false
+    await loadTeacherList()
   } catch (error: any) {
     console.error('保存教师失败:', error)
     ElMessage.error(error.message || '操作失败')
@@ -662,11 +695,16 @@ onMounted(async () => {
         </el-form-item>
         <el-form-item label="头像">
           <AvatarUploader
+            :key="teacherForm.id"
             v-model="teacherForm.avatarUrl"
             :show-upload-button="false"
+            :immediate-upload="false"
             upload-module="admin/teacher/avatar"
-            @upload-success="handleTeacherAvatarUploadSuccess"
+            @file-selected="handleTeacherAvatarFileSelected"
           />
+          <div v-if="_teacherAvatarFile" class="avatar-tip">
+            <el-text type="info" size="small">选择新头像后，点击"保存"生效</el-text>
+          </div>
         </el-form-item>
 
         <el-form-item label="教学科目">
@@ -791,5 +829,10 @@ onMounted(async () => {
     padding: 4px 8px;
     min-width: 50px;
   }
+}
+
+.avatar-tip {
+  margin-top: 8px;
+  text-align: center;
 }
 </style>

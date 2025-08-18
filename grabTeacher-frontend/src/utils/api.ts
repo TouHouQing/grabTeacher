@@ -968,13 +968,20 @@ export const jobPostAPI = {
 // 文件上传 API
 export const fileAPI = {
   // 单次直传：获取预签名URL并PUT直传
-  presignAndPut: async (file: File, module = 'course-cover') => {
+  presignAndPut: async (file: File, module = 'course-cover', targetUserId?: number) => {
     const token = localStorage.getItem('token')
-    const qs = new URLSearchParams({
+    const params: Record<string, string> = {
       module,
       filename: file.name,
       contentType: file.type || 'application/octet-stream'
-    })
+    }
+
+    // 如果提供了目标用户ID，添加到参数中
+    if (targetUserId !== undefined) {
+      params.targetUserId = targetUserId.toString()
+    }
+
+    const qs = new URLSearchParams(params)
     const presignUrl = `${API_BASE_URL}/api/file/presign?${qs}`
     const presignRes = await fetch(presignUrl, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined

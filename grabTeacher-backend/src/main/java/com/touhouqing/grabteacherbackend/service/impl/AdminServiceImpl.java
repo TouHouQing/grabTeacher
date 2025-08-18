@@ -9,6 +9,8 @@ import com.touhouqing.grabteacherbackend.model.dto.TeacherInfoDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.model.vo.AdminStudentDetailVO;
 import com.touhouqing.grabteacherbackend.model.vo.AdminTeacherDetailVO;
+import com.touhouqing.grabteacherbackend.model.vo.AdminStudentDetailVO;
+import com.touhouqing.grabteacherbackend.model.vo.AdminTeacherDetailVO;
 import com.touhouqing.grabteacherbackend.util.AliyunOssUtil;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.model.entity.Admin;

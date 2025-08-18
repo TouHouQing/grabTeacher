@@ -17,6 +17,7 @@ public class UserPrincipal implements UserDetails {
     private String username;
     private String email;
     private String password;
+    private String userType;
     private Collection<? extends GrantedAuthority> authorities;
 
     public static UserPrincipal create(User user) {
@@ -27,6 +28,7 @@ public class UserPrincipal implements UserDetails {
                 user.getUsername(),
                 user.getEmail(),
                 user.getPassword(),
+                user.getUserType(),
                 Collections.singletonList(authority)
         );
     }

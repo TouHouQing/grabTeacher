@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue'
-import { studentAPI, gradeApi, subjectAPI } from '../../../utils/api'
+import { studentAPI, gradeApi, subjectAPI, fileAPI } from '../../../utils/api'
 import { getApiBaseUrl } from '../../../utils/env'
 import AvatarUploader from '../../../components/AvatarUploader.vue'
 
@@ -47,9 +47,20 @@ const studentForm = reactive({
   avatarUrl: ''
 })
 
-const handleStudentAvatarUploadSuccess = (url: string) => {
-  studentForm.avatarUrl = url
+const _studentAvatarFile = ref<File | null>(null)
+
+const handleStudentAvatarFileSelected = (file: File | null) => {
+  _studentAvatarFile.value = file
 }
+
+// 上传学生头像到OSS（仅在保存时调用）
+const uploadStudentAvatarIfNeeded = async (): Promise<string | null> => {
+  if (!_studentAvatarFile.value) return null
+  // 传递目标学生ID，如果是新建学生则为undefined
+  const targetId = studentForm.id !== 0 ? studentForm.id : undefined
+  return await fileAPI.presignAndPut(_studentAvatarFile.value, 'admin/student/avatar', targetId)
+}
+// 移除旧的头像处理逻辑
 
 // 性别选项
 const genderOptions = [
@@ -227,7 +238,9 @@ const handleEditStudent = async (student: any) => {
 const saveStudent = async () => {
   try {
     loading.value = true
-    const studentData = {
+
+    const wasNew = studentForm.id === 0
+    const baseData = {
       realName: studentForm.realName,
       username: studentForm.username,
       email: studentForm.email,
@@ -238,24 +251,46 @@ const saveStudent = async () => {
       learningGoals: studentForm.learningGoals,
       preferredTeachingStyle: studentForm.preferredTeachingStyle,
       budgetRange: studentForm.budgetRange,
-      gender: studentForm.gender,
-      avatarUrl: studentForm.avatarUrl
+      gender: studentForm.gender
     }
 
     let result: any
-    if (studentForm.id === 0) {
-      result = await studentAPI.create(studentData)
+    let currentId = studentForm.id
+
+    if (wasNew) {
+      // 新建：先创建拿到ID
+      result = await studentAPI.create(baseData)
+      if (!result.success || !result.data?.id) {
+        ElMessage.error(result.message || '创建学生失败')
+        return
+      }
+      currentId = result.data.id
+      studentForm.id = currentId
     } else {
-      result = await studentAPI.update(studentForm.id, studentData)
+      // 编辑：先更新基础资料
+      result = await studentAPI.update(currentId, baseData)
+      if (!result.success) {
+        ElMessage.error(result.message || '更新失败')
+        return
+      }
     }
 
-    if (result.success) {
-      ElMessage.success(studentForm.id === 0 ? '添加成功，默认密码为123456' : '更新成功')
-      studentDialogVisible.value = false
-      await loadStudentList()
-    } else {
-      ElMessage.error(result.message || '操作失败')
+    // 若选择了新头像：按最终ID上传并二次更新头像URL
+    if (_studentAvatarFile.value) {
+      const uploadedAvatarUrl = await fileAPI.presignAndPut(_studentAvatarFile.value, 'admin/student/avatar', currentId)
+      const updateAvatarResp = await studentAPI.update(currentId, { avatarUrl: uploadedAvatarUrl } as any)
+      if (!updateAvatarResp.success) {
+        ElMessage.error(updateAvatarResp.message || '头像更新失败')
+        return
+      }
+      studentForm.avatarUrl = uploadedAvatarUrl
     }
+
+    ElMessage.success(wasNew ? '添加成功，默认密码为123456' : '更新成功')
+    // 清理状态
+    _studentAvatarFile.value = null
+    studentDialogVisible.value = false
+    await loadStudentList()
   } catch (error: any) {
     console.error('保存学生失败:', error)
     ElMessage.error(error.message || '操作失败')
@@ -461,9 +496,12 @@ onMounted(() => {
           <AvatarUploader
             v-model="studentForm.avatarUrl"
             :show-upload-button="false"
-            upload-module="admin/student/avatar"
-            @upload-success="handleStudentAvatarUploadSuccess"
+            :immediate-upload="false"
+            @file-selected="handleStudentAvatarFileSelected"
           />
+          <div v-if="_studentAvatarFile" class="avatar-tip">
+            <el-text type="info" size="small">选择新头像后，点击"保存"生效</el-text>
+          </div>
         </el-form-item>
 
         <!-- 基本信息 -->
@@ -614,5 +652,10 @@ onMounted(() => {
     padding: 4px 8px;
     min-width: 50px;
   }
+}
+
+.avatar-tip {
+  margin-top: 8px;
+  text-align: center;
 }
 </style>

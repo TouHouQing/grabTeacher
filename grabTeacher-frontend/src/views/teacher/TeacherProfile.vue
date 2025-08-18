@@ -15,7 +15,10 @@ const onSelectAvatar = (e: Event) => {
   const file = input.files && input.files[0]
   if (!file) {
     _localAvatarFile.value = null
-    _localAvatarPreview.value = null
+    if (_localAvatarPreview.value) {
+      URL.revokeObjectURL(_localAvatarPreview.value)
+      _localAvatarPreview.value = null
+    }
     return
   }
   if (!/^image\//.test(file.type)) {
@@ -26,36 +29,23 @@ const onSelectAvatar = (e: Event) => {
     ElMessage.warning('图片大小不能超过10MB')
     return
   }
+
+  // 清理之前的预览URL
+  if (_localAvatarPreview.value) {
+    URL.revokeObjectURL(_localAvatarPreview.value)
+  }
+
   _localAvatarFile.value = file
-  // 立即预览新头像
+  // 仅做本地预览，不上传到OSS
   _localAvatarPreview.value = URL.createObjectURL(file)
+  input.value = '' // 清空input，允许重复选择同一文件
 }
 
-const saveAvatar = async () => {
-  if (!_localAvatarFile.value) return
-  try {
-    const url = await fileAPI.presignAndPut(_localAvatarFile.value, 'avatar')
-    const finalUrl = url.split('?')[0]
-    // 更新教师资料中的头像（调用已有的更新接口）
-    const resp = await userStore.updateTeacherProfile({ avatarUrl: finalUrl } as Partial<TeacherInfo>)
-    if (resp.success) {
-      // 立即更新表单中的头像URL，用于页面显示
-      teacherForm.avatarUrl = finalUrl
-      // 立即刷新本地用户头像用于左上角显示
-      if (userStore.user) userStore.user.avatarUrl = finalUrl
-      ElMessage.success('头像已更新')
-      _localAvatarFile.value = null
-      // 清理预览URL
-      if (_localAvatarPreview.value) {
-        URL.revokeObjectURL(_localAvatarPreview.value)
-        _localAvatarPreview.value = null
-      }
-    } else {
-      ElMessage.error(resp.message || '头像更新失败')
-    }
-  } catch (e: any) {
-    ElMessage.error(e.message || '头像上传失败')
-  }
+// 上传头像到OSS（仅在保存时调用）
+const uploadAvatarIfNeeded = async (): Promise<string | null> => {
+  if (!_localAvatarFile.value) return null
+  const url = await fileAPI.presignAndPut(_localAvatarFile.value, 'avatar')
+  return url.split('?')[0] // 去掉签名参数
 }
 // 组件卸载时清理预览URL
 onUnmounted(() => {
@@ -170,6 +160,9 @@ const saveProfile = async () => {
 
   formLoading.value = true
   try {
+    // 1) 若选择了新头像，先上传至OSS，拿到最终URL
+    const uploadedAvatarUrl = await uploadAvatarIfNeeded()
+
     // 只提交教师可以修改的字段，不包括科目和收费
     const formData = {
       realName: teacherForm.realName,
@@ -180,7 +173,9 @@ const saveProfile = async () => {
       introduction: teacherForm.introduction,
       videoIntroUrl: teacherForm.videoIntroUrl,
       gender: teacherForm.gender,
-      availableTimeSlots: availableTimeSlots.value
+      availableTimeSlots: availableTimeSlots.value,
+      // 2) 如果上传了新头像，使用新URL；否则保持原有值
+      ...(uploadedAvatarUrl && { avatarUrl: uploadedAvatarUrl })
     }
 
     const response = await userStore.updateTeacherProfile(formData)
@@ -192,6 +187,17 @@ const saveProfile = async () => {
         if (response.data.subjectIds) {
           selectedSubjectIds.value = [...response.data.subjectIds]
         }
+      }
+      // 3) 保存成功后更新头像显示和清理临时文件
+      if (uploadedAvatarUrl) {
+        teacherForm.avatarUrl = uploadedAvatarUrl
+        if (userStore.user) userStore.user.avatarUrl = uploadedAvatarUrl
+      }
+      // 清理文件状态
+      _localAvatarFile.value = null
+      if (_localAvatarPreview.value) {
+        URL.revokeObjectURL(_localAvatarPreview.value)
+        _localAvatarPreview.value = null
       }
     } else {
       ElMessage.error(response.message || '保存失败')
@@ -330,7 +336,9 @@ onMounted(() => {
               <img :src="_localAvatarPreview || teacherForm.avatarUrl || defaultAvatar" alt="头像">
             </div>
             <input type="file" accept="image/*" @change="onSelectAvatar" style="margin-bottom: 8px;" />
-            <el-button size="small" type="primary" @click="saveAvatar" :disabled="!_localAvatarFile">保存头像</el-button>
+            <div v-if="_localAvatarFile" class="avatar-tip">
+              <el-text type="info" size="small">选择新头像后，点击"保存信息"生效</el-text>
+            </div>
           </div>
 
           <div class="form-section">
@@ -521,6 +529,11 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+.avatar-tip {
+  margin-top: 8px;
+  text-align: center;
 }
 
 .avatar {

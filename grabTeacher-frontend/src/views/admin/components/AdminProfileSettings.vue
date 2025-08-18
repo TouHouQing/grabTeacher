@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getApiBaseUrl } from '../../../utils/env'
-import { getPresignedPutUrl, uploadByPresignedUrl, multipartUpload } from '../../../utils/ossUpload'
+import { fileAPI } from '../../../utils/api'
 
 const apiBase = getApiBaseUrl()
 
@@ -62,17 +62,10 @@ async function onQrcodeChange(e: Event) {
 }
 
 // 保存时：若选择了新文件，则先直传到OSS，再调用后端更新资料（后端会删除旧文件）
-const PART_THRESHOLD = 5 * 1024 * 1024
 async function uploadIfNeeded(file: File | null, field: 'avatar'|'qrcode'): Promise<string | null> {
   if (!file) return null
   const module = `admin/${field}`
-  if (file.size <= PART_THRESHOLD) {
-    const url = await getPresignedPutUrl(apiBase, { module, filename: file.name, contentType: file.type || 'application/octet-stream' })
-    await uploadByPresignedUrl(url, file)
-    return url.split('?')[0]
-  } else {
-    return await multipartUpload(apiBase, file, module)
-  }
+  return await fileAPI.presignAndPut(file, module)
 }
 
 async function submit() {
