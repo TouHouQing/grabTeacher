@@ -146,12 +146,10 @@ public class TeacherController {
     }
 
     /**
-     * 获取精选教师列表（天下名师页面使用）
+     * 获取精选教师列表（不分页，供首页滚动使用）
      */
     @GetMapping("/featured")
     public ResponseEntity<?> getFeaturedTeachers(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String subject,
             @RequestParam(required = false) String grade,
             @RequestParam(required = false) String keyword) {
@@ -160,13 +158,13 @@ public class TeacherController {
             String normGrade = normalizeParam(grade);
             String normKeyword = normalizeKeyword(keyword);
 
-            // 构造缓存键（JSON 文本缓存），与分页/筛选条件绑定
+            // 统一缓存键（不分页）
             String kSubject = normSubject != null ? normSubject : "all";
             String kGrade = normGrade != null ? normGrade : "all";
             String kKeyword = normKeyword != null ? normKeyword : "all";
-            String cacheKey = String.format("featuredTeachers:json:page:%d:size:%d:subject:%s:grade:%s:keyword:%s", page, size, kSubject, kGrade, kKeyword);
+            String cacheKey = String.format("featuredTeachers:json:all:subject:%s:grade:%s:keyword:%s", kSubject, kGrade, kKeyword);
 
-            // 1) 先查本地 L1 缓存（无锁）
+            // 1) 先查本地 L1 缓存
             String json = featuredTeachersLocalCache.get(cacheKey);
             if (json != null) {
                 return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
@@ -175,13 +173,12 @@ public class TeacherController {
             // 单飞锁，避免冷启动/失效瞬间击穿
             Object lock = featuredKeyLocks.computeIfAbsent(cacheKey, k -> new Object());
             synchronized (lock) {
-                // 1.1) 双检 L1
                 json = featuredTeachersLocalCache.get(cacheKey);
                 if (json != null) {
                     return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
                 }
 
-                // 2) 查 Redis L2，异常降级
+                // 2) 查 Redis L2
                 try {
                     json = stringRedisTemplate.opsForValue().get(cacheKey);
                 } catch (Exception re) {
@@ -193,20 +190,18 @@ public class TeacherController {
                     return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
                 }
 
-                // 3) 回源：调用服务层获取列表与总数，序列化为 JSON 并写回两级缓存
-                List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(page, size, normSubject, normGrade, normKeyword);
+                // 3) 回源：获取全量精选教师（先查总数，再一次性拉取避免 LIMIT 溢出）
                 long total = teacherService.countFeaturedTeachers(normSubject, normGrade, normKeyword);
-                java.util.Map<String, Object> data = new java.util.HashMap<>();
-                data.put("records", teachers);
-                data.put("total", total);
-                data.put("current", page);
-                data.put("size", size);
-                long pages = size > 0 ? (long) Math.ceil((double) total / size) : 0L;
-                data.put("pages", pages);
-                json = objectMapper.writeValueAsString(CommonResult.success("获取成功", data));
+                List<TeacherListVO> teachers;
+                if (total > 0) {
+                    int fetchSize = total > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) total;
+                    teachers = teacherService.getFeaturedTeachers(1, fetchSize, normSubject, normGrade, normKeyword);
+                } else {
+                    teachers = new java.util.ArrayList<>();
+                }
+                json = objectMapper.writeValueAsString(CommonResult.success("获取成功", teachers));
 
                 featuredTeachersLocalCache.put(cacheKey, json);
-                // TTL 配置化（默认 20 分钟），异常忽略
                 try {
                     stringRedisTemplate.opsForValue().set(cacheKey, json, publicJsonCacheConfig.getFeaturedTeachersTtl());
                 } catch (Exception we) {

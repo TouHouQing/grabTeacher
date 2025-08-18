@@ -792,21 +792,15 @@ public class AdminServiceImpl implements AdminService {
         } catch (Exception ignore) {}
         try {
             if (stringRedisTemplate != null) {
-                // 常用页码/大小/筛选组合，避免使用 KEYS
-                int[] pages = new int[]{1,2,3};
-                int[] sizes = new int[]{6,10,12,20};
+                // 清理不分页的缓存键格式：featuredTeachers:json:all:subject:...:grade:...:keyword:...
                 String[] subjects = new String[]{"all"};
                 String[] grades = new String[]{"all"};
                 String[] keywords = new String[]{"all"};
-                for (int p : pages) {
-                    for (int s : sizes) {
-                        for (String sub : subjects) {
-                            for (String g : grades) {
-                                for (String k : keywords) {
-                                    String key = String.format("featuredTeachers:json:page:%d:size:%d:subject:%s:grade:%s:keyword:%s", p, s, sub, g, k);
-                                    stringRedisTemplate.delete(key);
-                                }
-                            }
+                for (String sub : subjects) {
+                    for (String g : grades) {
+                        for (String k : keywords) {
+                            String key = String.format("featuredTeachers:json:all:subject:%s:grade:%s:keyword:%s", sub, g, k);
+                            stringRedisTemplate.delete(key);
                         }
                     }
                 }

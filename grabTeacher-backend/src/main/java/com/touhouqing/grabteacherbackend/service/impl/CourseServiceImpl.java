@@ -668,6 +668,22 @@ public class CourseServiceImpl implements CourseService {
         return doGetFeaturedCourses(page, size, subjectId, grade);
     }
 
+    /**
+     * 获取所有精选课程列表（不分页，用于首页滚动展示）
+     */
+    @Override
+    @Cacheable(cacheNames = "allFeaturedCourses", key = "'all'", unless = "#result == null || #result.isEmpty()")
+    public List<CourseVO> getAllFeaturedCourses() {
+        QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("is_featured", true)
+                   .eq("status", "active")
+                   .eq("is_deleted", false)
+                   .orderByDesc("created_at");
+
+        List<Course> courses = courseMapper.selectList(queryWrapper);
+        return assembleCourseResponses(courses);
+    }
+
     private Page<CourseVO> doGetFeaturedCourses(int page, int size, Long subjectId, String grade) {
         Page<Course> pageParam = new Page<>(page, size);
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
@@ -786,7 +802,7 @@ public class CourseServiceImpl implements CourseService {
      * 设置课程为精选课程
      */
     @Override
-    @CacheEvict(cacheNames = {"featuredCourses", "featuredCourseIds", "courseList", "activeCourses", "teacherList"}, allEntries = true)
+    @CacheEvict(cacheNames = {"featuredCourses", "featuredCourseIds", "courseList", "activeCourses", "teacherList", "allFeaturedCourses"}, allEntries = true)
     public void setCourseAsFeatured(Long courseId, boolean featured) {
         Course course = courseMapper.selectById(courseId);
         if (course == null || course.getDeleted()) {
@@ -804,7 +820,7 @@ public class CourseServiceImpl implements CourseService {
      * 批量设置精选课程
      */
     @Override
-    @CacheEvict(cacheNames = {"featuredCourses", "featuredCourseIds", "courseList", "activeCourses", "teacherList"}, allEntries = true)
+    @CacheEvict(cacheNames = {"featuredCourses", "featuredCourseIds", "courseList", "activeCourses", "teacherList", "allFeaturedCourses"}, allEntries = true)
     public void batchSetFeaturedCourses(List<Long> courseIds, boolean featured) {
         if (courseIds == null || courseIds.isEmpty()) {
             return;

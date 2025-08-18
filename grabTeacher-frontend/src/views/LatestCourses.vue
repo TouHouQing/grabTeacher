@@ -92,7 +92,7 @@ const fetchCourses = async () => {
       params.grade = filter.grade
     }
 
-    const response = await courseAPI.getPublicLatestCourses(params)
+    const response = await courseAPI.getPublicCourses(params)
     if (response.success && response.data) {
       courses.value = response.data.courses || []
       total.value = response.data.total || 0
@@ -146,12 +146,14 @@ const resetFilter = () => {
 }
 
 // 分页变化处理
-const handlePageChange = () => {
+const handlePageChange = (page: number) => {
+  currentPage.value = page
   fetchCourses()
 }
 
 // 页面大小变化处理
-const handleSizeChange = () => {
+const handleSizeChange = (size: number) => {
+  pageSize.value = size
   currentPage.value = 1
   fetchCourses()
 }

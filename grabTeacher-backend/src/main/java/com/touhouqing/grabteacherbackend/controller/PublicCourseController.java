@@ -189,4 +189,23 @@ public class PublicCourseController {
                     .body(CommonResult.error("获取失败，请稍后重试"));
         }
     }
+
+    /**
+     * 获取所有精选课程列表（不分页，用于首页滚动展示）
+     */
+    @Operation(summary = "获取所有精选课程", description = "获取所有精选课程列表，不分页，用于首页滚动展示")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功")
+    })
+    @GetMapping("/featured")
+    public ResponseEntity<CommonResult<List<CourseVO>>> getAllFeaturedCourses() {
+        try {
+            List<CourseVO> courses = courseService.getAllFeaturedCourses();
+            return ResponseEntity.ok(CommonResult.success("获取精选课程列表成功", courses));
+        } catch (Exception e) {
+            logger.error("获取精选课程列表异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败，请稍后重试"));
+        }
+    }
 }

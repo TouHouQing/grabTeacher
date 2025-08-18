@@ -103,6 +103,12 @@ public interface CourseService {
      */
     Page<CourseVO> getFeaturedCourses(int page, int size, Long subjectId, String grade);
 
+    /**
+     * 获取所有精选课程列表（不分页，用于首页滚动展示）
+     * @return 所有精选课程列表
+     */
+    List<CourseVO> getAllFeaturedCourses();
+
     // 管理端：直查 DB 的精选课程分页
     Page<CourseVO> getFeaturedCoursesNoCache(int page, int size, Long subjectId, String grade);
 

@@ -369,21 +369,15 @@ export const teacherAPI = {
     return apiRequest(`/api/teacher/list?${searchParams}`)
   },
 
-  // 获取精选教师列表（天下名师页面使用）
-  getFeaturedList: (params: {
-    page?: number
-    size?: number
-    subject?: string
-    grade?: string
-    keyword?: string
-  }) => {
+  // 获取精选教师列表（不分页，供首页使用）
+  getFeaturedList: (params?: { subject?: string; grade?: string; keyword?: string }) => {
     const searchParams = new URLSearchParams()
-    Object.keys(params).forEach(key => {
-      if (params[key] !== undefined && params[key] !== null) {
-        searchParams.append(key, params[key].toString())
-      }
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null) searchParams.append(key, v.toString())
     })
-    return apiRequest(`/api/teacher/featured?${searchParams}`)
+    const query = searchParams.toString()
+    return apiRequest(`/api/teacher/featured${query ? `?${query}` : ''}`)
   },
 
   // 获取教师统计数据
@@ -658,6 +652,9 @@ export const courseAPI = {
 
   // 获取活跃课程列表（公开接口）
   getPublicActiveCourses: () => apiRequest('/api/public/courses/active'),
+
+  // 获取所有精选课程列表（不分页，用于首页滚动展示）
+  getAllFeaturedCourses: () => apiRequest('/api/public/courses/featured'),
 
   // 获取课程详情（公开接口）
   getPublicCourseById: (id: number) => apiRequest(`/api/public/courses/${id}`),

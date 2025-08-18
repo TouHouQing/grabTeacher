@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLangStore } from '../stores/lang'
 import { courseAPI, teacherAPI } from '../utils/api'
+import { Timer, User } from '@element-plus/icons-vue'
 import ContactUs from '../components/ContactUs.vue'
 
 // 使用语言store和路由
@@ -26,126 +27,114 @@ const recommendedTeachers = ref<RecommendedTeacherItem[]>([])
 const marqueeList = computed(() => recommendedTeachers.value.concat(recommendedTeachers.value))
 const isMarqueeHovered = ref(false)
 
-const loadRecommendedTeachers = async () => {
-  try {
-    // 取前 12 个精选课程，去重老师，然后获取详细信息
-    const resp = await courseAPI.getPublicLatestCourses({ page: 1, size: 12 })
-    if (resp.success && resp.data && Array.isArray(resp.data.courses)) {
-      const courses = resp.data.courses as Array<any>
-      const teacherIds = new Set<number>()
-      const courseMap = new Map<number, any>()
+// 动态计算滚动动画时长，基于固定速度（像素/秒）
+const teacherScrollSpeed = 25 // 每秒滚动25像素
+const teacherAnimationDuration = ref('60s') // 默认值
 
-      for (const c of courses) {
-        const tid = Number(c.teacherId)
-        if (!tid || teacherIds.has(tid)) continue
-        teacherIds.add(tid)
-        courseMap.set(tid, c)
-      }
 
-      // 获取教师详细信息
-      const teacherDetails = await Promise.all(
-        Array.from(teacherIds).map(async (teacherId) => {
-          try {
-            const teacherResp = await teacherAPI.getPublicList({ page: 1, size: 100 })
-            if (teacherResp.success && teacherResp.data?.records) {
-              const teacher = teacherResp.data.records.find((t: any) => t.id === teacherId)
-              if (teacher) {
-                const course = courseMap.get(teacherId)
-                return {
-                  teacherId,
-                  name: teacher.realName || '名师',
-                  subject: course?.subjectName || '',
-                  teachingExperience: teacher.teachingExperience || 0,
-                  introduction: teacher.introduction || '',
-                  educationBackground: teacher.educationBackground || '',
-                  specialties: teacher.specialties || '',
-                  avatarUrl: teacher.avatarUrl || '',
-                  image: course?.imageUrl || ''
-                }
-              }
-            }
-            return null
-          } catch (e) {
-            console.warn(`获取教师${teacherId}详情失败`, e)
-            return null
-          }
-        })
-      )
-
-      recommendedTeachers.value = teacherDetails.filter(Boolean) as RecommendedTeacherItem[]
-    }
-  } catch (e) {
-    // 安静降级：不阻塞主页渲染
-    console.warn('加载推荐教师失败', e)
-  }
-}
 
 const handleTeacherClick = (teacher: RecommendedTeacherItem) => {
   // 跳转到教师详情页面
-  router.push(`/teacher/${teacher.teacherId}`)
+  router.push(`/teacher-detail/${teacher.teacherId}`)
+}
+
+// 首页精选课程：来自"精选课程"（courses.is_featured=1）
+interface FeaturedCourseItem {
+  id: number
+  title: string
+  teacherName: string
+  description?: string
+  imageUrl?: string
+  subjectName?: string
+  price?: number
+  durationMinutes?: number
+  courseType?: string
+}
+
+const featuredCourses = ref<FeaturedCourseItem[]>([])
+const courseMarqueeList = computed(() => featuredCourses.value.concat(featuredCourses.value))
+const isCourseMarqueeHovered = ref(false)
+
+// 动态计算课程滚动动画时长，基于固定速度（像素/秒）
+const courseScrollSpeed = 20 // 每秒滚动20像素
+const courseAnimationDuration = ref('50s') // 默认值
+
+// 计算滚动动画时长的函数
+const calculateAnimationDuration = (itemCount: number, itemWidth: number, gap: number, speed: number) => {
+  if (itemCount === 0) return '60s'
+  // 计算总宽度：项目数量 * 项目宽度 + 间隙数量 * 间隙宽度
+  const totalWidth = itemCount * itemWidth + (itemCount - 1) * gap
+  // 计算动画时长：总宽度 / 速度
+  const duration = totalWidth / speed
+  return `${Math.max(duration, 10)}s` // 最小10秒，避免过快
+}
+
+// 更新动画时长
+const updateAnimationDurations = () => {
+  nextTick(() => {
+    // 教师卡片：假设每个卡片宽度380px，间隙20px
+    teacherAnimationDuration.value = calculateAnimationDuration(
+      recommendedTeachers.value.length, 380, 20, teacherScrollSpeed
+    )
+
+    // 课程卡片：假设每个卡片宽度320px，间隙20px
+    courseAnimationDuration.value = calculateAnimationDuration(
+      featuredCourses.value.length, 320, 20, courseScrollSpeed
+    )
+  })
+}
+
+// 共享的精选数据加载函数，课程走精选课程、教师走精选教师
+const loadFeaturedData = async () => {
+  try {
+    // 1) 课程：获取所有精选课程（不分页）
+    const respCourses = await courseAPI.getAllFeaturedCourses()
+    if (respCourses.success && Array.isArray(respCourses.data)) {
+      const courses = respCourses.data as Array<any>
+      featuredCourses.value = courses.map((course: any) => ({
+        id: course.id,
+        title: course.title || '精选课程',
+        teacherName: course.teacherName || '名师',
+        description: course.description || '',
+        imageUrl: course.imageUrl || '',
+        subjectName: course.subjectName || '',
+        price: course.price || 0,
+        durationMinutes: course.durationMinutes || 0,
+        courseType: course.courseTypeDisplay || course.courseType || ''
+      }))
+    }
+
+    // 2) 教师：获取精选教师（不分页）
+    const respTeachers = await teacherAPI.getFeaturedList()
+    if (respTeachers.success && Array.isArray(respTeachers.data)) {
+      const records = respTeachers.data
+      recommendedTeachers.value = records.map((t: any) => ({
+        teacherId: t.id,
+        name: t.realName || '名师',
+        subject: (t.subjects && t.subjects.length ? t.subjects[0] : ''),
+        teachingExperience: t.teachingExperience || 0,
+        introduction: t.introduction || '',
+        educationBackground: t.educationBackground || '',
+        specialties: t.specialties || '',
+        avatarUrl: t.avatarUrl || '',
+      }))
+    }
+
+    // 数据加载完成后更新动画时长
+    updateAnimationDurations()
+  } catch (e) {
+    // 安静降级：不阻塞主页渲染
+    console.warn('加载精选数据失败', e)
+  }
+}
+
+const handleCourseClick = (course: FeaturedCourseItem) => {
+  // 跳转到课程详情页面
+  router.push(`/course/${course.id}`)
 }
 
 onMounted(() => {
-  loadRecommendedTeachers()
-})
-
-// 根据当前语言获取课程数据
-const hotCourses = computed(() => {
-  if (langStore.currentLang === 'zh') {
-    return [
-      {
-        title: '初中数学 - 函数与导数',
-        teacher: '张老师',
-        description: '本课程深入浅出地讲解初中数学中的函数与导数知识点，适合初二、初三学生。',
-        image: '@/assets/pictures/teacherGirl1.jpeg',
-        duration: '30课时',
-        students: 1280
-      },
-      {
-        title: '小学英语 - 语法精讲',
-        teacher: '李老师',
-        description: '系统梳理小学英语语法知识，打牢语法基础，提高英语成绩。',
-        image: '@/assets/pictures/teacherGirl2.jpeg',
-        duration: '25课时',
-        students: 958
-      },
-      {
-        title: '初中物理 - 力学与电学',
-        teacher: '王老师',
-        description: '从基础概念到难点突破，全面讲解初中物理力学与电学知识。',
-        image: '@/assets/pictures/teacherGirl3.jpeg',
-        duration: '28课时',
-        students: 876
-      }
-    ]
-  } else {
-    return [
-      {
-        title: 'Middle School Math - Functions and Derivatives',
-        teacher: 'Mr. Zhang',
-        description: 'This course explains the knowledge points of functions and derivatives in middle school mathematics in a simple way, suitable for students in grades 8-9.',
-        image: '@/assets/pictures/teacherGirl1.jpeg',
-        duration: '30 lessons',
-        students: 1280
-      },
-      {
-        title: 'Primary School English - Grammar Intensive',
-        teacher: 'Mr. Li',
-        description: 'Systematically combs through primary school English grammar knowledge, lays a solid foundation in grammar, and improves English scores.',
-        image: '@/assets/pictures/teacherGirl2.jpeg',
-        duration: '25 lessons',
-        students: 958
-      },
-      {
-        title: 'Middle School Physics - Mechanics and Electricity',
-        teacher: 'Mr. Wang',
-        description: 'From basic concepts to difficult breakthroughs, comprehensive explanation of middle school physics mechanics and electricity knowledge.',
-        image: '@/assets/pictures/teacherGirl3.jpeg',
-        duration: '28 lessons',
-        students: 876
-      }
-    ]
-  }
+  loadFeaturedData()
 })
 
 // 根据当前语言获取评价数据
@@ -250,6 +239,7 @@ defineOptions({
                   <div
                     class="marquee-track"
                     :class="{ 'paused': isMarqueeHovered }"
+                    :style="{ '--animation-duration': teacherAnimationDuration }"
                     @mouseenter="isMarqueeHovered = true"
                     @mouseleave="isMarqueeHovered = false"
                   >
@@ -260,7 +250,7 @@ defineOptions({
                       @click="handleTeacherClick(item)"
                     >
                       <div class="mi-avatar">
-                        <img :src="item.avatarUrl ? $getImageUrl(item.avatarUrl) : $getImageUrl('@/assets/pictures/teacherBoy1.jpeg')" :alt="item.name">
+                        <img :src="item.avatarUrl ? $getImageUrl(item.avatarUrl) : $getImageUrl('@/assets/pictures/teacherBoy3.jpeg')" :alt="item.name">
                       </div>
                       <div class="mi-info">
                         <div class="mi-name">{{ item.name }}</div>
@@ -278,26 +268,44 @@ defineOptions({
                 </div>
             </div>
 
-            <!-- 热门课程 -->
+            <!-- 热门课程（精选课程 is_featured=1），横向无缝右向左滚动 -->
             <div class="section">
                 <h2 class="section-title">{{ $t('home.sections.hotCourses.title') }}</h2>
                 <div class="section-subtitle">{{ $t('home.sections.hotCourses.subtitle') }}</div>
-                <div class="courses-grid">
-                    <div class="course-card" v-for="(course, index) in hotCourses" :key="index">
-                        <div class="course-image">
-                            <img :src="$getImageUrl(course.image)" :alt="course.title">
+                <div class="course-marquee" v-if="courseMarqueeList.length">
+                  <div
+                    class="course-marquee-track"
+                    :class="{ 'paused': isCourseMarqueeHovered }"
+                    :style="{ '--animation-duration': courseAnimationDuration }"
+                    @mouseenter="isCourseMarqueeHovered = true"
+                    @mouseleave="isCourseMarqueeHovered = false"
+                  >
+                    <div
+                      class="course-marquee-item"
+                      v-for="(course, idx) in courseMarqueeList"
+                      :key="idx"
+                      @click="handleCourseClick(course)"
+                    >
+                      <div class="course-image">
+                        <img :src="course.imageUrl ? $getImageUrl(course.imageUrl) : $getImageUrl('@/assets/pictures/courseBackground1.jpeg')" :alt="course.title">
+                        <div class="course-price" v-if="course.price">¥{{ course.price }}</div>
+                      </div>
+                      <div class="course-info">
+                        <h3 class="course-title">{{ course.title }}</h3>
+                        <p class="course-teacher">{{ course.teacherName }}</p>
+                        <p class="course-subject" v-if="course.subjectName">{{ course.subjectName }}</p>
+                        <p class="course-description">{{ course.description }}</p>
+                        <div class="course-meta">
+                          <span v-if="course.durationMinutes">
+                            <el-icon><Timer /></el-icon> {{ Math.floor(course.durationMinutes / 60) }}小时
+                          </span>
+                          <span v-if="course.courseType">
+                            <el-icon><User /></el-icon> {{ course.courseType }}
+                          </span>
                         </div>
-                        <div class="course-info">
-                            <h3>{{ course.title }}</h3>
-                            <p class="course-teacher">{{ course.teacher }}</p>
-                            <p class="course-description">{{ course.description }}</p>
-                            <div class="course-meta">
-                                <span><el-icon><Timer /></el-icon> {{ course.duration }}</span>
-                                <span><el-icon><User /></el-icon> {{ course.students }}{{ $t('home.sections.hotCourses.students') }}</span>
-                            </div>
-                            <el-button type="primary" size="small" class="course-btn">{{ $t('home.sections.hotCourses.detailBtn') }}</el-button>
-                        </div>
+                      </div>
                     </div>
+                  </div>
                 </div>
                 <div class="view-more">
                     <el-button type="primary" plain @click="$router.push('/latest-courses')">{{ $t('home.sections.hotCourses.viewMore') }}</el-button>
@@ -379,7 +387,7 @@ body {
   display: flex;
   gap: 20px;
   width: max-content;
-  animation: marquee-left 60s linear infinite;
+  animation: marquee-left var(--animation-duration, 60s) linear infinite;
   will-change: transform;
 }
 .marquee-track.paused {
@@ -465,6 +473,119 @@ body {
 @keyframes marquee-left {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
+}
+
+/* 热门课程横向滚动 */
+.course-marquee {
+  overflow: hidden;
+  width: 100%;
+  padding: 20px 0;
+}
+.course-marquee-track {
+  display: flex;
+  gap: 20px;
+  width: max-content;
+  animation: marquee-left var(--animation-duration, 50s) linear infinite;
+  will-change: transform;
+}
+.course-marquee-track.paused {
+  animation-play-state: paused;
+}
+.course-marquee-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 280px;
+  max-width: 320px;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+.course-marquee-item:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  border-color: #409eff;
+}
+.course-marquee-item .course-image {
+  position: relative;
+  height: 160px;
+  overflow: hidden;
+}
+.course-marquee-item .course-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.course-marquee-item:hover .course-image img {
+  transform: scale(1.05);
+}
+.course-price {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(64, 158, 255, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.course-marquee-item .course-info {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.course-marquee-item .course-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.course-marquee-item .course-teacher {
+  font-size: 14px;
+  color: #409eff;
+  font-weight: 500;
+  margin: 0;
+}
+.course-marquee-item .course-subject {
+  font-size: 12px;
+  color: #67c23a;
+  font-weight: 500;
+  margin: 0;
+}
+.course-marquee-item .course-description {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.4;
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.course-marquee-item .course-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #606266;
+}
+.course-marquee-item .course-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .banner::before {
