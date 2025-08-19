@@ -130,7 +130,9 @@ import ContactUs from '../components/ContactUs.vue'
 
     </div>
     <!-- 联系我们 -->
-    <ContactUs />
+    <div id="contact-us">
+      <ContactUs />
+    </div>
   </div>
 </template>
 

@@ -349,7 +349,7 @@ onMounted(() => {
           <p>暂无符合条件的教师</p>
         </div>
         <div v-else class="teachers-grid">
-          <div class="teacher-card" v-for="teacher in displayTeachers" :key="teacher.id">
+          <div class="teacher-card" v-for="teacher in displayTeachers" :key="teacher.id" role="button" tabindex="0" @click="viewTeacherDetail(teacher.id)" @keyup.enter="viewTeacherDetail(teacher.id)">
             <div class="teacher-avatar">
               <img :src="teacher.avatar" :alt="teacher.name">
               <div class="teacher-rating">
@@ -369,10 +369,7 @@ onMounted(() => {
                   <span v-for="(time, i) in teacher.schedule" :key="i" class="schedule-tag">{{ time }}</span>
                 </div>
               </div>
-              <div class="teacher-actions">
-                <el-button type="primary" size="small">预约课程</el-button>
-                <el-button type="info" size="small" @click="viewTeacherDetail(teacher.id)">查看详情</el-button>
-              </div>
+
             </div>
           </div>
         </div>

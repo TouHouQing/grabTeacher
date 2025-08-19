@@ -276,18 +276,10 @@ onMounted(() => {
         </el-form>
       </div>
 
-      <!-- 最新课程标语 -->
-      <div class="latest-highlight">
-        <div class="highlight-content">
-          <el-icon><Refresh /></el-icon>
-          <span>以下课程均为近期更新，持续更新中...</span>
-        </div>
-      </div>
-
       <!-- 课程列表 -->
       <div class="courses-section" v-loading="loading">
         <div class="courses-grid" v-if="courses.length > 0">
-          <div class="course-card" v-for="course in courses" :key="course.id">
+          <div class="course-card" v-for="course in courses" :key="course.id" role="button" tabindex="0" @click="$router.push(`/course/${course.id}`)" @keyup.enter="$router.push(`/course/${course.id}`)">
             <div class="course-image">
               <img :src="course.imageUrl ? course.imageUrl : $getImageUrl(getDefaultCourseImage(course.subjectName))" :alt="course.title">
               <div class="course-badge new" v-if="isNewCourse(course.createdAt)">最新</div>
@@ -328,10 +320,7 @@ onMounted(() => {
                 </div>
                 <div class="course-status-text">{{ course.statusDisplay }}</div>
               </div>
-              <div class="course-actions">
-                <el-button type="primary" size="small" :disabled="course.status !== 'active'">立即报名</el-button>
-                <el-button type="info" size="small" plain>查看详情</el-button>
-              </div>
+
             </div>
           </div>
         </div>

@@ -355,7 +355,6 @@ const fetchTeacherDetail = async () => {
         contactEmail: teacherData.email || '未设置',
         achievements: ['优秀教师奖']
       }
-      ElMessage.success(`${teacher.value.name}的详情加载完成`)
     } else {
       // 如果API失败，使用默认数据
       if (teachersData[teacherId]) {
@@ -394,21 +393,12 @@ onMounted(() => {
   fetchTeacherDetail()
 })
 
-// 预约课程
+// 预约课程 - 跳转到联系我们页面
 const bookLesson = () => {
-  ElMessage.success({
-    message: `已成功预约${teacher.value.name}的课程！`,
-    duration: 3000
-  })
+  router.push({ path: '/about', hash: '#contact-us' })
 }
 
-// 联系教师
-const contactTeacher = () => {
-  ElMessage.info({
-    message: `即将打开与${teacher.value.name}的聊天窗口`,
-    duration: 2000
-  })
-}
+
 </script>
 
 <template>
@@ -469,6 +459,12 @@ const contactTeacher = () => {
                 <span>{{ teacher.contactEmail }}</span>
               </div>
             </div>
+            <div class="cta-row">
+              <el-button type="primary" size="large" @click="bookLesson">
+                <el-icon><Calendar /></el-icon>
+                点击咨询
+              </el-button>
+            </div>
           </div>
         </div>
 
@@ -508,14 +504,7 @@ const contactTeacher = () => {
           </div>
         </div>
 
-        <div class="action-buttons">
-          <el-button type="primary" @click="bookLesson" size="large">
-            <el-icon><Calendar /></el-icon> 预约课程
-          </el-button>
-          <el-button type="info" @click="contactTeacher" plain size="large">
-            <el-icon><Message /></el-icon> 联系教师
-          </el-button>
-        </div>
+
       </div>
       <div v-else class="error-container">
         <p>教师信息加载失败</p>

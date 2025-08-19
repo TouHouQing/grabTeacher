@@ -148,6 +148,11 @@ const router = createRouter({
       name: 'TeacherDetail',
       component: () => import('../views/student/TeacherDetail.vue')
     },
+    {
+      path: '/course/:id',
+      name: 'CourseDetail',
+      component: () => import('../views/student/CourseDetail.vue')
+    },
     // 兼容旧路由的重定向
     {
       path: '/student',
@@ -175,7 +180,14 @@ const router = createRouter({
       path: '/admin/user-management',
       redirect: '/admin-center/user-management'
     }
-  ]
+  ],
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) {
+      return { el: to.hash, behavior: 'smooth' }
+    }
+    return { top: 0 }
+  }
 })
 
 // 路由守卫
