@@ -240,6 +240,7 @@ onMounted(async () => { await loadOptions(); await loadList() })
 
 
     <el-table :data="list" v-loading="loading" stripe style="width: 100%">
+      <el-table-column prop="id" label="ID" width="80" align="center" />
       <el-table-column prop="title" label="标题" min-width="280" />
       <el-table-column prop="gradeNames" label="年级" min-width="200" />
       <el-table-column prop="subjectNames" label="科目" min-width="200" />

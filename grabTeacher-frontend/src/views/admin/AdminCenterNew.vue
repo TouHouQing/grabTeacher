@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useUserStore } from '../../stores/user'
-import { User, Lock, Setting, Document, DataBoard, UserFilled, Avatar, Reading } from '@element-plus/icons-vue'
+import { User, Lock, Setting, Document, DataBoard, UserFilled, Avatar, Reading, Coin } from '@element-plus/icons-vue'
 
 // 导入拆分后的组件
 import AdminDashboard from './components/AdminDashboard.vue'
@@ -17,6 +17,7 @@ import AdminBookingManagement from './components/AdminBookingManagement.vue'
 import AdminStudyAbroadCountryManagement from './components/AdminStudyAbroadCountryManagement.vue'
 import AdminStudyAbroadStageManagement from './components/AdminStudyAbroadStageManagement.vue'
 import AdminStudyAbroadProgramManagement from './components/AdminStudyAbroadProgramManagement.vue'
+import AdminBalanceTransactionManagement from './components/AdminBalanceTransactionManagement.vue'
 
 // 获取用户信息
 const userStore = useUserStore()
@@ -106,6 +107,10 @@ const handleMenuSelect = (key: string) => {
               <span>留学项目</span>
             </el-menu-item>
           </el-sub-menu>
+          <el-menu-item index="transactions">
+            <el-icon><Coin /></el-icon>
+            <span>交易明细</span>
+          </el-menu-item>
           <el-menu-item index="profile">
             <el-icon><User /></el-icon>
             <span>管理员资料</span>
@@ -173,6 +178,11 @@ const handleMenuSelect = (key: string) => {
         <!-- 留学管理：项目 -->
         <div v-if="activeMenu === 'abroad-programs'" class="content-panel">
           <AdminStudyAbroadProgramManagement />
+        </div>
+
+        <!-- 交易明细 -->
+        <div v-if="activeMenu === 'transactions'" class="content-panel">
+          <AdminBalanceTransactionManagement />
         </div>
 
         <!-- 管理员资料 -->

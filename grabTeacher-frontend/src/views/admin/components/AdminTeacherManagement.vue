@@ -548,6 +548,7 @@ onMounted(async () => {
 
     <!-- 教师表格 -->
     <el-table :data="teacherList" v-loading="loading" stripe style="width: 100%">
+      <el-table-column prop="id" label="ID" width="80" align="center" />
       <el-table-column prop="realName" label="姓名" width="120" />
       <el-table-column prop="gender" label="性别" width="80" />
       <el-table-column prop="educationBackground" label="教育背景" width="150" show-overflow-tooltip />

@@ -130,6 +130,7 @@ onMounted(loadList)
     </el-card>
 
     <el-table :data="list" v-loading="loading" stripe>
+      <el-table-column prop="id" label="ID" width="80" align="center" />
       <el-table-column prop="stageName" label="阶段名称" />
       <el-table-column prop="sortOrder" label="排序" width="100" />
       <el-table-column label="状态" width="120">

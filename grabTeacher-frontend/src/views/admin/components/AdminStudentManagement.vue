@@ -44,7 +44,8 @@ const studentForm = reactive({
   preferredTeachingStyle: '',
   budgetRange: '',
   gender: '不愿透露',
-  avatarUrl: ''
+  avatarUrl: '',
+  balance: 0.00
 })
 
 const _studentAvatarFile = ref<File | null>(null)
@@ -210,8 +211,10 @@ const handleAddStudent = () => {
     learningGoals: '',
     preferredTeachingStyle: '',
     budgetRange: '',
-    gender: '不愿透露'
-})
+    gender: '不愿透露',
+    avatarUrl: '',
+    balance: 0.00
+  })
   // 重置头像
   studentForm.avatarUrl = ''
 
@@ -251,7 +254,8 @@ const saveStudent = async () => {
       learningGoals: studentForm.learningGoals,
       preferredTeachingStyle: studentForm.preferredTeachingStyle,
       budgetRange: studentForm.budgetRange,
-      gender: studentForm.gender
+      gender: studentForm.gender,
+      balance: studentForm.balance
     }
 
     let result: any
@@ -422,6 +426,7 @@ onMounted(() => {
 
     <!-- 学生表格 -->
     <el-table :data="studentList" v-loading="loading" stripe style="width: 100%">
+      <el-table-column prop="id" label="ID" width="80" align="center" />
       <el-table-column prop="realName" label="姓名" width="120" />
       <el-table-column prop="gradeLevel" label="年级" width="100" />
       <el-table-column prop="gender" label="性别" width="80" />
@@ -429,6 +434,11 @@ onMounted(() => {
       <el-table-column prop="learningGoals" label="学习目标" min-width="200" show-overflow-tooltip />
       <el-table-column prop="preferredTeachingStyle" label="偏好教学方式" min-width="150" show-overflow-tooltip />
       <el-table-column prop="budgetRange" label="预算范围" width="120" />
+      <el-table-column label="余额" width="100" align="center">
+        <template #default="{ row }">
+          <span>{{ row.balance || 0 }}M豆</span>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="180" fixed="right" align="center">
         <template #default="{ row }">
           <div class="operation-buttons">
@@ -567,6 +577,17 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="预算范围">
           <el-input v-model="studentForm.budgetRange" placeholder="请输入预算范围" />
+        </el-form-item>
+        <el-form-item label="账户余额">
+          <el-input-number
+            v-model="studentForm.balance"
+            :min="0"
+            :precision="2"
+            :step="10"
+            style="width: 200px"
+            placeholder="请输入余额"
+          />
+          <span style="margin-left: 10px; color: #909399;">M豆</span>
         </el-form-item>
       </el-form>
       <template #footer>

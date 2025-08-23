@@ -175,6 +175,7 @@ onMounted(async () => { await loadMeta(); await loadList() })
     </el-card>
 
     <el-table :data="list" v-loading="loading" stripe>
+      <el-table-column prop="id" label="ID" width="80" align="center" />
       <el-table-column prop="title" label="标题" min-width="200" />
       <el-table-column label="国家" width="140">
         <template #default="{ row }">{{ countryMap[row.countryId] || row.countryId }}</template>

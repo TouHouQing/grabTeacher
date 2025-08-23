@@ -59,6 +59,11 @@ public interface AdminService {
     Student updateStudent(Long studentId, StudentInfoDTO request);
 
     /**
+     * 更新学生信息（包含操作员ID）
+     */
+    Student updateStudent(Long studentId, StudentInfoDTO request, Long operatorId);
+
+    /**
      * 删除学生
      */
     void deleteStudent(Long studentId);

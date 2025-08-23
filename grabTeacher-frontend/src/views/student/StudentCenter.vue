@@ -2,7 +2,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { HomeFilled, Connection, Document, Reading, User, Clock } from '@element-plus/icons-vue'
+import { HomeFilled, Connection, Document, Reading, User, Clock, Coin } from '@element-plus/icons-vue'
 import StudentCourses from './components/StudentCourses.vue'
 import { bookingAPI, studentAPI } from '../../utils/api'
 import { ElMessage } from 'element-plus'
@@ -20,6 +20,10 @@ const statistics = ref({
   completedCourses: 0
 })
 const statsLoading = ref(false)
+
+// 学生余额
+const studentBalance = ref(0)
+const balanceLoading = ref(false)
 
 // 根据当前路由设置激活菜单
 watch(() => route.path, (path: string) => {
@@ -136,6 +140,25 @@ const loadStatistics = async () => {
   }
 }
 
+// 获取学生余额
+const loadStudentBalance = async () => {
+  try {
+    balanceLoading.value = true
+    const result = await studentAPI.getProfile()
+
+    if (result.success && result.data) {
+      studentBalance.value = result.data.balance || 0
+    } else {
+      ElMessage.error(result.message || '获取余额失败')
+    }
+  } catch (error) {
+    console.error('获取余额失败:', error)
+    ElMessage.error('获取余额失败，请稍后重试')
+  } finally {
+    balanceLoading.value = false
+  }
+}
+
 // 页面加载时获取数据
 onMounted(async () => {
   // 确保用户头像已加载
@@ -144,6 +167,7 @@ onMounted(async () => {
   }
   loadUpcomingCourses()
   loadStatistics()
+  loadStudentBalance()
 })
 </script>
 
@@ -196,6 +220,15 @@ onMounted(async () => {
         <div v-if="activeMenu === 'dashboard'" class="dashboard">
           <h2>欢迎回来，{{ userStore.user?.realName }}!</h2>
           <div class="dashboard-stats">
+            <div class="stat-card">
+              <div class="stat-icon">
+                <el-icon><Coin /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ balanceLoading ? '-' : studentBalance }}</div>
+                <div class="stat-label">M豆余额</div>
+              </div>
+            </div>
             <div class="stat-card">
               <div class="stat-icon">
                 <el-icon><Reading /></el-icon>
@@ -348,31 +381,31 @@ onMounted(async () => {
 
 .dashboard-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
   margin-bottom: 30px;
 }
 
 .stat-card {
   background-color: #fff;
   border-radius: 8px;
-  padding: 20px;
+  padding: 15px;
   display: flex;
   align-items: center;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
 }
 
 .stat-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
   background-color: #ecf5ff;
   color: #409EFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  margin-right: 15px;
+  font-size: 20px;
+  margin-right: 12px;
 }
 
 .stat-info {
@@ -380,14 +413,14 @@ onMounted(async () => {
 }
 
 .stat-value {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: bold;
   color: #333;
-  margin-bottom: 5px;
+  margin-bottom: 3px;
 }
 
 .stat-label {
-  font-size: 14px;
+  font-size: 12px;
   color: #666;
 }
 
@@ -515,12 +548,12 @@ onMounted(async () => {
 
   .dashboard-stats {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 10px;
     margin-bottom: 20px;
   }
 
   .stat-card {
-    padding: 16px;
+    padding: 12px;
   }
 
   .stat-card h3 {
@@ -579,12 +612,12 @@ onMounted(async () => {
   }
 
   .dashboard-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
 
   .stat-card {
-    padding: 12px;
+    padding: 10px;
   }
 
   .el-menu-vertical .el-menu-item {

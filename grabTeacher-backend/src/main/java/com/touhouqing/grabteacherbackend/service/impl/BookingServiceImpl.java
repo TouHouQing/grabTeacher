@@ -13,6 +13,7 @@ import com.touhouqing.grabteacherbackend.service.DistributedLockService;
 import com.touhouqing.grabteacherbackend.service.TeacherCacheWarmupService;
 import com.touhouqing.grabteacherbackend.service.CacheKeyEvictor;
 import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
+import com.touhouqing.grabteacherbackend.service.StudentService;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.model.vo.ScheduleVO;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.math.BigDecimal;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -64,6 +66,9 @@ public class BookingServiceImpl implements BookingService {
 
     @Autowired
     private TeacherScheduleCacheService teacherScheduleCacheService;
+
+    @Autowired
+    private StudentService studentService;
 
     @Override
     @Transactional
@@ -109,7 +114,7 @@ public class BookingServiceImpl implements BookingService {
         // 验证预约时间
         validateBookingTime(request, student.getId(), request.getTeacherId());
 
-        // 创建预约申请
+        // 先创建预约申请获取ID
         BookingRequest bookingRequest = BookingRequest.builder()
                 .studentId(student.getId())
                 .teacherId(request.getTeacherId())
@@ -128,10 +133,37 @@ public class BookingServiceImpl implements BookingService {
                 .trialDurationMinutes(request.getTrialDurationMinutes())
                 .status("pending")
                 .build();
-
+        
         bookingRequestMapper.insert(bookingRequest);
+        log.info("预约申请创建成功，预约ID: {}", bookingRequest.getId());
 
-        log.info("预约申请创建成功，ID: {}", bookingRequest.getId());
+        // 计算预约费用并扣除余额（试听课免费）
+        BigDecimal totalCost = BigDecimal.ZERO;
+        if (!isTrial) {
+            totalCost = calculateBookingCost(request);
+            
+            // 检查余额是否足够
+            if (!studentService.checkBalance(studentUserId, totalCost)) {
+                throw new RuntimeException("余额不足，需要 " + totalCost + "M豆，请联系管理员充值");
+            }
+            
+            // 扣除余额，关联预约ID
+            boolean deductSuccess = studentService.updateStudentBalance(
+                    studentUserId, 
+                    totalCost.negate(), // 负数表示扣费
+                    "预约课程费用",
+                    bookingRequest.getId(), // 关联预约ID
+                    null // 学生自主预约，无操作员
+            );
+            
+            if (!deductSuccess) {
+                throw new RuntimeException("余额扣除失败，请稍后重试");
+            }
+            
+            log.info("已扣除学生余额，用户ID: {}, 扣除金额: {}M豆, 预约ID: {}", studentUserId, totalCost, bookingRequest.getId());
+        }
+
+        log.info("预约申请创建完成，ID: {}", bookingRequest.getId());
         return convertToBookingResponseDTO(bookingRequest);
     }
 
@@ -229,6 +261,38 @@ public class BookingServiceImpl implements BookingService {
                     log.info("试听课审核拒绝，恢复试听课使用记录，用户ID: {}", student.getUserId());
                 }
             }
+            
+            // 退回预约费用（试听课免费不需要退费）
+            if (bookingRequest.getTrial() == null || !bookingRequest.getTrial()) {
+                Student student = studentMapper.selectById(bookingRequest.getStudentId());
+                if (student != null) {
+                    try {
+                        // 重新计算费用并退回
+                        BookingApplyDTO refundRequest = createRefundRequest(bookingRequest);
+                        BigDecimal refundAmount = calculateBookingCost(refundRequest);
+                        
+                        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+                            boolean refundSuccess = studentService.updateStudentBalance(
+                                    student.getUserId(),
+                                    refundAmount, // 正数表示退费
+                                    "预约被拒绝退费，预约ID: " + bookingId,
+                                    bookingId, // 关联预约ID
+                                    null // 系统自动退费，无特定操作员
+                            );
+                            
+                            if (refundSuccess) {
+                                log.info("预约被拒绝，已退回学生余额，用户ID: {}, 退回金额: {}M豆", 
+                                        student.getUserId(), refundAmount);
+                            } else {
+                                log.error("预约被拒绝，退费失败，用户ID: {}, 应退金额: {}M豆", 
+                                        student.getUserId(), refundAmount);
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.error("预约被拒绝，退费处理失败，预约ID: {}", bookingId, e);
+                    }
+                }
+            }
         }
 
         bookingRequestMapper.updateById(bookingRequest);
@@ -261,6 +325,35 @@ public class BookingServiceImpl implements BookingService {
         if (bookingRequest.getTrial() != null && bookingRequest.getTrial()) {
             resetTrialUsage(studentUserId);
             log.info("试听课申请取消，恢复试听课使用记录，用户ID: {}", studentUserId);
+        }
+
+        // 退回预约费用（试听课免费不需要退费）
+        if (bookingRequest.getTrial() == null || !bookingRequest.getTrial()) {
+            try {
+                // 重新计算费用并退回
+                BookingApplyDTO refundRequest = createRefundRequest(bookingRequest);
+                BigDecimal refundAmount = calculateBookingCost(refundRequest);
+                
+                if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+                    boolean refundSuccess = studentService.updateStudentBalance(
+                            studentUserId,
+                            refundAmount, // 正数表示退费
+                            "学生取消预约退费，预约ID: " + bookingId,
+                            bookingId, // 关联预约ID
+                            null // 学生自主取消，无操作员
+                    );
+                    
+                    if (refundSuccess) {
+                        log.info("学生取消预约，已退回余额，用户ID: {}, 退回金额: {}M豆", 
+                                studentUserId, refundAmount);
+                    } else {
+                        log.error("学生取消预约，退费失败，用户ID: {}, 应退金额: {}M豆", 
+                                studentUserId, refundAmount);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("学生取消预约，退费处理失败，预约ID: {}", bookingId, e);
+            }
         }
 
         bookingRequest.setStatus("cancelled");
@@ -1134,5 +1227,72 @@ public class BookingServiceImpl implements BookingService {
             log.error("时间段比较失败: requested={}, available={}", requestedTimeSlot, availableTimeSlot, e);
             return false;
         }
+    }
+
+    /**
+     * 计算预约费用
+     */
+    private BigDecimal calculateBookingCost(BookingApplyDTO request) {
+        try {
+            // 获取课程信息
+            Course course = courseMapper.selectById(request.getCourseId());
+            if (course == null) {
+                throw new RuntimeException("课程信息不存在");
+            }
+
+            // 如果课程没有设置价格，返回0（表示面议）
+            if (course.getPrice() == null) {
+                log.warn("课程ID {} 没有设置价格，预约费用为0", request.getCourseId());
+                return BigDecimal.ZERO;
+            }
+
+            BigDecimal pricePerHour = course.getPrice(); // 每小时价格
+            Integer durationMinutes = course.getDurationMinutes(); // 每次课时长（分钟）
+
+            if (durationMinutes == null || durationMinutes <= 0) {
+                throw new RuntimeException("课程时长设置异常");
+            }
+
+            // 计算每次课的费用
+            BigDecimal hoursPerSession = BigDecimal.valueOf(durationMinutes).divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
+            BigDecimal pricePerSession = pricePerHour.multiply(hoursPerSession);
+
+            // 根据预约类型计算总费用
+            BigDecimal totalCost = BigDecimal.ZERO;
+            if ("single".equals(request.getBookingType())) {
+                // 单次预约
+                totalCost = pricePerSession;
+            } else if ("recurring".equals(request.getBookingType())) {
+                // 周期性预约
+                Integer totalTimes = request.getTotalTimes();
+                if (totalTimes == null || totalTimes <= 0) {
+                    throw new RuntimeException("周期性预约次数设置异常");
+                }
+                totalCost = pricePerSession.multiply(BigDecimal.valueOf(totalTimes));
+            } else {
+                throw new RuntimeException("不支持的预约类型：" + request.getBookingType());
+            }
+
+            log.info("计算预约费用: 课程ID={}, 每小时价格={}M豆, 每次课时长={}分钟, 预约次数={}, 总费用={}M豆", 
+                    request.getCourseId(), pricePerHour, durationMinutes, 
+                    "single".equals(request.getBookingType()) ? 1 : request.getTotalTimes(), 
+                    totalCost);
+
+            return totalCost;
+        } catch (Exception e) {
+            log.error("计算预约费用失败: {}", e.getMessage(), e);
+            throw new RuntimeException("计算预约费用失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 从预约记录创建退费请求对象
+     */
+    private BookingApplyDTO createRefundRequest(BookingRequest bookingRequest) {
+        BookingApplyDTO refundRequest = new BookingApplyDTO();
+        refundRequest.setCourseId(bookingRequest.getCourseId());
+        refundRequest.setBookingType(bookingRequest.getBookingType());
+        refundRequest.setTotalTimes(bookingRequest.getTotalTimes());
+        return refundRequest;
     }
 }

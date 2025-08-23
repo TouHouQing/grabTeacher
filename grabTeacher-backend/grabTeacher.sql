@@ -177,7 +177,7 @@ CREATE TABLE `courses` (
   `title` varchar(200) COLLATE utf8mb4_general_ci NOT NULL COMMENT '课程标题',
   `description` text COLLATE utf8mb4_general_ci COMMENT '课程详细描述，包括内容大纲、适合人群等',
   `course_type` enum('one_on_one','large_class') COLLATE utf8mb4_general_ci NOT NULL COMMENT '课程类型：one_on_one-一对一,large_class-大班课',
-  `price` decimal(10,2) DEFAULT NULL COMMENT '课程单价，单位：M豆，1M豆=1元',
+  `price` decimal(10,2) DEFAULT NULL COMMENT '课程单价，单位：M豆，1M豆=1元，课程价格，1对1代表每小时价格，大班课代表总课程价格',
   `start_date` date DEFAULT NULL COMMENT '课程开始时间，格式：YYYY-MM-DD',
   `end_date` date DEFAULT NULL COMMENT '课程结束时间，格式：YYYY-MM-DD',
   `person_limit` int(11) DEFAULT NULL COMMENT '最大报名人数，null表示不限制',
@@ -422,6 +422,7 @@ CREATE TABLE `students` (
   `subjects_interested` varchar(50) DEFAULT NULL COMMENT '感兴趣的科目列表如：[数学,英语,物理]',
   `learning_goals` text COMMENT '学习目标和需求描述',
   `preferred_teaching_style` varchar(100) DEFAULT NULL COMMENT '偏好的教学风格，如：严格型、温和型、互动型',
+  `balance` decimal(10,2) DEFAULT '0.00' COMMENT '学生余额，单位：M豆',
   `budget_range` varchar(50) DEFAULT NULL COMMENT '预算范围，如：100-200元/小时',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
@@ -917,3 +918,24 @@ VALUES (1004,'华文阅读写作指导','教授阅读理解与写作技巧，面
 INSERT INTO `job_post_grades` (`job_post_id`,`grade_id`) VALUES (1004,14),(1004,15);
 INSERT INTO `job_post_subjects` (`job_post_id`,`subject_id`) VALUES (1004,3),(1004,8);
 COMMIT;
+
+-- ----------------------------
+-- Table structure for balance_transactions
+-- ----------------------------
+DROP TABLE IF EXISTS `balance_transactions`;
+CREATE TABLE `balance_transactions` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '交易ID，主键自增',
+  `user_id` bigint(20) NOT NULL COMMENT '学生用户ID，关联users表',
+  `name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT '学生姓名',
+  `amount` decimal(10,2) NOT NULL COMMENT '变动金额，正数表示增加，负数表示减少',
+  `balance_before` decimal(10,2) NOT NULL COMMENT '变动前余额',
+  `balance_after` decimal(10,2) NOT NULL COMMENT '变动后余额',
+  `transaction_type` enum('RECHARGE','DEDUCT','REFUND') COLLATE utf8mb4_general_ci NOT NULL COMMENT '交易类型：RECHARGE-充值, DEDUCT-扣费, REFUND-退费',
+  `reason` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT '变动原因',
+  `booking_id` bigint(20) DEFAULT NULL COMMENT '关联的预约ID，可为空',
+  `operator_id` bigint(20) DEFAULT NULL COMMENT '操作员ID（如管理员），可为空',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_booking_id` (`booking_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='学生余额变动记录表';

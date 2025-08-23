@@ -15,7 +15,6 @@ import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.SubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.GradeMapper;
 import com.touhouqing.grabteacherbackend.service.CourseService;
-import com.touhouqing.grabteacherbackend.service.CacheWarmupService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.*;
@@ -148,11 +147,11 @@ public class CourseServiceImpl implements CourseService {
                 .status(courseStatus)
                 .deleted(false)
                 .imageUrl(request.getImageUrl())
+                .price(request.getPrice()) // 所有课程类型都可以设置价格
                 .build();
 
         // 设置大班课专用字段
         if ("large_class".equals(request.getCourseType())) {
-            course.setPrice(request.getPrice());
             course.setStartDate(request.getStartDate());
             course.setEndDate(request.getEndDate());
             course.setPersonLimit(request.getPersonLimit());
@@ -246,15 +245,16 @@ public class CourseServiceImpl implements CourseService {
             course.setImageUrl(request.getImageUrl());
         }
 
+        // 设置价格（所有课程类型都可以有价格）
+        course.setPrice(request.getPrice());
+        
         // 更新大班课专用字段
         if ("large_class".equals(request.getCourseType())) {
-            course.setPrice(request.getPrice());
             course.setStartDate(request.getStartDate());
             course.setEndDate(request.getEndDate());
             course.setPersonLimit(request.getPersonLimit());
         } else {
-            // 一对一课程清空这些字段
-            course.setPrice(null);
+            // 一对一课程清空大班课专用字段
             course.setStartDate(null);
             course.setEndDate(null);
             course.setPersonLimit(null);

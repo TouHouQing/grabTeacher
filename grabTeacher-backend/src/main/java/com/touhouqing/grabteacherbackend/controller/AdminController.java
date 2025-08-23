@@ -32,6 +32,11 @@ import java.util.List;
 import java.util.Map;
 
 import com.touhouqing.grabteacherbackend.model.dto.AdminProfileUpdateDTO;
+import com.touhouqing.grabteacherbackend.mapper.BalanceTransactionMapper;
+import com.touhouqing.grabteacherbackend.model.entity.BalanceTransaction;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.touhouqing.grabteacherbackend.security.UserPrincipal;
+import org.springframework.security.core.Authentication;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -45,6 +50,9 @@ public class AdminController {
 
     @Autowired
     private AdminService adminService;
+
+    @Autowired
+    private BalanceTransactionMapper balanceTransactionMapper;
 
     @Autowired
     private GradeService gradeService;
@@ -176,9 +184,11 @@ public class AdminController {
     @PutMapping("/students/{studentId}")
     public ResponseEntity<CommonResult<Student>> updateStudent(
             @PathVariable Long studentId,
-            @RequestBody StudentInfoDTO request) {
+            @RequestBody StudentInfoDTO request,
+            Authentication authentication) {
         try {
-            Student student = adminService.updateStudent(studentId, request);
+            UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+            Student student = adminService.updateStudent(studentId, request, userPrincipal.getId());
             return ResponseEntity.ok(CommonResult.success("更新成功", student));
         } catch (RuntimeException e) {
             logger.warn("更新学生信息失败: {}", e.getMessage());
@@ -636,6 +646,48 @@ public class AdminController {
             logger.error("批量设置精选课程异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResult.error("操作失败"));
+        }
+    }
+
+    /**
+     * 获取余额交易记录列表
+     */
+    @Operation(summary = "获取余额交易记录列表", description = "分页查询所有学生的余额变动记录")
+    @GetMapping("/balance-transactions")
+    public ResponseEntity<CommonResult<Page<BalanceTransaction>>> getBalanceTransactions(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String transactionType) {
+        try {
+            Page<BalanceTransaction> pageRequest = new Page<>(page, size);
+            QueryWrapper<BalanceTransaction> queryWrapper = new QueryWrapper<>();
+            
+            // 按创建时间倒序排列
+            queryWrapper.orderByDesc("created_at");
+            
+            // 按用户ID筛选
+            if (userId != null) {
+                queryWrapper.eq("user_id", userId);
+            }
+            
+            // 按学生姓名筛选（模糊查询）
+            if (name != null && !name.trim().isEmpty()) {
+                queryWrapper.like("name", name.trim());
+            }
+            
+            // 按交易类型筛选
+            if (transactionType != null && !transactionType.trim().isEmpty()) {
+                queryWrapper.eq("transaction_type", transactionType);
+            }
+            
+            Page<BalanceTransaction> result = balanceTransactionMapper.selectPage(pageRequest, queryWrapper);
+            return ResponseEntity.ok(CommonResult.success("获取成功", result));
+        } catch (Exception e) {
+            logger.error("获取余额交易记录异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
         }
     }
 }

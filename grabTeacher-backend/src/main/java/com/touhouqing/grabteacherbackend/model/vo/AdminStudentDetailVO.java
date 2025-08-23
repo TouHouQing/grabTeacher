@@ -8,6 +8,7 @@ import lombok.Builder;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.math.BigDecimal;
 
 /**
  * 管理员端学生详情响应VO
@@ -64,6 +65,9 @@ public class AdminStudentDetailVO {
 
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     private String gender;
+
+    @Schema(description = "学生余额，单位：M豆", example = "500.00")
+    private BigDecimal balance;
 
     @Schema(description = "是否已删除", example = "false")
     private Boolean deleted;

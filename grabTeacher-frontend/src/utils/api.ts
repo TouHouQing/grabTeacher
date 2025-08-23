@@ -182,7 +182,10 @@ export const studentAPI = {
   }),
 
   // 获取学生统计数据
-  getStatistics: () => apiRequest('/api/student/statistics')
+  getStatistics: () => apiRequest('/api/student/statistics'),
+
+  // 获取学生个人资料
+  getProfile: () => apiRequest('/api/student/profile')
 }
 
 // 教师管理 API
@@ -1004,3 +1007,22 @@ export const fileAPI = {
   }
 }
 
+// 余额交易记录 API
+export const balanceTransactionAPI = {
+  // 获取交易记录列表
+  getList: (params: {
+    page?: number
+    size?: number
+    userId?: string
+    name?: string
+    transactionType?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/admin/balance-transactions?${searchParams}`)
+  }
+}

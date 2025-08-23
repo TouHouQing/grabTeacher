@@ -9,8 +9,6 @@ import com.touhouqing.grabteacherbackend.model.dto.TeacherInfoDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.model.vo.AdminStudentDetailVO;
 import com.touhouqing.grabteacherbackend.model.vo.AdminTeacherDetailVO;
-import com.touhouqing.grabteacherbackend.model.vo.AdminStudentDetailVO;
-import com.touhouqing.grabteacherbackend.model.vo.AdminTeacherDetailVO;
 import com.touhouqing.grabteacherbackend.util.AliyunOssUtil;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import com.touhouqing.grabteacherbackend.model.entity.Admin;
@@ -18,6 +16,7 @@ import com.touhouqing.grabteacherbackend.model.entity.Admin;
 import com.touhouqing.grabteacherbackend.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import java.math.BigDecimal;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
@@ -46,6 +45,7 @@ public class AdminServiceImpl implements AdminService {
     private final BookingRequestMapper bookingRequestMapper;
     private final CourseMapper courseMapper;
     private final AdminMapper adminMapper;
+    private final BalanceTransactionMapper balanceTransactionMapper;
     private final AliyunOssUtil ossUtil;
     private final StringRedisTemplate stringRedisTemplate;
     private final FeaturedTeachersLocalCache featuredTeachersLocalCache;
@@ -224,6 +224,7 @@ public class AdminServiceImpl implements AdminService {
                 .preferredTeachingStyle(student.getPreferredTeachingStyle())
                 .budgetRange(student.getBudgetRange())
                 .gender(student.getGender())
+                .balance(student.getBalance())
                 .deleted(student.getDeleted())
                 .deletedAt(student.getDeletedAt())
                 .build();
@@ -279,6 +280,7 @@ public class AdminServiceImpl implements AdminService {
                 .preferredTeachingStyle(request.getPreferredTeachingStyle())
                 .budgetRange(request.getBudgetRange())
                 .gender(request.getGender() != null ? request.getGender() : "不愿透露")
+                .balance(request.getBalance() != null ? request.getBalance() : BigDecimal.ZERO)
                 .build();
 
         studentMapper.insert(student);
@@ -299,6 +301,12 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public Student updateStudent(Long studentId, StudentInfoDTO request) {
+        return updateStudent(studentId, request, null);
+    }
+
+    @Override
+    @Transactional
+    public Student updateStudent(Long studentId, StudentInfoDTO request, Long operatorId) {
         Student student = studentMapper.selectById(studentId);
         if (student == null) {
             throw new RuntimeException("学生不存在");
@@ -341,6 +349,8 @@ public class AdminServiceImpl implements AdminService {
         }
 
         // 更新学生信息
+        BigDecimal oldBalance = student.getBalance();
+        
         student.setRealName(request.getRealName());
         student.setGradeLevel(request.getGradeLevel());
         student.setSubjectsInterested(request.getSubjectsInterested());
@@ -348,6 +358,29 @@ public class AdminServiceImpl implements AdminService {
         student.setPreferredTeachingStyle(request.getPreferredTeachingStyle());
         student.setBudgetRange(request.getBudgetRange());
         student.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
+
+        // 管理员可以更新余额
+        if (request.getBalance() != null && !request.getBalance().equals(oldBalance)) {
+            student.setBalance(request.getBalance());
+            
+            // 记录余额变动
+            BigDecimal amountChange = request.getBalance().subtract(oldBalance);
+            BalanceTransaction transaction = BalanceTransaction.builder()
+                    .userId(student.getUserId())
+                    .name(student.getRealName())
+                    .amount(amountChange)
+                    .balanceBefore(oldBalance)
+                    .balanceAfter(request.getBalance())
+                    .transactionType(amountChange.compareTo(BigDecimal.ZERO) > 0 ? "RECHARGE" : "DEDUCT")
+                    .reason("管理员调整余额")
+                    .operatorId(operatorId) // 管理员ID
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            balanceTransactionMapper.insert(transaction);
+            
+            log.info("管理员更新学生余额: studentId={}, 余额变动: {} -> {}, 变动金额: {}", 
+                    studentId, oldBalance, request.getBalance(), amountChange);
+        }
 
         studentMapper.updateById(student);
 

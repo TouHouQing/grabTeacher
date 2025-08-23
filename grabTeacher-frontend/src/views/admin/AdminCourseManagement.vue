@@ -664,6 +664,7 @@ onMounted(() => {
         stripe
         style="width: 100%"
       >
+        <el-table-column prop="id" label="ID" width="80" align="center" />
         <el-table-column prop="title" label="课程标题" min-width="180" show-overflow-tooltip />
         <el-table-column prop="teacherName" label="授课教师" width="100" />
         <el-table-column prop="subjectName" label="科目" width="80" />

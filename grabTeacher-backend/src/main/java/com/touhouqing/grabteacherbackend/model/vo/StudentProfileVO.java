@@ -8,6 +8,7 @@ import lombok.Builder;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.math.BigDecimal;
 
 /**
  * 学生个人信息响应DTO
@@ -56,6 +57,8 @@ public class StudentProfileVO {
     @Schema(description = "头像URL")
     private String avatarUrl;
 
+    @Schema(description = "学生余额，单位：M豆", example = "500.00")
+    private BigDecimal balance;
 
     @Schema(description = "是否已删除", example = "false")
     private Boolean deleted;

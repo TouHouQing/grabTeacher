@@ -234,6 +234,7 @@ onMounted(() => {
 
     <!-- 科目表格 -->
     <el-table :data="subjectList" v-loading="loading" stripe style="width: 100%">
+      <el-table-column prop="id" label="ID" width="80" align="center" />
       <el-table-column prop="name" label="科目名称" width="400" />
       <el-table-column prop="iconUrl" label="图标" width="400">
         <template #default="{ row }">

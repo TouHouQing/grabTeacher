@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
@@ -39,6 +40,10 @@ public class Student {
     
     @TableField("budget_range")
     private String budgetRange;
+    
+    @TableField("balance")
+    @Builder.Default
+    private BigDecimal balance = BigDecimal.ZERO;
 
     @TableField("gender")
     private String gender;

@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.util.List;
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
@@ -22,6 +23,8 @@ public class    StudentInfoDTO {
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     private String gender;
 
+    @Schema(description = "学生余额，单位：M豆（仅管理员可编辑）")
+    private BigDecimal balance;
 
     @Schema(description = "头像URL")
     private String avatarUrl;
