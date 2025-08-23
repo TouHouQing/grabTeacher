@@ -389,13 +389,45 @@ const getTimeSlotsForDay = (dayOfWeek: number): string[] => {
   return getCompleteTimeSlots()
 }
 
+// 计算总花费
+const calculateTotalCost = () => {
+  if (!selectedCourse.value || !selectedCourse.value.price || !selectedCourse.value.durationMinutes) {
+    return 0
+  }
+
+  const pricePerHour = selectedCourse.value.price // M豆/小时
+  const durationHours = selectedCourse.value.durationMinutes / 60 // 每次课的小时数
+  const pricePerSession = pricePerHour * durationHours // 每次课的价格
+
+  if (scheduleForm.bookingType === 'trial') {
+    return 0 // 试听课免费
+  } else {
+    return pricePerSession * scheduleForm.sessionCount // 总价格
+  }
+}
+
+// 格式化价格显示
+const formatTotalCost = () => {
+  const totalCost = calculateTotalCost()
+  if (totalCost === 0) {
+    return scheduleForm.bookingType === 'trial' ? '免费试听' : '价格面议'
+  }
+  return `${totalCost.toFixed(0)}M豆`
+}
+
 // 获取教师课程列表
 const loadTeacherCourses = async (teacherId: number) => {
   try {
     loadingCourses.value = true
     const result = await teacherAPI.getPublicCourses(teacherId)
     if (result.success && result.data) {
-      teacherCourses.value = result.data
+      // 智能匹配功能只显示1对1课程
+      const oneOnOneCourses = result.data.filter((course: any) => course.courseType === 'one_on_one')
+      teacherCourses.value = oneOnOneCourses
+
+      if (oneOnOneCourses.length === 0) {
+        ElMessage.warning('该教师暂无1对1课程可预约')
+      }
     } else {
       teacherCourses.value = []
       ElMessage.warning('该教师暂无可预约的课程')
@@ -1630,7 +1662,7 @@ onMounted(() => {
 <template>
   <div class="teacher-match">
     <h2>智能匹配教师</h2>
-    <p class="description">根据您的学习需求和偏好，系统将为您匹配最合适的教师</p>
+    <p class="description">根据您的学习需求和偏好，系统将为您匹配最合适的1对1教师</p>
 
     <div class="match-container">
       <div class="match-form-section">
@@ -1770,9 +1802,6 @@ onMounted(() => {
                 <el-button type="warning" @click="showMonthlySchedule(teacher)" size="large">
                   <el-icon><Calendar /></el-icon> 查看课表
                 </el-button>
-                <el-button type="info" plain size="large">
-                  <el-icon><Message /></el-icon> 联系教师
-                </el-button>
                 <el-button type="success" plain size="large" @click="router.push(`/teacher-detail/${teacher.id}`)">
                   <el-icon><View /></el-icon> 查看详情
                 </el-button>
@@ -1815,7 +1844,7 @@ onMounted(() => {
               <el-skeleton :rows="2" animated />
             </div>
             <div v-else-if="teacherCourses.length === 0" class="no-courses">
-              <el-empty description="该教师暂无可预约的课程" :image-size="80" />
+              <el-empty description="该教师暂无1对1课程可预约" :image-size="80" />
             </div>
             <div v-else class="course-selection">
               <el-radio-group v-model="selectedCourse" size="large" class="course-radio-group">
@@ -1830,6 +1859,12 @@ onMounted(() => {
                     <div class="course-details">
                       <el-tag size="small" type="primary">{{ course.subjectName }}</el-tag>
                       <el-tag size="small" type="success" v-if="course.grade">{{ course.grade }}</el-tag>
+                      <el-tag size="small" type="warning" v-if="course.price">
+                        {{ course.price }}M豆/小时
+                      </el-tag>
+                      <el-tag size="small" type="info" v-else>
+                        价格面议
+                      </el-tag>
                     </div>
                   </div>
                 </el-radio>
@@ -1837,7 +1872,7 @@ onMounted(() => {
             </div>
             <div class="form-item-tip">
               <el-icon><InfoFilled /></el-icon>
-              请选择要预约的具体课程，选择后可继续设置上课时间
+              请选择要预约的1对1课程，选择后可继续设置上课时间
             </div>
           </el-form-item>
 
@@ -2184,6 +2219,17 @@ onMounted(() => {
                 <span>每周 {{ scheduleForm.selectedWeekdays.length }} 天</span>
                 <span>每天 {{ scheduleForm.selectedTimeSlots.length }} 个时间段</span>
                 <span>约 {{ Math.ceil(scheduleForm.sessionCount / (scheduleForm.selectedWeekdays.length * scheduleForm.selectedTimeSlots.length)) }} 周完成</span>
+              </div>
+              <div class="cost-summary" v-if="selectedCourse">
+                <div class="cost-item">
+                  <span class="cost-label">总花费：</span>
+                  <span class="cost-value">{{ formatTotalCost() }}</span>
+                </div>
+                <div class="cost-breakdown" v-if="selectedCourse.price && scheduleForm.bookingType === 'recurring'">
+                  <span class="cost-detail">
+                    {{ selectedCourse.price }}M豆/小时 × {{ (selectedCourse.durationMinutes / 60).toFixed(1) }}小时/次 × {{ scheduleForm.sessionCount }}次
+                  </span>
+                </div>
               </div>
             </div>
           </el-form-item>
@@ -3160,6 +3206,48 @@ h2 {
 }
 
 .preview-details span {
+  background-color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+/* 费用显示样式 */
+.cost-summary {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.cost-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.cost-label {
+  font-weight: 500;
+  color: #333;
+  font-size: 16px;
+}
+
+.cost-value {
+  font-weight: 600;
+  color: #e6a23c;
+  font-size: 18px;
+}
+
+.cost-breakdown {
+  text-align: center;
+  margin-top: 4px;
+}
+
+.cost-detail {
+  font-size: 12px;
+  color: #909399;
   background-color: #fff;
   padding: 4px 8px;
   border-radius: 4px;

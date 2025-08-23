@@ -172,7 +172,7 @@ onMounted(async () => {
             </el-menu-item>
             <el-menu-item index="match" @click="$router.push('/student-center/match')">
               <el-icon><Connection /></el-icon>
-              <span>智能匹配教师</span>
+              <span>1V1教师智能匹配</span>
             </el-menu-item>
             <el-menu-item index="bookings" @click="$router.push('/student-center/bookings')">
               <el-icon><Document /></el-icon>

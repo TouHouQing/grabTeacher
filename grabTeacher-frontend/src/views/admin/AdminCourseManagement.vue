@@ -148,12 +148,9 @@ const formRules = {
   price: [
     {
       validator: (_rule: any, value: any, callback: any) => {
-        if (courseForm.courseType === 'large_class') {
-          if (value !== null && value !== undefined && value <= 0) {
-            callback(new Error('价格必须大于0（不填表示可定制价格）'))
-          } else {
-            callback()
-          }
+        // 所有课程类型都可以设置价格
+        if (value !== null && value !== undefined && value <= 0) {
+          callback(new Error('价格必须大于0（不填表示价格面议）'))
         } else {
           callback()
         }
@@ -381,8 +378,8 @@ const saveCourse = async () => {
       durationMinutes: courseForm.durationMinutes,
       status: courseForm.status,
       grade: selectedGrades.value.join(','), // 将选中的年级转换为逗号分隔的字符串
+      price: courseForm.price, // 所有课程类型都可以设置价格
       ...(courseForm.courseType === 'large_class' && {
-        price: courseForm.price,
         startDate: courseForm.startDate,
         endDate: courseForm.endDate,
         personLimit: courseForm.personLimit
@@ -677,12 +674,17 @@ onMounted(() => {
         </el-table-column>
         <el-table-column prop="courseTypeDisplay" label="类型" width="80" />
         <el-table-column prop="durationMinutes" label="时长(分钟)" width="90" />
-        <el-table-column label="价格" width="80">
+        <el-table-column label="价格" width="120">
           <template #default="{ row }">
-            <span v-if="row.courseType === 'large_class'">
-              {{ row.price ? `¥${row.price}` : '可定制' }}
+            <span v-if="row.price">
+              <template v-if="row.courseType === 'one_on_one'">
+                {{ row.price }}M豆/时
+              </template>
+              <template v-else>
+                {{ row.price }}M豆
+              </template>
             </span>
-            <span v-else class="text-muted">-</span>
+            <span v-else class="text-muted">价格面议</span>
           </template>
         </el-table-column>
         <el-table-column label="开课时间" width="100">
@@ -903,24 +905,29 @@ onMounted(() => {
           <span style="margin-left: 10px; color: #909399;">分钟</span>
         </el-form-item>
 
+        <el-form-item label="课程价格" prop="price">
+          <el-input-number
+            v-model="courseForm.price"
+            :min="0"
+            :precision="2"
+            :step="10"
+            style="width: 200px"
+            placeholder="不填表示可定制价格"
+            clearable
+          />
+          <span style="margin-left: 10px; color: #909399;" v-if="courseForm.courseType === 'one_on_one'">
+            M豆/小时（不填表示价格面议）
+          </span>
+          <span style="margin-left: 10px; color: #909399;" v-else>
+            M豆/总课程（不填表示价格面议）
+          </span>
+        </el-form-item>
+
         <!-- 大班课专用字段 -->
         <template v-if="courseForm.courseType === 'large_class'">
           <el-divider content-position="left">
             <span style="color: #409eff; font-weight: 500;">大班课设置</span>
           </el-divider>
-
-          <el-form-item label="课程价格" prop="price">
-            <el-input-number
-              v-model="courseForm.price"
-              :min="0"
-              :precision="2"
-              :step="10"
-              style="width: 200px"
-              placeholder="不填表示可定制价格"
-              clearable
-            />
-            <span style="margin-left: 10px; color: #909399;">元（不填表示可定制价格）</span>
-          </el-form-item>
 
           <el-form-item label="开始日期" prop="startDate" required>
             <el-date-picker

@@ -602,27 +602,25 @@ public class TeacherServiceImpl implements TeacherService {
      * 优化的教师匹配查询 - 使用JOIN减少数据库查询次数
      */
     private List<Teacher> matchTeachersOptimized(TeacherMatchDTO request) {
+        // 智能匹配功能只匹配提供1对1课程的教师
+        
         // 如果同时指定了科目和年级，使用联合查询
         if (StringUtils.hasText(request.getSubject()) && StringUtils.hasText(request.getGrade())) {
-            return teacherMapper.findTeachersBySubjectAndGrade(request.getSubject(), request.getGrade());
+            return teacherMapper.findOneOnOneTeachersBySubjectAndGrade(request.getSubject(), request.getGrade());
         }
 
         // 如果只指定了科目
         if (StringUtils.hasText(request.getSubject())) {
-            return teacherMapper.findTeachersBySubject(request.getSubject());
+            return teacherMapper.findOneOnOneTeachersBySubject(request.getSubject());
         }
 
         // 如果只指定了年级
         if (StringUtils.hasText(request.getGrade())) {
-            return teacherMapper.findTeachersByGrade(request.getGrade());
+            return teacherMapper.findOneOnOneTeachersByGrade(request.getGrade());
         }
 
-        // 如果都没指定，返回所有已认证的教师
-        QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("is_deleted", false);
-        queryWrapper.eq("is_verified", true);
-        queryWrapper.orderByDesc("teaching_experience");
-        return teacherMapper.selectList(queryWrapper);
+        // 如果都没指定，返回所有提供1对1课程的已认证教师
+        return teacherMapper.findAllOneOnOneTeachers();
     }
 
     /**
