@@ -14,6 +14,9 @@ import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
 import com.touhouqing.grabteacherbackend.service.TimeValidationService;
+import com.touhouqing.grabteacherbackend.service.MessageService;
+import com.touhouqing.grabteacherbackend.model.vo.MessageVO;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.touhouqing.grabteacherbackend.cache.FeaturedTeachersLocalCache;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -47,6 +50,9 @@ public class TeacherController {
 
     @Autowired
     private TimeValidationService timeValidationService;
+
+    @Autowired
+    private MessageService messageService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -379,6 +385,46 @@ public class TeacherController {
         if (v == null) return null;
         String t = v.trim().replaceAll("\\s+", " ");
         return t.isEmpty() ? null : t;
+    }
+
+    // ===================== 消息接口 =====================
+
+    /**
+     * 获取教师可见的消息列表
+     */
+    @PreAuthorize("hasRole('TEACHER')")
+    @GetMapping("/messages")
+    public ResponseEntity<CommonResult<IPage<MessageVO>>> getTeacherMessages(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        try {
+            IPage<MessageVO> messages = messageService.getTeacherMessages(pageNum, pageSize);
+            return ResponseEntity.ok(CommonResult.success("获取成功", messages));
+        } catch (Exception e) {
+            logger.error("获取教师消息异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
+        }
+    }
+
+    /**
+     * 根据ID获取消息详情
+     */
+    @PreAuthorize("hasRole('TEACHER')")
+    @GetMapping("/messages/{id}")
+    public ResponseEntity<CommonResult<MessageVO>> getMessageById(@PathVariable Long id) {
+        try {
+            MessageVO message = messageService.getMessageById(id);
+            return ResponseEntity.ok(CommonResult.success("获取成功", message));
+        } catch (RuntimeException e) {
+            logger.warn("获取消息失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("获取消息异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
+        }
     }
 
 }

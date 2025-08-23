@@ -939,3 +939,28 @@ CREATE TABLE `balance_transactions` (
   KEY `idx_user_id` (`user_id`),
   KEY `idx_booking_id` (`booking_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='学生余额变动记录表';
+
+
+-- 创建消息表
+CREATE TABLE IF NOT EXISTS `message` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '消息ID',
+    `title` VARCHAR(255) NOT NULL COMMENT '消息标题',
+    `content` TEXT NOT NULL COMMENT '消息内容',
+    `target_type` ENUM('STUDENT', 'TEACHER', 'ALL') NOT NULL DEFAULT 'ALL' COMMENT '目标用户类型：STUDENT-学生，TEACHER-教师，ALL-全体',
+    `admin_id` BIGINT UNSIGNED NOT NULL COMMENT '发布管理员ID',
+    `admin_name` VARCHAR(100) NOT NULL COMMENT '发布管理员姓名',
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否激活：1-激活，0-停用',
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    INDEX `idx_target_type` (`target_type`),
+    INDEX `idx_admin_id` (`admin_id`),
+    INDEX `idx_is_active` (`is_active`),
+    INDEX `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='消息表';
+
+-- 插入测试数据
+INSERT INTO `message` (`title`, `content`, `target_type`, `admin_id`, `admin_name`) VALUES
+('欢迎加入抢老师平台', '欢迎各位同学加入我们的在线教育平台，这里有优质的师资资源等待您的发现！', 'STUDENT', 1, '系统管理员'),
+('平台教师指导手册', '各位老师，感谢您加入我们的平台。请仔细阅读教师指导手册，了解平台的各项功能和操作流程。', 'TEACHER', 1, '系统管理员'),
+('平台维护通知', '为了提供更好的服务体验，平台将于本周日凌晨2:00-4:00进行系统维护，届时可能会影响正常使用，敬请谅解。', 'ALL', 1, '系统管理员');

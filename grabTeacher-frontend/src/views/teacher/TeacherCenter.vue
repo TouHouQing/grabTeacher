@@ -14,8 +14,12 @@ import {
   User,
   Money,
   Setting,
-  VideoCamera
+  VideoCamera,
+  ChatDotRound
 } from '@element-plus/icons-vue'
+
+// 导入消息组件
+import TeacherMessages from './components/TeacherMessages.vue'
 
 // 课程安排接口定义
 interface ScheduleItem {
@@ -177,6 +181,11 @@ onMounted(async () => {
               <span>调课管理</span>
             </el-menu-item>
 
+            <el-menu-item index="messages">
+              <el-icon><ChatDotRound /></el-icon>
+              <span>消息中心</span>
+            </el-menu-item>
+
             <el-menu-item index="profile" @click="$router.push('/teacher-center/profile')">
               <el-icon><Setting /></el-icon>
               <span>个人设置</span>
@@ -286,6 +295,10 @@ onMounted(async () => {
               进入课程管理
             </el-button>
           </div>
+        </div>
+
+        <div v-else-if="activeMenu === 'messages'">
+          <TeacherMessages />
         </div>
 
         <div v-else>

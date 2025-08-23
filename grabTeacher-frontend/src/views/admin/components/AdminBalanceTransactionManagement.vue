@@ -44,7 +44,7 @@
       border
       style="width: 100%"
     >
-      <el-table-column prop="id" label="交易ID" width="80" />
+      <el-table-column prop="id" label="交易ID" width="70" />
       <el-table-column prop="name" label="学生姓名" width="120" />
       <el-table-column label="变动金额" width="120" align="center">
         <template #default="{ row }">
@@ -63,7 +63,7 @@
           <span>{{ row.balanceAfter }}M豆</span>
         </template>
       </el-table-column>
-      <el-table-column label="交易类型" width="100" align="center">
+      <el-table-column label="交易类型" width="90" align="center">
         <template #default="{ row }">
           <el-tag :type="getTransactionTypeTag(row.transactionType)">
             {{ getTransactionTypeName(row.transactionType) }}
@@ -71,7 +71,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="reason" label="变动原因" min-width="200" show-overflow-tooltip />
-      <el-table-column label="关联预约" width="120" align="center">
+      <el-table-column label="关联预约" width="80" align="center">
         <template #default="{ row }">
           <span v-if="row.bookingId" class="booking-link">
             <el-link type="primary" :underline="false">
@@ -81,7 +81,7 @@
           <span v-else class="text-muted">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作员" width="120" align="center">
+      <el-table-column label="操作员" width="80" align="center">
         <template #default="{ row }">
           <span v-if="row.operatorId" class="operator-info">
             <el-tag size="small" type="info">
@@ -91,7 +91,7 @@
           <span v-else class="text-muted">系统</span>
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" width="180" align="center">
+      <el-table-column label="创建时间" width="200" align="center">
         <template #default="{ row }">
           <span>{{ formatDateTime(row.createdAt) }}</span>
         </template>

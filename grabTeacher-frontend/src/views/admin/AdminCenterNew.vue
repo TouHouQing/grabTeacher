@@ -18,6 +18,7 @@ import AdminStudyAbroadCountryManagement from './components/AdminStudyAbroadCoun
 import AdminStudyAbroadStageManagement from './components/AdminStudyAbroadStageManagement.vue'
 import AdminStudyAbroadProgramManagement from './components/AdminStudyAbroadProgramManagement.vue'
 import AdminBalanceTransactionManagement from './components/AdminBalanceTransactionManagement.vue'
+import AdminMessageManagement from './components/AdminMessageManagement.vue'
 
 // 获取用户信息
 const userStore = useUserStore()
@@ -111,6 +112,10 @@ const handleMenuSelect = (key: string) => {
             <el-icon><Coin /></el-icon>
             <span>交易明细</span>
           </el-menu-item>
+          <el-menu-item index="messages">
+            <el-icon><Document /></el-icon>
+            <span>消息管理</span>
+          </el-menu-item>
           <el-menu-item index="profile">
             <el-icon><User /></el-icon>
             <span>管理员资料</span>
@@ -185,6 +190,11 @@ const handleMenuSelect = (key: string) => {
           <AdminBalanceTransactionManagement />
         </div>
 
+        <!-- 消息管理 -->
+        <div v-if="activeMenu === 'messages'" class="content-panel">
+          <AdminMessageManagement />
+        </div>
+
         <!-- 管理员资料 -->
         <div v-if="activeMenu === 'profile'" class="content-panel">
           <AdminProfileSettings />
@@ -233,11 +243,14 @@ const handleMenuSelect = (key: string) => {
   width: 200px;
   background: white;
   box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+  overflow-y: auto;
+  height: 100%;
 }
 
 .admin-menu {
   border-right: none;
   height: 100%;
+  overflow-y: auto;
 }
 
 .admin-content {

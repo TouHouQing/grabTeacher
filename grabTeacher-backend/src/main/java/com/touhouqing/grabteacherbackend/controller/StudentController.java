@@ -6,6 +6,9 @@ import com.touhouqing.grabteacherbackend.model.vo.StudentProfileVO;
 import com.touhouqing.grabteacherbackend.model.entity.Student;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.StudentService;
+import com.touhouqing.grabteacherbackend.service.MessageService;
+import com.touhouqing.grabteacherbackend.model.vo.MessageVO;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import java.util.Map;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -27,6 +30,9 @@ public class StudentController {
 
     @Autowired
     private StudentService studentService;
+
+    @Autowired
+    private MessageService messageService;
 
     /**
      * 获取学生个人信息
@@ -85,6 +91,42 @@ public class StudentController {
             return ResponseEntity.ok(CommonResult.success("获取成功", statistics));
         } catch (Exception e) {
             logger.error("获取学生统计数据异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
+        }
+    }
+
+    /**
+     * 获取学生可见的消息列表
+     */
+    @GetMapping("/messages")
+    public ResponseEntity<CommonResult<IPage<MessageVO>>> getStudentMessages(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        try {
+            IPage<MessageVO> messages = messageService.getStudentMessages(pageNum, pageSize);
+            return ResponseEntity.ok(CommonResult.success("获取成功", messages));
+        } catch (Exception e) {
+            logger.error("获取学生消息异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
+        }
+    }
+
+    /**
+     * 根据ID获取消息详情
+     */
+    @GetMapping("/messages/{id}")
+    public ResponseEntity<CommonResult<MessageVO>> getMessageById(@PathVariable Long id) {
+        try {
+            MessageVO message = messageService.getMessageById(id);
+            return ResponseEntity.ok(CommonResult.success("获取成功", message));
+        } catch (RuntimeException e) {
+            logger.warn("获取消息失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("获取消息异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResult.error("获取失败"));
         }

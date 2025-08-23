@@ -2,8 +2,9 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { HomeFilled, Connection, Document, Reading, User, Clock, Coin } from '@element-plus/icons-vue'
+import { HomeFilled, Connection, Document, Reading, User, Clock, Coin, ChatDotRound } from '@element-plus/icons-vue'
 import StudentCourses from './components/StudentCourses.vue'
+import StudentMessages from './components/StudentMessages.vue'
 import { bookingAPI, studentAPI } from '../../utils/api'
 import { ElMessage } from 'element-plus'
 
@@ -208,6 +209,10 @@ onMounted(async () => {
               <span>我的课程</span>
             </el-menu-item>
 
+            <el-menu-item index="messages">
+              <el-icon><ChatDotRound /></el-icon>
+              <span>消息中心</span>
+            </el-menu-item>
 
             <el-menu-item index="profile" @click="$router.push('/student-center/profile')">
               <el-icon><User /></el-icon>
@@ -298,6 +303,9 @@ onMounted(async () => {
         </div>
         <div v-else-if="activeMenu === 'courses'">
           <StudentCourses />
+        </div>
+        <div v-else-if="activeMenu === 'messages'">
+          <StudentMessages />
         </div>
 
 

@@ -13,6 +13,7 @@ import com.touhouqing.grabteacherbackend.model.dto.TeacherInfoDTO;
 import com.touhouqing.grabteacherbackend.service.AdminService;
 import com.touhouqing.grabteacherbackend.service.GradeService;
 import com.touhouqing.grabteacherbackend.service.CourseService;
+import com.touhouqing.grabteacherbackend.service.MessageService;
 import com.touhouqing.grabteacherbackend.model.vo.GradeVO;
 import jakarta.validation.Valid;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -34,7 +35,13 @@ import java.util.Map;
 import com.touhouqing.grabteacherbackend.model.dto.AdminProfileUpdateDTO;
 import com.touhouqing.grabteacherbackend.mapper.BalanceTransactionMapper;
 import com.touhouqing.grabteacherbackend.model.entity.BalanceTransaction;
+import com.touhouqing.grabteacherbackend.model.dto.MessageCreateDTO;
+import com.touhouqing.grabteacherbackend.model.dto.MessageUpdateDTO;
+import com.touhouqing.grabteacherbackend.model.dto.MessageQueryDTO;
+import com.touhouqing.grabteacherbackend.model.vo.MessageVO;
+import com.touhouqing.grabteacherbackend.model.entity.Message;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import org.springframework.security.core.Authentication;
 
@@ -59,6 +66,9 @@ public class AdminController {
 
     @Autowired
     private CourseService courseService;
+
+    @Autowired
+    private MessageService messageService;
 
     /**
      * 获取系统统计信息
@@ -688,6 +698,150 @@ public class AdminController {
             logger.error("获取余额交易记录异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResult.error("获取失败"));
+        }
+    }
+
+    // ===================== 消息管理接口 =====================
+
+    /**
+     * 创建消息
+     */
+    @Operation(summary = "创建消息", description = "管理员创建新消息")
+    @PostMapping("/messages")
+    public ResponseEntity<CommonResult<Long>> createMessage(
+            @Valid @RequestBody MessageCreateDTO createDTO,
+            Authentication authentication) {
+        try {
+            UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+            Long messageId = messageService.createMessage(createDTO, userPrincipal.getId(), userPrincipal.getUsername());
+            return ResponseEntity.ok(CommonResult.success("创建成功", messageId));
+        } catch (RuntimeException e) {
+            logger.warn("创建消息失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("创建消息异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("创建失败"));
+        }
+    }
+
+    /**
+     * 更新消息
+     */
+    @Operation(summary = "更新消息", description = "管理员更新消息信息")
+    @PutMapping("/messages/{id}")
+    public ResponseEntity<CommonResult<Boolean>> updateMessage(
+            @PathVariable Long id,
+            @Valid @RequestBody MessageUpdateDTO updateDTO) {
+        try {
+            updateDTO.setId(id);
+            Boolean result = messageService.updateMessage(updateDTO);
+            return ResponseEntity.ok(CommonResult.success("更新成功", result));
+        } catch (RuntimeException e) {
+            logger.warn("更新消息失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("更新消息异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("更新失败"));
+        }
+    }
+
+    /**
+     * 删除消息
+     */
+    @Operation(summary = "删除消息", description = "管理员删除消息")
+    @DeleteMapping("/messages/{id}")
+    public ResponseEntity<CommonResult<Boolean>> deleteMessage(@PathVariable Long id) {
+        try {
+            Boolean result = messageService.deleteMessage(id);
+            return ResponseEntity.ok(CommonResult.success("删除成功", result));
+        } catch (RuntimeException e) {
+            logger.warn("删除消息失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("删除消息异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("删除失败"));
+        }
+    }
+
+    /**
+     * 根据ID获取消息详情
+     */
+    @Operation(summary = "获取消息详情", description = "根据ID获取消息详细信息")
+    @GetMapping("/messages/{id}")
+    public ResponseEntity<CommonResult<MessageVO>> getMessageById(@PathVariable Long id) {
+        try {
+            MessageVO message = messageService.getMessageById(id);
+            return ResponseEntity.ok(CommonResult.success("获取成功", message));
+        } catch (RuntimeException e) {
+            logger.warn("获取消息失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("获取消息异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
+        }
+    }
+
+    /**
+     * 分页查询消息列表
+     */
+    @Operation(summary = "分页查询消息列表", description = "管理员分页查询消息列表，支持多条件筛选")
+    @GetMapping("/messages")
+    public ResponseEntity<CommonResult<IPage<MessageVO>>> getMessagePage(
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String targetType,
+            @RequestParam(required = false) String adminName,
+            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        try {
+            MessageQueryDTO queryDTO = new MessageQueryDTO();
+            queryDTO.setTitle(title);
+            if (targetType != null && !targetType.isEmpty()) {
+                queryDTO.setTargetType(Message.TargetType.valueOf(targetType));
+            }
+            queryDTO.setAdminName(adminName);
+            queryDTO.setIsActive(isActive);
+            queryDTO.setPageNum(pageNum);
+            queryDTO.setPageSize(pageSize);
+
+            IPage<MessageVO> result = messageService.getMessagePage(queryDTO);
+            return ResponseEntity.ok(CommonResult.success("获取成功", result));
+        } catch (IllegalArgumentException e) {
+            logger.warn("查询参数错误: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(CommonResult.error("查询参数错误"));
+        } catch (Exception e) {
+            logger.error("获取消息列表异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
+        }
+    }
+
+    /**
+     * 切换消息激活状态
+     */
+    @Operation(summary = "切换消息状态", description = "管理员切换消息的激活/停用状态")
+    @PutMapping("/messages/{id}/toggle-status")
+    public ResponseEntity<CommonResult<Boolean>> toggleMessageStatus(@PathVariable Long id) {
+        try {
+            Boolean result = messageService.toggleMessageStatus(id);
+            return ResponseEntity.ok(CommonResult.success("状态切换成功", result));
+        } catch (RuntimeException e) {
+            logger.warn("切换消息状态失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("切换消息状态异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("操作失败"));
         }
     }
 }

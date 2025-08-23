@@ -8,8 +8,14 @@ interface ApiError extends Error {
   response?: any
 }
 
+// 扩展RequestInit接口以支持data参数
+interface ApiRequestOptions extends RequestInit {
+  data?: any
+  params?: Record<string, any>
+}
+
 // 创建API请求函数
-export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+export const apiRequest = async (endpoint: string, options: ApiRequestOptions = {}) => {
   const url = `${API_BASE_URL}${endpoint}`
 
   const defaultHeaders = {
@@ -25,22 +31,44 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
     console.log('API请求没有token')
   }
 
+  // 处理data参数
+  const { data, params, ...restOptions } = options
   const config: RequestInit = {
-    ...options,
+    ...restOptions,
     headers: {
       ...defaultHeaders,
       ...options.headers,
     },
   }
 
+  // 如果有data参数，将其转换为JSON字符串并设置为body
+  if (data) {
+    config.body = JSON.stringify(data)
+  }
+
+  // 如果有params参数，将其附加到URL
+  let finalUrl = url
+  if (params) {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    const paramString = searchParams.toString()
+    if (paramString) {
+      finalUrl += (url.includes('?') ? '&' : '?') + paramString
+    }
+  }
+
   console.log('API请求:', {
-    url,
+    url: finalUrl,
     method: config.method || 'GET',
     headers: config.headers
   })
 
   try {
-    const response = await fetch(url, config)
+    const response = await fetch(finalUrl, config)
 
     console.log('API响应状态:', response.status)
 
