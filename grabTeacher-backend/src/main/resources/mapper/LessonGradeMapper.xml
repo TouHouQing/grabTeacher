@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.touhouqing.grabteacherbackend.mapper.LessonGradeMapper">
+
+    <!-- LessonGradeVO ResultMap -->
+    <resultMap id="LessonGradeVOResultMap" type="com.touhouqing.grabteacherbackend.model.vo.LessonGradeVO">
+        <id column="id" property="id"/>
+        <result column="schedule_id" property="scheduleId"/>
+        <result column="student_id" property="studentId"/>
+        <result column="student_name" property="studentName"/>
+        <result column="teacher_id" property="teacherId"/>
+        <result column="teacher_name" property="teacherName"/>
+        <result column="course_id" property="courseId"/>
+        <result column="course_title" property="courseTitle"/>
+        <result column="subject_name" property="subjectName"/>
+        <result column="scheduled_date" property="scheduledDate"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="score" property="score"/>
+        <result column="teacher_comment" property="teacherComment"/>
+        <result column="graded_at" property="gradedAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 根据课程安排ID和学生ID查询成绩 -->
+    <select id="selectByScheduleIdAndStudentId" resultType="com.touhouqing.grabteacherbackend.model.entity.LessonGrade">
+        SELECT *
+        FROM lesson_grades
+        WHERE schedule_id = #{scheduleId}
+          AND student_id = #{studentId}
+          AND is_deleted = 0
+    </select>
+
+    <!-- 分页查询学生成绩（包含详细信息） -->
+    <select id="selectGradesByStudentId" resultMap="LessonGradeVOResultMap">
+        SELECT lg.id,
+               lg.schedule_id,
+               lg.student_id,
+               s.real_name AS student_name,
+               sch.teacher_id,
+               t.real_name AS teacher_name,
+               sch.course_id,
+               c.title AS course_title,
+               sub.name AS subject_name,
+               sch.scheduled_date,
+               sch.start_time,
+               sch.end_time,
+               lg.score,
+               lg.teacher_comment,
+               lg.graded_at,
+               lg.created_at,
+               lg.updated_at
+        FROM lesson_grades lg
+                 LEFT JOIN schedules sch ON lg.schedule_id = sch.id AND sch.is_deleted = 0
+                 LEFT JOIN students s ON lg.student_id = s.id AND s.is_deleted = 0
+                 LEFT JOIN teachers t ON sch.teacher_id = t.id AND t.is_deleted = 0
+                 LEFT JOIN courses c ON sch.course_id = c.id AND c.is_deleted = 0
+                 LEFT JOIN subjects sub ON c.subject_id = sub.id AND sub.is_deleted = 0
+        WHERE lg.is_deleted = 0
+          AND lg.student_id = #{studentId}
+          <if test="subjectName != null and subjectName != ''">
+              AND sub.name = #{subjectName}
+          </if>
+          <if test="startDate != null">
+              AND sch.scheduled_date &gt;= #{startDate}
+          </if>
+          <if test="endDate != null">
+              AND sch.scheduled_date &lt;= #{endDate}
+          </if>
+        ORDER BY sch.scheduled_date DESC, sch.start_time DESC
+    </select>
+
+    <!-- 分页查询教师录入的成绩（包含详细信息） -->
+    <select id="selectGradesByTeacherId" resultMap="LessonGradeVOResultMap">
+        SELECT lg.id,
+               lg.schedule_id,
+               lg.student_id,
+               s.real_name AS student_name,
+               sch.teacher_id,
+               t.real_name AS teacher_name,
+               sch.course_id,
+               c.title AS course_title,
+               sub.name AS subject_name,
+               sch.scheduled_date,
+               sch.start_time,
+               sch.end_time,
+               lg.score,
+               lg.teacher_comment,
+               lg.graded_at,
+               lg.created_at,
+               lg.updated_at
+        FROM lesson_grades lg
+                 LEFT JOIN schedules sch ON lg.schedule_id = sch.id AND sch.is_deleted = 0
+                 LEFT JOIN students s ON lg.student_id = s.id AND s.is_deleted = 0
+                 LEFT JOIN teachers t ON sch.teacher_id = t.id AND t.is_deleted = 0
+                 LEFT JOIN courses c ON sch.course_id = c.id AND c.is_deleted = 0
+                 LEFT JOIN subjects sub ON c.subject_id = sub.id AND sub.is_deleted = 0
+        WHERE lg.is_deleted = 0
+          AND sch.teacher_id = #{teacherId}
+          <if test="studentName != null and studentName != ''">
+              AND s.real_name LIKE CONCAT('%', #{studentName}, '%')
+          </if>
+          <if test="subjectName != null and subjectName != ''">
+              AND sub.name = #{subjectName}
+          </if>
+          <if test="startDate != null">
+              AND sch.scheduled_date &gt;= #{startDate}
+          </if>
+          <if test="endDate != null">
+              AND sch.scheduled_date &lt;= #{endDate}
+          </if>
+        ORDER BY sch.scheduled_date DESC, sch.start_time DESC
+    </select>
+
+    <!-- 查询学生某科目的所有成绩（用于图表展示） -->
+    <select id="selectGradesByStudentIdAndSubject" resultMap="LessonGradeVOResultMap">
+        SELECT lg.id,
+               lg.schedule_id,
+               lg.student_id,
+               s.real_name AS student_name,
+               sch.teacher_id,
+               t.real_name AS teacher_name,
+               sch.course_id,
+               c.title AS course_title,
+               sub.name AS subject_name,
+               sch.scheduled_date,
+               sch.start_time,
+               sch.end_time,
+               lg.score,
+               lg.teacher_comment,
+               lg.graded_at,
+               lg.created_at,
+               lg.updated_at
+        FROM lesson_grades lg
+                 LEFT JOIN schedules sch ON lg.schedule_id = sch.id AND sch.is_deleted = 0
+                 LEFT JOIN students s ON lg.student_id = s.id AND s.is_deleted = 0
+                 LEFT JOIN teachers t ON sch.teacher_id = t.id AND t.is_deleted = 0
+                 LEFT JOIN courses c ON sch.course_id = c.id AND c.is_deleted = 0
+                 LEFT JOIN subjects sub ON c.subject_id = sub.id AND sub.is_deleted = 0
+        WHERE lg.is_deleted = 0
+          AND lg.student_id = #{studentId}
+          AND sub.name = #{subjectName}
+          AND lg.score IS NOT NULL
+        ORDER BY sch.scheduled_date ASC, sch.start_time ASC
+    </select>
+
+    <!-- 查询学生在指定日期范围内的成绩 -->
+    <select id="selectGradesByStudentIdAndDateRange" resultMap="LessonGradeVOResultMap">
+        SELECT lg.id,
+               lg.schedule_id,
+               lg.student_id,
+               s.real_name AS student_name,
+               sch.teacher_id,
+               t.real_name AS teacher_name,
+               sch.course_id,
+               c.title AS course_title,
+               sub.name AS subject_name,
+               sch.scheduled_date,
+               sch.start_time,
+               sch.end_time,
+               lg.score,
+               lg.teacher_comment,
+               lg.graded_at,
+               lg.created_at,
+               lg.updated_at
+        FROM lesson_grades lg
+                 LEFT JOIN schedules sch ON lg.schedule_id = sch.id AND sch.is_deleted = 0
+                 LEFT JOIN students s ON lg.student_id = s.id AND s.is_deleted = 0
+                 LEFT JOIN teachers t ON sch.teacher_id = t.id AND t.is_deleted = 0
+                 LEFT JOIN courses c ON sch.course_id = c.id AND c.is_deleted = 0
+                 LEFT JOIN subjects sub ON c.subject_id = sub.id AND sub.is_deleted = 0
+        WHERE lg.is_deleted = 0
+          AND lg.student_id = #{studentId}
+          AND sch.scheduled_date &gt;= #{startDate}
+          AND sch.scheduled_date &lt;= #{endDate}
+        ORDER BY sch.scheduled_date ASC, sch.start_time ASC
+    </select>
+
+    <!-- 统计学生成绩数据 -->
+    <select id="countGradesByStudentId" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM lesson_grades lg
+                 LEFT JOIN schedules sch ON lg.schedule_id = sch.id AND sch.is_deleted = 0
+        WHERE lg.is_deleted = 0
+          AND lg.student_id = #{studentId}
+    </select>
+
+    <!-- 统计教师录入成绩数据 -->
+    <select id="countGradesByTeacherId" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM lesson_grades lg
+                 LEFT JOIN schedules sch ON lg.schedule_id = sch.id AND sch.is_deleted = 0
+        WHERE lg.is_deleted = 0
+          AND sch.teacher_id = #{teacherId}
+    </select>
+
+</mapper>

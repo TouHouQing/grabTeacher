@@ -133,7 +133,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button
@@ -150,6 +150,14 @@
                 @click="addTeacherNotes(row)"
               >
                 课后记录
+              </el-button>
+              <el-button
+                v-if="row.status === 'completed' || (row.status === 'progressing' && canAddNotes(row))"
+                type="warning"
+                size="small"
+                @click="openGradeModal(row)"
+              >
+                录入成绩
               </el-button>
             </div>
           </template>
@@ -274,6 +282,55 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 录入成绩弹窗 -->
+    <el-dialog
+      v-model="showGradeModal"
+      title="录入课程成绩"
+      width="500px"
+      :before-close="closeGradeModal"
+    >
+      <div v-if="selectedSchedule" class="grade-form-header">
+        <div class="course-info">
+          <h4>{{ selectedSchedule.courseTitle || '自定义课程' }}</h4>
+          <p>{{ selectedSchedule.studentName }} | {{ selectedSchedule.subjectName }}</p>
+          <p>{{ formatDate(selectedSchedule.scheduledDate) }} {{ selectedSchedule.startTime }}-{{ selectedSchedule.endTime }}</p>
+        </div>
+      </div>
+
+      <el-form :model="gradeForm" :rules="gradeRules" ref="gradeFormRef" label-width="100px">
+        <el-form-item label="课程成绩" prop="score">
+          <el-input-number
+            v-model="gradeForm.score"
+            :min="0"
+            :max="100"
+            :precision="1"
+            :step="0.5"
+            placeholder="请输入成绩 (0-100)"
+            style="width: 100%"
+          />
+          <div class="score-hint">成绩范围：0-100分，支持一位小数</div>
+        </el-form-item>
+
+        <el-form-item label="评价建议" prop="teacherComment">
+          <el-input
+            v-model="gradeForm.teacherComment"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入对学生本节课的评价和建议..."
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="closeGradeModal">取消</el-button>
+        <el-button type="primary" @click="saveGrade" :loading="saving">
+          {{ gradeForm.isEdit ? '更新成绩' : '录入成绩' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -281,7 +338,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Clock, Check, Star, Refresh } from '@element-plus/icons-vue'
-import { bookingAPI } from '@/utils/api'
+import { bookingAPI, apiRequest } from '@/utils/api'
 
 // 响应式数据
 const loading = ref(false)
@@ -296,12 +353,31 @@ const statusFilter = ref('')
 // 弹窗相关
 const showDetailModal = ref(false)
 const showNotesModal = ref(false)
+const showGradeModal = ref(false)
 const selectedSchedule = ref<any>(null)
+const gradeFormRef = ref<any>(null)
 
 // 表单数据
 const notesForm = reactive({
   teacherNotes: ''
 })
+
+const gradeForm = reactive({
+  scheduleId: null as number | null,
+  studentId: null as number | null,
+  score: null as number | null,
+  teacherComment: '',
+  isEdit: false,
+  gradeId: null as number | null
+})
+
+// 表单验证规则
+const gradeRules = {
+  score: [
+    { required: true, message: '请输入课程成绩', trigger: 'blur' },
+    { type: 'number', min: 0, max: 100, message: '成绩应在0-100之间', trigger: 'blur' }
+  ]
+}
 
 // 统计信息
 const scheduleStats = computed(() => {
@@ -410,6 +486,106 @@ const saveTeacherNotes = async () => {
   } catch (error) {
     console.error('保存课后记录失败:', error)
     ElMessage.error('保存失败，请稍后重试')
+  } finally {
+    saving.value = false
+  }
+}
+
+// 录入成绩相关方法
+const openGradeModal = async (schedule: any) => {
+  selectedSchedule.value = schedule
+
+  // 重置表单
+  gradeForm.scheduleId = schedule.id
+  gradeForm.studentId = schedule.studentId
+  gradeForm.score = null
+  gradeForm.teacherComment = ''
+  gradeForm.isEdit = false
+  gradeForm.gradeId = null
+
+  // 检查是否已有成绩记录
+  try {
+    const response = await apiRequest(`/api/lesson-grades/schedule/${schedule.id}/student/${schedule.studentId}`)
+    if (response.success && response.data) {
+      // 已有成绩记录，设置为编辑模式
+      const existingGrade = response.data
+      gradeForm.score = existingGrade.score
+      gradeForm.teacherComment = existingGrade.teacherComment || ''
+      gradeForm.isEdit = true
+      gradeForm.gradeId = existingGrade.id
+    }
+  } catch (error) {
+    // 没有成绩记录，保持新建模式
+    console.log('暂无成绩记录，进入新建模式')
+  }
+
+  showGradeModal.value = true
+}
+
+const closeGradeModal = () => {
+  showGradeModal.value = false
+  selectedSchedule.value = null
+
+  // 重置表单
+  gradeForm.scheduleId = null
+  gradeForm.studentId = null
+  gradeForm.score = null
+  gradeForm.teacherComment = ''
+  gradeForm.isEdit = false
+  gradeForm.gradeId = null
+
+  // 清除表单验证
+  if (gradeFormRef.value) {
+    gradeFormRef.value.resetFields()
+  }
+}
+
+const saveGrade = async () => {
+  if (!gradeFormRef.value) return
+
+  // 表单验证
+  const valid = await gradeFormRef.value.validate().catch(() => false)
+  if (!valid) return
+
+  saving.value = true
+  try {
+    const requestData = {
+      scheduleId: gradeForm.scheduleId,
+      studentId: gradeForm.studentId,
+      score: gradeForm.score,
+      teacherComment: gradeForm.teacherComment
+    }
+
+    let response
+    if (gradeForm.isEdit && gradeForm.gradeId) {
+      // 更新成绩
+      response = await apiRequest('/api/lesson-grades', {
+        method: 'PUT',
+        data: {
+          id: gradeForm.gradeId,
+          score: gradeForm.score,
+          teacherComment: gradeForm.teacherComment
+        }
+      })
+    } else {
+      // 新建成绩
+      response = await apiRequest('/api/lesson-grades', {
+        method: 'POST',
+        data: requestData
+      })
+    }
+
+    if (response.success) {
+      ElMessage.success(gradeForm.isEdit ? '成绩更新成功' : '成绩录入成功')
+      closeGradeModal()
+      // 可以选择刷新课程列表
+      // loadSchedules()
+    } else {
+      ElMessage.error(response.message || '操作失败')
+    }
+  } catch (error: any) {
+    console.error('保存成绩失败:', error)
+    ElMessage.error(error.message || '保存失败，请稍后重试')
   } finally {
     saving.value = false
   }
@@ -647,6 +823,34 @@ const canAddNotes = (schedule: any) => {
 
 .feedback-content {
   border-left-color: #67c23a;
+}
+
+/* 录入成绩弹窗样式 */
+.grade-form-header {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #e6a23c;
+}
+
+.grade-form-header .course-info h4 {
+  margin: 0 0 8px 0;
+  color: #303133;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.grade-form-header .course-info p {
+  margin: 4px 0;
+  color: #606266;
+  font-size: 14px;
+}
+
+.score-hint {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
 }
 
 /* 响应式设计 */

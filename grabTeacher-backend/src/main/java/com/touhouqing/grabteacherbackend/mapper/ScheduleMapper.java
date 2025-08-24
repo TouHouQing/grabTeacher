@@ -144,4 +144,14 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
      */
     @Select("SELECT * FROM schedules WHERE is_deleted = 0 ORDER BY created_at DESC LIMIT #{limit}")
     List<Schedule> findRecentSchedules(@Param("limit") int limit);
+    
+    /**
+     * 批量更新过期的进行中课程状态为已完成
+     * 更新所有在当前日期之前的进行中课程，或当前日期已结束时间的课程
+     */
+    @Select("SELECT * FROM schedules WHERE status = 'progressing' AND is_deleted = 0 AND " +
+            "(scheduled_date < #{currentDate} OR " +
+            "(scheduled_date = #{currentDate} AND end_time < #{currentTime}))")
+    List<Schedule> findExpiredProgressingSchedules(@Param("currentDate") LocalDate currentDate, 
+                                                  @Param("currentTime") LocalTime currentTime);
 }

@@ -11,7 +11,7 @@ import ContactUs from '../components/ContactUs.vue'
     <div class="banner">
       <div class="banner-content">
         <h1>关于我们</h1>
-        <p>GrabTeacher - 您身边的个性化教育平台</p>
+        <p>Mindrift - 您身边的个性化教育平台</p>
       </div>
     </div>
 
@@ -23,7 +23,7 @@ import ContactUs from '../components/ContactUs.vue'
             <img :src="$getImageUrl('@/assets/pictures/aboutFirm.jpeg')" alt="公司图片">
           </div>
           <div class="intro-text">
-            <p>GrabTeacher成立于2018年，是一家专注于个性化教育的科技公司。我们利用先进的智能匹配技术，为学生提供最适合其学习需求和学习风格的优质教师，打造真正个性化的学习体验。</p>
+            <p>Mindrift成立于2018年，是一家专注于个性化教育的科技公司。我们利用先进的智能匹配技术，为学生提供最适合其学习需求和学习风格的优质教师，打造真正个性化的学习体验。</p>
             <p>公司总部位于北京，目前已在上海、广州、深圳、成都等15个城市设有分支机构，拥有超过3000名经过严格筛选的专业教师，为超过50000名学生提供了优质的教育服务。</p>
             <p>我们致力于通过科技手段提升教育效率，让每一位学生都能找到最适合自己的学习方式，实现学习潜能的最大化。</p>
           </div>
@@ -121,8 +121,8 @@ import ContactUs from '../components/ContactUs.vue'
           <div class="timeline-item">
             <div class="timeline-date">2018</div>
             <div class="timeline-content">
-              <h3>GrabTeacher成立</h3>
-              <p>GrabTeacher在北京正式成立，开始个性化教育的探索之旅。</p>
+              <h3>Mindrift成立</h3>
+              <p>Mindrift在北京正式成立，开始个性化教育的探索之旅。</p>
             </div>
           </div>
         </div>

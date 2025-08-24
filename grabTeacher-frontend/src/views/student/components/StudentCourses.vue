@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, Timer, Refresh, Check, VideoCamera, ChatDotRound, InfoFilled, Download, Clock, Collection, Reading, Loading } from '@element-plus/icons-vue'
-import { bookingAPI, rescheduleAPI, teacherAPI } from '@/utils/api'
+import { Calendar, Timer, Refresh, Check, VideoCamera, InfoFilled, Download, Clock, Collection, Reading, Loading } from '@element-plus/icons-vue'
+import { bookingAPI, rescheduleAPI, teacherAPI, apiRequest } from '@/utils/api'
 
 // 课程安排接口（基于后端ScheduleResponseDTO）
 interface CourseSchedule {
@@ -66,10 +66,50 @@ interface RescheduleRequest {
   status: 'pending' | 'approved' | 'rejected'; // 待确认、已同意、已拒绝
 }
 
+// 成绩数据接口
+interface GradeData {
+  date: string;
+  score: number;
+  comment: string;
+  lesson: string;
+}
+
+interface ScheduleGrade {
+  id: number;
+  scheduleId: number;
+  studentId: number;
+  score: number;
+  teacherComment: string;
+  gradedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  // 添加时间字段用于排序
+  scheduledDate: string;
+  startTime: string;
+  endTime: string;
+}
+
 // 响应式数据
 const courses = ref<Course[]>([])
 const loading = ref(false)
 const schedules = ref<CourseSchedule[]>([])
+
+// 成绩图表相关
+const gradeChartVisible = ref(false)
+const currentCourseForGrade = ref<Course | null>(null)
+const gradeData = ref<GradeData[]>([])
+const gradeLoading = ref(false)
+
+// 单节课成绩详情
+const scheduleGradeVisible = ref(false)
+const currentScheduleGrade = ref<{
+  schedule: CourseSchedule;
+  grade: ScheduleGrade;
+  courseTitle: string;
+  teacherName: string;
+  subjectName: string;
+} | null>(null)
+const scheduleGrades = ref<Map<number, ScheduleGrade>>(new Map()) // 缓存课程安排的成绩
 
 // 获取学生课程安排
 const loadStudentSchedules = async () => {
@@ -329,9 +369,14 @@ const rescheduleRequests = ref<RescheduleRequest[]>([])
 // 课程调课状态映射
 const courseRescheduleStatus = ref<Map<number, string>>(new Map())
 
-const showCourseDetail = (course: Course) => {
+const showCourseDetail = async (course: Course) => {
   currentCourse.value = course
   detailDialogVisible.value = true
+
+  // 加载该课程所有课程安排的成绩
+  if (course.schedules && course.schedules.length > 0) {
+    await loadScheduleGrades(course.schedules)
+  }
 }
 
 // 显示调课弹窗
@@ -668,6 +713,287 @@ const contactTeacher = (teacher: string) => {
   ElMessage.success(`正在连接 ${teacher} 的聊天窗口`)
 }
 
+// 显示成绩图表
+const showGradeChart = async (course: Course) => {
+  currentCourseForGrade.value = course
+  gradeChartVisible.value = true
+
+  // 加载该课程的成绩数据
+  await loadGradeData(course)
+}
+
+// 加载课程成绩数据
+const loadGradeData = async (course: Course) => {
+  if (!course.schedules || course.schedules.length === 0) {
+    ElMessage.warning('该课程暂无成绩记录')
+    return
+  }
+
+  gradeLoading.value = true
+  try {
+    const studentId = course.schedules[0].studentId // 从课程安排中获取学生ID
+    const subjectName = course.subject || course.schedules[0].subjectName
+
+    // 检查科目名称是否有效
+    if (!subjectName || subjectName === 'null' || subjectName.trim() === '') {
+      ElMessage.warning('课程科目信息缺失，无法查询成绩')
+      gradeData.value = []
+      return
+    }
+
+    // 使用项目的apiRequest方法，确保包含认证token
+    const result = await apiRequest(`/api/lesson-grades/student/${studentId}/subject/${encodeURIComponent(subjectName)}/chart-data`)
+
+    if (result.success && result.data) {
+      // 按日期和时间排序后分配课节编号
+      const sortedData = result.data.sort((a: ScheduleGrade, b: ScheduleGrade) => {
+        const dateA = new Date(`${a.scheduledDate} ${a.startTime}`)
+        const dateB = new Date(`${b.scheduledDate} ${b.startTime}`)
+        return dateA.getTime() - dateB.getTime()
+      })
+
+      gradeData.value = sortedData.map((item: ScheduleGrade, index: number) => ({
+        date: item.scheduledDate,
+        score: item.score,
+        comment: item.teacherComment || '',
+        lesson: `第${index + 1}课`
+      }))
+
+      // 数据加载完成后初始化图表
+      setTimeout(() => {
+        initGradeChart()
+      }, 200)
+    } else {
+      ElMessage.warning('暂无成绩数据')
+      gradeData.value = []
+    }
+  } catch (error) {
+    console.error('加载成绩数据失败:', error)
+    ElMessage.error('加载成绩数据失败，请稍后重试')
+    gradeData.value = []
+  } finally {
+    gradeLoading.value = false
+  }
+}
+
+// 关闭成绩图表
+const closeGradeChart = () => {
+  gradeChartVisible.value = false
+  currentCourseForGrade.value = null
+  gradeData.value = []
+
+  // 销毁ECharts实例
+  const chartDom = document.getElementById('gradeChart')
+  if (chartDom) {
+    // 如果有ECharts实例需要销毁
+    const echarts = (window as { echarts?: { dispose: (dom: HTMLElement) => void } }).echarts
+    if (echarts) {
+      echarts.dispose(chartDom)
+    }
+  }
+}
+
+// 成绩统计方法
+const getAverageScore = () => {
+  if (gradeData.value.length === 0) return 0
+  const sum = gradeData.value.reduce((acc, item) => acc + (item.score || 0), 0)
+  return (sum / gradeData.value.length).toFixed(1)
+}
+
+const getMaxScore = () => {
+  if (gradeData.value.length === 0) return 0
+  return Math.max(...gradeData.value.map(item => item.score || 0))
+}
+
+const getMinScore = () => {
+  if (gradeData.value.length === 0) return 0
+  return Math.min(...gradeData.value.map(item => item.score || 0))
+}
+
+// 获取成绩显示样式
+const getScoreClass = (score: number) => {
+  if (score >= 90) return 'score-excellent'
+  if (score >= 80) return 'score-good'
+  if (score >= 70) return 'score-average'
+  return 'score-poor'
+}
+
+// 初始化ECharts图表
+const initGradeChart = () => {
+  // 延迟执行以确保DOM已渲染
+  setTimeout(() => {
+    const chartDom = document.getElementById('gradeChart')
+    if (!chartDom || gradeData.value.length === 0) return
+
+    // 检查是否有ECharts，如果没有则动态加载
+    const echarts = (window as { echarts?: unknown }).echarts
+    if (!echarts) {
+      console.warn('ECharts 未加载，将显示表格形式的成绩数据')
+      return
+    }
+
+    const myChart = (echarts as { init: (dom: HTMLElement) => { setOption: (option: unknown) => void; resize: () => void } }).init(chartDom)
+
+    const option = {
+      title: {
+        text: '成绩趋势图',
+        left: 'center'
+      },
+      tooltip: {
+        trigger: 'axis',
+        formatter: (params: { dataIndex: number }[]) => {
+          const data = params[0]
+          const gradeItem = gradeData.value[data.dataIndex]
+          return `
+            <div>
+              <strong>${gradeItem.lesson}</strong><br/>
+              日期: ${gradeItem.date}<br/>
+              成绩: ${gradeItem.score}分<br/>
+              ${gradeItem.comment ? `评价: ${gradeItem.comment}` : ''}
+            </div>
+          `
+        }
+      },
+      xAxis: {
+        type: 'category',
+        data: gradeData.value.map(item => item.lesson),
+        axisLabel: {
+          rotate: 45
+        }
+      },
+      yAxis: {
+        type: 'value',
+        min: 0,
+        max: 100,
+        axisLabel: {
+          formatter: '{value}分'
+        }
+      },
+      series: [
+        {
+          name: '成绩',
+          type: 'line',
+          data: gradeData.value.map(item => item.score),
+          smooth: true,
+          lineStyle: {
+            color: '#409eff',
+            width: 3
+          },
+          itemStyle: {
+            color: '#409eff',
+            borderColor: '#409eff',
+            borderWidth: 2
+          },
+          areaStyle: {
+            color: {
+              type: 'linear',
+              x: 0,
+              y: 0,
+              x2: 0,
+              y2: 1,
+              colorStops: [
+                {
+                  offset: 0,
+                  color: 'rgba(64, 158, 255, 0.3)'
+                },
+                {
+                  offset: 1,
+                  color: 'rgba(64, 158, 255, 0.1)'
+                }
+              ]
+            }
+          },
+          markLine: {
+            data: [
+              { yAxis: 60, name: '及格线', lineStyle: { color: '#f56c6c' } },
+              { yAxis: 80, name: '良好线', lineStyle: { color: '#e6a23c' } },
+              { yAxis: 90, name: '优秀线', lineStyle: { color: '#67c23a' } }
+            ]
+          }
+        }
+      ]
+    }
+
+    myChart.setOption(option)
+
+    // 响应式调整
+    window.addEventListener('resize', () => {
+      myChart.resize()
+    })
+  }, 100)
+}
+
+// 监听成绩数据变化，更新图表
+const updateChart = () => {
+  if (gradeData.value.length > 0 && gradeChartVisible.value) {
+    initGradeChart()
+  }
+}
+
+// 获取课程安排的成绩
+const getScheduleGrade = (scheduleId: number) => {
+  return scheduleGrades.value.get(scheduleId)
+}
+
+// 加载课程安排的成绩
+const loadScheduleGrades = async (schedules: CourseSchedule[]) => {
+  for (const schedule of schedules) {
+    if (schedule.status === 'completed') {
+      try {
+        // 使用项目的apiRequest方法，确保包含认证token
+        const result = await apiRequest(`/api/lesson-grades/schedule/${schedule.id}/student/${schedule.studentId}`)
+        if (result.success && result.data) {
+          scheduleGrades.value.set(schedule.id, result.data)
+        }
+      } catch (error) {
+        console.error(`加载课程安排 ${schedule.id} 的成绩失败:`, error)
+      }
+    }
+  }
+}
+
+// 显示单节课成绩详情
+const showScheduleGradeDetail = (schedule: CourseSchedule) => {
+  const grade = getScheduleGrade(schedule.id)
+  if (grade) {
+    currentScheduleGrade.value = {
+      schedule,
+      grade,
+      courseTitle: schedule.courseTitle,
+      teacherName: schedule.teacherName,
+      subjectName: schedule.subjectName
+    }
+    scheduleGradeVisible.value = true
+  }
+}
+
+// 关闭单节课成绩详情
+const closeScheduleGradeDetail = () => {
+  scheduleGradeVisible.value = false
+  currentScheduleGrade.value = null
+}
+
+// 获取成绩等级文本
+const getGradeLevel = (score: number): string => {
+  if (score >= 90) return '优秀'
+  if (score >= 80) return '良好'
+  if (score >= 70) return '中等'
+  if (score >= 60) return '及格'
+  return '不及格'
+}
+
+// 格式化日期时间
+const formatDateTime = (dateTime: string): string => {
+  const date = new Date(dateTime)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 // 进入课堂
 const enterClassroom = (course: Course) => {
   if (course.status === 'active') {
@@ -744,8 +1070,8 @@ export default {
                     <el-button size="small" type="primary" @click="enterClassroom(course)">
                       <el-icon><VideoCamera /></el-icon> 进入课堂
                     </el-button>
-                    <el-button size="small" type="success" @click="contactTeacher(course.teacher)">
-                      <el-icon><ChatDotRound /></el-icon> 联系教师
+                    <el-button size="small" type="success" @click="showGradeChart(course)">
+                      <el-icon><Reading /></el-icon> 查看成绩
                     </el-button>
                     <el-button
                       v-if="course.remainingLessons && course.remainingLessons > 0"
@@ -800,8 +1126,8 @@ export default {
                     <el-button size="small" type="primary" @click="enterClassroom(course)">
                       <el-icon><VideoCamera /></el-icon> 进入课堂
                     </el-button>
-                    <el-button size="small" type="success" @click="contactTeacher(course.teacher)">
-                      <el-icon><ChatDotRound /></el-icon> 联系教师
+                    <el-button size="small" type="success" @click="showGradeChart(course)">
+                      <el-icon><Reading /></el-icon> 查看成绩
                     </el-button>
                     <el-button
                       v-if="course.remainingLessons && course.remainingLessons > 0"
@@ -856,8 +1182,8 @@ export default {
                     <el-button size="small" type="primary" @click="downloadMaterials(course.id)">
                       <el-icon><Download /></el-icon> 下载资料
                     </el-button>
-                    <el-button size="small" type="success" @click="contactTeacher(course.teacher)">
-                      <el-icon><ChatDotRound /></el-icon> 联系教师
+                    <el-button size="small" type="success" @click="showGradeChart(course)">
+                      <el-icon><Reading /></el-icon> 查看成绩
                     </el-button>
                     <el-button size="small" type="info" @click="showCourseDetail(course)">
                       <el-icon><InfoFilled /></el-icon> 详情
@@ -903,8 +1229,8 @@ export default {
                     <el-button size="small" type="warning" disabled>
                       <el-icon><VideoCamera /></el-icon> 未开始
                     </el-button>
-                    <el-button size="small" type="success" @click="contactTeacher(course.teacher)">
-                      <el-icon><ChatDotRound /></el-icon> 联系教师
+                    <el-button size="small" type="success" @click="showGradeChart(course)">
+                      <el-icon><Reading /></el-icon> 查看成绩
                     </el-button>
                     <el-button size="small" type="info" @click="showCourseDetail(course)">
                       <el-icon><InfoFilled /></el-icon> 详情
@@ -1001,6 +1327,20 @@ export default {
                   {{ getScheduleStatusText(schedule.status) }}
                 </el-tag>
               </div>
+              <div class="schedule-grade" v-if="schedule.status === 'completed'">
+                <div class="grade-info" v-if="getScheduleGrade(schedule.id)">
+                  <span class="grade-label">本节成绩:</span>
+                  <span :class="getScoreClass(getScheduleGrade(schedule.id).score)" class="grade-score">
+                    {{ getScheduleGrade(schedule.id).score }}分
+                  </span>
+                  <el-button size="small" type="text" @click="showScheduleGradeDetail(schedule)">
+                    详情
+                  </el-button>
+                </div>
+                <div class="no-grade" v-else>
+                  <span class="no-grade-text">待评分</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1009,8 +1349,8 @@ export default {
           <el-button type="primary" @click="enterClassroom(currentCourse)">
             <el-icon><VideoCamera /></el-icon> 进入课堂
           </el-button>
-          <el-button type="success" @click="contactTeacher(currentCourse.teacher)">
-            <el-icon><ChatDotRound /></el-icon> 联系教师
+          <el-button type="success" @click="showGradeChart(currentCourse)">
+            <el-icon><Reading /></el-icon> 查看成绩
           </el-button>
           <el-button type="info" @click="downloadMaterials(currentCourse.id)">
             <el-icon><Download /></el-icon> 下载资料
@@ -1274,6 +1614,137 @@ export default {
             提交申请
           </el-button>
         </span>
+      </template>
+    </el-dialog>
+
+    <!-- 成绩图表弹窗 -->
+    <el-dialog
+      v-model="gradeChartVisible"
+      title="课程成绩分析"
+      width="80%"
+      :before-close="closeGradeChart"
+    >
+      <div v-if="currentCourseForGrade" class="grade-chart-content">
+        <div class="course-info-header">
+          <div class="course-title">
+            <h3>{{ currentCourseForGrade.title }}</h3>
+            <p>{{ currentCourseForGrade.subject }} | {{ currentCourseForGrade.teacher }}</p>
+          </div>
+          <div class="grade-stats" v-if="gradeData.length > 0">
+            <div class="stat-item">
+              <span class="stat-label">平均分</span>
+              <span class="stat-value">{{ getAverageScore() }}分</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">最高分</span>
+              <span class="stat-value">{{ getMaxScore() }}分</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">最低分</span>
+              <span class="stat-value">{{ getMinScore() }}分</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">已评分课程</span>
+              <span class="stat-value">{{ gradeData.length }}节</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="gradeLoading" class="loading-container">
+          <el-skeleton :rows="5" animated />
+        </div>
+
+        <div v-else-if="gradeData.length === 0" class="no-grade-data">
+          <el-empty description="暂无成绩数据">
+            <el-button type="primary" @click="loadGradeData(currentCourseForGrade)">
+              刷新数据
+            </el-button>
+          </el-empty>
+        </div>
+
+        <div v-else class="grade-content">
+          <!-- ECharts图表 -->
+          <div class="chart-container">
+            <div id="gradeChart" style="width: 100%; height: 400px;"></div>
+          </div>
+
+          <!-- 成绩详细列表 -->
+          <div class="grade-detail-list">
+            <h4>课程详细成绩</h4>
+            <el-table :data="gradeData" style="width: 100%">
+              <el-table-column prop="lesson" label="课程" width="100">
+                <template #default="{ row }">
+                  <el-tag size="small" type="primary">{{ row.lesson }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="date" label="日期" width="120">
+                <template #default="{ row }">
+                  {{ formatDate(row.date) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="score" label="成绩" width="100">
+                <template #default="{ row }">
+                  <span :class="getScoreClass(row.score)">{{ row.score }}分</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="comment" label="教师评价" min-width="200">
+                <template #default="{ row }">
+                  <span v-if="row.comment" class="comment-text">{{ row.comment }}</span>
+                  <span v-else class="no-comment">暂无评价</span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="closeGradeChart">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 单节课成绩详情弹窗 -->
+    <el-dialog
+      v-model="scheduleGradeVisible"
+      title="课程成绩详情"
+      width="50%"
+      :before-close="closeScheduleGradeDetail"
+    >
+      <div v-if="currentScheduleGrade" class="schedule-grade-detail">
+        <div class="grade-header">
+          <div class="course-info">
+            <h3>{{ currentScheduleGrade.courseTitle }}</h3>
+            <p>{{ currentScheduleGrade.subjectName }} | {{ currentScheduleGrade.teacherName }}</p>
+            <p>{{ formatScheduleDate(currentScheduleGrade.schedule.scheduledDate) }} {{ currentScheduleGrade.schedule.startTime }}-{{ currentScheduleGrade.schedule.endTime }}</p>
+          </div>
+          <div class="grade-display">
+            <div class="grade-score-large" :class="getScoreClass(currentScheduleGrade.grade.score)">
+              {{ currentScheduleGrade.grade.score }}分
+            </div>
+            <div class="grade-level">
+              {{ getGradeLevel(currentScheduleGrade.grade.score) }}
+            </div>
+          </div>
+        </div>
+
+        <div class="grade-details">
+          <div class="detail-item">
+            <label>课程编号:</label>
+            <span>第{{ currentScheduleGrade.schedule.sessionNumber || 1 }}课</span>
+          </div>
+          <div class="detail-item">
+            <label>成绩录入时间:</label>
+            <span>{{ formatDateTime(currentScheduleGrade.grade.gradedAt) }}</span>
+          </div>
+          <div class="detail-item" v-if="currentScheduleGrade.grade.teacherComment">
+            <label>教师评价:</label>
+            <div class="comment-content">{{ currentScheduleGrade.grade.teacherComment }}</div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="closeScheduleGradeDetail">关闭</el-button>
       </template>
     </el-dialog>
   </div>
@@ -1944,5 +2415,283 @@ h2 {
 .loading-container {
   padding: 40px 20px;
   text-align: center;
+}
+
+/* 成绩图表弹窗样式 */
+.grade-chart-content {
+  padding: 20px 0;
+}
+
+.course-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 12px;
+}
+
+.course-title h3 {
+  margin: 0 0 8px 0;
+  color: #303133;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.course-title p {
+  margin: 0;
+  color: #606266;
+  font-size: 14px;
+}
+
+.grade-stats {
+  display: flex;
+  gap: 20px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-width: 80px;
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  color: #409eff;
+}
+
+.grade-content {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.chart-container {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.grade-detail-list {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.grade-detail-list h4 {
+  margin: 0 0 20px 0;
+  color: #303133;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 2px solid #f0f2f5;
+  padding-bottom: 10px;
+}
+
+.no-grade-data {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+/* 成绩等级样式 */
+.score-excellent {
+  color: #67c23a;
+  font-weight: 600;
+}
+
+.score-good {
+  color: #409eff;
+  font-weight: 600;
+}
+
+.score-average {
+  color: #e6a23c;
+  font-weight: 600;
+}
+
+.score-poor {
+  color: #f56c6c;
+  font-weight: 600;
+}
+
+.comment-text {
+  color: #606266;
+  line-height: 1.4;
+}
+
+.no-comment {
+  color: #c0c4cc;
+  font-style: italic;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .course-info-header {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .grade-stats {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .stat-item {
+    min-width: 70px;
+    padding: 8px 12px;
+  }
+
+  .stat-value {
+    font-size: 16px;
+  }
+}
+
+/* 课程安排成绩显示样式 */
+.schedule-item-detail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background: white;
+  transition: all 0.3s;
+}
+
+.schedule-item-detail:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-grade {
+  margin-left: 15px;
+  min-width: 120px;
+}
+
+.grade-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grade-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.grade-score {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.no-grade {
+  display: flex;
+  align-items: center;
+}
+
+.no-grade-text {
+  font-size: 12px;
+  color: #c0c4cc;
+  font-style: italic;
+}
+
+/* 单节课成绩详情弹窗样式 */
+.schedule-grade-detail {
+  padding: 20px;
+}
+
+.grade-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+}
+
+.grade-header .course-info h3 {
+  margin: 0 0 8px 0;
+  color: #303133;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.grade-header .course-info p {
+  margin: 4px 0;
+  color: #606266;
+  font-size: 14px;
+}
+
+.grade-display {
+  text-align: center;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.grade-score-large {
+  font-size: 36px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.grade-level {
+  font-size: 14px;
+  color: #606266;
+  padding: 4px 12px;
+  background: #f5f7fa;
+  border-radius: 16px;
+  display: inline-block;
+}
+
+.grade-details {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.grade-details .detail-item {
+  display: flex;
+  margin-bottom: 16px;
+  align-items: flex-start;
+}
+
+.grade-details .detail-item:last-child {
+  margin-bottom: 0;
+}
+
+.grade-details .detail-item label {
+  font-weight: 600;
+  color: #303133;
+  min-width: 120px;
+  margin-right: 12px;
+}
+
+.comment-content {
+  flex: 1;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #409eff;
+  line-height: 1.6;
+  color: #606266;
 }
 </style>

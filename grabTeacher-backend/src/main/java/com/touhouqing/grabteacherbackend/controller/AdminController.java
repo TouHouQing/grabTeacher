@@ -14,6 +14,7 @@ import com.touhouqing.grabteacherbackend.service.AdminService;
 import com.touhouqing.grabteacherbackend.service.GradeService;
 import com.touhouqing.grabteacherbackend.service.CourseService;
 import com.touhouqing.grabteacherbackend.service.MessageService;
+import com.touhouqing.grabteacherbackend.service.ScheduleCleanupService;
 import com.touhouqing.grabteacherbackend.model.vo.GradeVO;
 import jakarta.validation.Valid;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -69,6 +70,9 @@ public class AdminController {
 
     @Autowired
     private MessageService messageService;
+
+    @Autowired
+    private ScheduleCleanupService scheduleCleanupService;
 
     /**
      * 获取系统统计信息
@@ -842,6 +846,25 @@ public class AdminController {
             logger.error("切换消息状态异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResult.error("操作失败"));
+        }
+    }
+
+    /**
+     * 手动触发过期课程状态清理
+     */
+    @Operation(summary = "手动清理过期课程", description = "手动触发过期课程状态清理任务，将过期的进行中课程状态更新为已完成")
+    @PostMapping("/schedules/cleanup-expired")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CommonResult<String>> manualCleanupExpiredSchedules() {
+        try {
+            logger.info("管理员手动触发过期课程状态清理任务");
+            int updatedCount = scheduleCleanupService.manualCleanupExpiredSchedules();
+            String message = String.format("清理任务执行完成，共更新了%d个过期课程状态", updatedCount);
+            return ResponseEntity.ok(CommonResult.success(message));
+        } catch (Exception e) {
+            logger.error("手动清理过期课程异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("清理任务执行失败：" + e.getMessage()));
         }
     }
 }

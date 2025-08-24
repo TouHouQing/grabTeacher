@@ -509,9 +509,7 @@ onMounted(() => {
         </el-form-item>
         <el-form-item>
           <el-button :icon="Refresh" @click="resetSearch">重置</el-button>
-        </el-form-item>
-        <el-form-item class="add-button-item">
-          <el-button type="primary" :icon="Plus" @click="openAddDialog">
+          <el-button type="primary" :icon="Plus" @click="openAddDialog" style="margin-left: 8px;">
             新增课程
           </el-button>
         </el-form-item>

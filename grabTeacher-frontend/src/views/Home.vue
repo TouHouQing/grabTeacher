@@ -195,7 +195,7 @@ defineOptions({
         <!-- 主横幅 -->
         <div class="banner">
             <div class="banner-content">
-                <h1 class="banner-title">GrabTeacher</h1>
+                <h1 class="banner-title">Mindrift</h1>
                 <div class="banner-subtitle">{{ $t('home.banner.subtitle') }}</div>
                 <div class="banner-desc">{{ $t('home.banner.desc') }}</div>
             </div>
