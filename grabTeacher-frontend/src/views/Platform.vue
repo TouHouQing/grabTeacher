@@ -154,8 +154,8 @@ const resetForm = () => {
   <div class="platform-page">
     <div class="banner">
       <div class="banner-content">
-        <h1>教师招聘</h1>
-        <p>加入GrabTeacher，成为优秀教育者的一员</p>
+        <h1>工作机会</h1>
+        <p>加入Mindrift，成为优秀教育者的一员</p>
       </div>
     </div>
 

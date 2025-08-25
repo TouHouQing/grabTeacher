@@ -295,7 +295,7 @@ onMounted(() => {
   <div class="famous-teachers">
     <div class="banner">
       <div class="banner-content">
-        <h1>天下名师</h1>
+        <h1>教师推荐</h1>
         <p>专业优质的教师团队，助您学习成长</p>
       </div>
     </div>

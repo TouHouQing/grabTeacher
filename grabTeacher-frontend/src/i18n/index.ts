@@ -5,10 +5,10 @@ const en = {
   nav: {
     home: 'Home',
     latestCourses: 'Latest Courses',
-    famousTeachers: 'Famous Teachers',
+    famousTeachers: 'Recommended Teacher',
     studyAbroad: 'Study Abroad',
     about: 'About Us',
-    platform: 'Teacher Recruitment'
+    platform: 'Job Opportunity'
   },
   auth: {
     login: 'Login',
@@ -87,10 +87,10 @@ const zh = {
   nav: {
     home: '首页',
     latestCourses: '最新课程',
-    famousTeachers: '天下名师',
+    famousTeachers: '教师推荐',
     studyAbroad: '留学咨询',
     about: '关于我们',
-    platform: '教师招聘'
+    platform: '工作机会'
   },
   auth: {
     login: '登录',
