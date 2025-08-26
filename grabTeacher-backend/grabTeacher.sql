@@ -301,6 +301,8 @@ CREATE TABLE `courses`
     `subject_id`        bigint(20)                                                   NOT NULL COMMENT '课程科目ID，关联subjects表',
     `title`             varchar(200) COLLATE utf8mb4_general_ci                      NOT NULL COMMENT '课程标题',
     `description`       text COLLATE utf8mb4_general_ci COMMENT '课程详细描述，包括内容大纲、适合人群等',
+    `base_rating`       decimal(3, 2)                                                                                DEFAULT NULL COMMENT '课程基础评分，0-5分',
+    `rating`            decimal(3, 2)                                                                                DEFAULT NULL COMMENT '课程评分，0-5分',
     `course_type`       enum ('one_on_one','large_class') COLLATE utf8mb4_general_ci NOT NULL COMMENT '课程类型：one_on_one-一对一,large_class-大班课',
     `price`             decimal(10, 2)                                                                               DEFAULT NULL COMMENT '课程单价，单位：M豆，1M豆=1元，课程价格，1对1代表每小时价格，大班课代表总课程价格',
     `start_date`        date                                                                                         DEFAULT NULL COMMENT '课程开始时间，格式：YYYY-MM-DD',
@@ -646,26 +648,26 @@ COMMIT;
 DROP TABLE IF EXISTS `lesson_grades`;
 CREATE TABLE `lesson_grades` -- teacher_id、course_id、scheduled_date三个冗余字段，通过关联schedules表获取这些信息
 (
-    `id`                      bigint(20) NOT NULL AUTO_INCREMENT COMMENT '成绩记录ID，主键自增',
-    `schedule_id`             bigint(20) NOT NULL COMMENT '课程安排ID，关联schedules表',
-    `student_id`              bigint(20) NOT NULL COMMENT '学生ID，关联students表',
+    `id`              bigint(20) NOT NULL AUTO_INCREMENT COMMENT '成绩记录ID，主键自增',
+    `schedule_id`     bigint(20) NOT NULL COMMENT '课程安排ID，关联schedules表',
+    `student_id`      bigint(20) NOT NULL COMMENT '学生ID，关联students表',
     -- 成绩信息
-    `score`                   decimal(5, 2)                                            DEFAULT NULL COMMENT '本节课成绩分数',
+    `score`           decimal(5, 2)       DEFAULT NULL COMMENT '本节课成绩分数',
     -- 详细评价
-    `teacher_comment`         text COMMENT '教师对本节课的评价和建议',
+    `teacher_comment` text COMMENT '教师对本节课的评价和建议',
     -- 时间字段
-    `graded_at`               timestamp  NOT NULL                                      DEFAULT CURRENT_TIMESTAMP COMMENT '成绩录入时间',
-    `created_at`              timestamp  NULL                                          DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at`              timestamp  NULL                                          DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `graded_at`       timestamp  NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '成绩录入时间',
+    `created_at`      timestamp  NULL     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`      timestamp  NULL     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     -- 删除标记
-    `is_deleted`              tinyint(1)                                               DEFAULT '0' COMMENT '是否删除：0-未删除，1-已删除',
-    `deleted_at`              timestamp  NULL                                          DEFAULT NULL COMMENT '删除时间',
+    `is_deleted`      tinyint(1)          DEFAULT '0' COMMENT '是否删除：0-未删除，1-已删除',
+    `deleted_at`      timestamp  NULL     DEFAULT NULL COMMENT '删除时间',
 
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_schedule_student` (`schedule_id`, `student_id`), -- 修正唯一键
-    KEY `idx_student_id` (`student_id`), -- 学生查询成绩
-    KEY `idx_schedule_id` (`schedule_id`), -- 教师查询某节课的成绩
-    KEY `idx_graded_at` (`graded_at`), -- 按录入时间筛选
+    KEY `idx_student_id` (`student_id`),                            -- 学生查询成绩
+    KEY `idx_schedule_id` (`schedule_id`),                          -- 教师查询某节课的成绩
+    KEY `idx_graded_at` (`graded_at`),                              -- 按录入时间筛选
 
     CONSTRAINT `fk_lesson_grades_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `schedules` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_lesson_grades_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE
@@ -1130,6 +1132,8 @@ CREATE TABLE `teachers`
     `user_id`              bigint(20)  NOT NULL COMMENT '关联用户表的用户ID',
     `real_name`            varchar(50) NOT NULL COMMENT '教师真实姓名',
     `education_background` text COMMENT '教育背景描述，包括学历、毕业院校等',
+    `base_rating`          decimal(3, 2)               DEFAULT NULL COMMENT '教师基础评分，0-5分',
+    `rating`               decimal(3, 2)               DEFAULT NULL COMMENT '教师评分，0-5分',
     `teaching_experience`  int(11)                     DEFAULT NULL COMMENT '教学经验年数',
     `specialties`          varchar(50)                 DEFAULT NULL COMMENT '专业领域如：[高考数学,竞赛辅导,基础提升]',
     `hourly_rate`          decimal(10, 2)              DEFAULT NULL COMMENT '每小时收费标准，单位：元',
@@ -1909,31 +1913,31 @@ VALUES ('欢迎加入抢老师平台', '欢迎各位同学加入我们的在线�
         '为了提供更好的服务体验，平台将于本周日凌晨2:00-4:00进行系统维护，届时可能会影响正常使用，敬请谅解。', 'ALL', 1,
         '系统管理员');
 
-CREATE TABLE `lesson_grades` -- teacher_id、course_id、scheduled_date三个冗余字段，通过关联schedules表获取这些信息
+
+CREATE TABLE `course_evaluation`
 (
-    `id`                      bigint(20) NOT NULL AUTO_INCREMENT COMMENT '成绩记录ID，主键自增',
-    `schedule_id`             bigint(20) NOT NULL COMMENT '课程安排ID，关联schedules表',
-    `student_id`              bigint(20) NOT NULL COMMENT '学生ID，关联students表',
-    -- 成绩信息
-    `score`                   decimal(5, 2)                                            DEFAULT NULL COMMENT '本节课成绩分数',
+    `id`              bigint(20) NOT NULL AUTO_INCREMENT COMMENT '成绩记录ID，主键自增',
+    `teacher_id`      bigint(20) NOT NULL COMMENT '教师ID，关联teachers表',
+    `student_id`      bigint(20) NOT NULL COMMENT '学生ID，关联students表',
+    `course_id`       bigint(20) NOT NULL COMMENT '课程ID，关联courses表',
     -- 详细评价
-    `teacher_comment`         text COMMENT '教师对本节课的评价和建议',
+    `student_comment` text COMMENT '学生对课程的评价和建议',
+    `rating`          decimal(3, 2)   DEFAULT NULL COMMENT '课程评分，0-5分',
     -- 时间字段
-    `graded_at`               timestamp  NOT NULL                                      DEFAULT CURRENT_TIMESTAMP COMMENT '成绩录入时间',
-    `created_at`              timestamp  NULL                                          DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at`              timestamp  NULL                                          DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `created_at`      timestamp  NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`      timestamp  NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     -- 删除标记
-    `is_deleted`              tinyint(1)                                               DEFAULT '0' COMMENT '是否删除：0-未删除，1-已删除',
-    `deleted_at`              timestamp  NULL                                          DEFAULT NULL COMMENT '删除时间',
+    `is_deleted`      tinyint(1)      DEFAULT '0' COMMENT '是否删除：0-未删除，1-已删除',
+    `deleted_at`      timestamp  NULL DEFAULT NULL COMMENT '删除时间',
 
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_schedule_student` (`schedule_id`, `student_id`), -- 修正唯一键
+    KEY `idx_teacher_id` (`teacher_id`), -- 教师查询成绩
     KEY `idx_student_id` (`student_id`), -- 学生查询成绩
-    KEY `idx_schedule_id` (`schedule_id`), -- 教师查询某节课的成绩
-    KEY `idx_graded_at` (`graded_at`), -- 按录入时间筛选
+    KEY `idx_course_id` (`course_id`),   -- 课程查询成绩
 
-    CONSTRAINT `fk_lesson_grades_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `schedules` (`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_lesson_grades_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE
+    CONSTRAINT `fk_course_evaluation_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_course_evaluation_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_course_evaluation_course` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='课程成绩表';
+  COLLATE = utf8mb4_general_ci COMMENT ='课程评价表';
