@@ -23,13 +23,17 @@ import com.touhouqing.grabteacherbackend.model.dto.CourseEvaluationUpdateDTO;
 public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMapper, CourseEvaluation> implements ICourseEvaluationService {
 
     @Override
-    public Page<CourseEvaluationVO> pagePublicEvaluations(int page, int size, Long teacherId, Long courseId, java.math.BigDecimal minRating) {
+    public Page<CourseEvaluationVO> pagePublicEvaluations(int page, int size, Long teacherId, Long courseId, java.math.BigDecimal minRating, String teacherName, String courseName) {
         Page<CourseEvaluation> entityPage = new Page<>(page, size);
         LambdaQueryWrapper<CourseEvaluation> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(teacherId != null, CourseEvaluation::getTeacherId, teacherId)
                .eq(courseId != null, CourseEvaluation::getCourseId, courseId)
                .ge(minRating != null, CourseEvaluation::getRating, minRating)
+               .like(teacherName != null && !teacherName.isEmpty(), CourseEvaluation::getTeacherName, teacherName)
+               .like(courseName != null && !courseName.isEmpty(), CourseEvaluation::getCourseName, courseName)
                .eq(CourseEvaluation::getIsDeleted, false)
+               // 按评分从高到低，其次按创建时间从新到旧
+               .orderByDesc(CourseEvaluation::getRating)
                .orderByDesc(CourseEvaluation::getCreatedAt);
 
         Page<CourseEvaluation> result = this.page(entityPage, wrapper);

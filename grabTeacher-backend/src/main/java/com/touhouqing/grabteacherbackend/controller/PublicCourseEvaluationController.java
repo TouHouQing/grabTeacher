@@ -26,16 +26,18 @@ public class PublicCourseEvaluationController {
     @Autowired
     private ICourseEvaluationService courseEvaluationService;
 
-    @Operation(summary = "分页查询学员评价", description = "支持按教师、课程、最小评分筛选")
+    @Operation(summary = "分页查询学员评价", description = "支持按教师、课程、名称、最小评分筛选")
     @GetMapping
     public ResponseEntity<CommonResult<Map<String, Object>>> pageEvaluations(
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "教师ID") @RequestParam(required = false) Long teacherId,
             @Parameter(description = "课程ID") @RequestParam(required = false) Long courseId,
-            @Parameter(description = "最低评分") @RequestParam(required = false) BigDecimal minRating
+            @Parameter(description = "最低评分") @RequestParam(required = false) BigDecimal minRating,
+            @Parameter(description = "教师名称模糊") @RequestParam(required = false) String teacherName,
+            @Parameter(description = "课程名称模糊") @RequestParam(required = false) String courseName
     ) {
-        Page<CourseEvaluationVO> voPage = courseEvaluationService.pagePublicEvaluations(page, size, teacherId, courseId, minRating);
+        Page<CourseEvaluationVO> voPage = courseEvaluationService.pagePublicEvaluations(page, size, teacherId, courseId, minRating, teacherName, courseName);
 
         Map<String, Object> data = new HashMap<>();
         data.put("records", voPage.getRecords());

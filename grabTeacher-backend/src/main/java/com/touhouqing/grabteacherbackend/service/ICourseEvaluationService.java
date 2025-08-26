@@ -18,7 +18,9 @@ public interface ICourseEvaluationService extends IService<CourseEvaluation> {
             int size,
             Long teacherId,
             Long courseId,
-            java.math.BigDecimal minRating
+            java.math.BigDecimal minRating,
+            String teacherName,
+            String courseName
     );
 
     com.baomidou.mybatisplus.extension.plugins.pagination.Page<com.touhouqing.grabteacherbackend.model.vo.CourseEvaluationVO> pageAdmin(

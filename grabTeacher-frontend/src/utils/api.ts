@@ -958,7 +958,7 @@ export const adminPublicAPI = {
 
 // 课程评价（公开）API
 export const evaluationAPI = {
-  listPublic: (params: { page?: number; size?: number; teacherId?: number; courseId?: number; minRating?: number }) => {
+  listPublic: (params: { page?: number; size?: number; teacherId?: number; courseId?: number; minRating?: number; teacherName?: string; courseName?: string }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params || {}).forEach(key => {
       const v: any = (params as any)[key]
