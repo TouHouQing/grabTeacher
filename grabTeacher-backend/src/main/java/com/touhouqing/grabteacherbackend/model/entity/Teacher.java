@@ -27,23 +27,37 @@ public class Teacher {
     @TableField("real_name")
     private String realName;
 
+    @Schema(description = "教师基础评分", example = "4.5")
+    @TableField("base_rating")
+    private BigDecimal baseRating;
+
+    @Schema(description = "教师评分", example = "4.5")
+    @TableField("rating")
+    private BigDecimal rating;
+
     @TableField("education_background")
     private String educationBackground;
 
     @TableField("teaching_experience")
     private Integer teachingExperience;
 
+    @Schema(description = "教师专长", example = "高中数学")
+    @TableField("specialties")
     private String specialties;
 
     @TableField("hourly_rate")
     private BigDecimal hourlyRate;
 
+    @Schema(description = "教师介绍", example = "我是一个专业的教师，擅长高中数学")
+    @TableField("introduction")
     private String introduction;
 
+    @Schema(description = "教师视频介绍URL", example = "https://example.com/teacher-video.mp4")
     @TableField("video_intro_url")
     private String videoIntroUrl;
 
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
+    @TableField("gender")
     private String gender;
 
     @TableField("available_time_slots")
