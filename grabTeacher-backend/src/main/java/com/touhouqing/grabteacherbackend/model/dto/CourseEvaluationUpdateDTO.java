@@ -7,8 +7,7 @@ import java.math.BigDecimal;
 
 @Data
 public class CourseEvaluationUpdateDTO {
-    @NotNull
-    private Long id;
+    private Long id; // 由路径参数提供，不能在DTO上做@NotNull校验（校验发生在赋值之前）
     // IDs 改为可选
     private Long teacherId;
     private Long studentId;
@@ -29,6 +28,7 @@ public class CourseEvaluationUpdateDTO {
     @NotNull
     @DecimalMin(value = "0")
     @DecimalMax(value = "5")
+    @Digits(integer = 1, fraction = 2)
     private BigDecimal rating;
 }
 

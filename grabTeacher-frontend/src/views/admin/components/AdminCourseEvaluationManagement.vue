@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { apiRequest } from '../../../utils/api'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { View, Edit, Delete } from '@element-plus/icons-vue'
 
 type EvalVO = {
@@ -20,8 +20,8 @@ type EvalVO = {
 
 const loading = ref(false)
 const list = ref<EvalVO[]>([])
-const page = ref(1)
-const size = ref(10)
+const currentPage = ref(1)
+const pageSize = ref(10)
 const total = ref(0)
 
 const filters = ref<{ teacherId?: number; studentId?: number; courseId?: number; minRating?: number; teacherName?: string; studentName?: string; courseName?: string }>({})
@@ -30,8 +30,8 @@ const fetchList = async () => {
   loading.value = true
   try {
     const params = new URLSearchParams()
-    params.append('page', String(page.value))
-    params.append('size', String(size.value))
+    params.append('page', String(currentPage.value))
+    params.append('size', String(pageSize.value))
     Object.entries(filters.value).forEach(([k, v]) => {
       if (v !== undefined && v !== null) params.append(k, String(v))
     })
@@ -39,8 +39,8 @@ const fetchList = async () => {
     if (res?.success) {
       list.value = res.data.records || []
       total.value = Number(res.data.total || 0)
-      page.value = Number(res.data.current || 1)
-      size.value = Number(res.data.size || 10)
+      currentPage.value = Number(res.data.current || 1)
+      pageSize.value = Number(res.data.size || 10)
     }
   } finally {
     loading.value = false
@@ -76,19 +76,42 @@ const rules = {
 
 const openCreate = () => {
   editing.value = false
-  form.value = { teacherId: undefined, studentId: undefined, courseId: undefined, teacherName: '', studentName: '', courseName: '', rating: 5 }
+  form.value = { teacherId: undefined, studentId: undefined, courseId: undefined, teacherName: '', studentName: '', courseName: '', rating: 5, studentComment: '' }
   dialogVisible.value = true
 }
 
 const openEdit = (row: EvalVO) => {
   editing.value = true
   form.value = { ...row }
+  // 规范化必填字段，避免为空导致后端校验失败
+  form.value.teacherName = (row.teacherName ?? '').toString()
+  form.value.studentName = (row.studentName ?? '').toString()
+  form.value.courseName = (row.courseName ?? '').toString()
+  form.value.studentComment = (row.studentComment ?? '').toString()
+  if (row.rating === undefined || row.rating === null || Number.isNaN(Number(row.rating))) {
+    form.value.rating = 5
+  } else {
+    const num = Number(row.rating)
+    form.value.rating = Number(num.toFixed(2))
+  }
   dialogVisible.value = true
 }
 
 const handleDelete = async (row: EvalVO) => {
-  await apiRequest(`/api/admin/course-evaluations/${row.id}`, { method: 'DELETE' })
-  fetchList()
+  try {
+    await ElMessageBox.confirm(`确定要删除该评价（ID: ${row.id}）吗？`, '确认删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    const res = await apiRequest(`/api/admin/course-evaluations/${row.id}`, { method: 'DELETE' })
+    if (res?.success) {
+      ElMessage.success('删除成功')
+      fetchList()
+    }
+  } catch {
+    // 用户取消不提示错误
+  }
 }
 
 const handleSubmit = async () => {
@@ -106,23 +129,31 @@ const handleSubmit = async () => {
     studentComment: form.value.studentComment
   }
   if (editing.value && form.value.id) {
-    await apiRequest(`/api/admin/course-evaluations/${form.value.id}`, { method: 'PUT', data: payload })
+    const res = await apiRequest(`/api/admin/course-evaluations/${form.value.id}`, { method: 'PUT', data: payload })
+    if (res?.success) ElMessage.success('更新成功')
   } else {
-    await apiRequest('/api/admin/course-evaluations', { method: 'POST', data: payload })
+    const res = await apiRequest('/api/admin/course-evaluations', { method: 'POST', data: payload })
+    if (res?.success) ElMessage.success('新增成功')
   }
   dialogVisible.value = false
   fetchList()
 }
 
-const handlePage = (p: number) => { page.value = p; fetchList() }
-const handleSize = (s: number) => { size.value = s; page.value = 1; fetchList() }
+const handlePage = (p: number) => { currentPage.value = p; fetchList() }
+const handleSize = (s: number) => { pageSize.value = s; currentPage.value = 1; fetchList() }
 
 // 重置仅姓名类筛选
 const resetFilters = () => {
   filters.value.teacherName = ''
   filters.value.studentName = ''
   filters.value.courseName = ''
-  page.value = 1
+  currentPage.value = 1
+  fetchList()
+}
+
+// 搜索按钮点击：重置到第1页并查询
+const handleSearch = () => {
+  currentPage.value = 1
   fetchList()
 }
 
@@ -214,7 +245,7 @@ const openDetail = (row: EvalVO) => {
           <el-input v-model="filters.teacherName" placeholder="教师名称" clearable style="width: 200px" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="() => { page.value = 1; fetchList() }">搜索</el-button>
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
           <el-button @click="resetFilters">重置</el-button>
           <el-button type="success" @click="openCreate">新建评价</el-button>
         </el-form-item>
@@ -222,21 +253,21 @@ const openDetail = (row: EvalVO) => {
     </el-card>
 
     <el-table :data="list" v-loading="loading" stripe style="width: 100%">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="teacherName" label="教师姓名" width="140" />
-      <el-table-column prop="studentName" label="学生姓名" width="140" />
+      <el-table-column prop="id" label="ID" width="50" />
+      <el-table-column prop="rating" label="评分" width="60" />
+      <el-table-column prop="teacherName" label="教师姓名" width="130" />
+      <el-table-column prop="studentName" label="学生姓名" width="130" />
       <el-table-column prop="courseName" label="课程名称" width="160" />
-      <el-table-column prop="rating" label="评分" width="100" />
-      <el-table-column prop="createdAt" label="创建时间" min-width="160">
+      <el-table-column prop="createdAt" label="创建时间" min-width="170">
         <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column prop="updatedAt" label="更新时间" min-width="160">
+      <el-table-column prop="updatedAt" label="更新时间" min-width="170">
         <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
       </el-table-column>
-      <el-table-column label="评价内容" min-width="260" show-overflow-tooltip>
+      <el-table-column label="学生评价内容" min-width="250" show-overflow-tooltip>
         <template #default="{ row }">{{ row.studentComment }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right" align="center">
+      <el-table-column label="操作" width="230" fixed="right" align="center">
         <template #default="{ row }">
           <div class="operation-buttons">
             <el-button size="small" :icon="View" @click="openDetail(row)">详情</el-button>
@@ -249,8 +280,8 @@ const openDetail = (row: EvalVO) => {
 
     <div class="pagination-wrapper">
       <el-pagination
-        :current-page="page"
-        :page-size="size"
+        :current-page="currentPage"
+        :page-size="pageSize"
         :page-sizes="[10, 20, 50, 100]"
         :total="total"
         layout="total, sizes, prev, pager, next, jumper"
@@ -267,7 +298,7 @@ const openDetail = (row: EvalVO) => {
         <el-form-item label="教师姓名" prop="teacherName">
           <el-input v-model="form.teacherName" />
         </el-form-item>
-        <el-form-item label="学生ID(可空)">
+        <el-form-item label="学生ID">
           <el-input v-model.number="form.studentId" @blur="fetchStudentName" />
         </el-form-item>
         <el-form-item label="学生姓名" prop="studentName">
@@ -280,7 +311,7 @@ const openDetail = (row: EvalVO) => {
           <el-input v-model="form.courseName" />
         </el-form-item>
         <el-form-item label="评分" prop="rating">
-          <el-input v-model.number="form.rating" />
+          <el-input-number v-model="form.rating" :min="0" :max="5" :step="0.01" :precision="2" style="width: 100%" />
         </el-form-item>
         <el-form-item label="评价内容" prop="studentComment">
           <el-input v-model="form.studentComment" type="textarea" :rows="4" maxlength="255" show-word-limit />

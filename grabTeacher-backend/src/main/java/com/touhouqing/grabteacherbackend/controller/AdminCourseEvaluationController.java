@@ -41,7 +41,7 @@ public class AdminCourseEvaluationController {
             @RequestParam(required = false) String studentName,
             @RequestParam(required = false) String courseName
     ) {
-        Page<CourseEvaluationVO> voPage = courseEvaluationService.pageAdmin(page, size, teacherId, studentId, courseId, minRating);
+        Page<CourseEvaluationVO> voPage = courseEvaluationService.pageAdmin(page, size, teacherId, studentId, courseId, minRating, teacherName, studentName, courseName);
         Map<String, Object> data = new HashMap<>();
         data.put("records", voPage.getRecords());
         data.put("total", voPage.getTotal());

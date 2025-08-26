@@ -27,6 +27,7 @@ public class CourseEvaluationCreateDTO {
     @NotNull
     @DecimalMin(value = "0")
     @DecimalMax(value = "5")
+    @Digits(integer = 1, fraction = 2)
     private BigDecimal rating;
 }
 

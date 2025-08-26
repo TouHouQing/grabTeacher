@@ -58,13 +58,16 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
     }
 
     @Override
-    public Page<CourseEvaluationVO> pageAdmin(int page, int size, Long teacherId, Long studentId, Long courseId, java.math.BigDecimal minRating) {
+    public Page<CourseEvaluationVO> pageAdmin(int page, int size, Long teacherId, Long studentId, Long courseId, java.math.BigDecimal minRating, String teacherName, String studentName, String courseName) {
         Page<CourseEvaluation> entityPage = new Page<>(page, size);
         LambdaQueryWrapper<CourseEvaluation> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(teacherId != null, CourseEvaluation::getTeacherId, teacherId)
                .eq(studentId != null, CourseEvaluation::getStudentId, studentId)
                .eq(courseId != null, CourseEvaluation::getCourseId, courseId)
                .ge(minRating != null, CourseEvaluation::getRating, minRating)
+               .like(teacherName != null && !teacherName.isEmpty(), CourseEvaluation::getTeacherName, teacherName)
+               .like(studentName != null && !studentName.isEmpty(), CourseEvaluation::getStudentName, studentName)
+               .like(courseName != null && !courseName.isEmpty(), CourseEvaluation::getCourseName, courseName)
                .eq(CourseEvaluation::getIsDeleted, false)
                .orderByDesc(CourseEvaluation::getCreatedAt);
 

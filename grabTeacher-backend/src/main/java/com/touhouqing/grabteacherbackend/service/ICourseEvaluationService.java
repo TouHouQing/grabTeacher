@@ -27,7 +27,10 @@ public interface ICourseEvaluationService extends IService<CourseEvaluation> {
             Long teacherId,
             Long studentId,
             Long courseId,
-            java.math.BigDecimal minRating
+            java.math.BigDecimal minRating,
+            String teacherName,
+            String studentName,
+            String courseName
     );
 
     CourseEvaluation createByAdmin(
