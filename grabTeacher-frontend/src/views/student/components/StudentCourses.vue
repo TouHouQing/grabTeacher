@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, Timer, Refresh, Check, VideoCamera, InfoFilled, Download, Clock, Collection, Reading, Loading } from '@element-plus/icons-vue'
-import { bookingAPI, rescheduleAPI, teacherAPI, apiRequest } from '@/utils/api'
+import { Calendar, Timer, Refresh, Check, VideoCamera, InfoFilled, Clock, Collection, Reading, Loading, Star } from '@element-plus/icons-vue'
+import { bookingAPI, rescheduleAPI, teacherAPI, studentAPI, apiRequest } from '../../../utils/api'
 
 // 课程安排接口（基于后端ScheduleResponseDTO）
 interface CourseSchedule {
@@ -50,21 +50,10 @@ interface Course {
   description: string;
   status: 'active' | 'completed' | 'upcoming';
   schedules?: CourseSchedule[]; // 关联的课程安排
+  hasEvaluation?: boolean; // 是否已评价
 }
 
 // 调课相关接口
-interface RescheduleRequest {
-  courseId: number;
-  type: 'single' | 'recurring'; // 单次调课或周期性调课
-  originalDate?: string; // 原定日期（单次调课）
-  originalTime?: string; // 原定时间（单次调课）
-  newDate?: string; // 新日期（单次调课）
-  newTime?: string; // 新时间（单次调课）
-  newWeeklySchedule?: string[]; // 新的每周时间安排（周期性调课）
-  reason: string; // 调课原因
-  applyDate: string; // 申请日期
-  status: 'pending' | 'approved' | 'rejected'; // 待确认、已同意、已拒绝
-}
 
 // 成绩数据接口
 interface GradeData {
@@ -111,6 +100,15 @@ const currentScheduleGrade = ref<{
 } | null>(null)
 const scheduleGrades = ref<Map<number, ScheduleGrade>>(new Map()) // 缓存课程安排的成绩
 
+// 课程评价相关
+const evaluationVisible = ref(false)
+const currentCourseForEvaluation = ref<Course | null>(null)
+const evaluationForm = ref({
+  rating: 5,
+  comment: ''
+})
+const evaluationLoading = ref(false)
+
 // 获取学生课程安排
 const loadStudentSchedules = async () => {
   try {
@@ -125,6 +123,8 @@ const loadStudentSchedules = async () => {
       courses.value = convertSchedulesToCourses(result.data)
       // 加载调课申请状态
       await loadRescheduleStatus()
+      // 加载课程评价状态
+      await loadCourseEvaluationStatus()
     } else {
       ElMessage.error(result.message || '获取课程安排失败')
     }
@@ -141,7 +141,7 @@ const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => 
   // 按预约申请ID分组（每个预约申请对应一个课程系列）
   const courseGroups = new Map<number, CourseSchedule[]>()
 
-  scheduleList.forEach(schedule => {
+  scheduleList.forEach((schedule, index) => {
     const groupKey = schedule.bookingRequestId
     if (!courseGroups.has(groupKey)) {
       courseGroups.set(groupKey, [])
@@ -154,8 +154,12 @@ const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => 
 
   courseGroups.forEach((scheduleGroup, bookingRequestId) => {
     const firstSchedule = scheduleGroup[0]
-    const completedCount = scheduleGroup.filter(s => s.status === 'completed').length
-    const totalCount = firstSchedule.totalTimes || scheduleGroup.length
+
+    // 过滤掉已取消的节次，只统计有效的节次
+    const effectiveSchedules = scheduleGroup.filter(s => s.status !== 'cancelled')
+    const completedCount = effectiveSchedules.filter(s => s.status === 'completed').length
+    // 强制使用有效节次数量作为总节数，确保显示正确
+    const totalCount = effectiveSchedules.length
     const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
     // 找到下一次课程
@@ -195,7 +199,8 @@ const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => 
       image: getSubjectImage(firstSchedule.subjectName),
       description: `${firstSchedule.courseTitle} - ${firstSchedule.subjectName}课程`,
       status,
-      schedules: scheduleGroup
+      schedules: scheduleGroup,
+      hasEvaluation: false // 默认未评价，后续会通过API检查
     })
   })
 
@@ -267,7 +272,12 @@ const availableTimeSlots = ref<string[]>([
 ])
 
 // 教师可用时间段（从后端获取）
-const teacherAvailableTimeSlots = ref<any[]>([])
+interface TeacherTimeSlot {
+  weekday: number
+  timeSlots: string[]
+}
+
+const teacherAvailableTimeSlots = ref<TeacherTimeSlot[]>([])
 
 // 获取教师可用时间
 const loadTeacherAvailableTime = async (teacherId: number) => {
@@ -302,9 +312,9 @@ const isTimeSlotAvailable = (weekday: number, timeSlot: string): boolean => {
 }
 
 // 获取可用的时间段（过滤掉不可用的）
-const getAvailableTimeSlotsForWeekday = (weekday: number): string[] => {
-  return availableTimeSlots.value.filter(timeSlot => isTimeSlotAvailable(weekday, timeSlot))
-}
+// const getAvailableTimeSlotsForWeekday = (weekday: number): string[] => {
+//   return availableTimeSlots.value.filter(timeSlot => isTimeSlotAvailable(weekday, timeSlot))
+// }
 
 // 获取所有时间段（用于周期性调课显示）
 const getAllAvailableTimeSlots = computed(() => {
@@ -363,9 +373,6 @@ const getNextSchedule = (schedules?: CourseSchedule[]): CourseSchedule | undefin
   )
 }
 
-// 调课申请记录
-const rescheduleRequests = ref<RescheduleRequest[]>([])
-
 // 课程调课状态映射
 const courseRescheduleStatus = ref<Map<number, string>>(new Map())
 
@@ -376,6 +383,75 @@ const showCourseDetail = async (course: Course) => {
   // 加载该课程所有课程安排的成绩
   if (course.schedules && course.schedules.length > 0) {
     await loadScheduleGrades(course.schedules)
+  }
+}
+
+// 显示课程评价弹窗
+const showCourseEvaluation = (course: Course) => {
+  currentCourseForEvaluation.value = course
+  // 重置评价表单
+  evaluationForm.value = {
+    rating: 5,
+    comment: ''
+  }
+  evaluationVisible.value = true
+}
+
+// 提交课程评价
+const submitCourseEvaluation = async () => {
+  if (!currentCourseForEvaluation.value) return
+
+  try {
+    evaluationLoading.value = true
+
+    // 获取课程信息
+    const course = currentCourseForEvaluation.value
+    const firstSchedule = course.schedules?.[0]
+
+    if (!firstSchedule) {
+      ElMessage.error('课程信息不完整，无法提交评价')
+      return
+    }
+
+    // 验证ID的有效性
+    if (!firstSchedule.teacherId || !firstSchedule.studentId || !firstSchedule.courseId ||
+        isNaN(Number(firstSchedule.teacherId)) || isNaN(Number(firstSchedule.studentId)) || isNaN(Number(firstSchedule.courseId))) {
+      ElMessage.error('课程信息不完整，ID无效，无法提交评价')
+      return
+    }
+
+    // 构建评价数据
+    const evaluationData = {
+      teacherId: Number(firstSchedule.teacherId),
+      studentId: Number(firstSchedule.studentId),
+      courseId: Number(firstSchedule.courseId),
+      teacherName: firstSchedule.teacherName,
+      studentName: firstSchedule.studentName,
+      courseName: firstSchedule.courseTitle,
+      rating: evaluationForm.value.rating,
+      studentComment: evaluationForm.value.comment
+    }
+
+    // 调用API创建评价
+    const result = await studentAPI.createCourseEvaluation(evaluationData)
+
+    if (result.success) {
+      ElMessage.success('评价提交成功！')
+      evaluationVisible.value = false
+      // 更新当前课程的评价状态
+      if (currentCourseForEvaluation.value) {
+        currentCourseForEvaluation.value.hasEvaluation = true
+      }
+      // 刷新课程列表
+      await loadStudentSchedules()
+    } else {
+      ElMessage.error(result.message || '评价提交失败')
+    }
+  } catch (error) {
+    console.error('提交评价失败:', error)
+    ElMessage.error('评价提交失败，请稍后重试')
+  } finally {
+    evaluationLoading.value = false
   }
 }
 
@@ -510,10 +586,20 @@ const getWeekdayName = (weekday: number): string => {
   return names[weekday] || '未知'
 }
 
-// 课程详情中的课程安排（后端已排序，直接使用）
+// 课程详情中的课程安排（过滤掉已取消的节次，后端已排序）
 const sortedSchedules = computed(() => {
-  return currentCourse.value?.schedules || []
+  if (!currentCourse.value?.schedules) return []
+  return currentCourse.value.schedules.filter(s => s.status !== 'cancelled')
 })
+
+// 为有效节次生成正确的编号（排除已取消的节次）
+const getEffectiveSessionNumber = (schedule: CourseSchedule, index: number) => {
+  if (schedule.sessionNumber && schedule.sessionNumber > 0) {
+    return schedule.sessionNumber
+  }
+  // 如果没有后端编号，则基于有效节次的索引生成
+  return index + 1
+}
 
 // 提交调课申请
 const submitReschedule = async () => {
@@ -629,7 +715,7 @@ const loadRescheduleStatus = async () => {
 
     if (result.success && result.data?.records) {
       courseRescheduleStatus.value.clear()
-      result.data.records.forEach((request: any) => {
+      result.data.records.forEach((request: { scheduleId: number }) => {
         // 根据scheduleId找到对应的课程
         const course = courses.value.find(c =>
           c.schedules?.some(s => s.id === request.scheduleId)
@@ -641,6 +727,43 @@ const loadRescheduleStatus = async () => {
     }
   } catch (error) {
     console.error('加载调课申请状态失败:', error)
+  }
+}
+
+// 加载课程评价状态
+const loadCourseEvaluationStatus = async () => {
+  try {
+    // 为每个已完成的课程检查评价状态
+    for (const course of courses.value) {
+      if (course.status === 'completed' && course.schedules && course.schedules.length > 0) {
+        const firstSchedule = course.schedules[0]
+
+        // 验证ID的有效性
+        if (!firstSchedule.studentId || !firstSchedule.courseId ||
+            isNaN(Number(firstSchedule.studentId)) || isNaN(Number(firstSchedule.courseId))) {
+          console.warn(`课程 ${course.id} 的ID无效: studentId=${firstSchedule.studentId}, courseId=${firstSchedule.courseId}`)
+          course.hasEvaluation = false
+          continue
+        }
+
+        try {
+          const result = await studentAPI.checkCourseEvaluationStatus(
+            Number(firstSchedule.studentId),
+            Number(firstSchedule.courseId)
+          )
+          if (result.success) {
+            course.hasEvaluation = result.data
+          } else {
+            course.hasEvaluation = false
+          }
+        } catch (error) {
+          console.error(`检查课程 ${course.id} 评价状态失败:`, error)
+          course.hasEvaluation = false
+        }
+      }
+    }
+  } catch (error) {
+    console.error('加载课程评价状态失败:', error)
   }
 }
 
@@ -703,15 +826,9 @@ const getScheduleStatusText = (status: string): string => {
 
 
 
-// 下载学习资料
-const downloadMaterials = (courseId: number) => {
-  ElMessage.success('开始下载课程资料')
-}
 
-// 联系教师
-const contactTeacher = (teacher: string) => {
-  ElMessage.success(`正在连接 ${teacher} 的聊天窗口`)
-}
+
+
 
 // 显示成绩图表
 const showGradeChart = async (course: Course) => {
@@ -923,12 +1040,7 @@ const initGradeChart = () => {
   }, 100)
 }
 
-// 监听成绩数据变化，更新图表
-const updateChart = () => {
-  if (gradeData.value.length > 0 && gradeChartVisible.value) {
-    initGradeChart()
-  }
-}
+
 
 // 获取课程安排的成绩
 const getScheduleGrade = (scheduleId: number) => {
@@ -1074,7 +1186,16 @@ export default {
                       <el-icon><Reading /></el-icon> 查看成绩
                     </el-button>
                     <el-button
-                      v-if="course.remainingLessons && course.remainingLessons > 0"
+                      v-if="course.status === 'completed'"
+                      size="small"
+                      type="warning"
+                      @click="showCourseEvaluation(course)"
+                      :disabled="course.hasEvaluation"
+                    >
+                      <el-icon><Star /></el-icon> {{ course.hasEvaluation ? '已评价' : '评价课程' }}
+                    </el-button>
+                    <el-button
+                      v-else-if="course.remainingLessons && course.remainingLessons > 0"
                       size="small"
                       type="warning"
                       @click="showReschedule(course)"
@@ -1179,11 +1300,11 @@ export default {
                     </div>
                   </div>
                   <div class="course-actions">
-                    <el-button size="small" type="primary" @click="downloadMaterials(course.id)">
-                      <el-icon><Download /></el-icon> 下载资料
-                    </el-button>
                     <el-button size="small" type="success" @click="showGradeChart(course)">
                       <el-icon><Reading /></el-icon> 查看成绩
+                    </el-button>
+                    <el-button size="small" type="warning" @click="showCourseEvaluation(course)">
+                      <el-icon><Star /></el-icon> 评价课程
                     </el-button>
                     <el-button size="small" type="info" @click="showCourseDetail(course)">
                       <el-icon><InfoFilled /></el-icon> 详情
@@ -1307,7 +1428,7 @@ export default {
               :class="getScheduleStatusClass(schedule.status)"
             >
               <div class="schedule-number">
-                <span>第{{ schedule.sessionNumber || (index + 1) }}节</span>
+                <span>第{{ getEffectiveSessionNumber(schedule, index) }}节</span>
               </div>
               <div class="schedule-info">
                 <div class="schedule-date">
@@ -1351,9 +1472,6 @@ export default {
           </el-button>
           <el-button type="success" @click="showGradeChart(currentCourse)">
             <el-icon><Reading /></el-icon> 查看成绩
-          </el-button>
-          <el-button type="info" @click="downloadMaterials(currentCourse.id)">
-            <el-icon><Download /></el-icon> 下载资料
           </el-button>
         </div>
       </div>
@@ -1700,6 +1818,56 @@ export default {
 
       <template #footer>
         <el-button @click="closeGradeChart">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 课程评价弹窗 -->
+    <el-dialog
+      v-model="evaluationVisible"
+      title="课程评价"
+      width="500px"
+      :before-close="() => evaluationVisible = false"
+    >
+      <div v-if="currentCourseForEvaluation" class="evaluation-content">
+        <div class="evaluation-course-info">
+          <h4>{{ currentCourseForEvaluation.title }}</h4>
+          <p>{{ currentCourseForEvaluation.subject }} | {{ currentCourseForEvaluation.teacher }}</p>
+        </div>
+
+        <el-form :model="evaluationForm" label-width="80px">
+          <el-form-item label="课程评分" required>
+            <el-rate
+              v-model="evaluationForm.rating"
+              :max="5"
+              :step="0.5"
+              show-score
+              score-template="{value}分"
+              :colors="['#99A9BF', '#F7BA2A', '#FF9900']"
+            />
+          </el-form-item>
+
+          <el-form-item label="评价内容" required>
+            <el-input
+              v-model="evaluationForm.comment"
+              type="textarea"
+              :rows="4"
+              placeholder="请分享您对这门课程的感受和建议..."
+              maxlength="255"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <template #footer>
+        <el-button @click="evaluationVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          @click="submitCourseEvaluation"
+          :loading="evaluationLoading"
+        >
+          提交评价
+        </el-button>
       </template>
     </el-dialog>
 
@@ -2608,6 +2776,32 @@ h2 {
   font-size: 12px;
   color: #c0c4cc;
   font-style: italic;
+}
+
+/* 课程评价弹窗样式 */
+.evaluation-content {
+  padding: 20px 0;
+}
+
+.evaluation-course-info {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.evaluation-course-info h4 {
+  margin: 0 0 8px 0;
+  color: #303133;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.evaluation-course-info p {
+  margin: 0;
+  color: #606266;
+  font-size: 14px;
 }
 
 /* 单节课成绩详情弹窗样式 */
