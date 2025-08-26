@@ -69,6 +69,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CommonResult<Object>> handleMethodArgumentTypeMismatchException(
             MethodArgumentTypeMismatchException ex) {
         String message = "参数类型错误: " + ex.getName() + " 应为 " + ex.getRequiredType().getSimpleName() + " 类型";
+        
+        // 如果是路径参数类型错误，提供更详细的错误信息
+        if (ex.getName().equals("studentId") || ex.getName().equals("courseId") || ex.getName().equals("teacherId")) {
+            message = "路径参数 " + ex.getName() + " 必须是有效的数字ID";
+        }
+        
         logger.warn("参数类型错误: {}", message);
         return ResponseEntity.badRequest()
                 .body(CommonResult.error(400, message));

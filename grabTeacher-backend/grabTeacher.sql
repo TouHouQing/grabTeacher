@@ -1938,6 +1938,7 @@ CREATE TABLE `course_evaluation`
     KEY `idx_teacher_id` (`teacher_id`), -- 教师查询成绩
     KEY `idx_student_id` (`student_id`), -- 学生查询成绩
     KEY `idx_course_id` (`course_id`),   -- 课程查询成绩
+    UNIQUE KEY `uk_student_course` (`student_id`, `course_id`,`teacher_id`), -- 防止重复评价
 
     CONSTRAINT `fk_course_evaluation_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_course_evaluation_course` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE

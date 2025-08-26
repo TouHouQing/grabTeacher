@@ -164,4 +164,36 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
         this.updateById(entity);
         return entity;
     }
+
+    @Override
+    public CourseEvaluation createByStudent(CourseEvaluationCreateDTO dto) {
+        // 检查学生是否已经评价过这门课程
+        if (hasStudentEvaluatedCourse(dto.getStudentId(), dto.getCourseId())) {
+            throw new IllegalArgumentException("您已经评价过这门课程，不能重复评价");
+        }
+        
+        CourseEvaluation entity = new CourseEvaluation();
+        entity.setTeacherId(dto.getTeacherId());
+        entity.setStudentId(dto.getStudentId());
+        entity.setCourseId(dto.getCourseId());
+        entity.setTeacherName(dto.getTeacherName());
+        entity.setStudentName(dto.getStudentName());
+        entity.setCourseName(dto.getCourseName());
+        entity.setStudentComment(dto.getStudentComment());
+        entity.setRating(dto.getRating());
+        entity.setIsFeatured(false); // 学生评价默认不精选
+        entity.setIsDeleted(false);
+        this.save(entity);
+        return entity;
+    }
+
+    @Override
+    public boolean hasStudentEvaluatedCourse(Long studentId, Long courseId) {
+        LambdaQueryWrapper<CourseEvaluation> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CourseEvaluation::getStudentId, studentId)
+               .eq(CourseEvaluation::getCourseId, courseId)
+               .eq(CourseEvaluation::getIsDeleted, false);
+        
+        return this.count(wrapper) > 0;
+    }
 }

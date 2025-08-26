@@ -48,4 +48,11 @@ public interface ICourseEvaluationService extends IService<CourseEvaluation> {
     /** 切换精选状态 */
     CourseEvaluation toggleFeatured(Long id, boolean isFeatured);
 
+    /** 学生端创建课程评价 */
+    CourseEvaluation createByStudent(
+            com.touhouqing.grabteacherbackend.model.dto.CourseEvaluationCreateDTO dto
+    );
+
+    /** 检查学生是否已评价某课程 */
+    boolean hasStudentEvaluatedCourse(Long studentId, Long courseId);
 }

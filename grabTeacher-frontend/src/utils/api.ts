@@ -213,7 +213,26 @@ export const studentAPI = {
   getStatistics: () => apiRequest('/api/student/statistics'),
 
   // 获取学生个人资料
-  getProfile: () => apiRequest('/api/student/profile')
+  getProfile: () => apiRequest('/api/student/profile'),
+
+  // 创建课程评价
+  createCourseEvaluation: (data: {
+    teacherId: number
+    studentId: number
+    courseId: number
+    teacherName: string
+    studentName: string
+    courseName: string
+    rating: number
+    studentComment: string
+  }) => apiRequest('/api/student/course-evaluations', {
+    method: 'POST',
+    data
+  }),
+
+  // 检查课程评价状态
+  checkCourseEvaluationStatus: (studentId: number, courseId: number) =>
+    apiRequest(`/api/student/course-evaluations/check/${studentId}/${courseId}`)
 }
 
 // 教师管理 API
