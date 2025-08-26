@@ -1917,9 +1917,12 @@ VALUES ('欢迎加入抢老师平台', '欢迎各位同学加入我们的在线�
 CREATE TABLE `course_evaluation`
 (
     `id`              bigint(20) NOT NULL AUTO_INCREMENT COMMENT '成绩记录ID，主键自增',
-    `teacher_id`      bigint(20) NOT NULL COMMENT '教师ID，关联teachers表',
-    `student_id`      bigint(20) NOT NULL COMMENT '学生ID，关联students表',
-    `course_id`       bigint(20) NOT NULL COMMENT '课程ID，关联courses表',
+    `teacher_id`      bigint(20) DEFAULT NULL COMMENT '教师ID，关联teachers表',
+    `student_id`      bigint(20) DEFAULT NULL COMMENT '学生ID，关联students表',
+    `course_id`       bigint(20) DEFAULT NULL COMMENT '课程ID，关联courses表',
+    `teacher_name`    varchar(255) DEFAULT NULL COMMENT '教师姓名',
+    `student_name`    varchar(255) DEFAULT NULL COMMENT '学生姓名',
+    `course_name`     varchar(255) DEFAULT NULL COMMENT '课程名称',
     -- 详细评价
     `student_comment` text COMMENT '学生对课程的评价和建议',
     `rating`          decimal(3, 2)   DEFAULT 5 COMMENT '课程评分，0-5分',
@@ -1936,7 +1939,6 @@ CREATE TABLE `course_evaluation`
     KEY `idx_course_id` (`course_id`),   -- 课程查询成绩
 
     CONSTRAINT `fk_course_evaluation_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_course_evaluation_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_course_evaluation_course` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4

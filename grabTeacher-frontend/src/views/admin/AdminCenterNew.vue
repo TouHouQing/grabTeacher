@@ -19,6 +19,7 @@ import AdminStudyAbroadStageManagement from './components/AdminStudyAbroadStageM
 import AdminStudyAbroadProgramManagement from './components/AdminStudyAbroadProgramManagement.vue'
 import AdminBalanceTransactionManagement from './components/AdminBalanceTransactionManagement.vue'
 import AdminMessageManagement from './components/AdminMessageManagement.vue'
+import AdminCourseEvaluationManagement from './components/AdminCourseEvaluationManagement.vue'
 
 // 获取用户信息
 const userStore = useUserStore()
@@ -83,6 +84,10 @@ const handleMenuSelect = (key: string) => {
             <el-menu-item index="courses">
               <el-icon><Reading /></el-icon>
               <span>课程管理</span>
+            </el-menu-item>
+            <el-menu-item index="course-evaluations">
+              <el-icon><Reading /></el-icon>
+              <span>学生评价</span>
             </el-menu-item>
             <el-menu-item index="jobposts">
               <el-icon><Reading /></el-icon>
@@ -152,6 +157,11 @@ const handleMenuSelect = (key: string) => {
         <!-- 课程管理 -->
         <div v-if="activeMenu === 'courses'" class="content-panel">
           <AdminCourseManagement />
+        </div>
+
+        <!-- 学生评价管理 -->
+        <div v-if="activeMenu === 'course-evaluations'" class="content-panel">
+          <AdminCourseEvaluationManagement />
         </div>
 
         <!-- 招聘管理 -->

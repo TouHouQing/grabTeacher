@@ -956,6 +956,19 @@ export const adminPublicAPI = {
   getContacts: () => apiRequest('/api/public/admins/contacts')
 }
 
+// 课程评价（公开）API
+export const evaluationAPI = {
+  listPublic: (params: { page?: number; size?: number; teacherId?: number; courseId?: number; minRating?: number }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null && v !== '') searchParams.append(key, v.toString())
+    })
+    const query = searchParams.toString()
+    return apiRequest(`/api/public/course-evaluations${query ? `?${query}` : ''}`)
+  }
+}
+
 export const jobPostAPI = {
   // 公开列表
   list: (params: { page?: number; size?: number; gradeId?: number; subjectId?: number }) => {

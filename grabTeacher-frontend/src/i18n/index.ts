@@ -6,6 +6,7 @@ const en = {
     home: 'Home',
     latestCourses: 'Latest Courses',
     famousTeachers: 'Recommended Teacher',
+    studentReviews: 'Student Reviews',
     studyAbroad: 'Study Abroad',
     about: 'About Us',
     platform: 'Job Opportunity'
@@ -88,6 +89,7 @@ const zh = {
     home: '首页',
     latestCourses: '最新课程',
     famousTeachers: '教师推荐',
+    studentReviews: '学生评价',
     studyAbroad: '留学咨询',
     about: '关于我们',
     platform: '工作机会'

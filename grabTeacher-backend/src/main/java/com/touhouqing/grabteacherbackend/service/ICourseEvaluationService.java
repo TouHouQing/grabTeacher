@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.service;
 
-import com.touhouqing.grabteacherbackend.model.CourseEvaluation;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.touhouqing.grabteacherbackend.model.entity.CourseEvaluation;
 
 /**
  * <p>
@@ -12,5 +12,32 @@ import com.baomidou.mybatisplus.extension.service.IService;
  * @since 2025-08-26
  */
 public interface ICourseEvaluationService extends IService<CourseEvaluation> {
+
+    com.baomidou.mybatisplus.extension.plugins.pagination.Page<com.touhouqing.grabteacherbackend.model.vo.CourseEvaluationVO> pagePublicEvaluations(
+            int page,
+            int size,
+            Long teacherId,
+            Long courseId,
+            java.math.BigDecimal minRating
+    );
+
+    com.baomidou.mybatisplus.extension.plugins.pagination.Page<com.touhouqing.grabteacherbackend.model.vo.CourseEvaluationVO> pageAdmin(
+            int page,
+            int size,
+            Long teacherId,
+            Long studentId,
+            Long courseId,
+            java.math.BigDecimal minRating
+    );
+
+    CourseEvaluation createByAdmin(
+            com.touhouqing.grabteacherbackend.model.dto.CourseEvaluationCreateDTO dto
+    );
+
+    CourseEvaluation updateByAdmin(
+            com.touhouqing.grabteacherbackend.model.dto.CourseEvaluationUpdateDTO dto
+    );
+
+    void deleteByAdmin(Long id);
 
 }

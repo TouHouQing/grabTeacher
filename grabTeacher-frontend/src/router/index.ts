@@ -144,6 +144,11 @@ const router = createRouter({
       component: () => import('../views/Videos.vue')
     },
     {
+      path: '/student-reviews',
+      name: 'StudentReviews',
+      component: () => import('../views/StudentReviews.vue')
+    },
+    {
       path: '/teacher-detail/:id',
       name: 'TeacherDetail',
       component: () => import('../views/student/TeacherDetail.vue')

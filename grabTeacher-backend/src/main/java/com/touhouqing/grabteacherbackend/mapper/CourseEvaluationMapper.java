@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.mapper;
 
-import com.touhouqing.grabteacherbackend.model.CourseEvaluation;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.touhouqing.grabteacherbackend.model.entity.CourseEvaluation;
 
 /**
  * <p>

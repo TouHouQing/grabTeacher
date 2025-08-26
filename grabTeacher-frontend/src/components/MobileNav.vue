@@ -41,6 +41,7 @@ const navItems = computed(() => [
   { path: '/', label: t('nav.home') },
   { path: '/latest-courses', label: t('nav.latestCourses') },
   { path: '/famous-teachers', label: t('nav.famousTeachers') },
+  { path: '/student-reviews', label: t('nav.studentReviews') },
   { path: '/study-abroad', label: t('nav.studyAbroad') },
   { path: '/about', label: t('nav.about') },
   { path: '/platform', label: t('nav.platform') }

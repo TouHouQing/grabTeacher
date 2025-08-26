@@ -54,6 +54,7 @@ function updateLangClass() {
         <el-menu-item index="/">{{ $t('nav.home') }}</el-menu-item>
         <el-menu-item index="/latest-courses">{{ $t('nav.latestCourses') }}</el-menu-item>
         <el-menu-item index="/famous-teachers">{{ $t('nav.famousTeachers') }}</el-menu-item>
+        <el-menu-item index="/student-reviews">{{ $t('nav.studentReviews') }}</el-menu-item>
         <el-menu-item index="/study-abroad">{{ $t('nav.studyAbroad') }}</el-menu-item>
         <el-menu-item index="/platform">{{ $t('nav.platform') }}</el-menu-item>
         <el-menu-item index="/about">{{ $t('nav.about') }}</el-menu-item>
