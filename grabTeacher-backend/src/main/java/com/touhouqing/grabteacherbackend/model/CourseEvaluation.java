@@ -1,6 +1,9 @@
 package com.touhouqing.grabteacherbackend.model;
 
+import java.io.Serial;
 import java.math.BigDecimal;
+
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -24,6 +27,7 @@ import lombok.experimental.Accessors;
 @TableName("course_evaluation")
 public class CourseEvaluation implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /**
