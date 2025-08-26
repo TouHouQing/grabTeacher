@@ -72,6 +72,13 @@ public class AdminCourseEvaluationController {
         courseEvaluationService.deleteByAdmin(id);
         return ResponseEntity.ok(CommonResult.success("删除成功", null));
     }
+
+    @Operation(summary = "切换精选状态")
+    @PatchMapping("/{id}/featured")
+    public ResponseEntity<CommonResult<CourseEvaluation>> toggleFeatured(@PathVariable Long id, @RequestParam boolean isFeatured) {
+        CourseEvaluation updated = courseEvaluationService.toggleFeatured(id, isFeatured);
+        return ResponseEntity.ok(CommonResult.success("操作成功", updated));
+    }
 }
 
 

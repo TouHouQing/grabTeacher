@@ -29,6 +29,9 @@ public class CourseEvaluationCreateDTO {
     @DecimalMax(value = "5")
     @Digits(integer = 1, fraction = 2)
     private BigDecimal rating;
+
+    // 是否精选，可选；默认后端按false处理
+    private Boolean isFeatured;
 }
 
 

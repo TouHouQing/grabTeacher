@@ -18,6 +18,8 @@ public class CourseEvaluationVO implements Serializable {
     private String studentComment;
     private BigDecimal rating;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private Boolean isFeatured;
 }
 
 

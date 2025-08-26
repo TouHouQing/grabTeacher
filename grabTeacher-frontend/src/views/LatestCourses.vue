@@ -8,7 +8,6 @@ import {
   Star,
   Calendar,
   Refresh,
-  Promotion,
   GoodsFilled,
   Present,
   Reading,
@@ -345,40 +344,6 @@ onMounted(() => {
           />
         </div>
       </div>
-
-      <!-- 促销信息 -->
-      <div class="promotion-section">
-        <div class="promotion-card">
-          <div class="promotion-icon">
-            <el-icon><Promotion /></el-icon>
-          </div>
-          <div class="promotion-content">
-            <h3>限时优惠</h3>
-            <p>新课程首周报名，额外赠送1次一对一辅导</p>
-            <el-button type="danger">了解详情</el-button>
-          </div>
-        </div>
-        <div class="promotion-card">
-          <div class="promotion-icon">
-            <el-icon><GoodsFilled /></el-icon>
-          </div>
-          <div class="promotion-content">
-            <h3>新人特惠</h3>
-            <p>首次注册用户，任选一门最新课程立减200元</p>
-            <el-button type="danger">立即领取</el-button>
-          </div>
-        </div>
-        <div class="promotion-card">
-          <div class="promotion-icon">
-            <el-icon><Present /></el-icon>
-          </div>
-          <div class="promotion-content">
-            <h3>邀请有礼</h3>
-            <p>邀请好友注册，双方均可获得100元课程抵扣券</p>
-            <el-button type="danger">邀请好友</el-button>
-          </div>
-        </div>
-      </div>
     </div>
     <!-- 联系我们 -->
     <ContactUs />
@@ -679,48 +644,7 @@ export default {
   text-align: center;
 }
 
-.promotion-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-}
 
-.promotion-card {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-}
-
-.promotion-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background-color: #fef0f0;
-  color: #f56c6c;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 30px;
-  margin-right: 20px;
-}
-
-.promotion-content {
-  flex: 1;
-}
-
-.promotion-content h3 {
-  margin: 0 0 10px;
-  font-size: 18px;
-  color: #333;
-}
-
-.promotion-content p {
-  margin: 0 0 15px;
-  color: #666;
-}
 
 @media (max-width: 768px) {
   .latest-courses {
@@ -844,35 +768,6 @@ export default {
     width: 100%;
   }
 
-  .promotion-section {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .promotion-card {
-    padding: 16px;
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .promotion-icon {
-    width: 50px;
-    height: 50px;
-    font-size: 24px;
-    margin-right: 0;
-    margin-bottom: 12px;
-  }
-
-  .promotion-content h3 {
-    font-size: 16px;
-    margin-bottom: 8px;
-  }
-
-  .promotion-content p {
-    font-size: 13px;
-    margin-bottom: 12px;
-  }
-
   .pagination {
     margin-top: 30px;
   }
@@ -920,16 +815,6 @@ export default {
   .filter-actions .el-button {
     width: 100%;
     margin-bottom: 8px;
-  }
-
-  .promotion-card {
-    padding: 12px;
-  }
-
-  .promotion-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
   }
 
   .el-pagination {

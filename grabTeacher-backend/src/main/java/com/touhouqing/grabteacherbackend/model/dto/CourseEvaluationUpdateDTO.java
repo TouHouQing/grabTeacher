@@ -30,6 +30,8 @@ public class CourseEvaluationUpdateDTO {
     @DecimalMax(value = "5")
     @Digits(integer = 1, fraction = 2)
     private BigDecimal rating;
+
+    private Boolean isFeatured;
 }
 
 

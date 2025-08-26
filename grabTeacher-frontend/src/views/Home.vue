@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLangStore } from '../stores/lang'
-import { courseAPI, teacherAPI } from '../utils/api'
+import { courseAPI, teacherAPI, evaluationAPI } from '../utils/api'
 import { Timer, User } from '@element-plus/icons-vue'
 import ContactUs from '../components/ContactUs.vue'
 
@@ -81,6 +81,11 @@ const updateAnimationDurations = () => {
     courseAnimationDuration.value = calculateAnimationDuration(
       featuredCourses.value.length, 320, 20, courseScrollSpeed
     )
+
+    // 学员评价卡片：假设每个卡片宽度400px，间隙20px
+    testimonialAnimationDuration.value = calculateAnimationDuration(
+      featuredReviews.value.length, 400, 20, testimonialScrollSpeed
+    )
   })
 }
 
@@ -135,10 +140,84 @@ const handleCourseClick = (course: FeaturedCourseItem) => {
 
 onMounted(() => {
   loadFeaturedData()
+  loadFeaturedReviews() // 加载精选评价数据
 })
 
-// 根据当前语言获取评价数据
+// 精选评价数据
+interface FeaturedReview {
+  id: number
+  studentName: string
+  teacherName: string
+  courseName: string
+  studentComment: string
+  rating: number
+  createdAt: string
+  avatarUrl?: string // 添加可选的avatarUrl字段
+}
+
+const featuredReviews = ref<FeaturedReview[]>([])
+const reviewMarqueeList = computed(() => featuredReviews.value.concat(featuredReviews.value))
+const isReviewMarqueeHovered = ref(false)
+
+// 动态计算评价滚动动画时长
+const reviewScrollSpeed = 30 // 每秒滚动30像素
+const reviewAnimationDuration = ref('40s') // 默认值
+
+// 学员评价自动滚动相关变量
+const isTestimonialMarqueeHovered = ref(false)
+const testimonialScrollSpeed = 25 // 每秒滚动25像素
+const testimonialAnimationDuration = ref('45s') // 默认值
+
+// 加载精选评价数据
+const loadFeaturedReviews = async () => {
+  try {
+    const res = await evaluationAPI.listPublic({
+      page: 1,
+      size: 10, // 获取前10条精选评价
+      minRating: 4 // 只显示4星以上的评价
+    })
+    if (res?.success && Array.isArray(res.data?.records)) {
+      const reviews = res.data.records as Array<any>
+      featuredReviews.value = reviews.map((review: any) => ({
+        id: review.id,
+        studentName: review.studentName || '学员',
+        teacherName: review.teacherName || '老师',
+        courseName: review.courseName || '课程',
+        studentComment: review.studentComment || '',
+        rating: review.rating || 5,
+        createdAt: review.createdAt || '',
+        avatarUrl: review.avatarUrl || '' // 添加avatarUrl
+      }))
+
+      // 更新评价滚动动画时长
+      nextTick(() => {
+        reviewAnimationDuration.value = calculateAnimationDuration(
+          featuredReviews.value.length, 400, 20, reviewScrollSpeed
+        )
+      })
+    }
+  } catch (e) {
+    console.warn('加载精选评价失败', e)
+  }
+}
+
+// 学员评价数据 - 使用动态数据，如果没有则使用默认数据
 const testimonials = computed(() => {
+  if (featuredReviews.value.length > 0) {
+    // 使用动态数据
+    return featuredReviews.value.map(review => ({
+      name: review.studentName,
+      role: `${review.courseName}学员`,
+      content: review.studentComment,
+      avatar: review.avatarUrl || '@/assets/pictures/studentBoy1.jpeg',
+      rating: review.rating,
+      teacherName: review.teacherName,
+      courseName: review.courseName,
+      createdAt: review.createdAt
+    }))
+  }
+
+  // 如果没有动态数据，使用默认数据
   if (langStore.currentLang === 'zh') {
     return [
       {
@@ -316,22 +395,98 @@ defineOptions({
             <div class="section testimonials">
                 <h2 class="section-title">{{ $t('home.sections.testimonials.title') }}</h2>
                 <div class="section-subtitle">{{ $t('home.sections.testimonials.subtitle') }}</div>
-                <el-carousel :interval="4000" type="card" height="300px">
-                    <el-carousel-item v-for="(testimonial, index) in testimonials" :key="index">
-                        <div class="testimonial-card">
-                            <div class="testimonial-avatar">
-                                <img :src="$getImageUrl(testimonial.avatar)" :alt="testimonial.name">
+
+                <!-- 自动滚动展示 -->
+                <div class="testimonial-marquee" v-if="reviewMarqueeList.length > 0">
+                    <div
+                        class="testimonial-marquee-track"
+                        :class="{ 'paused': isTestimonialMarqueeHovered }"
+                        :style="{ '--animation-duration': testimonialAnimationDuration }"
+                        @mouseenter="isTestimonialMarqueeHovered = true"
+                        @mouseleave="isTestimonialMarqueeHovered = false"
+                    >
+                        <div
+                            class="testimonial-marquee-item"
+                            v-for="(testimonial, index) in reviewMarqueeList"
+                            :key="index"
+                        >
+                            <div class="testimonial-header">
+                                <div class="testimonial-avatar">
+                                    <img :src="$getImageUrl(testimonial.avatarUrl || '@/assets/pictures/studentBoy1.jpeg')" :alt="testimonial.studentName">
+                                </div>
+                                <div class="testimonial-info">
+                                    <h4 class="testimonial-name">{{ testimonial.studentName }}</h4>
+                                    <div class="testimonial-meta" v-if="testimonial.teacherName">
+                                        <span class="teacher-label">老师：</span>
+                                        <span class="teacher-name">{{ testimonial.teacherName }}</span>
+                                    </div>
+                                    <div class="testimonial-meta" v-if="testimonial.courseName">
+                                        <span class="course-label">课程：</span>
+                                        <span class="course-name">{{ testimonial.courseName }}</span>
+                                    </div>
+                                    <div class="testimonial-rating" v-if="testimonial.rating">
+                                        <el-rate
+                                            v-model="testimonial.rating"
+                                            disabled
+                                            show-score
+                                            text-color="#ff9900"
+                                            score-template="{value}"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="testimonial-content">
+                                <p class="testimonial-text">"{{ testimonial.studentComment }}"</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 如果没有动态数据，显示静态数据 -->
+                <div class="testimonials-container" v-else-if="testimonials.length > 0">
+                    <div class="testimonials-track">
+                        <div
+                            class="testimonial-card"
+                            v-for="(testimonial, index) in testimonials"
+                            :key="index"
+                        >
+                            <div class="testimonial-header">
+                                <div class="testimonial-avatar">
+                                    <img :src="$getImageUrl(testimonial.avatar)" :alt="testimonial.name">
+                                </div>
+                                <div class="testimonial-info">
+                                    <h4 class="testimonial-name">{{ testimonial.name }}</h4>
+                                    <p class="testimonial-role">{{ testimonial.role }}</p>
+                                    <div class="testimonial-meta" v-if="testimonial.teacherName">
+                                        <span class="teacher-label">授课老师：</span>
+                                        <span class="teacher-name">{{ testimonial.teacherName }}</span>
+                                    </div>
+                                    <div class="testimonial-meta" v-if="testimonial.courseName">
+                                        <span class="course-label">课程：</span>
+                                        <span class="course-name">{{ testimonial.courseName }}</span>
+                                    </div>
+                                    <div class="testimonial-rating" v-if="testimonial.rating">
+                                        <el-rate
+                                            v-model="testimonial.rating"
+                                            disabled
+                                            show-score
+                                            text-color="#ff9900"
+                                            score-template="{value}"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                             <div class="testimonial-content">
                                 <p class="testimonial-text">"{{ testimonial.content }}"</p>
-                                <div class="testimonial-author">
-                                    <h4>{{ testimonial.name }}</h4>
-                                    <p>{{ testimonial.role }}</p>
-                                </div>
                             </div>
                         </div>
-                    </el-carousel-item>
-                </el-carousel>
+                    </div>
+                </div>
+
+                <!-- 加载状态 -->
+                <div v-else class="testimonials-loading">
+                    <el-skeleton :rows="3" animated />
+                </div>
             </div>
 
 
@@ -588,6 +743,99 @@ body {
   gap: 4px;
 }
 
+/* 学员评价自动滚动 */
+.testimonial-marquee {
+  overflow: hidden;
+  width: 100%;
+  padding: 20px 0;
+}
+.testimonial-marquee-track {
+  display: flex;
+  gap: 20px;
+  width: max-content;
+  animation: marquee-left var(--animation-duration, 45s) linear infinite;
+  will-change: transform;
+}
+.testimonial-marquee-track.paused {
+  animation-play-state: paused;
+}
+.testimonial-marquee-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 350px;
+  max-width: 400px;
+  height: 280px;
+  background-color: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.testimonial-marquee-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+.testimonial-marquee-item .testimonial-header {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+}
+.testimonial-marquee-item .testimonial-avatar {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  margin-right: 15px;
+}
+.testimonial-marquee-item .testimonial-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid #f0f0f0;
+}
+.testimonial-marquee-item .testimonial-info {
+  flex: 1;
+}
+.testimonial-marquee-item .testimonial-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
+}
+.testimonial-marquee-item .testimonial-role {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 10px;
+}
+.testimonial-marquee-item .testimonial-rating {
+  margin-top: 10px;
+}
+.testimonial-marquee-item .testimonial-content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.testimonial-marquee-item .testimonial-text {
+  font-size: 16px;
+  font-style: italic;
+  color: #333;
+  line-height: 1.8;
+  margin-bottom: 20px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+}
+.testimonial-marquee-item .testimonial-meta {
+  font-size: 14px;
+  color: #666;
+  margin-top: 10px;
+}
+
 .banner::before {
     content: '';
     position: absolute;
@@ -797,29 +1045,89 @@ body {
     height: 300px;
 }
 
+.testimonials-container {
+    overflow: hidden;
+    padding: 20px 0;
+}
+
+.testimonials-track {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding: 10px 0;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+.testimonials-track::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+}
+
 .testimonial-card {
     display: flex;
-    height: 100%;
+    flex-direction: column;
+    min-width: 350px;
+    max-width: 400px;
+    height: 280px;
     background-color: #fff;
-    border-radius: 8px;
+    border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.testimonial-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.testimonial-header {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #eee;
 }
 
 .testimonial-avatar {
-    width: 150px;
+    width: 80px;
+    height: 80px;
     flex-shrink: 0;
+    margin-right: 15px;
 }
 
 .testimonial-avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: 50%;
+    border: 3px solid #f0f0f0;
+}
+
+.testimonial-info {
+    flex: 1;
+}
+
+.testimonial-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.testimonial-role {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.testimonial-rating {
+    margin-top: 10px;
 }
 
 .testimonial-content {
-    flex: 1;
-    padding: 30px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -831,18 +1139,42 @@ body {
     color: #333;
     line-height: 1.8;
     margin-bottom: 20px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
 }
 
-.testimonial-author h4 {
-    font-size: 18px;
-    margin-bottom: 5px;
+.testimonial-meta {
+    font-size: 14px;
+    color: #666;
+    margin-top: 10px;
+}
+
+.teacher-label {
+    font-weight: 500;
+    color: #409EFF;
+}
+
+.teacher-name {
+    font-weight: 500;
     color: #333;
 }
 
-.testimonial-author p {
-    color: #666;
+.course-label {
+    font-weight: 500;
+    color: #67C23A;
 }
 
+.course-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.testimonials-loading {
+    padding: 20px;
+}
 
 
 @media (max-width: 1200px) {
@@ -958,37 +1290,67 @@ body {
     }
 
     .testimonial-card {
+        min-width: 250px;
+        max-width: 280px;
+        height: 220px;
+    }
+
+    .testimonial-marquee-item {
+        min-width: 250px;
+        max-width: 280px;
+        height: 220px;
+    }
+
+    .testimonial-header {
         flex-direction: column;
-        text-align: center;
-        padding: 20px;
+        align-items: center;
+        padding: 15px;
     }
 
     .testimonial-avatar {
-        width: 80px;
-        height: 80px;
-        margin: 0 auto 16px;
+        width: 60px;
+        height: 60px;
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+    .testimonial-info {
+        text-align: center;
+    }
+
+    .testimonial-name {
+        font-size: 16px;
+        margin-bottom: 4px;
+    }
+
+    .testimonial-role {
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+
+    .testimonial-rating {
+        margin-top: 8px;
     }
 
     .testimonial-content {
-        margin-left: 0;
+        padding: 15px;
     }
 
     .testimonial-text {
         font-size: 14px;
         line-height: 1.6;
         margin-bottom: 16px;
+        -webkit-line-clamp: 2;
     }
 
-    .testimonial-author h4 {
-        font-size: 16px;
-        margin-bottom: 4px;
-    }
-
-    .testimonial-author p {
+    .testimonial-meta {
         font-size: 13px;
     }
 
-
+    .testimonials-track {
+        gap: 15px;
+        padding: 5px 0;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1032,6 +1394,23 @@ body {
         height: 200px;
     }
 
+    .testimonial-card {
+        min-width: 250px;
+        max-width: 280px;
+        height: 220px;
+    }
 
+    .testimonial-marquee-item {
+        min-width: 250px;
+        max-width: 280px;
+        height: 220px;
+    }
+
+    .testimonials-track {
+        gap: 15px;
+        padding: 5px 0;
+    }
 }
 </style>
+
+

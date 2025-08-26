@@ -1923,6 +1923,7 @@ CREATE TABLE `course_evaluation`
     `teacher_name`    varchar(255) DEFAULT NULL COMMENT '教师姓名',
     `student_name`    varchar(255) DEFAULT NULL COMMENT '学生姓名',
     `course_name`     varchar(255) DEFAULT NULL COMMENT '课程名称',
+    `is_featured`     tinyint(1)      DEFAULT '0' COMMENT '是否精选：0-未精选，1-已精选（精选的会展示在首页）',
     -- 详细评价
     `student_comment` text COMMENT '学生对课程的评价和建议',
     `rating`          decimal(3, 2)   DEFAULT 5 COMMENT '课程评分，0-5分',

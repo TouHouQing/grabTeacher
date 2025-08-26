@@ -13,6 +13,7 @@ type Review = {
   studentComment: string
   rating: number
   createdAt: string
+  isFeatured?: boolean
 }
 
 const loading = ref(true)
@@ -97,8 +98,8 @@ const initialOf = (r: Review) => (r.studentName?.slice(0, 1) || '学')
   <div class="student-reviews">
     <div class="banner">
       <div class="banner-content">
-        <h1>学员评价</h1>
-        <p>真实反馈，助你找到更合适的老师</p>
+        <h1>精选学员评价</h1>
+        <p>精选真实反馈，助你找到更合适的老师</p>
       </div>
     </div>
 
@@ -151,7 +152,7 @@ const initialOf = (r: Review) => (r.studentName?.slice(0, 1) || '学')
 
         <!-- 空状态 -->
         <div v-else-if="!loading" class="empty-state">
-          <el-empty description="暂无评价数据">
+          <el-empty description="暂无精选评价数据">
             <el-button type="primary" @click="loadReviews">刷新</el-button>
           </el-empty>
         </div>

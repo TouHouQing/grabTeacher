@@ -45,4 +45,7 @@ public interface ICourseEvaluationService extends IService<CourseEvaluation> {
 
     void deleteByAdmin(Long id);
 
+    /** 切换精选状态 */
+    CourseEvaluation toggleFeatured(Long id, boolean isFeatured);
+
 }

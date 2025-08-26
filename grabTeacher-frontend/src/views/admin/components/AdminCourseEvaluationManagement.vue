@@ -16,6 +16,7 @@ type EvalVO = {
   rating?: number
   createdAt?: string
   updatedAt?: string
+  isFeatured?: boolean
 }
 
 const loading = ref(false)
@@ -76,7 +77,7 @@ const rules = {
 
 const openCreate = () => {
   editing.value = false
-  form.value = { teacherId: undefined, studentId: undefined, courseId: undefined, teacherName: '', studentName: '', courseName: '', rating: 5, studentComment: '' }
+  form.value = { teacherId: undefined, studentId: undefined, courseId: undefined, teacherName: '', studentName: '', courseName: '', rating: 5, studentComment: '', isFeatured: false }
   dialogVisible.value = true
 }
 
@@ -126,7 +127,8 @@ const handleSubmit = async () => {
     studentName: form.value.studentName,
     courseName: form.value.courseName,
     rating: form.value.rating,
-    studentComment: form.value.studentComment
+    studentComment: form.value.studentComment,
+    isFeatured: !!form.value.isFeatured
   }
   if (editing.value && form.value.id) {
     const res = await apiRequest(`/api/admin/course-evaluations/${form.value.id}`, { method: 'PUT', data: payload })
@@ -137,6 +139,23 @@ const handleSubmit = async () => {
   }
   dialogVisible.value = false
   fetchList()
+}
+
+// 切换精选
+const toggleFeatured = async (row: EvalVO) => {
+  try {
+    const next = !!row.isFeatured
+    const res = await apiRequest(`/api/admin/course-evaluations/${row.id}/featured?isFeatured=${next}`, { method: 'PATCH' })
+    if (res?.success) {
+      ElMessage.success(next ? '已设为精选' : '已取消精选')
+    } else {
+      throw new Error(res?.message || '操作失败')
+    }
+  } catch (e) {
+    ElMessage.error('操作失败')
+    // 回滚UI
+    row.isFeatured = !row.isFeatured
+  }
 }
 
 const handlePage = (p: number) => { currentPage.value = p; fetchList() }
@@ -258,6 +277,11 @@ const openDetail = (row: EvalVO) => {
       <el-table-column prop="teacherName" label="教师姓名" width="130" />
       <el-table-column prop="studentName" label="学生姓名" width="130" />
       <el-table-column prop="courseName" label="课程名称" width="160" />
+      <el-table-column label="精选" width="90" align="center">
+        <template #default="{ row }">
+          <el-switch v-model="row.isFeatured" @change="() => toggleFeatured(row)" />
+        </template>
+      </el-table-column>
       <el-table-column prop="createdAt" label="创建时间" min-width="170">
         <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
       </el-table-column>
@@ -315,6 +339,9 @@ const openDetail = (row: EvalVO) => {
         </el-form-item>
         <el-form-item label="评价内容" prop="studentComment">
           <el-input v-model="form.studentComment" type="textarea" :rows="4" maxlength="255" show-word-limit />
+        </el-form-item>
+        <el-form-item label="是否精选">
+          <el-switch v-model="form.isFeatured" />
         </el-form-item>
       </el-form>
       <template #footer>

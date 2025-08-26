@@ -105,4 +105,8 @@ public class CourseEvaluation implements Serializable {
     private LocalDateTime deletedAt;
 
 
+    /**
+     * 是否精选：0-未精选，1-已精选（精选的会展示在首页）
+     */
+    private Boolean isFeatured;
 }

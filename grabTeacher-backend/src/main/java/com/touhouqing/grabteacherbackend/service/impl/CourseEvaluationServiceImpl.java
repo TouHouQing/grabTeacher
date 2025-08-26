@@ -32,6 +32,7 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
                .like(teacherName != null && !teacherName.isEmpty(), CourseEvaluation::getTeacherName, teacherName)
                .like(courseName != null && !courseName.isEmpty(), CourseEvaluation::getCourseName, courseName)
                .eq(CourseEvaluation::getIsDeleted, false)
+               .eq(CourseEvaluation::getIsFeatured, true)  // 只显示已精选的评价
                // 按评分从高到低，其次按创建时间从新到旧
                .orderByDesc(CourseEvaluation::getRating)
                .orderByDesc(CourseEvaluation::getCreatedAt);
@@ -55,6 +56,8 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
             vo.setStudentComment(e.getStudentComment());
             vo.setRating(e.getRating());
             vo.setCreatedAt(e.getCreatedAt());
+            vo.setUpdatedAt(e.getUpdatedAt());
+            vo.setIsFeatured(e.getIsFeatured());
             return vo;
         }).toList());
 
@@ -94,6 +97,8 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
             vo.setStudentComment(e.getStudentComment());
             vo.setRating(e.getRating());
             vo.setCreatedAt(e.getCreatedAt());
+            vo.setUpdatedAt(e.getUpdatedAt());
+            vo.setIsFeatured(e.getIsFeatured());
             return vo;
         }).toList());
 
@@ -111,6 +116,7 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
         entity.setCourseName(dto.getCourseName());
         entity.setStudentComment(dto.getStudentComment());
         entity.setRating(dto.getRating());
+        entity.setIsFeatured(Boolean.TRUE.equals(dto.getIsFeatured()));
         entity.setIsDeleted(false);
         this.save(entity);
         return entity;
@@ -130,6 +136,9 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
         entity.setCourseName(dto.getCourseName());
         entity.setStudentComment(dto.getStudentComment());
         entity.setRating(dto.getRating());
+        if (dto.getIsFeatured() != null) {
+            entity.setIsFeatured(dto.getIsFeatured());
+        }
         this.updateById(entity);
         return entity;
     }
@@ -143,5 +152,16 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
         entity.setIsDeleted(true);
         entity.setDeletedAt(java.time.LocalDateTime.now());
         this.updateById(entity);
+    }
+
+    @Override
+    public CourseEvaluation toggleFeatured(Long id, boolean isFeatured) {
+        CourseEvaluation entity = this.getById(id);
+        if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
+            throw new IllegalArgumentException("评价不存在或已删除");
+        }
+        entity.setIsFeatured(isFeatured);
+        this.updateById(entity);
+        return entity;
     }
 }
