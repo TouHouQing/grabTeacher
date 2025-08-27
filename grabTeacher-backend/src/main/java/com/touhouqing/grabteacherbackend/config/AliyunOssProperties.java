@@ -17,7 +17,7 @@ public class AliyunOssProperties {
      */
     private String bucket;
     /**
-     * 公网访问域名（可填自定义 CDN/域名；不填则使用 https://bucket.endpoint）
+     * 公网访问域名（可填自定义 CDN/域名）
      */
     private String publicDomain;
     /**

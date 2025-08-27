@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { evaluationAPI } from '../utils/api'
+import ContactUs from '../components/ContactUs.vue'
 
 type Review = {
   id: number
@@ -171,6 +172,8 @@ const initialOf = (r: Review) => (r.studentName?.slice(0, 1) || '学')
         </div>
       </div>
     </div>
+    <!-- 联系我们 -->
+    <ContactUs />
   </div>
   </template>
 

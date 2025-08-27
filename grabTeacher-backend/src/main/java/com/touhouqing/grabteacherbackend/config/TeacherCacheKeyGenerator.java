@@ -28,24 +28,16 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
     public Object generate(Object target, Method method, Object... params) {
         String methodName = method.getName();
 
-        switch (methodName) {
-            case "getTeacherDetailById":
-                return generateTeacherDetailKey(params);
-            case "getTeacherListWithSubjects":
-                return generateTeacherListKey(params);
-            case "matchTeachers":
-                return generateTeacherMatchKey(params);
-            case "getTeacherByUserId":
-                return generateTeacherByUserIdKey(params);
-            case "getTeacherPublicSchedule":
-                return generateTeacherScheduleKey(params);
-            case "checkTeacherAvailability":
-                return generateTeacherAvailabilityKey(params);
-            case "getAvailableGrades":
-                return "availableGrades:all";
-            default:
-                return generateDefaultKey(target, method, params);
-        }
+        return switch (methodName) {
+            case "getTeacherDetailById" -> generateTeacherDetailKey(params);
+            case "getTeacherListWithSubjects" -> generateTeacherListKey(params);
+            case "matchTeachers" -> generateTeacherMatchKey(params);
+            case "getTeacherByUserId" -> generateTeacherByUserIdKey(params);
+            case "getTeacherPublicSchedule" -> generateTeacherScheduleKey(params);
+            case "checkTeacherAvailability" -> generateTeacherAvailabilityKey(params);
+            case "getAvailableGrades" -> "availableGrades:all";
+            default -> generateDefaultKey(target, method, params);
+        };
     }
 
     /**
@@ -262,7 +254,7 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
             Object value = field.get(obj);
             if (value instanceof List) {
                 List<Object> list = (List<Object>) value;
-                if (list == null || list.isEmpty()) {
+                if (list.isEmpty()) {
                     return null;
                 }
                 List<String> items = list.stream()

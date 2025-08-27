@@ -1,7 +1,9 @@
 package com.touhouqing.grabteacherbackend.event;
 
+import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
+@Getter
 public class ProgramChangedEvent extends ApplicationEvent {
     public enum ChangeType { CREATE, UPDATE, DELETE, STATUS, FLAGS }
     private final ChangeType changeType;
@@ -15,8 +17,5 @@ public class ProgramChangedEvent extends ApplicationEvent {
         this.stageId = stageId;
     }
 
-    public ChangeType getChangeType() { return changeType; }
-    public Long getCountryId() { return countryId; }
-    public Long getStageId() { return stageId; }
 }
 

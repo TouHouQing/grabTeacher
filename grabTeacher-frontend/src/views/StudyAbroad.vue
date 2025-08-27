@@ -181,7 +181,7 @@ watch([currentPage, pageSize, () => filter.countryId, () => filter.stageId], () 
   <div class="study-abroad">
     <div class="banner">
       <div class="banner-content">
-        <h1>海外留学咨询</h1>
+        <h1>留学咨询</h1>
         <p>专业规划，助您开启全球名校之旅</p>
       </div>
     </div>
@@ -240,43 +240,6 @@ watch([currentPage, pageSize, () => filter.countryId, () => filter.stageId], () 
             @current-change="async (p)=>{ currentPage = p; await fetchPrograms() }"
             @size-change="async (s)=>{ pageSize = s; currentPage = 1; await fetchPrograms() }"
           />
-        </div>
-      </div>
-
-      <!-- 热门留学套餐 -->
-      <div class="study-packages">
-        <h2 class="section-title">精选留学套餐</h2>
-        <p class="section-subtitle">一站式留学解决方案，助您圆梦海外名校</p>
-        <div class="packages-grid">
-          <div class="package-card" v-for="(pkg, index) in studyPackages" :key="index">
-            <div class="package-header">
-              <h3>{{ pkg.title }}</h3>
-              <div class="package-price">
-                <span class="original-price">￥{{ pkg.originalPrice }}</span>
-                <span class="current-price">￥{{ pkg.currentPrice }}</span>
-              </div>
-            </div>
-            <div class="package-content">
-              <div class="package-programs">
-                <div class="package-program-item" v-for="(program, i) in pkg.programs" :key="i">
-                  <div class="program-icon">
-                    <el-icon><Document /></el-icon>
-                  </div>
-                  <div class="program-detail">
-                    <h4>{{ program.title }}</h4>
-                    <p>{{ program.consultant }} | {{ program.duration }}</p>
-                  </div>
-                </div>
-              </div>
-              <div class="package-features">
-                <div class="feature-item" v-for="(feature, i) in pkg.features" :key="i">
-                  <el-icon><Check /></el-icon>
-                  <span>{{ feature }}</span>
-                </div>
-              </div>
-              <el-button type="primary" class="package-btn">立即购买</el-button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ package com.touhouqing.grabteacherbackend.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.touhouqing.grabteacherbackend.common.result.CommonResult;
+import com.touhouqing.grabteacherbackend.common.result.RescheduleTimeCheckResult;
 import com.touhouqing.grabteacherbackend.model.dto.RescheduleApprovalDTO;
 import com.touhouqing.grabteacherbackend.model.dto.RescheduleApplyDTO;
 import com.touhouqing.grabteacherbackend.model.vo.RescheduleVO;
@@ -43,29 +44,6 @@ import java.util.List;
 public class RescheduleController {
 
     private static final Logger logger = LoggerFactory.getLogger(RescheduleController.class);
-
-    /**
-     * 调课时间检查结果
-     */
-    public static class RescheduleTimeCheckResult {
-        private boolean hasConflict;
-        private String conflictType; // "teacher_unavailable" 或 "time_conflict"
-        private String message;
-
-        public RescheduleTimeCheckResult(boolean hasConflict, String conflictType, String message) {
-            this.hasConflict = hasConflict;
-            this.conflictType = conflictType;
-            this.message = message;
-        }
-
-        // Getters and setters
-        public boolean isHasConflict() { return hasConflict; }
-        public void setHasConflict(boolean hasConflict) { this.hasConflict = hasConflict; }
-        public String getConflictType() { return conflictType; }
-        public void setConflictType(String conflictType) { this.conflictType = conflictType; }
-        public String getMessage() { return message; }
-        public void setMessage(String message) { this.message = message; }
-    }
 
     @Autowired
     private RescheduleService rescheduleService;
