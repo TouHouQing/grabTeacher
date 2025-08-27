@@ -6,7 +6,7 @@ import com.touhouqing.grabteacherbackend.model.dto.CourseEvaluationCreateDTO;
 import com.touhouqing.grabteacherbackend.model.dto.CourseEvaluationUpdateDTO;
 import com.touhouqing.grabteacherbackend.model.entity.CourseEvaluation;
 import com.touhouqing.grabteacherbackend.model.vo.CourseEvaluationVO;
-import com.touhouqing.grabteacherbackend.service.ICourseEvaluationService;
+import com.touhouqing.grabteacherbackend.service.CourseEvaluationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -26,7 +26,7 @@ import java.util.Map;
 public class AdminCourseEvaluationController {
 
     @Autowired
-    private ICourseEvaluationService courseEvaluationService;
+    private CourseEvaluationService courseEvaluationService;
 
     @Operation(summary = "分页列表")
     @GetMapping

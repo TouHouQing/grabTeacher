@@ -2,7 +2,6 @@ package com.touhouqing.grabteacherbackend.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.touhouqing.grabteacherbackend.model.entity.CourseEvaluation;
-
 /**
  * <p>
  * 课程评价表 服务类
@@ -11,7 +10,7 @@ import com.touhouqing.grabteacherbackend.model.entity.CourseEvaluation;
  * @author TouHouQing
  * @since 2025-08-26
  */
-public interface ICourseEvaluationService extends IService<CourseEvaluation> {
+public interface CourseEvaluationService extends IService<CourseEvaluation> {
 
     com.baomidou.mybatisplus.extension.plugins.pagination.Page<com.touhouqing.grabteacherbackend.model.vo.CourseEvaluationVO> pagePublicEvaluations(
             int page,

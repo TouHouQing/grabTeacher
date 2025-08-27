@@ -3,7 +3,7 @@ package com.touhouqing.grabteacherbackend.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.touhouqing.grabteacherbackend.common.result.CommonResult;
 import com.touhouqing.grabteacherbackend.model.vo.CourseEvaluationVO;
-import com.touhouqing.grabteacherbackend.service.ICourseEvaluationService;
+import com.touhouqing.grabteacherbackend.service.CourseEvaluationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,7 +24,7 @@ import java.util.Map;
 public class PublicCourseEvaluationController {
 
     @Autowired
-    private ICourseEvaluationService courseEvaluationService;
+    private CourseEvaluationService courseEvaluationService;
 
     @Operation(summary = "分页查询学员评价", description = "支持按教师、课程、名称、最小评分筛选")
     @GetMapping
@@ -49,5 +49,3 @@ public class PublicCourseEvaluationController {
         return ResponseEntity.ok(CommonResult.success("获取评价列表成功", data));
     }
 }
-
-

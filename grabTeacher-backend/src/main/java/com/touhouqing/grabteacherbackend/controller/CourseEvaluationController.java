@@ -3,7 +3,7 @@ package com.touhouqing.grabteacherbackend.controller;
 import com.touhouqing.grabteacherbackend.common.result.CommonResult;
 import com.touhouqing.grabteacherbackend.model.dto.CourseEvaluationCreateDTO;
 import com.touhouqing.grabteacherbackend.model.entity.CourseEvaluation;
-import com.touhouqing.grabteacherbackend.service.ICourseEvaluationService;
+import com.touhouqing.grabteacherbackend.service.CourseEvaluationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.*;
 public class CourseEvaluationController {
 
     @Autowired
-    private ICourseEvaluationService courseEvaluationService;
+    private CourseEvaluationService courseEvaluationService;
 
     @Operation(summary = "创建课程评价")
     @PostMapping

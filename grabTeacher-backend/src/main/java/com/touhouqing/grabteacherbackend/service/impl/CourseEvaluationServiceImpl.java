@@ -2,14 +2,17 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.touhouqing.grabteacherbackend.mapper.CourseEvaluationMapper;
 import com.touhouqing.grabteacherbackend.model.entity.CourseEvaluation;
-import com.touhouqing.grabteacherbackend.service.ICourseEvaluationService;
+import com.touhouqing.grabteacherbackend.service.CourseEvaluationService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.touhouqing.grabteacherbackend.model.vo.CourseEvaluationVO;
 import com.touhouqing.grabteacherbackend.model.dto.CourseEvaluationCreateDTO;
 import com.touhouqing.grabteacherbackend.model.dto.CourseEvaluationUpdateDTO;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * <p>
@@ -20,9 +23,10 @@ import com.touhouqing.grabteacherbackend.model.dto.CourseEvaluationUpdateDTO;
  * @since 2025-08-26
  */
 @Service
-public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMapper, CourseEvaluation> implements ICourseEvaluationService {
+public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMapper, CourseEvaluation> implements CourseEvaluationService {
 
     @Override
+    @Cacheable(value = "courseEvaluations", key = "#page + '_' + #size + '_' + (#teacherId ?: 'null') + '_' + (#courseId ?: 'null') + '_' + (#minRating ?: 'null') + '_' + (#teacherName ?: 'null') + '_' + (#courseName ?: 'null')")
     public Page<CourseEvaluationVO> pagePublicEvaluations(int page, int size, Long teacherId, Long courseId, java.math.BigDecimal minRating, String teacherName, String courseName) {
         Page<CourseEvaluation> entityPage = new Page<>(page, size);
         LambdaQueryWrapper<CourseEvaluation> wrapper = new LambdaQueryWrapper<>();
@@ -106,6 +110,8 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
     }
 
     @Override
+    @CacheEvict(value = "courseEvaluations", allEntries = true)    // 清除缓存
+    @Transactional
     public CourseEvaluation createByAdmin(CourseEvaluationCreateDTO dto) {
         CourseEvaluation entity = new CourseEvaluation();
         entity.setTeacherId(dto.getTeacherId());
@@ -123,6 +129,8 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
     }
 
     @Override
+    @CacheEvict(value = "courseEvaluations", allEntries = true)    // 清除缓存
+    @Transactional
     public CourseEvaluation updateByAdmin(CourseEvaluationUpdateDTO dto) {
         CourseEvaluation entity = this.getById(dto.getId());
         if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
@@ -144,6 +152,8 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
     }
 
     @Override
+    @CacheEvict(value = "courseEvaluations", allEntries = true)    // 清除缓存
+    @Transactional
     public void deleteByAdmin(Long id) {
         CourseEvaluation entity = this.getById(id);
         if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
@@ -155,6 +165,8 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
     }
 
     @Override
+    @CacheEvict(value = "courseEvaluations", allEntries = true)    // 清除缓存
+    @Transactional
     public CourseEvaluation toggleFeatured(Long id, boolean isFeatured) {
         CourseEvaluation entity = this.getById(id);
         if (entity == null || Boolean.TRUE.equals(entity.getIsDeleted())) {
@@ -166,6 +178,8 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
     }
 
     @Override
+    @CacheEvict(value = "courseEvaluations", allEntries = true)    // 清除缓存
+    @Transactional
     public CourseEvaluation createByStudent(CourseEvaluationCreateDTO dto) {
         // 检查学生是否已经评价过这门课程
         if (hasStudentEvaluatedCourse(dto.getStudentId(), dto.getCourseId())) {
