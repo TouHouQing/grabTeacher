@@ -14,7 +14,6 @@
     <div class="collapsible-content" v-show="isExpanded">
       <!-- 时间段选择 -->
       <div class="time-slots-section">
-        <h5>偏好时间段</h5>
         <div class="time-slots-grid">
           <div
             v-for="timeSlot in availableTimeSlots"
@@ -34,7 +33,6 @@
 
       <!-- 星期几选择 -->
       <div class="weekdays-section" v-if="selectedTimeSlots.length > 0">
-        <h5>偏好星期几</h5>
         <div class="weekdays-grid">
           <div
             v-for="(weekday, index) in weekdayOptions"

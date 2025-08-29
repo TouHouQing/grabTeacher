@@ -1704,7 +1704,7 @@ onMounted(() => {
             />
           </el-form-item>
 
-          <el-form-item label="教师性别 Genders">
+          <el-form-item>
             <el-radio-group v-model="matchForm.gender" size="large" ref="genderRadioGroupRef">
               <el-radio label="Male">
                 <el-icon><Male /></el-icon> 男 Male

@@ -2,7 +2,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { HomeFilled, Connection, Document, Reading, User, Clock, Coin, ChatDotRound } from '@element-plus/icons-vue'
+import { HomeFilled, Connection, Document, Reading, User, Coin, ChatDotRound } from '@element-plus/icons-vue'
 import StudentCourses from './components/StudentCourses.vue'
 import StudentMessages from './components/StudentMessages.vue'
 import { bookingAPI, studentAPI } from '../../utils/api'
@@ -52,7 +52,7 @@ interface ScheduleResponse {
   startTime: string;
   endTime: string;
   status: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // 定义即将开始课程类型
@@ -163,7 +163,7 @@ const loadStudentBalance = async () => {
 // 页面加载时获取数据
 onMounted(async () => {
   // 确保用户头像已加载
-  if (userStore.user && !userStore.user.avatarUrl) {
+  if (userStore.user) {
     await userStore.loadUserAvatar()
   }
   loadUpcomingCourses()

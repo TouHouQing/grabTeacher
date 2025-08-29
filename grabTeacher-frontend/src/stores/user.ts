@@ -7,6 +7,7 @@ export interface User {
   email: string
   userType: 'student' | 'teacher' | 'admin'
   avatarUrl?: string
+  realName?: string
   token?: string
 }
 
@@ -255,11 +256,18 @@ export const useUserStore = defineStore('user', () => {
         profileResult = await getTeacherProfile()
       }
 
-      if (profileResult?.success && profileResult.data?.avatarUrl) {
-        user.value.avatarUrl = profileResult.data.avatarUrl
-        console.log('用户头像加载成功:', profileResult.data.avatarUrl)
-      } else {
-        console.log('用户头像加载失败或无头像')
+      if (profileResult?.success && profileResult.data) {
+        // 同步头像
+        if (profileResult.data.avatarUrl) {
+          user.value.avatarUrl = profileResult.data.avatarUrl
+          console.log('用户头像加载成功:', profileResult.data.avatarUrl)
+        } else {
+          console.log('用户头像加载失败或无头像')
+        }
+        // 同步真实姓名
+        if ('realName' in profileResult.data && profileResult.data.realName) {
+          user.value.realName = (profileResult.data as StudentInfo | TeacherInfo).realName
+        }
       }
     } catch (error) {
       console.error('加载用户头像时发生错误:', error)
@@ -428,9 +436,10 @@ export const useUserStore = defineStore('user', () => {
       }
 
       return result
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('管理员登录失败:', error)
-      throw new Error(error.message || '网络错误，请稍后重试')
+      const message = error instanceof Error ? error.message : '网络错误，请稍后重试'
+      throw new Error(message)
     }
   }
 
