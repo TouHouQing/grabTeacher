@@ -125,20 +125,14 @@ const weekdays = [
   { value: 7, label: '周日', short: '日' }
 ]
 
-// 时间段选项
+// 时间段选项 - 固定为6个系统上课时间
 const timeSlots = [
-  { value: '09:00-10:00', display: '09:00' },
-  { value: '10:00-11:00', display: '10:00' },
-  { value: '11:00-12:00', display: '11:00' },
-  { value: '12:00-13:00', display: '12:00' },
-  { value: '13:00-14:00', display: '13:00' },
-  { value: '14:00-15:00', display: '14:00' },
-  { value: '15:00-16:00', display: '15:00' },
-  { value: '16:00-17:00', display: '16:00' },
-  { value: '17:00-18:00', display: '17:00' },
-  { value: '18:00-19:00', display: '18:00' },
-  { value: '19:00-20:00', display: '19:00' },
-  { value: '20:00-21:00', display: '20:00' }
+  { value: '08:00-10:00', display: '08:00-10:00' },
+  { value: '10:00-12:00', display: '10:00-12:00' },
+  { value: '13:00-15:00', display: '13:00-15:00' },
+  { value: '15:00-17:00', display: '15:00-17:00' },
+  { value: '17:00-19:00', display: '17:00-19:00' },
+  { value: '19:00-21:00', display: '19:00-21:00' }
 ]
 
 // 计算属性
@@ -228,7 +222,7 @@ const selectWorkdays = () => {
   selectedSlots.value = {}
   weekdays.forEach(weekday => {
     if (weekday.value >= 1 && weekday.value <= 5) {
-      selectedSlots.value[weekday.value] = ['18:00-19:00', '19:00-20:00', '20:00-21:00']
+      selectedSlots.value[weekday.value] = ['17:00-19:00', '19:00-21:00']
     }
   })
   emitChange()
@@ -239,7 +233,7 @@ const selectWeekends = () => {
   selectedSlots.value = {}
   weekdays.forEach(weekday => {
     if (weekday.value === 6 || weekday.value === 7) {
-      selectedSlots.value[weekday.value] = ['09:00-10:00', '10:00-11:00', '11:00-12:00', '14:00-15:00', '15:00-16:00', '16:00-17:00']
+      selectedSlots.value[weekday.value] = ['08:00-10:00', '10:00-12:00', '13:00-15:00', '15:00-17:00']
     }
   })
   emitChange()

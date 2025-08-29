@@ -113,20 +113,14 @@ const weekdays = ref<WeekdayOption[]>([
   { value: 7, label: '周日', selected: false, selectedSlots: [] }
 ])
 
-// 完整的时间段选项（9:00-21:00，每小时）
+// 时间段选项 - 固定为6个系统上课时间
 const timeSlots = [
-  { value: '09:00-10:00', display: '9:00', period: '' },
-  { value: '10:00-11:00', display: '10:00', period: '' },
-  { value: '11:00-12:00', display: '11:00', period: '' },
-  { value: '12:00-13:00', display: '12:00', period: '' },
-  { value: '13:00-14:00', display: '13:00', period: '' },
-  { value: '14:00-15:00', display: '14:00', period: '' },
-  { value: '15:00-16:00', display: '15:00', period: '' },
-  { value: '16:00-17:00', display: '16:00', period: '' },
-  { value: '17:00-18:00', display: '17:00', period: '' },
-  { value: '18:00-19:00', display: '18:00', period: '' },
-  { value: '19:00-20:00', display: '19:00', period: '' },
-  { value: '20:00-21:00', display: '20:00', period: '' }
+  { value: '08:00-10:00', display: '08:00-10:00', period: '' },
+  { value: '10:00-12:00', display: '10:00-12:00', period: '' },
+  { value: '13:00-15:00', display: '13:00-15:00', period: '' },
+  { value: '15:00-17:00', display: '15:00-17:00', period: '' },
+  { value: '17:00-19:00', display: '17:00-19:00', period: '' },
+  { value: '19:00-21:00', display: '19:00-21:00', period: '' }
 ]
 
 // 当前选中的星期几
@@ -194,7 +188,7 @@ const selectWorkdays = () => {
   weekdays.value.forEach(weekday => {
     if (weekday.value >= 1 && weekday.value <= 5) {
       weekday.selected = true
-      weekday.selectedSlots = ['18:00-18:30', '18:30-19:00', '19:00-19:30', '19:30-20:00', '20:00-20:30', '20:30-21:00']
+      weekday.selectedSlots = ['17:00-19:00', '19:00-21:00']
     }
   })
   emitChange()
@@ -205,7 +199,7 @@ const selectWeekends = () => {
   weekdays.value.forEach(weekday => {
     if (weekday.value === 6 || weekday.value === 7) {
       weekday.selected = true
-      weekday.selectedSlots = ['09:00-09:30', '09:30-10:00', '10:00-10:30', '10:30-11:00', '14:00-14:30', '14:30-15:00', '15:00-15:30', '15:30-16:00']
+      weekday.selectedSlots = ['08:00-10:00', '10:00-12:00', '13:00-15:00', '15:00-17:00']
     }
   })
   emitChange()

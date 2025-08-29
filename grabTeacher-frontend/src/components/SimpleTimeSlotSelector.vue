@@ -4,7 +4,7 @@
       <h3>{{ title }}</h3>
       <p class="description">{{ description }}</p>
     </div>
-    
+
     <div class="quick-select-section">
       <div class="quick-select-buttons">
         <el-button @click="selectWorkdays" size="small" type="primary" plain>
@@ -21,16 +21,16 @@
         </el-button>
       </div>
     </div>
-    
+
     <div class="weekdays-grid">
-      <div 
-        v-for="weekday in weekdays" 
+      <div
+        v-for="weekday in weekdays"
         :key="weekday.value"
         class="weekday-card"
         :class="{ 'selected': weekday.selected }"
       >
         <div class="weekday-header">
-          <el-checkbox 
+          <el-checkbox
             v-model="weekday.selected"
             @change="onWeekdayChange(weekday)"
             class="weekday-checkbox"
@@ -38,35 +38,30 @@
             {{ weekday.label }}
           </el-checkbox>
         </div>
-        
+
         <div v-if="weekday.selected" class="time-slots-compact">
-          <el-checkbox-group 
+          <el-checkbox-group
             v-model="weekday.selectedSlots"
             @change="onTimeSlotsChange"
             size="small"
           >
             <div class="time-slot-row">
-              <el-checkbox label="08:00-09:00">08:00</el-checkbox>
-              <el-checkbox label="09:00-10:00">09:00</el-checkbox>
-              <el-checkbox label="10:00-11:00">10:00</el-checkbox>
-              <el-checkbox label="11:00-12:00">11:00</el-checkbox>
+              <el-checkbox label="08:00-10:00">08:00-10:00</el-checkbox>
+              <el-checkbox label="10:00-12:00">10:00-12:00</el-checkbox>
             </div>
             <div class="time-slot-row">
-              <el-checkbox label="14:00-15:00">14:00</el-checkbox>
-              <el-checkbox label="15:00-16:00">15:00</el-checkbox>
-              <el-checkbox label="16:00-17:00">16:00</el-checkbox>
-              <el-checkbox label="17:00-18:00">17:00</el-checkbox>
+              <el-checkbox label="13:00-15:00">13:00-15:00</el-checkbox>
+              <el-checkbox label="15:00-17:00">15:00-17:00</el-checkbox>
             </div>
             <div class="time-slot-row">
-              <el-checkbox label="18:00-19:00">18:00</el-checkbox>
-              <el-checkbox label="19:00-20:00">19:00</el-checkbox>
-              <el-checkbox label="20:00-21:00">20:00</el-checkbox>
+              <el-checkbox label="17:00-19:00">17:00-19:00</el-checkbox>
+              <el-checkbox label="19:00-21:00">19:00-21:00</el-checkbox>
             </div>
           </el-checkbox-group>
         </div>
       </div>
     </div>
-    
+
     <div class="summary-section">
       <div class="summary-stats">
         <el-tag type="info" size="small">
@@ -171,7 +166,7 @@ const selectWorkdays = () => {
   weekdays.value.forEach(weekday => {
     if (weekday.value >= 1 && weekday.value <= 5) {
       weekday.selected = true
-      weekday.selectedSlots = ['18:00-19:00', '19:00-20:00', '20:00-21:00']
+      weekday.selectedSlots = ['17:00-19:00', '19:00-21:00']
     }
   })
   emitChange()
@@ -182,7 +177,7 @@ const selectWeekends = () => {
   weekdays.value.forEach(weekday => {
     if (weekday.value === 6 || weekday.value === 7) {
       weekday.selected = true
-      weekday.selectedSlots = ['09:00-10:00', '10:00-11:00', '14:00-15:00', '15:00-16:00', '16:00-17:00']
+      weekday.selectedSlots = ['08:00-10:00', '10:00-12:00', '13:00-15:00', '15:00-17:00']
     }
   })
   emitChange()
@@ -194,10 +189,10 @@ const selectAll = () => {
     weekday.selected = true
     if (weekday.value >= 1 && weekday.value <= 5) {
       // 工作日选择晚上时间
-      weekday.selectedSlots = ['18:00-19:00', '19:00-20:00', '20:00-21:00']
+      weekday.selectedSlots = ['17:00-19:00', '19:00-21:00']
     } else {
       // 周末选择全天时间
-      weekday.selectedSlots = ['09:00-10:00', '10:00-11:00', '14:00-15:00', '15:00-16:00', '16:00-17:00']
+      weekday.selectedSlots = ['08:00-10:00', '10:00-12:00', '13:00-15:00', '15:00-17:00']
     }
   })
   emitChange()
@@ -220,7 +215,7 @@ const emitChange = () => {
       weekday: weekday.value,
       timeSlots: [...weekday.selectedSlots]
     }))
-  
+
   emit('update:modelValue', result)
   emit('change', result)
 }
