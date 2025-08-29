@@ -31,7 +31,7 @@ public class TimeSlotDTO {
     @JsonProperty("weekday")
     private Integer weekday;
     
-    @Schema(description = "时间段列表", example = "[\"08:00-09:00\", \"10:00-11:00\", \"14:00-15:00\"]")
+    @Schema(description = "时间段列表", example = "[\"08:00-10:00\", \"10:00-12:00\", \"13:00-15:00\"]")
     private List<@Pattern(regexp = "^([01]?[0-9]|2[0-3]):[0-5][0-9]-([01]?[0-9]|2[0-3]):[0-5][0-9]$", 
                           message = "时间格式必须为HH:mm-HH:mm") String> timeSlots;
     

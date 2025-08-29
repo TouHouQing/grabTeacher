@@ -201,7 +201,7 @@ public class TimeSlotUtil {
     }
 
     /**
-     * 获取默认的可上课时间安排
+     * 获取默认的可上课时间安排 - 固定为6个系统上课时间
      */
     public static List<TimeSlotDTO> getDefaultTimeSlots() {
         List<TimeSlotDTO> defaultSlots = new ArrayList<>();
@@ -210,9 +210,7 @@ public class TimeSlotUtil {
         for (int weekday = 1; weekday <= 5; weekday++) {
             defaultSlots.add(TimeSlotDTO.builder()
                 .weekday(weekday)
-                .timeSlots(List.of("09:00-10:00", "10:00-11:00", "11:00-12:00", "12:00-13:00",
-                                 "13:00-14:00", "14:00-15:00", "15:00-16:00", "16:00-17:00",
-                                 "17:00-18:00", "18:00-19:00", "19:00-20:00", "20:00-21:00"))
+                .timeSlots(List.of("17:00-19:00", "19:00-21:00"))
                 .build());
         }
 
@@ -220,9 +218,7 @@ public class TimeSlotUtil {
         for (int weekday = 6; weekday <= 7; weekday++) {
             defaultSlots.add(TimeSlotDTO.builder()
                 .weekday(weekday)
-                .timeSlots(List.of("09:00-10:00", "10:00-11:00", "11:00-12:00", "12:00-13:00",
-                                 "13:00-14:00", "14:00-15:00", "15:00-16:00", "16:00-17:00",
-                                 "17:00-18:00", "18:00-19:00", "19:00-20:00", "20:00-21:00"))
+                .timeSlots(List.of("08:00-10:00", "10:00-12:00", "13:00-15:00", "15:00-17:00"))
                 .build());
         }
 

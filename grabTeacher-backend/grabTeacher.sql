@@ -308,7 +308,7 @@ CREATE TABLE `courses`
     `start_date`        date                                                                                         DEFAULT NULL COMMENT '课程开始时间，格式：YYYY-MM-DD',
     `end_date`          date                                                                                         DEFAULT NULL COMMENT '课程结束时间，格式：YYYY-MM-DD',
     `person_limit`      int(11)                                                                                      DEFAULT NULL COMMENT '最大报名人数，null表示不限制',
-    `course_time_slots` text COMMENT '上课时间安排（只有大班课才需要设置上课时间安排），JSON格式存储：[{"weekday":1,"timeSlots":["08:00-09:00","10:00-11:00"]},{"weekday":2,"timeSlots":["14:00-15:00"]}]，weekday: 1=周一,2=周二...7=周日',
+    `course_time_slots` text COMMENT '上课时间安排（只有大班课才需要设置上课时间安排），JSON格式存储：[{"weekday":1,"timeSlots":["08:00-10:00","17:00-19:00"]},{"weekday":6,"timeSlots":["13:00-15:00","15:00-17:00"]}]，weekday: 1=周一,2=周二...7=周日',
     `image_url`         varchar(500) COLLATE utf8mb4_general_ci                                                      DEFAULT NULL COMMENT '课程封面图URL',
     `duration_minutes`  int(11)                                                      NOT NULL COMMENT '单次课程时长，单位：分钟',
     `status`            enum ('active','inactive','full','pending') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'active' COMMENT '课程状态：active-可报名，inactive-已下架，full-已满员，pending-待审批',
@@ -1145,7 +1145,7 @@ CREATE TABLE `teachers`
     `is_featured`          tinyint(1)                  DEFAULT '0' COMMENT '是否展示到首页：true-是，false-否',
     `is_deleted`           tinyint(1)                  DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
     `deleted_at`           timestamp   NULL            DEFAULT NULL COMMENT '删除时间',
-    `available_time_slots` text COMMENT '可上课时间安排，JSON格式存储：[{"weekday":1,"timeSlots":["08:00-09:00","10:00-11:00"]},{"weekday":2,"timeSlots":["14:00-15:00"]}]，weekday: 1=周一,2=周二...7=周日',
+    `available_time_slots` text COMMENT '可上课时间安排，JSON格式存储：[{"weekday":1,"timeSlots":["08:00-10:00","17:00-19:00"]},{"weekday":6,"timeSlots":["13:00-15:00","15:00-17:00"]}]，weekday: 1=周一,2=周二...7=周日',
     PRIMARY KEY (`id`),
     UNIQUE KEY `user_id` (`user_id`),
     KEY `idx_is_featured` (`is_featured`)
@@ -1164,158 +1164,158 @@ INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `t
 VALUES (1, 143, '李明华', '北京师范大学数学教育硕士', 10, '小学数学基础,思维训练,奥数启蒙', 150.00,
         '师范大学数学教育专业，10年小学数学教学经验。擅长培养学生数学思维，让孩子在游戏中学会数学。', NULL, '男', 1, 0,
         NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"09:00-10:00\", \"10:00-11:00\", \"18:00-19:00\", \"19:00-20:00\"]}, {\"weekday\": 2, \"timeSlots\": [\"09:00-10:00\", \"17:00-18:00\", \"18:00-19:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"09:00-10:00\", \"10:00-11:00\", \"18:00-19:00\", \"19:00-20:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"09:00-10:00\", \"17:00-18:00\", \"18:00-19:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"09:00-10:00\", \"10:00-11:00\", \"18:00-19:00\", \"19:00-20:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"09:00-10:00\", \"14:00-15:00\", \"15:00-16:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"09:00-10:00\", \"14:00-15:00\", \"16:00-17:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"17:00-19:00\", \"19:00-21:00\"]}, {\"weekday\": 2, \"timeSlots\": [\"17:00-19:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"17:00-19:00\", \"19:00-21:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"17:00-19:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"17:00-19:00\", \"19:00-21:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (2, 144, '王雅琳', '华东师范大学数学系硕士', 8, '小学数学,应用题专项,计算能力', 140.00,
         '华师大数学硕士，8年小学数学教学经验。特别擅长应用题教学，帮助学生建立数学思维模式。', NULL, '女', 1, 0, NULL,
-        '[{\"weekday\": 2, \"timeSlots\": [\"09:00-10:00\", \"17:00-18:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"09:00-10:00\", \"17:00-18:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-11:00\", \"15:00-16:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"09:00-10:00\", \"14:00-15:00\"]}]');
+        '[{\"weekday\": 2, \"timeSlots\": [\"17:00-19:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"17:00-19:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"08:00-10:00\", \"13:00-15:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (3, 145, '张志强', '南京师范大学数学教育硕士', 12, '小学数学,几何启蒙,数学游戏', 160.00,
         '南师大数学教育专业，12年教学经验。善于用生动有趣的方式教授数学，让学生爱上数学学习。', NULL, '男', 1, 0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"15:00-16:00\", \"18:00-19:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"15:00-16:00\", \"18:00-19:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"15:00-16:00\", \"18:00-19:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"10:00-11:00\", \"16:00-17:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"15:00-17:00\", \"17:00-19:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"15:00-17:00\", \"17:00-19:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"15:00-17:00\", \"17:00-19:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (4, 146, '陈博士', '中科院生物学博士', 15, '小学科学,自然观察,科学实验', 180.00,
         '中科院博士，15年科学教育经验。擅长通过实验和观察培养学生科学思维，让抽象的科学概念变得生动有趣。', NULL, '男', 1,
         0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"10:00-11:00\", \"17:00-18:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"10:00-11:00\", \"17:00-18:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"10:00-11:00\", \"17:00-18:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"10:00-12:00\", \"17:00-19:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"10:00-12:00\", \"17:00-19:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"10:00-12:00\", \"17:00-19:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (5, 147, '刘晓敏', '北京师范大学科学教育硕士', 9, '小学科学,科学启蒙,动手实验', 160.00,
         '师范大学科学教育专业，专注小学科学教育9年。善于用生活中的例子解释科学原理，激发学生对科学的兴趣。', NULL, '女', 1,
         0, NULL,
-        '[{\"weekday\": 2, \"timeSlots\": [\"11:00-12:00\", \"16:00-17:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"11:00-12:00\", \"16:00-17:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"09:00-10:00\", \"17:00-18:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"11:00-12:00\", \"14:00-15:00\", \"17:00-18:00\"]}]');
+        '[{\"weekday\": 2, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"08:00-10:00\", \"17:00-19:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"10:00-12:00\", \"13:00-15:00\", \"17:00-19:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (6, 148, '赵宇航', '华中师范大学科学教育硕士', 7, '小学科学,环境科学,科学探究', 150.00,
         '华师科学教育硕士，7年教学经验。特别擅长环境科学教学，通过户外观察让学生了解自然，培养环保意识。', NULL, '男', 1, 0,
         NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"11:00-12:00\", \"19:00-20:00\"]}, {\"weekday\": 2, \"timeSlots\": [\"11:00-12:00\", \"19:00-20:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"11:00-12:00\", \"19:00-20:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"12:00-13:00\", \"16:00-17:00\", \"18:00-19:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"10:00-12:00\", \"19:00-21:00\"]}, {\"weekday\": 2, \"timeSlots\": [\"10:00-12:00\", \"19:00-21:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"10:00-12:00\", \"19:00-21:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"17:00-19:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (7, 149, '林雅文', '台湾师范大学中文系硕士', 11, '小学华文,拼音教学,识字启蒙', 160.00,
         '台师大中文硕士，11年小学华文教学经验。擅长拼音和识字教学，让孩子轻松掌握华文基础。', NULL, '女', 1, 0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"14:00-15:00\", \"18:00-19:00\"]}, {\"weekday\": 2, \"timeSlots\": [\"14:00-15:00\", \"18:00-19:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"14:00-15:00\", \"18:00-19:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"12:00-13:00\", \"15:00-16:00\", \"17:00-18:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"13:00-15:00\", \"17:00-19:00\"]}, {\"weekday\": 2, \"timeSlots\": [\"13:00-15:00\", \"17:00-19:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"13:00-15:00\", \"17:00-19:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"17:00-19:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (8, 150, '黄志华', '北京语言大学汉语国际教育硕士', 8, '小学华文,阅读理解,写作启蒙', 150.00,
         '北语汉教硕士，专注小学华文教育8年。特别擅长阅读理解和写作启蒙，培养学生的语言表达能力。', NULL, '男', 1, 0, NULL,
-        '[{\"weekday\": 2, \"timeSlots\": [\"15:00-16:00\", \"20:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"15:00-16:00\", \"20:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"15:00-16:00\", \"20:00-21:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"12:00-13:00\", \"18:00-19:00\"]}]');
+        '[{\"weekday\": 2, \"timeSlots\": [\"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"13:00-15:00\", \"17:00-19:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (9, 151, '郑美玲', '香港中文大学中国语言文学硕士', 6, '小学华文,古诗词,传统文化', 140.00,
         '港中大中文硕士，6年小学华文教学经验。专注传统文化教育，通过古诗词让孩子感受中华文化魅力。', NULL, '女', 1, 0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"16:00-17:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"16:00-17:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"16:00-17:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"13:00-14:00\", \"18:00-19:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"13:00-14:00\", \"20:00-21:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"15:00-17:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"15:00-17:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"15:00-17:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"13:00-15:00\", \"17:00-19:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"13:00-15:00\", \"19:00-21:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (10, 152, 'Emma Wilson', '英国剑桥大学英语文学硕士', 8, 'KET考试辅导,少儿英语,口语训练', 200.00,
         '英国剑桥大学硕士，专注于KET考试辅导8年。帮助超过200名学生成功通过KET考试，教学风格生动有趣。', NULL, '女', 1, 0,
         NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"09:00-10:00\", \"19:00-20:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"09:00-10:00\", \"19:00-20:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"09:00-10:00\", \"19:00-20:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"09:00-10:00\", \"14:00-15:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"08:00-10:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"08:00-10:00\", \"19:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"08:00-10:00\", \"19:00-21:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"08:00-10:00\", \"13:00-15:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (11, 153, 'David Smith', '美国哥伦比亚大学TESOL硕士', 6, 'KET考试,英语语法,阅读理解', 180.00,
         '美国外教，专业TESOL认证，擅长KET考试技巧指导。课堂氛围轻松愉快，让学生在快乐中学习英语。', NULL, '男', 1, 0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-11:00\", \"11:00-12:00\", \"16:00-17:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (12, 154, 'Sarah Johnson', '澳大利亚悉尼大学教育学硕士', 5, 'KET考试,写作训练,听力提升', 170.00,
         '澳洲海归教师，专注KET考试培训5年。特别擅长写作和听力训练，学生通过率高达95%。', NULL, '女', 1, 0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-11:00\", \"11:00-12:00\", \"16:00-17:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (13, 155, 'Michael Brown', '英国牛津大学英语语言学硕士', 10, 'PET考试辅导,高级英语,学术写作', 220.00,
         '牛津大学硕士，10年PET考试辅导经验。专注高级英语教学，帮助学生达到更高的英语水平。', NULL, '男', 1, 0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-11:00\", \"11:00-12:00\", \"16:00-17:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (14, 156, 'Jennifer Lee', '加拿大多伦多大学应用语言学硕士', 7, 'PET考试,英语口语,商务英语', 200.00,
         '加拿大外教，应用语言学硕士，7年PET教学经验。擅长口语训练和商务英语，让学生自信开口说英语。', NULL, '女', 1, 0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-11:00\", \"11:00-12:00\", \"16:00-17:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (15, 157, 'Robert Taylor', '美国加州大学英语教育硕士', 9, 'PET考试,英语文学,批判性思维', 210.00,
         '美国外教，英语教育硕士，9年教学经验。注重培养学生的批判性思维和英语文学鉴赏能力。', NULL, '男', 1, 0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-11:00\", \"11:00-12:00\", \"16:00-17:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (16, 158, '李教授', '清华大学数学系博士', 15, '中学数学,高等数学,竞赛数学', 250.00,
         '清华数学博士，15年中学数学教学经验。擅长高等数学和竞赛数学，所教学生多次获得数学竞赛奖项。', NULL, '男', 1, 0,
         NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-11:00\", \"11:00-12:00\", \"16:00-17:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (17, 159, '王博士', '北京大学应用数学博士', 12, '中学数学,函数专题,几何证明', 230.00,
         '北大数学博士，专注中学数学教学12年。特别擅长函数、几何等难点突破，帮助学生建立完整的数学知识体系。', NULL, '女', 1,
         0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-11:00\", \"11:00-12:00\", \"16:00-17:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (18, 160, '张院士', '中科院数学与系统科学研究院博士', 18, '中学数学,数学建模,创新思维', 280.00,
         '中科院博士，18年教学经验。擅长数学建模和创新思维培养，让学生学会用数学解决实际问题。', NULL, '男', 1, 0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-11:00\", \"11:00-12:00\", \"16:00-17:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (19, 161, '陈院士', '中科院物理研究所博士', 20, '中学物理,实验物理,科学研究', 300.00,
         '中科院物理博士，20年科学教育经验。擅长实验物理教学，培养学生的科学研究能力和创新精神。', NULL, '男', 1, 0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-11:00\", \"11:00-12:00\", \"16:00-17:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (20, 162, '刘博士', '北京理工大学化学博士', 14, '中学化学,有机化学,化学实验', 260.00,
         '北理工化学博士，14年中学化学教学经验。特别擅长有机化学和实验教学，让抽象的化学概念变得具体可感。', NULL, '女', 1,
         0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"14:00-15:00\", \"15:00-16:00\", \"19:00-20:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-11:00\", \"11:00-12:00\", \"16:00-17:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 5, \"timeSlots\": [\"13:00-15:00\", \"15:00-17:00\", \"19:00-21:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (21, 163, '赵教授', '华中科技大学生物学博士', 16, '中学生物,分子生物学,生命科学', 270.00,
         '华科生物博士，16年教学经验。专注分子生物学和生命科学教育，培养学生对生命科学的深度理解。', NULL, '男', 1, 0, NULL,
-        '[{\"weekday\": 2, \"timeSlots\": [\"10:00-11:00\", \"16:00-17:00\", \"18:00-19:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"10:00-11:00\", \"16:00-17:00\", \"18:00-19:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"09:00-10:00\", \"15:00-16:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"10:00-11:00\", \"15:00-16:00\", \"17:00-18:00\"]}]');
+        '[{\"weekday\": 2, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\", \"17:00-19:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\", \"17:00-19:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"08:00-10:00\", \"15:00-17:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\", \"17:00-19:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (22, 164, '林教授', '北京师范大学中文系博士', 17, '中学华文,古代文学,文言文', 240.00,
         '北师大中文博士，17年中学华文教学经验。专精古代文学和文言文，让学生深入理解中华文化精髓。', NULL, '女', 1, 0, NULL,
-        '[{\"weekday\": 2, \"timeSlots\": [\"10:00-11:00\", \"16:00-17:00\", \"18:00-19:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"10:00-11:00\", \"16:00-17:00\", \"18:00-19:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"09:00-10:00\", \"15:00-16:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"10:00-11:00\", \"15:00-16:00\", \"17:00-18:00\"]}]');
+        '[{\"weekday\": 2, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\", \"17:00-19:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\", \"17:00-19:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"08:00-10:00\", \"15:00-17:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\", \"17:00-19:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (23, 165, '黄博士', '复旦大学中国语言文学博士', 13, '中学华文,现代文学,写作指导', 220.00,
         '复旦中文博士，专注中学华文教育13年。擅长现代文学和写作指导，培养学生的文学素养和表达能力。', NULL, '男', 1, 0,
         NULL,
-        '[{\"weekday\": 2, \"timeSlots\": [\"10:00-11:00\", \"16:00-17:00\", \"18:00-19:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"10:00-11:00\", \"16:00-17:00\", \"18:00-19:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"09:00-10:00\", \"15:00-16:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"10:00-11:00\", \"15:00-16:00\", \"17:00-18:00\"]}]');
+        '[{\"weekday\": 2, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\", \"17:00-19:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\", \"17:00-19:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"08:00-10:00\", \"15:00-17:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\", \"17:00-19:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (24, 166, '郑教授', '中山大学中文系博士', 14, '中学华文,语言学,修辞学', 230.00,
         '中大中文博士，14年教学经验。专精语言学和修辞学，帮助学生掌握高级语言运用技巧。', NULL, '女', 1, 0, NULL,
-        '[{\"weekday\": 2, \"timeSlots\": [\"10:00-11:00\", \"16:00-17:00\", \"18:00-19:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"10:00-11:00\", \"16:00-17:00\", \"18:00-19:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"09:00-10:00\", \"15:00-16:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"10:00-11:00\", \"15:00-16:00\", \"17:00-18:00\"]}]');
+        '[{\"weekday\": 2, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\", \"17:00-19:00\"]}, {\"weekday\": 4, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\", \"17:00-19:00\"]}, {\"weekday\": 6, \"timeSlots\": [\"08:00-10:00\", \"15:00-17:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"10:00-12:00\", \"15:00-17:00\", \"17:00-19:00\"]}]');
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `teaching_experience`, `specialties`,
                         `hourly_rate`, `introduction`, `video_intro_url`, `gender`, `is_verified`, `is_deleted`,
                         `deleted_at`, `available_time_slots`)
 VALUES (37, 183, '青', NULL, NULL, NULL, NULL, NULL, NULL, '男', 0, 0, NULL,
-        '[{\"weekday\": 1, \"timeSlots\": [\"11:00-12:00\", \"17:00-18:00\", \"20:00-21:00\"]}, {\"weekday\": 2, \"timeSlots\": [\"11:00-12:00\", \"17:00-18:00\", \"20:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"11:00-12:00\", \"17:00-18:00\", \"20:00-21:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"09:00-10:00\", \"14:00-15:00\", \"18:00-19:00\"]}]');
+        '[{\"weekday\": 1, \"timeSlots\": [\"10:00-12:00\", \"17:00-19:00\", \"19:00-21:00\"]}, {\"weekday\": 2, \"timeSlots\": [\"10:00-12:00\", \"17:00-19:00\", \"19:00-21:00\"]}, {\"weekday\": 3, \"timeSlots\": [\"10:00-12:00\", \"17:00-19:00\", \"19:00-21:00\"]}, {\"weekday\": 7, \"timeSlots\": [\"08:00-10:00\", \"13:00-15:00\", \"17:00-19:00\"]}]');
 COMMIT;
 
 -- ----------------------------

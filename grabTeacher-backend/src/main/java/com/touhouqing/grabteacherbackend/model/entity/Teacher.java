@@ -61,7 +61,7 @@ public class Teacher {
     private String gender;
 
     @TableField("available_time_slots")
-    @Schema(description = "可上课时间安排", example = "[{\"weekday\":1,\"timeSlots\":[\"08:00-09:00\",\"10:00-11:00\"]},{\"weekday\":2,\"timeSlots\":[\"14:00-15:00\"]}]")
+    @Schema(description = "可上课时间安排", example = "[{\"weekday\":1,\"timeSlots\":[\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":6,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\"]}]")
     private String availableTimeSlots;
 
     @TableField("is_verified")
