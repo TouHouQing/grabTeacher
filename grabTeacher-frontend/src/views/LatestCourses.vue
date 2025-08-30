@@ -158,7 +158,10 @@ const handleSizeChange = (size: number) => {
 }
 
 // 格式化时长显示
-const formatDuration = (minutes: number) => {
+const formatDuration = (minutes: number | null) => {
+  if (minutes === null || minutes === undefined) {
+    return '1.5/2小时'
+  }
   if (minutes < 60) {
     return `${minutes}分钟`
   } else {

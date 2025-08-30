@@ -51,9 +51,6 @@ public class CourseServiceImpl implements CourseService {
 
     @Autowired
     private GradeMapper gradeMapper;
-    @Autowired
-    @org.springframework.context.annotation.Lazy
-    private com.touhouqing.grabteacherbackend.service.CacheWarmupService cacheWarmupService;
 
     @Autowired
     private com.touhouqing.grabteacherbackend.util.AliyunOssUtil ossUtil;
@@ -233,6 +230,16 @@ public class CourseServiceImpl implements CourseService {
 
         // 验证大班课专用字段
         validateLargeClassFields(request);
+
+        // 验证课程时长
+        Integer durationMinutes = request.getDurationMinutes();
+        if (durationMinutes != null) {
+            // 如果设置了具体时长，只能是90分钟或120分钟
+            if (durationMinutes != 90 && durationMinutes != 120) {
+                throw new RuntimeException("课程时长只能选择90分钟（一个半小时）或120分钟（俩小时），或者留空表示灵活时间");
+            }
+        }
+        // 如果为null，表示灵活时间，允许一个半小时或俩小时均可
 
         course.setSubjectId(request.getSubjectId());
         course.setTitle(request.getTitle());

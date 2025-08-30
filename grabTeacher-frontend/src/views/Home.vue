@@ -375,8 +375,14 @@ defineOptions({
                         <p class="course-subject" v-if="course.subjectName">{{ course.subjectName }}</p>
                         <p class="course-description">{{ course.description }}</p>
                         <div class="course-meta">
-                          <span v-if="course.durationMinutes">
-                            <el-icon><Timer /></el-icon> {{ Math.floor(course.durationMinutes / 60) }}小时
+                          <span>
+                            <el-icon><Timer /></el-icon>
+                            <template v-if="course.durationMinutes">
+                              {{ Math.floor(course.durationMinutes / 60) }}小时
+                            </template>
+                            <template v-else>
+                              1.5/2小时
+                            </template>
                           </span>
                           <span v-if="course.courseType">
                             <el-icon><User /></el-icon> {{ course.courseType }}

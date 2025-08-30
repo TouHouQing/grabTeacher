@@ -112,8 +112,20 @@ const formRules = {
     { required: true, message: '请选择课程类型', trigger: 'change' }
   ],
   durationMinutes: [
-    { required: true, message: '请输入课程时长', trigger: 'blur' },
-    { type: 'number', min: 1, message: '课程时长必须大于0分钟', trigger: 'blur' }
+    {
+      validator: (_rule: any, value: any, callback: any) => {
+        if (value !== null && value !== undefined) {
+          if (value !== 90 && value !== 120) {
+            callback(new Error('课程时长只能选择90分钟（一个半小时）或120分钟（俩小时），或者留空表示灵活时间'))
+          } else {
+            callback()
+          }
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change'
+    }
   ],
   grade: [
     {
@@ -553,7 +565,14 @@ onMounted(() => {
                 </div>
                 <div class="info-item">
                   <span class="label">时长：</span>
-                  <span class="value">{{ course.durationMinutes }}分钟</span>
+                  <span class="value">
+                    <template v-if="course.durationMinutes">
+                      {{ course.durationMinutes }}分钟
+                    </template>
+                    <template v-else>
+                      1.5/2小时
+                    </template>
+                  </span>
                 </div>
                 <div class="info-item">
                   <span class="label">价格：</span>
@@ -721,14 +740,25 @@ onMounted(() => {
         </el-form-item>
 
         <el-form-item label="课程时长" prop="durationMinutes">
-          <el-input-number
+          <el-select
             v-model="courseForm.durationMinutes"
-            :min="1"
-            :max="480"
-            :step="30"
+            placeholder="90或120分钟"
             style="width: 200px"
-          />
-          <span style="margin-left: 10px; color: #909399;">分钟</span>
+            clearable
+          >
+            <el-option
+              :value="null"
+              label="90或120分钟"
+            />
+            <el-option
+              :value="90"
+              label="90分钟"
+            />
+            <el-option
+              :value="120"
+              label="120分钟"
+            />
+          </el-select>
         </el-form-item>
 
         <el-form-item label="课程价格" prop="price">

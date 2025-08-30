@@ -310,7 +310,7 @@ CREATE TABLE `courses`
     `person_limit`      int(11)                                                                                      DEFAULT NULL COMMENT '最大报名人数，null表示不限制',
     `course_time_slots` text COMMENT '上课时间安排（只有大班课才需要设置上课时间安排），JSON格式存储：[{"weekday":1,"timeSlots":["08:00-10:00","17:00-19:00"]},{"weekday":6,"timeSlots":["13:00-15:00","15:00-17:00"]}]，weekday: 1=周一,2=周二...7=周日',
     `image_url`         varchar(500) COLLATE utf8mb4_general_ci                                                      DEFAULT NULL COMMENT '课程封面图URL',
-    `duration_minutes`  int(11)                                                      NOT NULL COMMENT '单次课程时长，单位：分钟',
+    `duration_minutes`  int(11)                                                      DEFAULT NULL COMMENT '单次课程时长，单位：分钟,为空则俩小时或一个半小时均可',
     `status`            enum ('active','inactive','full','pending') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'active' COMMENT '课程状态：active-可报名，inactive-已下架，full-已满员，pending-待审批',
     `is_featured`       tinyint(1)                                                                                   DEFAULT '0' COMMENT '是否为精选课程，在首页展示：1-是，0-否',
     `created_at`        timestamp                                                    NULL                            DEFAULT CURRENT_TIMESTAMP COMMENT '课程创建时间',
@@ -331,36 +331,36 @@ INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
 VALUES (1, 1, 1, '小学数学基础班', '小学数学基础知识教学，包括四则运算、几何图形等基础概念。', 'one_on_one', NULL, NULL,
-        NULL, NULL, 60, 'active', 1, '2025-07-28 21:36:22', 0, NULL);
+        NULL, NULL, 120, 'active', 1, '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (2, 1, 1, '小学奥数启蒙班', '小学奥数启蒙课程，培养数学思维和解题技巧。', 'one_on_one', NULL, NULL, NULL, NULL, 75,
+VALUES (2, 1, 1, '小学奥数启蒙班', '小学奥数启蒙课程，培养数学思维和解题技巧。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 1, '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
 VALUES (3, 2, 1, '小学应用题专项班', '专门针对小学应用题的解题方法和技巧训练。', 'one_on_one', NULL, NULL, NULL, NULL,
-        60, 'active', 1, '2025-07-28 21:36:22', 0, NULL);
+        120, 'active', 1, '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (4, 2, 1, '小学计算能力提升班', '提升小学生的计算速度和准确性。', 'one_on_one', NULL, NULL, NULL, NULL, 45,
+VALUES (4, 2, 1, '小学计算能力提升班', '提升小学生的计算速度和准确性。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 1, '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (5, 3, 1, '小学几何启蒙班', '小学几何基础知识，培养空间想象能力。', 'one_on_one', NULL, NULL, NULL, NULL, 60,
+VALUES (5, 3, 1, '小学几何启蒙班', '小学几何基础知识，培养空间想象能力。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 1, '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (6, 3, 1, '数学游戏趣味班', '通过数学游戏让孩子爱上数学学习。', 'one_on_one', NULL, NULL, NULL, NULL, 45,
+VALUES (6, 3, 1, '数学游戏趣味班', '通过数学游戏让孩子爱上数学学习。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 1, '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (7, 4, 2, '小学科学探索班', '通过有趣的科学实验，让小学生了解自然现象。', 'one_on_one', NULL, NULL, NULL, NULL, 60,
+VALUES (7, 4, 2, '小学科学探索班', '通过有趣的科学实验，让小学生了解自然现象。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
@@ -371,21 +371,21 @@ INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
 VALUES (9, 5, 2, '科学启蒙实验班', '适合小学生的科学启蒙课程，通过动手实验学习科学。', 'one_on_one', NULL, NULL, NULL,
-        NULL, 60, 'active', 0, '2025-07-28 21:36:22', 0, NULL);
+        NULL, 120, 'active', 0, '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (10, 5, 2, '生活中的科学', '从生活现象中学习科学原理，培养科学思维。', 'one_on_one', NULL, NULL, NULL, NULL, 45,
+VALUES (10, 5, 2, '生活中的科学', '从生活现象中学习科学原理，培养科学思维。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (11, 6, 2, '环境科学启蒙班', '环境保护和生态科学的启蒙教育。', 'one_on_one', NULL, NULL, NULL, NULL, 60, 'active',
+VALUES (11, 6, 2, '环境科学启蒙班', '环境保护和生态科学的启蒙教育。', 'one_on_one', NULL, NULL, NULL, NULL, 120, 'active',
         0, '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (12, 6, 2, '科学探究方法班', '教授科学探究的基本方法和思维方式。', 'one_on_one', NULL, NULL, NULL, NULL, 75,
+VALUES (12, 6, 2, '科学探究方法班', '教授科学探究的基本方法和思维方式。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
@@ -395,117 +395,117 @@ VALUES (13, 7, 3, '小学华文基础班', '小学华文基础教学，包括拼
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (14, 7, 3, '拼音识字启蒙班', '专注拼音教学和汉字识字启蒙。', 'one_on_one', NULL, NULL, NULL, NULL, 45, 'active',
+VALUES (14, 7, 3, '拼音识字启蒙班', '专注拼音教学和汉字识字启蒙。', 'one_on_one', NULL, NULL, NULL, NULL, 120, 'active',
         0, '2025-07-28 21:38:04', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (15, 8, 3, '小学阅读理解班', '提升小学生的阅读理解能力和语言表达。', 'one_on_one', NULL, NULL, NULL, NULL, 60,
+VALUES (15, 8, 3, '小学阅读理解班', '提升小学生的阅读理解能力和语言表达。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:38:04', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (16, 8, 3, '写作启蒙班', '小学写作启蒙，从看图写话开始。', 'one_on_one', NULL, NULL, NULL, NULL, 45, 'active', 0,
+VALUES (16, 8, 3, '写作启蒙班', '小学写作启蒙，从看图写话开始。', 'one_on_one', NULL, NULL, NULL, NULL, 120, 'active', 0,
         '2025-07-28 21:38:04', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (17, 9, 3, '古诗词启蒙班', '小学古诗词学习，感受传统文化魅力。', 'one_on_one', NULL, NULL, NULL, NULL, 45,
+VALUES (17, 9, 3, '古诗词启蒙班', '小学古诗词学习，感受传统文化魅力。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:38:04', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (18, 9, 3, '传统文化班', '通过故事和游戏学习中华传统文化。', 'one_on_one', NULL, NULL, NULL, NULL, 60, 'active',
+VALUES (18, 9, 3, '传统文化班', '通过故事和游戏学习中华传统文化。', 'one_on_one', NULL, NULL, NULL, NULL, 120, 'active',
         0, '2025-07-28 21:38:04', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
 VALUES (19, 10, 4, 'KET考试冲刺班', '专为KET考试设计的冲刺课程，涵盖听说读写四项技能。', 'one_on_one', NULL, NULL, NULL,
-        NULL, 60, 'active', 0, '2025-07-28 21:38:04', 0, NULL);
+        NULL, 120, 'active', 0, '2025-07-28 21:38:04', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (20, 10, 4, 'KET口语训练班', 'KET考试口语专项训练，提升口语表达能力。', 'one_on_one', NULL, NULL, NULL, NULL, 45,
+VALUES (20, 10, 4, 'KET口语训练班', 'KET考试口语专项训练，提升口语表达能力。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:38:04', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (21, 11, 4, 'KET语法基础班', 'KET考试语法基础课程，系统学习英语语法。', 'one_on_one', NULL, NULL, NULL, NULL, 60,
+VALUES (21, 11, 4, 'KET语法基础班', 'KET考试语法基础课程，系统学习英语语法。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:38:04', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (22, 11, 4, 'KET阅读理解班', 'KET阅读理解专项训练，提升阅读技巧。', 'one_on_one', NULL, NULL, NULL, NULL, 45,
+VALUES (22, 11, 4, 'KET阅读理解班', 'KET阅读理解专项训练，提升阅读技巧。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:38:04', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (23, 12, 4, 'KET写作训练班', 'KET写作专项训练，掌握写作技巧和方法。', 'one_on_one', NULL, NULL, NULL, NULL, 60,
+VALUES (23, 12, 4, 'KET写作训练班', 'KET写作专项训练，掌握写作技巧和方法。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:38:04', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (24, 12, 4, 'KET听力突破班', 'KET听力专项训练，提升听力理解能力。', 'one_on_one', NULL, NULL, NULL, NULL, 45,
+VALUES (24, 12, 4, 'KET听力突破班', 'KET听力专项训练，提升听力理解能力。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:38:04', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (25, 13, 5, 'PET考试精品班', 'PET考试专项训练，重点突破语法和词汇难点。', 'one_on_one', NULL, NULL, NULL, NULL, 90,
+VALUES (25, 13, 5, 'PET考试精品班', 'PET考试专项训练，重点突破语法和词汇难点。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:40:53', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (26, 13, 5, 'PET学术写作班', 'PET考试学术写作训练，提升写作水平。', 'one_on_one', NULL, NULL, NULL, NULL, 75,
+VALUES (26, 13, 5, 'PET学术写作班', 'PET考试学术写作训练，提升写作水平。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:40:53', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (27, 14, 5, 'PET口语提升班', 'PET口语专项训练，提升口语流利度和准确性。', 'one_on_one', NULL, NULL, NULL, NULL, 60,
+VALUES (27, 14, 5, 'PET口语提升班', 'PET口语专项训练，提升口语流利度和准确性。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:40:53', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (28, 14, 5, 'PET商务英语班', 'PET水平的商务英语应用训练。', 'one_on_one', NULL, NULL, NULL, NULL, 75, 'active', 0,
+VALUES (28, 14, 5, 'PET商务英语班', 'PET水平的商务英语应用训练。', 'one_on_one', NULL, NULL, NULL, NULL, 120, 'active', 0,
         '2025-07-28 21:40:53', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (29, 15, 5, 'PET英语文学班', 'PET水平的英语文学鉴赏和分析。', 'one_on_one', NULL, NULL, NULL, NULL, 90, 'active',
+VALUES (29, 15, 5, 'PET英语文学班', 'PET水平的英语文学鉴赏和分析。', 'one_on_one', NULL, NULL, NULL, NULL, 120, 'active',
         0, '2025-07-28 21:40:53', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (30, 15, 5, 'PET批判性思维班', '通过英语培养批判性思维能力。', 'one_on_one', NULL, NULL, NULL, NULL, 75, 'active',
+VALUES (30, 15, 5, 'PET批判性思维班', '通过英语培养批判性思维能力。', 'one_on_one', NULL, NULL, NULL, NULL, 120, 'active',
         0, '2025-07-28 21:40:53', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (31, 16, 6, '中学数学竞赛班', '中学数学竞赛训练，培养高级数学思维。', 'one_on_one', NULL, NULL, NULL, NULL, 90,
+VALUES (31, 16, 6, '中学数学竞赛班', '中学数学竞赛训练，培养高级数学思维。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:40:53', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (32, 16, 6, '高等数学预备班', '为学习高等数学打下坚实基础。', 'one_on_one', NULL, NULL, NULL, NULL, 75, 'active',
+VALUES (32, 16, 6, '高等数学预备班', '为学习高等数学打下坚实基础。', 'one_on_one', NULL, NULL, NULL, NULL, 120, 'active',
         0, '2025-07-28 21:40:53', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (33, 17, 6, '中学函数专题班', '中学数学函数专题深度学习。', 'one_on_one', NULL, NULL, NULL, NULL, 90, 'active', 0,
+VALUES (33, 17, 6, '中学函数专题班', '中学数学函数专题深度学习。', 'one_on_one', NULL, NULL, NULL, NULL, 120, 'active', 0,
         '2025-07-28 21:40:53', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (34, 17, 6, '中学几何证明班', '中学几何证明专项训练。', 'one_on_one', NULL, NULL, NULL, NULL, 75, 'active', 0,
+VALUES (34, 17, 6, '中学几何证明班', '中学几何证明专项训练。', 'one_on_one', NULL, NULL, NULL, NULL, 120, 'active', 0,
         '2025-07-28 21:40:53', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (35, 18, 6, '数学建模班', '中学数学建模训练，培养应用能力。', 'one_on_one', NULL, NULL, NULL, NULL, 90, 'active',
+VALUES (35, 18, 6, '数学建模班', '中学数学建模训练，培养应用能力。', 'one_on_one', NULL, NULL, NULL, NULL, 120, 'active',
         0, '2025-07-28 21:40:53', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (36, 18, 6, '创新数学思维班', '培养创新数学思维和解题能力。', 'one_on_one', NULL, NULL, NULL, NULL, 75, 'active',
+VALUES (36, 18, 6, '创新数学思维班', '培养创新数学思维和解题能力。', 'one_on_one', NULL, NULL, NULL, NULL, 120, 'active',
         0, '2025-07-28 21:40:53', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
@@ -515,57 +515,57 @@ VALUES (37, 19, 7, '中学物理实验班', '中学物理实验课程，培养�
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (38, 19, 7, '科学研究方法班', '教授科学研究的基本方法和实验设计。', 'one_on_one', NULL, NULL, NULL, NULL, 75,
+VALUES (38, 19, 7, '科学研究方法班', '教授科学研究的基本方法和实验设计。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:44:29', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (39, 20, 7, '中学化学实验班', '中学化学实验课程，深入理解化学原理。', 'one_on_one', NULL, NULL, NULL, NULL, 90,
+VALUES (39, 20, 7, '中学化学实验班', '中学化学实验课程，深入理解化学原理。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:44:29', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (40, 20, 7, '有机化学专题班', '有机化学专题学习，掌握有机反应机理。', 'one_on_one', NULL, NULL, NULL, NULL, 75,
+VALUES (40, 20, 7, '有机化学专题班', '有机化学专题学习，掌握有机反应机理。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:44:29', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (41, 21, 7, '中学生物实验班', '中学生物实验课程，探索生命科学奥秘。', 'one_on_one', NULL, NULL, NULL, NULL, 90,
+VALUES (41, 21, 7, '中学生物实验班', '中学生物实验课程，探索生命科学奥秘。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:44:29', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (42, 21, 7, '分子生物学班', '分子生物学基础，了解生命的分子机制。', 'one_on_one', NULL, NULL, NULL, NULL, 75,
+VALUES (42, 21, 7, '分子生物学班', '分子生物学基础，了解生命的分子机制。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:44:29', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (43, 22, 8, '中学古代文学班', '中学古代文学学习，深入理解经典作品。', 'one_on_one', NULL, NULL, NULL, NULL, 75,
+VALUES (43, 22, 8, '中学古代文学班', '中学古代文学学习，深入理解经典作品。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:44:29', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (44, 22, 8, '文言文精读班', '文言文精读训练，提升古文理解能力。', 'one_on_one', NULL, NULL, NULL, NULL, 60,
+VALUES (44, 22, 8, '文言文精读班', '文言文精读训练，提升古文理解能力。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:44:29', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (45, 23, 8, '中学现代文学班', '中学现代文学鉴赏，培养文学素养。', 'one_on_one', NULL, NULL, NULL, NULL, 75,
+VALUES (45, 23, 8, '中学现代文学班', '中学现代文学鉴赏，培养文学素养。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:44:29', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (46, 23, 8, '中学写作指导班', '中学写作技巧指导，提升表达能力。', 'one_on_one', NULL, NULL, NULL, NULL, 60,
+VALUES (46, 23, 8, '中学写作指导班', '中学写作技巧指导，提升表达能力。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:44:29', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (47, 24, 8, '语言学基础班', '语言学基础知识，了解语言的科学原理。', 'one_on_one', NULL, NULL, NULL, NULL, 75,
+VALUES (47, 24, 8, '语言学基础班', '语言学基础知识，了解语言的科学原理。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:44:29', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
-VALUES (48, 24, 8, '修辞学应用班', '修辞学应用训练，掌握高级语言技巧。', 'one_on_one', NULL, NULL, NULL, NULL, 60,
+VALUES (48, 24, 8, '修辞学应用班', '修辞学应用训练，掌握高级语言技巧。', 'one_on_one', NULL, NULL, NULL, NULL, 120,
         'active', 0, '2025-07-28 21:44:29', 0, NULL);
 
 -- 大班课示例数据
@@ -574,7 +574,7 @@ INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`,
                        `is_deleted`, `deleted_at`)
 VALUES (49, 1, 1, '小学数学思维训练营',
         '为期8周的小学数学思维训练大班课，培养逻辑思维和解题能力。每周2次课，系统性提升数学素养。', 'large_class', 299.00,
-        '2025-09-01', '2025-10-26', 25, 90, 'active', 1, '2025-07-28 22:00:00', 0, NULL);
+        '2025-09-01', '2025-10-26', 25, 120, 'active', 1, '2025-07-28 22:00:00', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
@@ -590,12 +590,12 @@ INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
 VALUES (52, 4, 2, '小学科学实验探索营', '动手实验为主的科学启蒙大班课，每周进行有趣的科学实验，培养科学思维和动手能力。',
-        'large_class', NULL, '2025-09-05', '2025-12-05', NULL, 90, 'active', 0, '2025-07-28 22:00:00', 0, NULL);
+        'large_class', NULL, '2025-09-05', '2025-12-05', NULL, 120, 'active', 0, '2025-07-28 22:00:00', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
 VALUES (53, 16, 6, '中学数学竞赛训练班', '面向有数学天赋学生的竞赛训练大班课，涵盖代数、几何、数论等竞赛专题。',
-        'large_class', 899.00, '2025-09-07', '2025-12-07', 15, 150, 'active', 1, '2025-07-28 22:00:00', 0, NULL);
+        'large_class', 899.00, '2025-09-07', '2025-12-07', 15, 120, 'active', 1, '2025-07-28 22:00:00', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `course_type`, `price`, `start_date`,
                        `end_date`, `person_limit`, `duration_minutes`, `status`, `is_featured`, `created_at`,
                        `is_deleted`, `deleted_at`)
