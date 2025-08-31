@@ -1003,8 +1003,8 @@ CREATE TABLE `students`
 -- ----------------------------
 BEGIN;
 INSERT INTO `students` (`id`, `user_id`, `real_name`, `grade_level`, `subjects_interested`, `learning_goals`,
-                        `preferred_teaching_style`, `budget_range`, `is_deleted`, `deleted_at`, `gender`)
-VALUES (6, 10, 'student23', '小学', '', '123131123', '实践型教学', '100-200', 0, NULL, '不愿透露');
+                        `preferred_teaching_style`, `balance`, `budget_range`, `is_deleted`, `deleted_at`, `gender`)
+VALUES (6, 10, 'student23', '小学', '', '123131123', '实践型教学', 0.00, '100-200', 0, NULL, '不愿透露');
 COMMIT;
 
 -- ----------------------------
@@ -1337,8 +1337,7 @@ CREATE TABLE `users`
     `updated_at`     timestamp                                                     NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
     `is_deleted`     tinyint(1)                                                         DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
     `deleted_at`     timestamp                                                     NULL DEFAULT NULL COMMENT '删除时间',
-    `has_used_trial` tinyint(1)                                                         DEFAULT '0' COMMENT '是否已使用免费试听：true-已使用，false-未使用',
-    `trial_used_at`  timestamp                                                     NULL DEFAULT NULL COMMENT '试听课使用时间',
+    `trial_times`    int(11)                                                             DEFAULT '1' COMMENT '免费试听课次数，新用户默认为1',
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 184
@@ -1350,131 +1349,131 @@ CREATE TABLE `users`
 -- ----------------------------
 BEGIN;
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`,
-                     `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `created_at`, `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (10, 'student', 'qinghaoyang@foxmail.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '',
-        NULL, NULL, 'student', 'active', '2025-07-19 13:21:54', '2025-07-29 09:31:13', 0, NULL, 0, NULL);
+        NULL, NULL, 'student', 'active', '2025-07-19 13:21:54', '2025-07-29 09:31:13', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`,
-                     `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `created_at`, `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (11, 'admin', 'admin@admin.com', '$2a$10$CLJSuGd2ptKI9VlCz3r4buGyY7HfKg1qivwbKEfkk8/6Pz57oKjWK', NULL, NULL,
-        NULL, 'admin', 'active', '2025-07-19 16:23:39', '2025-07-29 13:24:12', 0, NULL, 0, NULL);
+        NULL, 'admin', 'active', '2025-07-19 16:23:39', '2025-07-29 13:24:12', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (143, 'teacher_primary_math_01', 'primary_math01@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800001001', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (144, 'teacher_primary_math_02', 'primary_math02@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800001002', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (145, 'teacher_primary_math_03', 'primary_math03@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800001003', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (146, 'teacher_primary_science_01', 'primary_science01@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800002001', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (147, 'teacher_primary_science_02', 'primary_science02@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800002002', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (148, 'teacher_primary_science_03', 'primary_science03@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800002003', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (149, 'teacher_primary_chinese_01', 'primary_chinese01@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800003001', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (150, 'teacher_primary_chinese_02', 'primary_chinese02@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800003002', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (151, 'teacher_primary_chinese_03', 'primary_chinese03@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800003003', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (152, 'teacher_ket_01', 'ket01@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW',
-        '13800004001', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '13800004001', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (153, 'teacher_ket_02', 'ket02@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW',
-        '13800004002', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '13800004002', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (154, 'teacher_ket_03', 'ket03@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW',
-        '13800004003', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '13800004003', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (155, 'teacher_pet_01', 'pet01@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW',
-        '13800005001', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '13800005001', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (156, 'teacher_pet_02', 'pet02@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW',
-        '13800005002', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '13800005002', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (157, 'teacher_pet_03', 'pet03@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW',
-        '13800005003', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '13800005003', NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (158, 'teacher_middle_math_01', 'middle_math01@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800006001', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (159, 'teacher_middle_math_02', 'middle_math02@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800006002', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (160, 'teacher_middle_math_03', 'middle_math03@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800006003', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (161, 'teacher_middle_science_01', 'middle_science01@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800007001', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (162, 'teacher_middle_science_02', 'middle_science02@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800007002', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (163, 'teacher_middle_science_03', 'middle_science03@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800007003', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (164, 'teacher_middle_chinese_01', 'middle_chinese01@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800008001', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (165, 'teacher_middle_chinese_02', 'middle_chinese02@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800008002', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (166, 'teacher_middle_chinese_03', 'middle_chinese03@teacher.com',
         '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800008003', NULL, 'teacher', 'active',
-        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 0, NULL);
+        '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `avatar_url`, `user_type`, `status`, `created_at`,
-                     `updated_at`, `is_deleted`, `deleted_at`, `has_used_trial`, `trial_used_at`)
+                     `updated_at`, `is_deleted`, `deleted_at`)
 VALUES (183, 'teacher', 'qhycursor@126.com', '$2a$10$jlFOPIGNKGflN7bUxRAR2OZ9F8NdnZotJaRsZ/cZ.IBPFPz5Gc/da', '', NULL,
-        'teacher', 'active', '2025-07-29 13:07:29', '2025-07-29 13:07:29', 0, NULL, 0, NULL);
+        'teacher', 'active', '2025-07-29 13:07:29', '2025-07-29 13:07:29', 0, NULL);
 COMMIT;
 
 -- ----------------------------

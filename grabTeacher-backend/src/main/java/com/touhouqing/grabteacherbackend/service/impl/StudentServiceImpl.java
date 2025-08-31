@@ -199,26 +199,10 @@ public class StudentServiceImpl implements StudentService {
             throw new RuntimeException("学生信息不存在");
         }
 
-        // 1. 进行中的课程数 - 按预约申请ID去重统计，而不是按课时数统计
-        // 查询状态为progressing的所有课程安排
-        List<Schedule> progressingSchedules = scheduleMapper.selectList(
-            new QueryWrapper<Schedule>()
-                .eq("student_id", student.getId())
-                .eq("status", "progressing")
-                .eq("is_deleted", false)
-        );
-
-        // 按预约申请ID去重统计（同一个预约申请的多个课时算作一个课程）
-        log.info("查询到的进行中课程安排数量: {}", progressingSchedules.size());
-
-        Set<Long> uniqueBookingRequestIds = progressingSchedules.stream()
-            .map(Schedule::getBookingRequestId)
-            .filter(bookingRequestId -> bookingRequestId != null)
-            .collect(java.util.stream.Collectors.toSet());
-
-        log.info("去重后的预约申请ID集合: {}", uniqueBookingRequestIds);
-
-        Long progressingCourses = (long) uniqueBookingRequestIds.size();
+        // 1. 试听次数 - 从User表获取trialTimes字段
+        User user = userMapper.selectById(userId);
+        Integer trialTimes = user != null ? user.getTrialTimes() : 0;
+        Long remainingTrialTimes = trialTimes != null ? trialTimes.longValue() : 0L;
 
         // 2. 待审批预约数 - 查询状态为pending的预约申请
         QueryWrapper<BookingRequest> bookingWrapper = new QueryWrapper<>();
@@ -234,7 +218,7 @@ public class StudentServiceImpl implements StudentService {
         completedWrapper.eq("is_deleted", false);
         Long completedCourses = scheduleMapper.selectCount(completedWrapper);
 
-        statistics.put("progressingCourses", progressingCourses != null ? progressingCourses.intValue() : 0);
+        statistics.put("remainingTrialTimes", remainingTrialTimes);
         statistics.put("pendingBookings", pendingBookings != null ? pendingBookings.intValue() : 0);
         statistics.put("completedCourses", completedCourses != null ? completedCourses.intValue() : 0);
 

@@ -261,7 +261,25 @@ public class TimeValidationServiceImpl implements TimeValidationService {
 
                     // 1. 教师该星期几是否可用
                     Set<String> set = availMap.get(weekday);
-                    if (set == null || !set.contains(timeSlot)) {
+                    boolean isAvailable = false;
+                    
+                    if (set != null) {
+                        // 直接匹配时间段
+                        if (set.contains(timeSlot)) {
+                            isAvailable = true;
+                        } else {
+                            // 如果直接匹配失败，检查是否是1.5小时时间段需要映射到2小时时间段
+                            // 这里需要检查时间段是否在教师可用的2小时时间段内
+                            for (String availableSlot : set) {
+                                if (isTimeSlotContained(timeSlot, availableSlot)) {
+                                    isAvailable = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (!isAvailable) {
                         conflicts.add(TimeValidationResultDTO.TimeConflictInfo.builder()
                                 .weekday(weekday)
                                 .timeSlot(timeSlot)
@@ -368,6 +386,41 @@ public class TimeValidationServiceImpl implements TimeValidationService {
             if (b[1] > s && b[0] < e) return true;
         }
         return false;
+    }
+
+    /**
+     * 检查请求的时间段是否在教师可预约时间段内
+     * @param requestedTimeSlot 请求的时间段，格式：HH:mm-HH:mm
+     * @param availableTimeSlot 教师可预约时间段，格式：HH:mm-HH:mm
+     * @return 如果请求时间段完全在可预约时间段内，返回true
+     */
+    private boolean isTimeSlotContained(String requestedTimeSlot, String availableTimeSlot) {
+        if (requestedTimeSlot == null || availableTimeSlot == null) {
+            return false;
+        }
+
+        try {
+            String[] requestedTimes = requestedTimeSlot.split("-");
+            String[] availableTimes = availableTimeSlot.split("-");
+
+            if (requestedTimes.length != 2 || availableTimes.length != 2) {
+                return false;
+            }
+
+            LocalTime requestedStart = LocalTime.parse(requestedTimes[0]);
+            LocalTime requestedEnd = LocalTime.parse(requestedTimes[1]);
+            LocalTime availableStart = LocalTime.parse(availableTimes[0]);
+            LocalTime availableEnd = LocalTime.parse(availableTimes[1]);
+
+            // 检查请求的时间段是否完全在可预约时间段内
+            // 例如：08:00-09:30 应该在 08:00-10:00 内
+            boolean isContained = !requestedStart.isBefore(availableStart) && !requestedEnd.isAfter(availableEnd);
+            
+            return isContained;
+        } catch (Exception e) {
+            log.error("时间段比较失败: requested={}, available={}", requestedTimeSlot, availableTimeSlot, e);
+            return false;
+        }
     }
 
     // 解析 "HH:mm-HH:mm" 到 [startMin, endMin]

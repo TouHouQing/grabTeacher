@@ -59,6 +59,10 @@ public class Student {
     @TableField(exist = false)
     private String avatarUrl;
 
+    // 非持久化字段：试听课次数，从User表获取
+    @TableField(exist = false)
+    private Integer trialTimes;
+
     // 保留必要的构造函数
     public Student(Long userId, String realName) {
         this.userId = userId;

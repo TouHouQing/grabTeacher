@@ -2,7 +2,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { HomeFilled, Connection, Document, Reading, User, Coin, ChatDotRound } from '@element-plus/icons-vue'
+import { HomeFilled, Connection, Document, Reading, User, Coin, ChatDotRound, Star } from '@element-plus/icons-vue'
 import StudentCourses from './components/StudentCourses.vue'
 import StudentMessages from './components/StudentMessages.vue'
 import { bookingAPI, studentAPI } from '../../utils/api'
@@ -16,7 +16,7 @@ const loading = ref(false)
 
 // 统计数据
 const statistics = ref({
-  progressingCourses: 0,
+  remainingTrialTimes: 0,
   pendingBookings: 0,
   completedCourses: 0
 })
@@ -125,11 +125,11 @@ const loadStatistics = async () => {
     const result = await studentAPI.getStatistics()
 
     if (result.success && result.data) {
-      statistics.value = {
-        progressingCourses: result.data.progressingCourses || 0,
-        pendingBookings: result.data.pendingBookings || 0,
-        completedCourses: result.data.completedCourses || 0
-      }
+              statistics.value = {
+          remainingTrialTimes: result.data.remainingTrialTimes || 0,
+          pendingBookings: result.data.pendingBookings || 0,
+          completedCourses: result.data.completedCourses || 0
+        }
     } else {
       ElMessage.error(result.message || '获取统计数据失败')
     }
@@ -236,11 +236,11 @@ onMounted(async () => {
             </div>
             <div class="stat-card">
               <div class="stat-icon">
-                <el-icon><Reading /></el-icon>
+                <el-icon><Star /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : statistics.progressingCourses }}</div>
-                <div class="stat-label">进行中的课程</div>
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.remainingTrialTimes }}</div>
+                <div class="stat-label">试听次数</div>
               </div>
             </div>
             <div class="stat-card">

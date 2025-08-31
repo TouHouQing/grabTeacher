@@ -280,7 +280,21 @@ public class CourseServiceImpl implements CourseService {
         }
 
         // 执行更新
-        courseMapper.updateById(course);
+        // 使用更明确的更新方式，确保null值能够正确更新
+        int updateResult = courseMapper.updateById(course);
+        
+        // 如果durationMinutes为null，需要特殊处理确保null值能够正确更新
+        if (durationMinutes == null) {
+            // 手动执行SQL更新duration_minutes字段为NULL
+            try {
+                int nullUpdateResult = courseMapper.update(null, 
+                    new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<Course>()
+                        .eq("id", id)
+                        .set("duration_minutes", null));
+            } catch (Exception e) {
+                log.error("手动更新duration_minutes为NULL失败 - 课程ID: {}", id, e);
+            }
+        }
 
         // 如果封面发生变更，删除旧图
         if (oldImageUrl != null && !oldImageUrl.equals(course.getImageUrl())) {

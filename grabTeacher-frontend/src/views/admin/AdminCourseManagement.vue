@@ -15,7 +15,7 @@ interface Course {
   description?: string
   courseType: string
   courseTypeDisplay: string
-  durationMinutes: number
+  durationMinutes: number | null
   status: string
   statusDisplay: string
   grade?: string
@@ -80,7 +80,7 @@ const courseForm = reactive({
   title: '',
   description: '',
   courseType: 'one_on_one',
-  durationMinutes: 120,
+  durationMinutes: null as number | null,
   status: 'active',
   grade: '',
   price: null as number | null,
@@ -316,7 +316,7 @@ const resetForm = () => {
   courseForm.title = ''
   courseForm.description = ''
   courseForm.courseType = 'one_on_one'
-  courseForm.durationMinutes = 120
+  courseForm.durationMinutes = null
   courseForm.status = 'active'
   courseForm.grade = ''
   courseForm.price = null
@@ -344,7 +344,7 @@ const openEditDialog = (course: Course) => {
   courseForm.title = course.title
   courseForm.description = course.description || ''
   courseForm.courseType = course.courseType
-  courseForm.durationMinutes = course.durationMinutes
+  courseForm.durationMinutes = course.durationMinutes ?? null
   courseForm.status = course.status
   courseForm.grade = course.grade || ''
   courseForm.price = course.price || null

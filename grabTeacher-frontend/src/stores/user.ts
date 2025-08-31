@@ -46,6 +46,8 @@ export interface StudentInfo {
   budgetRange?: string
   gender?: string
   avatarUrl?: string
+  balance?: number
+  trialTimes?: number
 }
 
 export interface TeacherInfo {

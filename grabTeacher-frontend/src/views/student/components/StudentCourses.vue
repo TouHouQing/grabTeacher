@@ -270,6 +270,76 @@ const availableTimeSlots = ref<string[]>([
   '15:00-17:00', '17:00-19:00', '19:00-21:00'
 ])
 
+// 根据课程时长动态生成可用时间段
+const getAvailableTimeSlotsByDuration = (durationMinutes?: number): string[] => {
+  if (!durationMinutes) {
+    // 如果没有时长信息，默认返回2小时时间段
+    return availableTimeSlots.value
+  }
+
+  if (durationMinutes === 90) {
+    // 1.5小时：在2小时区间内选择开始时间，但确保每个时间段都是完整的1.5小时
+    // 时间限制：七点最多到:30，不能有:45
+    const baseTimeSlots = availableTimeSlots.value
+    const flexibleSlots: string[] = []
+
+    baseTimeSlots.forEach(baseSlot => {
+      const [startTime] = baseSlot.split('-')
+      const [startHour, startMinute] = startTime.split(':').map(Number)
+
+      // 在2小时区间内，每15分钟一个开始时间选项，但限制时间格式
+      for (let minute = 0; minute < 120; minute += 15) {
+        const newStartHour = startHour + Math.floor(minute / 60)
+        const newStartMinute = (startMinute + minute) % 60
+
+        // 时间限制：七点最多到:30，不能有:45
+        if (newStartHour === 7 && newStartMinute > 30) {
+          continue // 跳过7点超过30分的时间
+        }
+        if (newStartMinute === 45) {
+          continue // 跳过所有:45的时间
+        }
+
+        // 计算结束时间（1.5小时后）
+        const totalMinutes = newStartHour * 60 + newStartMinute + 90
+        const endHour = Math.floor(totalMinutes / 60)
+        const endMinute = totalMinutes % 60
+
+        // 检查是否在基础时间段内
+        const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
+        const baseEndTime = baseSlot.split('-')[1]
+
+        // 确保结束时间不超过基础时间段的结束时间
+        if (endTime <= baseEndTime) {
+          const newStartTime = `${newStartHour.toString().padStart(2, '0')}:${newStartMinute.toString().padStart(2, '0')}`
+          flexibleSlots.push(`${newStartTime}-${endTime}`)
+        }
+      }
+    })
+
+    return flexibleSlots
+  } else if (durationMinutes === 120) {
+    // 2小时：使用固定的时间段，维持现状不变
+    return availableTimeSlots.value
+  }
+
+  // 默认返回2小时时间段
+  return availableTimeSlots.value
+}
+
+// 获取当前调课课程的时间段（根据课程时长动态生成）
+const getCurrentRescheduleTimeSlots = computed(() => {
+  if (!currentRescheduleCourse.value?.schedules || currentRescheduleCourse.value.schedules.length === 0) {
+    return availableTimeSlots.value
+  }
+
+  // 获取第一个课程安排的时长信息
+  const firstSchedule = currentRescheduleCourse.value.schedules[0]
+  const durationMinutes = firstSchedule.durationMinutes
+
+  return getAvailableTimeSlotsByDuration(durationMinutes)
+})
+
 // 教师可用时间段（从后端获取）
 interface TeacherTimeSlot {
   weekday: number
@@ -293,6 +363,33 @@ const loadTeacherAvailableTime = async (teacherId: number) => {
   }
 }
 
+// 找到1.5小时时间段对应的基础2小时时间段
+const findBaseTimeSlotFor90Min = (timeSlot: string): string | null => {
+  const [startTime] = timeSlot.split('-')
+  const [startHour, startMinute] = startTime.split(':').map(Number)
+
+  // 获取基础2小时时间段
+  const baseTimeSlots = availableTimeSlots.value
+
+  // 找到包含这个开始时间的基础时间段
+  for (const baseSlot of baseTimeSlots) {
+    const [baseStart] = baseSlot.split('-')
+    const [baseStartHour, baseStartMinute] = baseStart.split(':').map(Number)
+
+    // 计算基础时间段的开始时间（分钟）
+    const baseStartMinutes = baseStartHour * 60 + baseStartMinute
+    // 计算当前开始时间（分钟）
+    const currentStartMinutes = startHour * 60 + startMinute
+
+    // 如果当前开始时间在基础时间段内，返回基础时间段
+    if (currentStartMinutes >= baseStartMinutes && currentStartMinutes < baseStartMinutes + 120) {
+      return baseSlot
+    }
+  }
+
+  return null
+}
+
 // 检查时间段是否可用（基于教师设置和预约逻辑）
 const isTimeSlotAvailable = (weekday: number, timeSlot: string): boolean => {
   if (teacherAvailableTimeSlots.value.length === 0) {
@@ -306,7 +403,20 @@ const isTimeSlotAvailable = (weekday: number, timeSlot: string): boolean => {
     return false
   }
 
-  // 检查时间段是否在教师可用时间内
+  // 获取当前调课课程的时长信息
+  const currentDuration = currentRescheduleCourse.value?.schedules?.[0]?.durationMinutes
+
+  // 如果当前时长是90分钟（1.5小时），需要映射到基础2小时时间段
+  if (currentDuration === 90) {
+    const baseTimeSlot = findBaseTimeSlotFor90Min(timeSlot)
+    if (!baseTimeSlot) {
+      return false
+    }
+    // 使用基础时间段来判断可用性
+    return daySlot.timeSlots.includes(baseTimeSlot)
+  }
+
+  // 2小时课程，直接查找
   return daySlot.timeSlots.includes(timeSlot)
 }
 
@@ -315,11 +425,34 @@ const isTimeSlotAvailable = (weekday: number, timeSlot: string): boolean => {
 //   return availableTimeSlots.value.filter(timeSlot => isTimeSlotAvailable(weekday, timeSlot))
 // }
 
-// 获取所有时间段（用于周期性调课显示）
-const getAllAvailableTimeSlots = computed(() => {
-  // 始终返回完整的时间段列表，让用户看到所有选项
-  return availableTimeSlots.value
-})
+
+
+// 检查时间段是否与已选择的时间段冲突（在同一基础区间内）
+const isTimeSlotConflictWithSelected = (timeSlot: string): boolean => {
+  const currentDuration = currentRescheduleCourse.value?.schedules?.[0]?.durationMinutes
+
+  // 只有1.5小时课程需要检查区间冲突
+  if (currentDuration !== 90) {
+    return false
+  }
+
+  // 如果当前时间段已经被选中，则不算冲突（允许取消选择）
+  if (rescheduleForm.value.selectedTimeSlots.includes(timeSlot)) {
+    return false
+  }
+
+  // 找到当前时间段对应的基础区间
+  const currentBaseSlot = findBaseTimeSlotFor90Min(timeSlot)
+  if (!currentBaseSlot) {
+    return false
+  }
+
+  // 检查已选择的时间段中是否有与当前时间段在同一基础区间的
+  return rescheduleForm.value.selectedTimeSlots.some(selectedSlot => {
+    const selectedBaseSlot = findBaseTimeSlotFor90Min(selectedSlot)
+    return selectedBaseSlot === currentBaseSlot
+  })
+}
 
 // 检查时间段是否可选择（用于禁用不可用的时间段）
 const isTimeSlotSelectable = (timeSlot: string): boolean => {
@@ -328,7 +461,27 @@ const isTimeSlotSelectable = (timeSlot: string): boolean => {
     return true
   }
 
-  // 检查是否有任何星期几包含这个时间段
+  // 检查是否与已选择的时间段冲突（同一区间内）
+  if (isTimeSlotConflictWithSelected(timeSlot)) {
+    return false
+  }
+
+  // 获取当前调课课程的时长信息
+  const currentDuration = currentRescheduleCourse.value?.schedules?.[0]?.durationMinutes
+
+  // 如果当前时长是90分钟（1.5小时），需要映射到基础2小时时间段
+  if (currentDuration === 90) {
+    const baseTimeSlot = findBaseTimeSlotFor90Min(timeSlot)
+    if (!baseTimeSlot) {
+      return false
+    }
+    // 使用基础时间段来检查是否有任何星期几可用
+    return teacherAvailableTimeSlots.value.some(daySlot =>
+      daySlot.timeSlots && daySlot.timeSlots.includes(baseTimeSlot)
+    )
+  }
+
+  // 2小时课程，直接检查
   return teacherAvailableTimeSlots.value.some(daySlot =>
     daySlot.timeSlots && daySlot.timeSlots.includes(timeSlot)
   )
@@ -1571,10 +1724,11 @@ export default {
                   @change="checkRescheduleTimeConflict"
                 >
                   <el-option
-                    v-for="time in availableTimeSlots"
+                    v-for="time in getCurrentRescheduleTimeSlots"
                     :key="time"
                     :label="time"
                     :value="time"
+                    :disabled="!isTimeSlotSelectable(time)"
                   />
                 </el-select>
               </div>
@@ -1623,34 +1777,38 @@ export default {
             <el-form-item label="选择时间段">
               <div class="time-slot-selection">
                 <div
-                  v-for="time in getAllAvailableTimeSlots"
+                  v-for="time in getCurrentRescheduleTimeSlots"
                   :key="time"
                   :class="[
                     'time-slot-card',
                     {
                       'selected': rescheduleForm.selectedTimeSlots.includes(time),
-                      'disabled': !isTimeSlotSelectable(time)
+                      'disabled': !isTimeSlotSelectable(time) && !rescheduleForm.selectedTimeSlots.includes(time),
+                      'conflicted': rescheduleForm.selectedTimeSlots.includes(time) && !isTimeSlotSelectable(time)
                     }
                   ]"
                   @click="() => {
-                    // 如果时间段不可选择，不允许点击
-                    if (!isTimeSlotSelectable(time)) {
-                      return
-                    }
-
+                    // 如果时间段已经被选中，允许取消选择
                     if (rescheduleForm.selectedTimeSlots.includes(time)) {
                       rescheduleForm.selectedTimeSlots = rescheduleForm.selectedTimeSlots.filter(t => t !== time)
                       // 清空不再可用的星期选择
                       rescheduleForm.selectedWeekdays = rescheduleForm.selectedWeekdays.filter(weekday =>
                         isWeekdaySelectable(weekday)
                       )
-                    } else {
-                      rescheduleForm.selectedTimeSlots.push(time)
+                      return
                     }
+
+                    // 如果时间段不可选择且未被选中，不允许选择
+                    if (!isTimeSlotSelectable(time)) {
+                      return
+                    }
+
+                    // 添加新的时间段
+                    rescheduleForm.selectedTimeSlots.push(time)
                   }"
                 >
                   <div class="slot-time">{{ time }}</div>
-                  <div v-if="!isTimeSlotSelectable(time)" class="unavailable-overlay">
+                  <div v-if="!isTimeSlotSelectable(time) && !rescheduleForm.selectedTimeSlots.includes(time)" class="unavailable-overlay">
                     <span class="unavailable-text">不可用</span>
                   </div>
                 </div>
@@ -2458,6 +2616,21 @@ h2 {
   transform: none;
   box-shadow: none;
   background-color: #f8f8f8;
+}
+
+/* 已选中但被冲突的时间段样式 - 仍然可点击用于取消选择 */
+.time-slot-card.selected.conflicted {
+  cursor: pointer;
+  opacity: 1;
+  background-color: #f6ffed;
+  border-color: #52c41a;
+  box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.2);
+}
+
+.time-slot-card.selected.conflicted:hover {
+  background-color: #d9f7be;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
 }
 
 .unavailable-overlay {

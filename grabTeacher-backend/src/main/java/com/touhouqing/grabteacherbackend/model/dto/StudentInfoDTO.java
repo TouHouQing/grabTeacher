@@ -38,4 +38,7 @@ public class    StudentInfoDTO {
 
     @Schema(description = "手机号")
     private String phone;
+
+    @Schema(description = "试听课次数（管理员可编辑）")
+    private Integer trialTimes;
 }

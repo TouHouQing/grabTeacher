@@ -45,7 +45,8 @@ const studentForm = reactive({
   budgetRange: '',
   gender: '不愿透露',
   avatarUrl: '',
-  balance: 0.00
+  balance: 0.00,
+  trialTimes: 1
 })
 
 const _studentAvatarFile = ref<File | null>(null)
@@ -213,7 +214,8 @@ const handleAddStudent = () => {
     budgetRange: '',
     gender: '不愿透露',
     avatarUrl: '',
-    balance: 0.00
+    balance: 0.00,
+    trialTimes: 1
   })
   // 重置头像
   studentForm.avatarUrl = ''
@@ -255,7 +257,8 @@ const saveStudent = async () => {
       preferredTeachingStyle: studentForm.preferredTeachingStyle,
       budgetRange: studentForm.budgetRange,
       gender: studentForm.gender,
-      balance: studentForm.balance
+      balance: studentForm.balance,
+      trialTimes: studentForm.trialTimes
     }
 
     let result: any
@@ -439,6 +442,11 @@ onMounted(() => {
           <span>{{ row.balance || 0 }}M豆</span>
         </template>
       </el-table-column>
+      <el-table-column label="试听课次" width="100" align="center">
+        <template #default="{ row }">
+          <span>{{ row.trialTimes || 0 }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="180" fixed="right" align="center">
         <template #default="{ row }">
           <div class="operation-buttons">
@@ -588,6 +596,16 @@ onMounted(() => {
             placeholder="请输入余额"
           />
           <span style="margin-left: 10px; color: #909399;">M豆</span>
+        </el-form-item>
+        <el-form-item label="试听课次">
+          <el-input-number
+            v-model="studentForm.trialTimes"
+            :min="0"
+            :precision="0"
+            :step="1"
+            style="width: 200px"
+            placeholder="请输入试听课次"
+          />
         </el-form-item>
       </el-form>
       <template #footer>

@@ -181,7 +181,22 @@ public class AdminServiceImpl implements AdminService {
         // 排序
         queryWrapper.orderByDesc("id");
 
-        return studentMapper.selectPage(pageParam, queryWrapper);
+        Page<Student> result = studentMapper.selectPage(pageParam, queryWrapper);
+        
+        // 为每个学生填充trialTimes和avatarUrl字段
+        if (result.getRecords() != null) {
+            for (Student student : result.getRecords()) {
+                if (student.getUserId() != null) {
+                    User user = userMapper.selectById(student.getUserId());
+                    if (user != null) {
+                        student.setAvatarUrl(user.getAvatarUrl());
+                        student.setTrialTimes(user.getTrialTimes());
+                    }
+                }
+            }
+        }
+        
+        return result;
     }
 
     @Override
@@ -194,6 +209,7 @@ public class AdminServiceImpl implements AdminService {
             User u = userMapper.selectById(student.getUserId());
             if (u != null) {
                 student.setAvatarUrl(u.getAvatarUrl());
+                student.setTrialTimes(u.getTrialTimes());
             }
         }
         return student;
@@ -225,6 +241,7 @@ public class AdminServiceImpl implements AdminService {
                 .budgetRange(student.getBudgetRange())
                 .gender(student.getGender())
                 .balance(student.getBalance())
+                .trialTimes(user != null ? user.getTrialTimes() : 0)
                 .deleted(student.getDeleted())
                 .deletedAt(student.getDeletedAt())
                 .build();
@@ -264,7 +281,7 @@ public class AdminServiceImpl implements AdminService {
                 .userType("student")
                 .status("active")
                 .deleted(false)
-                .hasUsedTrial(false)
+                .trialTimes(1)
                 .build();
 
         userMapper.insert(user);
@@ -339,6 +356,10 @@ public class AdminServiceImpl implements AdminService {
                 }
                 if (request.getAvatarUrl() != null && !request.getAvatarUrl().isEmpty()) {
                     currentUser.setAvatarUrl(request.getAvatarUrl());
+                }
+                // 更新试听课次数
+                if (request.getTrialTimes() != null) {
+                    currentUser.setTrialTimes(request.getTrialTimes());
                 }
                 currentUser.setUpdatedAt(LocalDateTime.now());
                 userMapper.updateById(currentUser);
@@ -554,7 +575,7 @@ public class AdminServiceImpl implements AdminService {
                 .userType("teacher")
                 .status("active")
                 .deleted(false)
-                .hasUsedTrial(false)
+                .trialTimes(1)
                 .build();
 
         userMapper.insert(user);

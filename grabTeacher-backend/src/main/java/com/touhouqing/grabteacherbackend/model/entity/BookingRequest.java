@@ -115,7 +115,7 @@ public class BookingRequest {
     // 新增字段：是否为免费试听课
     @TableField("is_trial")
     @Builder.Default
-    @Schema(description = "是否为免费试听课", example = "false")
+    @Schema(description = "是否为免费试听课（试听课次数有限）", example = "false")
     private Boolean trial = false;
 
     // 新增字段：试听课时长（分钟）

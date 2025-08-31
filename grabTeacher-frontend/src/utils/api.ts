@@ -180,6 +180,8 @@ export const studentAPI = {
     budgetRange?: string
     gender?: string
     avatarUrl?: string
+    balance?: number
+    trialTimes?: number
   }) => apiRequest('/api/admin/students', {
     method: 'POST',
     body: JSON.stringify(data)
@@ -199,6 +201,8 @@ export const studentAPI = {
     budgetRange?: string
     gender?: string
     avatarUrl?: string
+    balance?: number
+    trialTimes?: number
   }) => apiRequest(`/api/admin/students/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)
@@ -468,7 +472,7 @@ export const bookingAPI = {
     endDate?: string
     totalTimes?: number
     studentRequirements?: string
-    isTrial?: boolean
+    trial?: boolean
     trialDurationMinutes?: number
   }) => apiRequest('/api/booking/request', {
     method: 'POST',

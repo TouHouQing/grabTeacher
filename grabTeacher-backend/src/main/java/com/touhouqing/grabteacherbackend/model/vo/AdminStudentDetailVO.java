@@ -69,6 +69,9 @@ public class AdminStudentDetailVO {
     @Schema(description = "学生余额，单位：M豆", example = "500.00")
     private BigDecimal balance;
 
+    @Schema(description = "试听课次数", example = "1")
+    private Integer trialTimes;
+
     @Schema(description = "是否已删除", example = "false")
     private Boolean deleted;
 

@@ -92,7 +92,7 @@ public class BookingServiceImpl implements BookingService {
         if (isTrial) {
             // 检查用户是否可以使用免费试听
             if (!canUseFreeTrial(studentUserId)) {
-                throw new RuntimeException("您已使用过免费试听课，无法再次申请");
+                throw new RuntimeException("您的试听课次数不足，无法申请试听课");
             }
 
             // 申请试听课时立即标记为已使用
@@ -110,6 +110,8 @@ public class BookingServiceImpl implements BookingService {
                 log.info("试听课时间已调整为30分钟: {} - {}", startTime, endTime);
             }
         }
+
+
 
         // 验证预约时间
         validateBookingTime(request, student.getId(), request.getTeacherId());
@@ -567,18 +569,18 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public boolean canUseFreeTrial(Long userId) {
         User user = userMapper.selectById(userId);
-        return user != null && (user.getHasUsedTrial() == null || !user.getHasUsedTrial());
+        return user != null && user.getTrialTimes() != null && user.getTrialTimes() > 0;
     }
 
     @Override
     @Transactional
     public void markTrialUsed(Long userId) {
         User user = userMapper.selectById(userId);
-        if (user != null) {
-            user.setHasUsedTrial(true);
-            user.setTrialUsedAt(LocalDateTime.now());
+        if (user != null && user.getTrialTimes() != null && user.getTrialTimes() > 0) {
+            // 记录原始次数，用于后续可能的恢复
+            user.setTrialTimes(user.getTrialTimes() - 1);
             userMapper.updateById(user);
-            log.info("标记用户已使用免费试听，用户ID: {}", userId);
+            log.info("标记用户已使用免费试听，用户ID: {}, 剩余次数: {}", userId, user.getTrialTimes());
         }
     }
 
@@ -587,10 +589,10 @@ public class BookingServiceImpl implements BookingService {
     public void resetTrialUsage(Long userId) {
         User user = userMapper.selectById(userId);
         if (user != null) {
-            user.setHasUsedTrial(false);
-            user.setTrialUsedAt(null);
+            // 拒绝试听申请时，恢复试听次数+1（即恢复到申请前的状态）
+            user.setTrialTimes(user.getTrialTimes() + 1);
             userMapper.updateById(user);
-            log.info("恢复用户试听课使用记录，用户ID: {}", userId);
+            log.info("试听课申请被拒绝，恢复试听次数+1，用户ID: {}, 当前次数: {}", userId, user.getTrialTimes());
         }
     }
 
@@ -1172,10 +1174,22 @@ public class BookingServiceImpl implements BookingService {
         // 验证每个星期几和时间段的组合
         for (Integer weekday : request.getRecurringWeekdays()) {
             for (String timeSlot : request.getRecurringTimeSlots()) {
-                boolean isAvailable = teacherAvailableSlots.stream()
-                        .anyMatch(slot -> weekday.equals(slot.getWeekday()) &&
-                                 slot.getTimeSlots() != null &&
-                                 slot.getTimeSlots().contains(timeSlot));
+                boolean isAvailable = false;
+                
+                // 如果学生选择了1.5小时课程，需要检查时间段是否在教师可预约的2小时时间段内
+                if (request.getSelectedDurationMinutes() != null && request.getSelectedDurationMinutes() == 90) {
+                    isAvailable = teacherAvailableSlots.stream()
+                            .anyMatch(slot -> weekday.equals(slot.getWeekday()) &&
+                                     slot.getTimeSlots() != null &&
+                                     slot.getTimeSlots().stream().anyMatch(availableSlot -> 
+                                         isTimeSlotContained(timeSlot, availableSlot)));
+                } else {
+                    // 直接匹配时间段
+                    isAvailable = teacherAvailableSlots.stream()
+                            .anyMatch(slot -> weekday.equals(slot.getWeekday()) &&
+                                     slot.getTimeSlots() != null &&
+                                     slot.getTimeSlots().contains(timeSlot));
+                }
 
                 if (!isAvailable) {
                     String weekdayName = getWeekdayName(weekday);
@@ -1222,7 +1236,13 @@ public class BookingServiceImpl implements BookingService {
             LocalTime availableEnd = LocalTime.parse(availableTimes[1]);
 
             // 检查请求的时间段是否完全在可预约时间段内
-            return !requestedStart.isBefore(availableStart) && !requestedEnd.isAfter(availableEnd);
+            // 例如：08:00-09:30 应该在 08:00-10:00 内
+            boolean isContained = !requestedStart.isBefore(availableStart) && !requestedEnd.isAfter(availableEnd);
+            
+            log.debug("时间段包含检查: requested={}, available={}, isContained={}", 
+                     requestedTimeSlot, availableTimeSlot, isContained);
+            
+            return isContained;
         } catch (Exception e) {
             log.error("时间段比较失败: requested={}, available={}", requestedTimeSlot, availableTimeSlot, e);
             return false;
@@ -1248,9 +1268,13 @@ public class BookingServiceImpl implements BookingService {
 
             BigDecimal pricePerHour = course.getPrice(); // 每小时价格
             Integer durationMinutes = course.getDurationMinutes(); // 每次课时长（分钟）
-
+            
+            // 如果课程没有设置时长，使用学生选择的时长
             if (durationMinutes == null || durationMinutes <= 0) {
-                throw new RuntimeException("课程时长设置异常");
+                durationMinutes = request.getSelectedDurationMinutes();
+                if (durationMinutes == null || durationMinutes <= 0) {
+                    throw new RuntimeException("课程未设置时长且学生未选择时长，无法计算费用");
+                }
             }
 
             // 计算每次课的费用
@@ -1284,6 +1308,8 @@ public class BookingServiceImpl implements BookingService {
             throw new RuntimeException("计算预约费用失败：" + e.getMessage());
         }
     }
+
+
 
     /**
      * 从预约记录创建退费请求对象

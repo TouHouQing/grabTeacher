@@ -81,7 +81,7 @@ public class AuthServiceImpl implements AuthService {
                     .userType(registerDTO.getUserType().name())
                     .status("active")
                     .deleted(false)
-                    .hasUsedTrial(false) // 新用户默认未使用免费试听
+                    .trialTimes(1) // 新用户默认1次试听课
                     .build();
 
             userMapper.insert(user);

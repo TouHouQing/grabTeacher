@@ -128,7 +128,8 @@ const scheduleForm = reactive({
   // 试听课相关字段
   trialDate: '',
   trialStartTime: '',
-  trialEndTime: ''
+  trialEndTime: '',
+  selectedDurationMinutes: 90 // 默认选择1.5小时
 })
 
 // 准确的时间匹配度信息
@@ -389,14 +390,30 @@ const getTimeSlotsForDay = (dayOfWeek: number): string[] => {
   return getCompleteTimeSlots()
 }
 
+// 获取课程时长（小时）
+const getCourseDurationHours = () => {
+  if (!selectedCourse.value) return 0
+
+  // 优先使用课程设置的时长，如果没有则使用学生选择的时长
+  const durationMinutes = selectedCourse.value.durationMinutes || scheduleForm.selectedDurationMinutes
+  if (!durationMinutes) return 0
+
+  return (durationMinutes / 60).toFixed(1)
+}
+
 // 计算总花费
 const calculateTotalCost = () => {
-  if (!selectedCourse.value || !selectedCourse.value.price || !selectedCourse.value.durationMinutes) {
+  if (!selectedCourse.value || !selectedCourse.value.price) {
     return 0
   }
 
   const pricePerHour = selectedCourse.value.price // M豆/小时
-  const durationHours = selectedCourse.value.durationMinutes / 60 // 每次课的小时数
+  const durationMinutes = selectedCourse.value.durationMinutes || scheduleForm.selectedDurationMinutes
+  if (!durationMinutes) {
+    return 0 // 没有时长信息，无法计算
+  }
+
+  const durationHours = durationMinutes / 60 // 每次课的小时数
   const pricePerSession = pricePerHour * durationHours // 每次课的价格
 
   if (scheduleForm.bookingType === 'trial') {
@@ -463,6 +480,8 @@ const showTeacherSchedule = async (teacher: Teacher) => {
   scheduleForm.trialDate = ''
   scheduleForm.trialStartTime = ''
   scheduleForm.trialEndTime = ''
+  // 重置课程时长选择
+  scheduleForm.selectedDurationMinutes = 120
   // 重置课程选择
   selectedCourse.value = null
 
@@ -745,6 +764,11 @@ const createBookingRequest = async () => {
       ElMessage.warning('请选择开始和结束日期')
       return
     }
+    // 验证课程时长选择（仅当课程时长为空时）
+    if (!selectedCourse.value.durationMinutes && !scheduleForm.selectedDurationMinutes) {
+      ElMessage.warning('请选择课程时长')
+      return
+    }
   }
 
   try {
@@ -754,8 +778,9 @@ const createBookingRequest = async () => {
       courseId: selectedCourse.value.id, // 使用选择的课程ID
       bookingType: scheduleForm.bookingType === 'trial' ? 'single' : 'recurring', // 试听课作为单次预约处理
       studentRequirements: `希望预约${currentTeacher.value.name}老师的《${selectedCourse.value.title}》课程`,
-      isTrial: scheduleForm.bookingType === 'trial',
-      trialDurationMinutes: scheduleForm.bookingType === 'trial' ? 30 : undefined
+      trial: scheduleForm.bookingType === 'trial', // 修复：使用trial而不是isTrial
+      trialDurationMinutes: scheduleForm.bookingType === 'trial' ? 30 : undefined,
+      selectedDurationMinutes: scheduleForm.bookingType === 'recurring' ? (selectedCourse.value?.durationMinutes || scheduleForm.selectedDurationMinutes) : undefined
     }
 
     if (scheduleForm.bookingType === 'trial') {
@@ -799,11 +824,40 @@ const createBookingRequest = async () => {
         // router.push('/student/bookings') // 暂时注释，因为这个页面可能还不存在
       }, 2000)
     } else {
-      ElMessage.error(result.message || '预约申请提交失败')
+      // 显示后端返回的具体错误信息
+      const errorMessage = result.message || '预约申请提交失败'
+      ElMessage.error({
+        message: errorMessage,
+        duration: 8000, // 延长显示时间，让用户有足够时间阅读
+        showClose: true
+      })
+
+      // 如果是余额不足，显示特殊提示
+      if (errorMessage.includes('余额不足')) {
+        ElMessage.warning({
+          message: '您的账户余额不足，请联系管理员充值或选择其他课程',
+          duration: 10000,
+          showClose: true
+        })
+      }
     }
   } catch (error) {
     console.error('创建预约申请失败:', error)
-    ElMessage.error('预约申请提交失败，请稍后重试')
+
+    // 尝试从错误对象中提取更详细的错误信息
+    let errorMessage = '预约申请提交失败，请稍后重试'
+
+    if (error.response?.data?.message) {
+      errorMessage = error.response.data.message
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+
+    ElMessage.error({
+      message: errorMessage,
+      duration: 8000,
+      showClose: true
+    })
   }
 }
 
@@ -845,8 +899,86 @@ const getUniqueTimeSlots = (): string[] => {
   return getCompleteTimeSlots()
 }
 
+// 根据课程时长获取可选的时间段列表
+const getAvailableTimeSlotsForSelection = (): string[] => {
+  // 获取当前应该使用的时长（优先使用课程固定时长，其次使用学生选择的时长）
+  const currentDuration = selectedCourse.value?.durationMinutes || scheduleForm.selectedDurationMinutes
+
+  // 如果有明确的时长设置，根据时长生成时间段
+  if (currentDuration) {
+    return getAvailableTimeSlotsByDuration(currentDuration)
+  }
+
+  // 默认返回完整时间段
+  return getUniqueTimeSlots()
+}
+
+// 找到1.5小时时间段对应的基础2小时时间段
+const findBaseTimeSlotFor90Min = (timeSlot: string): string | null => {
+  const [startTime] = timeSlot.split('-')
+  const [startHour, startMinute] = startTime.split(':').map(Number)
+
+  // 获取基础2小时时间段
+  const baseTimeSlots = getCompleteTimeSlots()
+
+  // 找到包含这个开始时间的基础时间段
+  for (const baseSlot of baseTimeSlots) {
+    const [baseStart] = baseSlot.split('-')
+    const [baseStartHour, baseStartMinute] = baseStart.split(':').map(Number)
+
+    // 计算基础时间段的开始时间（分钟）
+    const baseStartMinutes = baseStartHour * 60 + baseStartMinute
+    // 计算当前开始时间（分钟）
+    const currentStartMinutes = startHour * 60 + startMinute
+
+    // 如果当前开始时间在基础时间段内，返回基础时间段
+    if (currentStartMinutes >= baseStartMinutes && currentStartMinutes < baseStartMinutes + 120) {
+      return baseSlot
+    }
+  }
+
+  return null
+}
+
+// 检查时间段是否与已选择的时间段冲突（在同一基础区间内）
+const isTimeSlotConflictWithSelected = (timeSlot: string): boolean => {
+  const currentDuration = selectedCourse.value?.durationMinutes || scheduleForm.selectedDurationMinutes
+
+  // 只有1.5小时课程需要检查区间冲突
+  if (currentDuration !== 90) {
+    return false
+  }
+
+  // 如果当前时间段已经被选中，则不算冲突（允许取消选择）
+  if (scheduleForm.selectedTimeSlots.includes(timeSlot)) {
+    return false
+  }
+
+  // 找到当前时间段对应的基础区间
+  const currentBaseSlot = findBaseTimeSlotFor90Min(timeSlot)
+  if (!currentBaseSlot) {
+    return false
+  }
+
+  // 检查已选择的时间段中是否有与当前时间段在同一基础区间的
+  return scheduleForm.selectedTimeSlots.some(selectedSlot => {
+    const selectedBaseSlot = findBaseTimeSlotFor90Min(selectedSlot)
+    return selectedBaseSlot === currentBaseSlot
+  })
+}
+
 // 选择时间段
 const selectTimeSlot = (time: string) => {
+  // 如果时间段已经被选中，允许取消选择
+  if (scheduleForm.selectedTimeSlots.includes(time)) {
+    scheduleForm.selectedTimeSlots = scheduleForm.selectedTimeSlots.filter(t => t !== time)
+    // 清空之前选择的星期，让用户重新选择
+    scheduleForm.selectedWeekdays = []
+    // 更新准确的匹配度信息
+    updateAccurateMatchScore()
+    return
+  }
+
   // 检查该时间段是否有任何星期几可用
   const hasAvailableWeekday = [1, 2, 3, 4, 5, 6, 7].some(weekday =>
     isTimeSlotAvailable(weekday, time)
@@ -857,38 +989,67 @@ const selectTimeSlot = (time: string) => {
     return
   }
 
-  if (scheduleForm.selectedTimeSlots.includes(time)) {
-    scheduleForm.selectedTimeSlots = scheduleForm.selectedTimeSlots.filter(t => t !== time)
-  } else {
-    scheduleForm.selectedTimeSlots.push(time)
+  // 检查是否与已选择的时间段冲突（同一区间内）
+  if (isTimeSlotConflictWithSelected(time)) {
+    ElMessage.warning('该时间段与已选择的时间段在同一时间区间内，1.5小时课程在同一区间只能选择一个时间段')
+    return
   }
+
+  // 添加新的时间段
+  scheduleForm.selectedTimeSlots.push(time)
   // 清空之前选择的星期，让用户重新选择
   scheduleForm.selectedWeekdays = []
-  // 注意：这里不调用calculateEndDate()，因为星期几已被清空
-  // 结束日期计算会在用户选择星期几后触发
   // 更新准确的匹配度信息
   updateAccurateMatchScore()
 }
 
 // 获取星期几的短名称
 const getWeekdayShort = (weekday: number): string => {
-  const names = ['日', '一', '二', '三', '四', '五', '六']
-  return names[weekday]
+  const names = ['', '一', '二', '三', '四', '五', '六', '日']
+  return names[weekday] || '未知'
 }
 
 // 判断某个星期几的时间段是否可用
 const isTimeSlotAvailable = (weekday: number, time: string): boolean => {
+  // 获取当前应该使用的时长（优先使用课程固定时长，其次使用学生选择的时长）
+  const currentDuration = selectedCourse.value?.durationMinutes || scheduleForm.selectedDurationMinutes
+
+  // 如果当前时长是90分钟（1.5小时），需要映射到基础2小时时间段
+  if (currentDuration === 90) {
+    const baseTimeSlot = findBaseTimeSlotFor90Min(time)
+    if (!baseTimeSlot) {
+      return false
+    }
+    // 使用基础时间段来判断可用性
+    const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === baseTimeSlot)
+    if (!slot) {
+      return false
+    }
+    return slot.isTeacherAvailable !== false && slot.available
+  }
+
+  // 2小时课程，直接查找
   const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === time)
   if (!slot) {
-    // 如果没有找到对应的时间段，说明教师没有设置这个时间为可预约时间
     return false
   }
-  // 检查是否在教师可预约时间范围内，并且没有冲突
   return slot.isTeacherAvailable !== false && slot.available
 }
 
 // 判断某个时间段是否有可用的开始日期
 const hasAvailableFromDate = (weekday: number, time: string): boolean => {
+  // 获取当前应该使用的时长（优先使用课程固定时长，其次使用学生选择的时长）
+  const currentDuration = selectedCourse.value?.durationMinutes || scheduleForm.selectedDurationMinutes
+
+  // 如果当前时长是90分钟（1.5小时），需要映射到基础2小时时间段
+  if (currentDuration === 90) {
+    const baseTimeSlot = findBaseTimeSlotFor90Min(time)
+    if (baseTimeSlot) {
+      const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === baseTimeSlot)
+      return slot ? !!slot.availableFromDate : false
+    }
+  }
+
   const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === time)
   return slot ? !!slot.availableFromDate : false
 }
@@ -934,7 +1095,19 @@ const getWeekdayAvailableFromDateForAllSlots = (weekday: number): string => {
 
   const availableFromDates = scheduleForm.selectedTimeSlots
     .map(time => {
-      const slot = availableTimeSlots.value.find(s => s.weekday === weekday && s.time === time)
+      // 获取当前应该使用的时长（优先使用课程固定时长，其次使用学生选择的时长）
+      const currentDuration = selectedCourse.value?.durationMinutes || scheduleForm.selectedDurationMinutes
+
+      // 如果当前时长是90分钟（1.5小时），需要映射到基础2小时时间段
+      if (currentDuration === 90) {
+        const baseTimeSlot = findBaseTimeSlotFor90Min(time)
+        if (baseTimeSlot) {
+          const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === baseTimeSlot)
+          return slot?.availableFromDate
+        }
+      }
+
+      const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === time)
       return slot?.availableFromDate
     })
     .filter(date => date)
@@ -947,7 +1120,19 @@ const getWeekdayAvailableFromDateForAllSlots = (weekday: number): string => {
 
 // 获取星期几的提示信息
 const getWeekdayTooltip = (weekday: number, time: string): string => {
-  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === time)
+  // 如果学生选择了1.5小时，需要映射到基础2小时时间段
+  let slot
+  if (!selectedCourse.value?.durationMinutes && scheduleForm.selectedDurationMinutes === 90) {
+    const baseTimeSlot = findBaseTimeSlotFor90Min(time)
+    if (baseTimeSlot) {
+      slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === baseTimeSlot)
+    }
+  }
+
+  if (!slot) {
+    slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === time)
+  }
+
   if (!slot) return '暂无数据'
 
   if (slot.available) {
@@ -971,7 +1156,19 @@ const getWeekdayTooltip = (weekday: number, time: string): string => {
 
 // 获取星期几禁用原因
 const getWeekdayDisabledReason = (weekday: number, time: string): string => {
-  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && s.time === time)
+  // 如果学生选择了1.5小时，需要映射到基础2小时时间段
+  let slot
+  if (!selectedCourse.value?.durationMinutes && scheduleForm.selectedDurationMinutes === 90) {
+    const baseTimeSlot = findBaseTimeSlotFor90Min(time)
+    if (baseTimeSlot) {
+      slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === baseTimeSlot)
+    }
+  }
+
+  if (!slot) {
+    slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === time)
+  }
+
   if (!slot) return '(暂不可用)'
 
   if (slot.conflictReason === '学生课程结束') {
@@ -991,6 +1188,17 @@ const formatDate = (dateStr: string): string => {
 
 // 判断某个时间段是否有冲突
 const hasTimeSlotConflicts = (time: string): boolean => {
+  // 如果学生选择了1.5小时，需要映射到基础2小时时间段
+  if (!selectedCourse.value?.durationMinutes && scheduleForm.selectedDurationMinutes === 90) {
+    const baseTimeSlot = findBaseTimeSlotFor90Min(time)
+    if (baseTimeSlot) {
+      return availableTimeSlots.value.some(slot =>
+        (slot.time || slot.timeSlot) === baseTimeSlot &&
+        ((slot.conflictDates && slot.conflictDates.length > 0) || slot.availableFromDate)
+      )
+    }
+  }
+
   return availableTimeSlots.value.some(slot =>
     (slot.time || slot.timeSlot) === time &&
     ((slot.conflictDates && slot.conflictDates.length > 0) || slot.availableFromDate)
@@ -1036,6 +1244,17 @@ const getDetailedTimeValidation = async (): Promise<{ score: number, conflicts: 
     const requestData: any = {
       weekdays: scheduleForm.selectedWeekdays,
       timeSlots: scheduleForm.selectedTimeSlots
+    }
+
+    // 如果学生选择了1.5小时课程，需要将时间段转换为基础2小时时间段进行后端验证
+    if (!selectedCourse.value?.durationMinutes && scheduleForm.selectedDurationMinutes === 90) {
+      const baseTimeSlots = scheduleForm.selectedTimeSlots.map(timeSlot => {
+        const baseTimeSlot = findBaseTimeSlotFor90Min(timeSlot)
+        return baseTimeSlot || timeSlot
+      })
+      requestData.timeSlots = baseTimeSlots
+      // 添加课程时长信息，让后端知道这是1.5小时课程
+      requestData.selectedDurationMinutes = scheduleForm.selectedDurationMinutes
     }
 
     // 如果有开始和结束日期，添加到请求中以获得更准确的匹配度
@@ -1272,8 +1491,17 @@ const formatConflictDate = (dateStr: string) => {
 
 // 获取冲突摘要
 const getTimeSlotConflictSummary = (time: string): string => {
+  // 如果学生选择了1.5小时，需要映射到基础2小时时间段
+  let searchTime = time
+  if (!selectedCourse.value?.durationMinutes && scheduleForm.selectedDurationMinutes === 90) {
+    const baseTimeSlot = findBaseTimeSlotFor90Min(time)
+    if (baseTimeSlot) {
+      searchTime = baseTimeSlot
+    }
+  }
+
   const conflictSlots = availableTimeSlots.value.filter(slot =>
-    (slot.time || slot.timeSlot) === time &&
+    (slot.time || slot.timeSlot) === searchTime &&
     ((slot.conflictDates && slot.conflictDates.length > 0) || slot.availableFromDate)
   )
 
@@ -1656,6 +1884,70 @@ onMounted(() => {
   initOptions()
 })
 
+// 处理课程时长变化
+const onDurationChange = () => {
+  // 清空已选择的时间段，因为时长变化会影响可用时间段
+  scheduleForm.selectedTimeSlots = []
+  scheduleForm.selectedWeekdays = []
+  scheduleForm.endDate = ''
+
+  console.log('课程时长变化:', scheduleForm.selectedDurationMinutes)
+}
+
+// 根据选择的课程时长生成可选时间段
+const getAvailableTimeSlotsByDuration = (durationMinutes?: number) => {
+  // 如果没有传入时长参数，使用scheduleForm中的时长
+  const currentDuration = durationMinutes || scheduleForm.selectedDurationMinutes
+  const availableSlots: string[] = []
+
+  if (currentDuration === 90) {
+    // 1.5小时：在2小时区间内选择开始时间，但确保每个时间段都是完整的1.5小时
+    const baseTimeSlots = getCompleteTimeSlots() // 获取基础2小时时间段
+
+    baseTimeSlots.forEach(baseSlot => {
+      const [startTime] = baseSlot.split('-')
+      const [startHour, startMinute] = startTime.split(':').map(Number)
+
+      // 在2小时区间内，每15分钟一个开始时间选项
+      for (let minute = 0; minute < 120; minute += 15) {
+        const newStartHour = startHour + Math.floor(minute / 60)
+        const newStartMinute = (startMinute + minute) % 60
+
+        // 计算结束时间（1.5小时后）
+        const totalMinutes = newStartHour * 60 + newStartMinute + 90
+        const endHour = Math.floor(totalMinutes / 60)
+        const endMinute = totalMinutes % 60
+
+        // 检查是否在基础时间段内
+        const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
+        const baseEndTime = baseSlot.split('-')[1]
+
+        // 确保结束时间不超过基础时间段的结束时间
+        if (endTime <= baseEndTime) {
+          const newStartTime = `${newStartHour.toString().padStart(2, '0')}:${newStartMinute.toString().padStart(2, '0')}`
+          availableSlots.push(`${newStartTime}-${endTime}`)
+        }
+      }
+    })
+  } else if (currentDuration === 120) {
+    // 2小时：使用固定的时间段
+    availableSlots.push(...getCompleteTimeSlots())
+  }
+
+  return availableSlots
+}
+
+// 监听课程选择变化，自动设置课程时长
+watch(selectedCourse, (newCourse) => {
+  if (newCourse && newCourse.durationMinutes) {
+    // 如果选择的课程有固定时长，自动设置为对应的时长
+    scheduleForm.selectedDurationMinutes = newCourse.durationMinutes
+  } else {
+    // 如果课程没有固定时长，保持默认的2小时
+    scheduleForm.selectedDurationMinutes = 120
+  }
+}, { immediate: true })
+
 </script>
 
 <template>
@@ -1864,6 +2156,13 @@ onMounted(() => {
                       <el-tag size="small" type="info" v-else>
                         价格面议
                       </el-tag>
+                      <!-- 添加课程时长显示 -->
+                      <el-tag size="small" type="success" v-if="course.durationMinutes">
+                        {{ course.durationMinutes }}分钟
+                      </el-tag>
+                      <el-tag size="small" type="info" v-else>
+                        时长可选
+                      </el-tag>
                     </div>
                   </div>
                 </el-radio>
@@ -1878,11 +2177,30 @@ onMounted(() => {
           <el-form-item label="预约类型">
             <el-radio-group v-model="scheduleForm.bookingType" size="large">
               <el-radio-button label="trial">试听课</el-radio-button>
-              <el-radio-button label="recurring">周期性预约</el-radio-button>
+              <el-radio-button label="recurring">正式课</el-radio-button>
             </el-radio-group>
             <div class="form-item-tip">
-              <div>试听课：30分钟免费试听，每人仅限一次机会</div>
-              <div>周期性预约：长期课程安排</div>
+              <div>试听课：30分钟免费试听，每人仅限一次机会，如需增加机会请联系管理员</div>
+            </div>
+          </el-form-item>
+
+          <!-- 课程时长选择（仅当课程时长为空时显示） -->
+          <el-form-item v-if="selectedCourse && !selectedCourse.durationMinutes && scheduleForm.bookingType === 'recurring'" label="选择课程时长">
+            <el-radio-group v-model="scheduleForm.selectedDurationMinutes" size="large" class="course-duration-selection" @change="onDurationChange">
+              <el-radio :label="90">
+                <div class="duration-option">
+                  <div class="duration-label">1.5小时</div>
+                </div>
+              </el-radio>
+              <el-radio :label="120">
+                <div class="duration-option">
+                  <div class="duration-label">2小时</div>
+                </div>
+              </el-radio>
+            </el-radio-group>
+            <div class="form-item-tip">
+              <el-icon><InfoFilled /></el-icon>
+              由于该课程未设置固定时长，请选择您希望的课程时长
             </div>
           </el-form-item>
 
@@ -1935,7 +2253,7 @@ onMounted(() => {
           <template v-if="scheduleForm.bookingType === 'trial'">
             <el-alert
               title="试听课说明"
-              description="试听课固定30分钟，每人仅限一次机会。请选择合适的日期和开始时间，系统将自动设置为30分钟时长。"
+              description="试听课固定30分钟，试听课次数有限。请选择合适的日期和开始时间，系统将自动设置为30分钟时长。"
               type="info"
               show-icon
               :closable="false"
@@ -2025,25 +2343,39 @@ onMounted(() => {
 
           <!-- 周期性预约表单 -->
           <template v-else>
-            <el-form-item label="选择时间段">
-              <div class="form-item-tip">点击选择您偏好的上课时间段 (可多选)</div>
+                      <el-form-item label="选择时间段">
+            <div class="form-item-tip">
+              点击选择您偏好的上课时间段 (可多选)
+              <template v-if="!selectedCourse?.durationMinutes && scheduleForm.selectedDurationMinutes">
+                <br>当前选择：{{ scheduleForm.selectedDurationMinutes === 90 ? '1.5小时' : '2小时' }}课程
+                <template v-if="scheduleForm.selectedDurationMinutes === 90">
+                  <br><span style="color: #e6a23c;">注意：1.5小时课程在同一时间区间内只能选择一个时间段</span>
+                </template>
+              </template>
+            </div>
             <div class="time-slot-selection">
               <div
-                v-for="time in getUniqueTimeSlots()"
+                v-for="time in getAvailableTimeSlotsForSelection()"
                 :key="time"
                 :class="[
                   'time-slot-card',
                   {
                     'selected': scheduleForm.selectedTimeSlots.includes(time),
-                    'has-conflicts': hasTimeSlotConflicts(time)
+                    'has-conflicts': hasTimeSlotConflicts(time),
+                    'conflicted': isTimeSlotConflictWithSelected(time)
                   }
                 ]"
                 @click="selectTimeSlot(time)"
               >
                 <div class="slot-time">{{ time }}</div>
+                <div class="slot-duration-info" v-if="!selectedCourse?.durationMinutes">
+                  <el-tag size="small" type="info">
+                    {{ scheduleForm.selectedDurationMinutes === 90 ? '1.5小时' : '2小时' }}
+                  </el-tag>
+                </div>
                 <div class="slot-weekdays">
                   <span
-                    v-for="weekday in [1, 2, 3, 4, 5, 6, 0]"
+                    v-for="weekday in [1, 2, 3, 4, 5, 6, 7]"
                     :key="weekday"
                     :class="[
                       'weekday-indicator',
@@ -2226,7 +2558,22 @@ onMounted(() => {
                 </div>
                 <div class="cost-breakdown" v-if="selectedCourse.price && scheduleForm.bookingType === 'recurring'">
                   <span class="cost-detail">
-                    {{ selectedCourse.price }}M豆/小时 × {{ (selectedCourse.durationMinutes / 60).toFixed(1) }}小时/次 × {{ scheduleForm.sessionCount }}次
+                    {{ selectedCourse.price }}M豆/小时 × {{ getCourseDurationHours() }}小时/次 × {{ scheduleForm.sessionCount }}次
+                  </span>
+                </div>
+                <!-- 显示课程时长信息 -->
+                <div class="course-duration-info" v-if="scheduleForm.bookingType === 'recurring'">
+                  <span class="duration-label">课程时长：</span>
+                  <span class="duration-value">
+                    <template v-if="selectedCourse.durationMinutes">
+                      {{ selectedCourse.durationMinutes }}分钟（固定）
+                    </template>
+                    <template v-else-if="scheduleForm.selectedDurationMinutes">
+                      {{ scheduleForm.selectedDurationMinutes }}分钟（学生选择）
+                    </template>
+                    <template v-else>
+                      请选择课程时长
+                    </template>
                   </span>
                 </div>
               </div>
@@ -2871,11 +3218,30 @@ h2 {
   background-color: #fffbe6;
 }
 
+.time-slot-card.conflicted {
+  border-color: #ff7875;
+  background-color: #fff2f0;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.time-slot-card.conflicted:hover {
+  transform: none;
+  box-shadow: none;
+  background-color: #fff2f0;
+}
+
 .slot-time {
   font-weight: 600;
   color: #333;
   margin-bottom: 8px;
   font-size: 14px;
+}
+
+.slot-duration-info {
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: center;
 }
 
 .slot-weekdays {
@@ -4835,6 +5201,99 @@ h2 {
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
+}
+
+/* 课程时长选择样式 */
+.course-duration-selection .el-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.course-duration-selection .el-radio {
+  margin-right: 0;
+  padding: 12px 16px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.course-duration-selection .el-radio:hover {
+  border-color: #409eff;
+  background-color: #f0f9ff;
+}
+
+.course-duration-selection .el-radio.is-checked {
+  border-color: #409eff;
+  background-color: #ecf5ff;
+}
+
+.duration-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.duration-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.duration-desc {
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.4;
+}
+
+/* 课程时长信息显示样式 */
+.course-duration-info {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: #f0f9ff;
+  border-radius: 6px;
+  border: 1px solid #b3d8ff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.duration-label {
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.duration-value {
+  font-size: 14px;
+  color: #409eff;
+  font-weight: 600;
+}
+
+.preview-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #409eff;
+  margin-bottom: 12px;
+}
+
+.preview-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.preview-slot {
+  margin: 0;
+}
+
+.more-slots {
+  color: #909399;
+  font-size: 12px;
+  font-style: italic;
 }
 
 </style>
