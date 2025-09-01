@@ -97,12 +97,7 @@ const router = createRouter({
           component: () => import('../views/teacher/components/TeacherCourses.vue'),
           meta: { requiresAuth: true, role: 'teacher' }
         },
-        {
-          path: 'reschedule',
-          name: 'TeacherReschedule',
-          component: () => import('../views/teacher/RescheduleManagement.vue'),
-          meta: { requiresAuth: true, role: 'teacher' }
-        }
+
       ]
     },
     // 管理员中心

@@ -19,6 +19,14 @@ public interface RescheduleService {
     RescheduleVO createRescheduleRequest(RescheduleApplyDTO request, Long studentUserId);
 
     /**
+     * 创建调课申请（教师操作）
+     * @param request 调课申请参数
+     * @param teacherUserId 教师用户ID
+     * @return 调课申请响应数据
+     */
+    RescheduleVO createTeacherRescheduleRequest(RescheduleApplyDTO request, Long teacherUserId);
+
+    /**
      * 审批调课申请（教师操作）
      * @param rescheduleId 调课申请ID
      * @param approval 审批参数
@@ -26,6 +34,15 @@ public interface RescheduleService {
      * @return 调课申请响应数据
      */
     RescheduleVO approveRescheduleRequest(Long rescheduleId, RescheduleApprovalDTO approval, Long teacherUserId);
+
+    /**
+     * 管理员审批调课申请
+     * @param rescheduleId 调课申请ID
+     * @param approval 审批参数
+     * @param adminUserId 管理员用户ID
+     * @return 调课申请响应数据
+     */
+    RescheduleVO adminApproveRescheduleRequest(Long rescheduleId, RescheduleApprovalDTO approval, Long adminUserId);
 
     /**
      * 取消调课申请（学生操作）
@@ -54,6 +71,15 @@ public interface RescheduleService {
      * @return 分页调课申请列表
      */
     Page<RescheduleVO> getTeacherRescheduleRequests(Long teacherUserId, int page, int size, String status);
+
+    /**
+     * 管理员获取所有调课申请列表
+     * @param page 页码
+     * @param size 每页大小
+     * @param status 状态筛选
+     * @return 分页调课申请列表
+     */
+    Page<RescheduleVO> getAllRescheduleRequests(int page, int size, String status);
 
     /**
      * 根据ID获取调课申请详情

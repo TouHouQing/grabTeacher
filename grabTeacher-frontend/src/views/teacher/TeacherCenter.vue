@@ -176,10 +176,7 @@ onMounted(async () => {
               <el-icon><Reading /></el-icon>
               <span>课程管理</span>
             </el-menu-item>
-            <el-menu-item index="reschedule" @click="$router.push('/teacher-center/reschedule')">
-              <el-icon><Calendar /></el-icon>
-              <span>调课管理</span>
-            </el-menu-item>
+
 
             <el-menu-item index="messages">
               <el-icon><ChatDotRound /></el-icon>

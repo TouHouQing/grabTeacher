@@ -133,7 +133,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="350" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button
@@ -142,6 +142,15 @@
                 @click="viewScheduleDetail(row)"
               >
                 详情
+              </el-button>
+              <el-button
+                v-if="row.status === 'progressing'"
+                type="warning"
+                size="small"
+                @click="openRescheduleModal(row)"
+              >
+                <el-icon><Refresh /></el-icon>
+                调课
               </el-button>
               <el-button
                 v-if="row.status === 'progressing' && canAddNotes(row)"
@@ -255,6 +264,14 @@
       </template>
     </el-dialog>
 
+    <!-- 调课弹窗 -->
+    <RescheduleModal
+      v-model="showRescheduleModal"
+      :course="rescheduleCourse"
+      :is-teacher="true"
+      @success="handleRescheduleSuccess"
+    />
+
     <!-- 课后记录弹窗 -->
     <el-dialog
       v-model="showNotesModal"
@@ -339,6 +356,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Clock, Check, Star, Refresh } from '@element-plus/icons-vue'
 import { bookingAPI, apiRequest } from '@/utils/api'
+import RescheduleModal from '@/components/RescheduleModal.vue'
 
 // 响应式数据
 const loading = ref(false)
@@ -354,8 +372,10 @@ const statusFilter = ref('')
 const showDetailModal = ref(false)
 const showNotesModal = ref(false)
 const showGradeModal = ref(false)
+const showRescheduleModal = ref(false)
 const selectedSchedule = ref<any>(null)
 const gradeFormRef = ref<any>(null)
+const rescheduleCourse = ref<any>(null)
 
 // 表单数据
 const notesForm = reactive({
@@ -644,6 +664,55 @@ const canAddNotes = (schedule: any) => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   return scheduleDate <= today
+}
+
+// 调课相关方法
+const openRescheduleModal = (schedule: any) => {
+  // 构建课程对象，适配调课组件的接口
+  // 确保schedule对象有必要的字段
+  const enhancedSchedule = {
+    id: schedule.id,
+    teacherId: schedule.teacherId,
+    teacherName: schedule.teacherName || '当前教师',
+    studentId: schedule.studentId,
+    studentName: schedule.studentName,
+    courseId: schedule.courseId,
+    courseTitle: schedule.courseTitle || '自定义课程',
+    subjectName: schedule.subjectName || '未知科目',
+    scheduledDate: schedule.scheduledDate,
+    startTime: schedule.startTime,
+    endTime: schedule.endTime,
+    durationMinutes: schedule.durationMinutes || 120,
+    totalTimes: schedule.totalTimes || 1,
+    status: schedule.status || 'progressing',
+    teacherNotes: schedule.teacherNotes,
+    studentFeedback: schedule.studentFeedback,
+    createdAt: schedule.createdAt,
+    bookingRequestId: schedule.bookingRequestId,
+    bookingSource: schedule.bookingSource,
+    isTrial: schedule.isTrial,
+    sessionNumber: schedule.sessionNumber || 1,
+    courseType: schedule.courseType || 'regular'
+  }
+
+  rescheduleCourse.value = {
+    id: schedule.courseId || schedule.id,
+    title: schedule.courseTitle || '自定义课程',
+    teacher: schedule.teacherName || '当前教师',
+    teacherId: schedule.teacherId,
+    subject: schedule.subjectName || '未知科目',
+    remainingLessons: 1, // 单次课程
+    weeklySchedule: [],
+    schedules: [enhancedSchedule]
+  }
+
+  console.log('构建的调课课程数据:', rescheduleCourse.value)
+  showRescheduleModal.value = true
+}
+
+const handleRescheduleSuccess = () => {
+  // 刷新课程列表
+  loadSchedules()
 }
 </script>
 

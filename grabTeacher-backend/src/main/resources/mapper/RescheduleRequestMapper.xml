@@ -21,5 +21,14 @@
         </if>
         ORDER BY created_at DESC
     </select>
+
+    <select id="findAllWithPage" resultType="com.touhouqing.grabteacherbackend.model.entity.RescheduleRequest">
+        SELECT * FROM reschedule_requests
+        WHERE is_deleted = 0
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        ORDER BY created_at DESC
+    </select>
 </mapper>
 

@@ -81,17 +81,17 @@ public class RescheduleController {
     }
 
     /**
-     * 教师审批调课申请
+     * 管理员审批调课申请
      */
     @PutMapping("/{id}/approve")
-    @PreAuthorize("hasRole('TEACHER')")
-    @Operation(summary = "教师审批调课申请", description = "教师审批学生的调课申请")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "管理员审批调课申请", description = "管理员审批调课申请")
     public ResponseEntity<CommonResult<RescheduleVO>> approveRescheduleRequest(
             @Parameter(description = "调课申请ID", required = true) @PathVariable Long id,
             @Valid @RequestBody RescheduleApprovalDTO approval,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
-            RescheduleVO response = rescheduleService.approveRescheduleRequest(id, approval, currentUser.getId());
+            RescheduleVO response = rescheduleService.adminApproveRescheduleRequest(id, approval, currentUser.getId());
             return ResponseEntity.ok(CommonResult.success("审批成功", response));
         } catch (RuntimeException e) {
             logger.warn("审批调课申请失败: {}", e.getMessage());
@@ -154,26 +154,24 @@ public class RescheduleController {
     }
 
     /**
-     * 获取教师需要审批的调课申请列表
+     * 管理员获取所有调课申请列表
      */
-    @GetMapping("/teacher/requests")
-    @PreAuthorize("hasRole('TEACHER')")
-    @Operation(summary = "获取教师调课申请列表", description = "教师查看需要审批的调课申请列表")
-    public ResponseEntity<CommonResult<Page<RescheduleVO>>> getTeacherRescheduleRequests(
+    @GetMapping("/admin/requests")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "管理员获取调课申请列表", description = "管理员查看所有调课申请列表")
+    public ResponseEntity<CommonResult<Page<RescheduleVO>>> getAdminRescheduleRequests(
             @Parameter(description = "页码", example = "1") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小", example = "10") @RequestParam(defaultValue = "10") int size,
-            @Parameter(description = "状态筛选", example = "pending") @RequestParam(required = false) String status,
-            @AuthenticationPrincipal UserPrincipal currentUser) {
+            @Parameter(description = "状态筛选", example = "pending") @RequestParam(required = false) String status) {
         try {
-            Page<RescheduleVO> result = rescheduleService.getTeacherRescheduleRequests(
-                    currentUser.getId(), page, size, status);
+            Page<RescheduleVO> result = rescheduleService.getAllRescheduleRequests(page, size, status);
             return ResponseEntity.ok(CommonResult.success("获取成功", result));
         } catch (RuntimeException e) {
-            logger.warn("获取教师调课申请列表失败: {}", e.getMessage());
+            logger.warn("获取管理员调课申请列表失败: {}", e.getMessage());
             return ResponseEntity.badRequest()
                     .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
-            logger.error("获取教师调课申请列表异常: ", e);
+            logger.error("获取管理员调课申请列表异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResult.error("获取失败"));
         }
@@ -375,5 +373,105 @@ public class RescheduleController {
     private String getWeekdayName(int weekday) {
         String[] names = {"", "周一", "周二", "周三", "周四", "周五", "周六", "周日"};
         return weekday >= 1 && weekday <= 7 ? names[weekday] : "未知";
+    }
+
+    /**
+     * 教师端：检查调课时间冲突
+     */
+    @GetMapping("/teacher/check-conflict/{scheduleId}")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "教师检查调课时间冲突", description = "教师检查调课新时间是否与现有课程冲突")
+    public ResponseEntity<CommonResult<RescheduleTimeCheckResult>> checkTeacherRescheduleTimeConflict(
+            @Parameter(description = "课程安排ID", required = true) @PathVariable Long scheduleId,
+            @Parameter(description = "新日期", required = true) @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate newDate,
+            @Parameter(description = "新开始时间", required = true) @RequestParam String newStartTime,
+            @Parameter(description = "新结束时间", required = true) @RequestParam String newEndTime,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        try {
+            // 获取课程安排信息
+            Schedule schedule = scheduleMapper.selectById(scheduleId);
+            if (schedule == null) {
+                return ResponseEntity.badRequest()
+                        .body(CommonResult.error("课程安排不存在"));
+            }
+
+            // 验证教师权限
+            Teacher teacher = teacherMapper.findByUserId(currentUser.getId());
+            if (teacher == null || !schedule.getTeacherId().equals(teacher.getId())) {
+                return ResponseEntity.badRequest()
+                        .body(CommonResult.error("无权限操作此课程安排"));
+            }
+
+            // 首先检查教师可用时间
+            try {
+                validateSingleRescheduleTime(schedule.getTeacherId(), newDate, newStartTime, newEndTime);
+            } catch (RuntimeException e) {
+                // 如果教师时间不可用，返回冲突
+                RescheduleTimeCheckResult result = new RescheduleTimeCheckResult(
+                    true, "teacher_unavailable", e.getMessage()
+                );
+                return ResponseEntity.ok(CommonResult.success("检查完成", result));
+            }
+
+            // 然后检查时间冲突
+            boolean hasConflict = rescheduleService.hasTimeConflict(
+                    schedule.getTeacherId(),
+                    schedule.getStudentId(),
+                    newDate.toString(),
+                    newStartTime,
+                    newEndTime,
+                    scheduleId
+            );
+
+            RescheduleTimeCheckResult result = new RescheduleTimeCheckResult(
+                hasConflict,
+                hasConflict ? "time_conflict" : null,
+                hasConflict ? "该时间段已有其他课程安排，请选择其他时间" : "时间可用"
+            );
+
+            return ResponseEntity.ok(CommonResult.success("检查完成", result));
+        } catch (Exception e) {
+            logger.error("教师检查调课时间冲突异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("检查失败"));
+        }
+    }
+
+    /**
+     * 教师端：创建调课申请
+     */
+    @PostMapping("/teacher/request")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "教师创建调课申请", description = "教师创建调课申请")
+    public ResponseEntity<CommonResult<RescheduleVO>> createTeacherRescheduleRequest(
+            @Valid @RequestBody RescheduleApplyDTO request,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        try {
+            // 验证教师权限
+            Teacher teacher = teacherMapper.findByUserId(currentUser.getId());
+            if (teacher == null) {
+                return ResponseEntity.badRequest()
+                        .body(CommonResult.error("教师信息不存在"));
+            }
+
+            // 验证课程安排是否属于该教师
+            Schedule schedule = scheduleMapper.selectById(request.getScheduleId());
+            if (schedule == null || !schedule.getTeacherId().equals(teacher.getId())) {
+                return ResponseEntity.badRequest()
+                        .body(CommonResult.error("无权限操作此课程安排"));
+            }
+
+            // 调用服务创建调课申请
+            RescheduleVO response = rescheduleService.createTeacherRescheduleRequest(request, currentUser.getId());
+            return ResponseEntity.ok(CommonResult.success("调课申请创建成功", response));
+        } catch (RuntimeException e) {
+            logger.warn("教师创建调课申请失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("教师创建调课申请异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("创建调课申请失败"));
+        }
     }
 }

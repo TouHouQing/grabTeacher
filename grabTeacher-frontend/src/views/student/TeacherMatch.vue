@@ -1566,7 +1566,7 @@ const generateMonthlyScheduleData = async () => {
       endDate
     })
 
-    let scheduleData: any = {}
+    const scheduleData: any = {}
     if (result.success && result.data) {
       // 将课表数据按日期分组，保留完整的日程信息
       result.data.daySchedules.forEach((daySchedule: any) => {

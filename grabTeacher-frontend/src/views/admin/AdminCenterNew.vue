@@ -20,6 +20,7 @@ import AdminStudyAbroadProgramManagement from './components/AdminStudyAbroadProg
 import AdminBalanceTransactionManagement from './components/AdminBalanceTransactionManagement.vue'
 import AdminMessageManagement from './components/AdminMessageManagement.vue'
 import AdminCourseEvaluationManagement from './components/AdminCourseEvaluationManagement.vue'
+import AdminRescheduleManagement from './components/AdminRescheduleManagement.vue'
 
 // 获取用户信息
 const userStore = useUserStore()
@@ -66,6 +67,10 @@ const handleMenuSelect = (key: string) => {
           <el-menu-item index="bookings">
             <el-icon><Document /></el-icon>
             <span>预约管理</span>
+          </el-menu-item>
+          <el-menu-item index="reschedule">
+            <el-icon><Calendar /></el-icon>
+            <span>调课管理</span>
           </el-menu-item>
 
           <el-sub-menu index="course-mgmt">
@@ -173,6 +178,11 @@ const handleMenuSelect = (key: string) => {
         <!-- 预约管理 -->
         <div v-if="activeMenu === 'bookings'" class="content-panel">
           <AdminBookingManagement />
+        </div>
+
+        <!-- 调课管理 -->
+        <div v-if="activeMenu === 'reschedule'" class="content-panel">
+          <AdminRescheduleManagement />
         </div>
 
         <!-- 年级管理 -->

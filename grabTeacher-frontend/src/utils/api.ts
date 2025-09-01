@@ -778,12 +778,33 @@ export const rescheduleAPI = {
     newEndTime?: string
     newRecurringWeekdays?: number[]
     newRecurringTimeSlots?: string[]
+    newWeeklySchedule?: string
     reason: string
     urgencyLevel?: 'low' | 'medium' | 'high'
     advanceNoticeHours?: number
     affectsFutureSessions?: boolean
     notes?: string
   }) => apiRequest('/api/reschedule/request', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  // 创建调课申请（教师操作）
+  createTeacherRequest: (data: {
+    scheduleId: number
+    requestType: 'single' | 'recurring' | 'cancel'
+    newDate?: string
+    newStartTime?: string
+    newEndTime?: string
+    newRecurringWeekdays?: number[]
+    newRecurringTimeSlots?: string[]
+    newWeeklySchedule?: string
+    reason: string
+    urgencyLevel?: 'low' | 'medium' | 'high'
+    advanceNoticeHours?: number
+    affectsFutureSessions?: boolean
+    notes?: string
+  }) => apiRequest('/api/reschedule/teacher/request', {
     method: 'POST',
     body: JSON.stringify(data)
   }),
@@ -819,26 +840,12 @@ export const rescheduleAPI = {
     return apiRequest(`/api/reschedule/student/requests?${searchParams}`)
   },
 
-  // 获取教师需要审批的调课申请列表
-  getTeacherRequests: (params: {
-    page?: number
-    size?: number
-    status?: string
-  }) => {
-    const searchParams = new URLSearchParams()
-    Object.keys(params).forEach(key => {
-      if (params[key] !== undefined && params[key] !== null) {
-        searchParams.append(key, params[key].toString())
-      }
-    })
-    return apiRequest(`/api/reschedule/teacher/requests?${searchParams}`)
-  },
+
 
   // 根据ID获取调课申请详情
   getById: (id: number) => apiRequest(`/api/reschedule/${id}`),
 
-  // 获取教师待处理的调课申请数量
-  getPendingCount: () => apiRequest('/api/reschedule/teacher/pending-count'),
+
 
   // 检查是否可以申请调课
   canApply: (scheduleId: number) => apiRequest(`/api/reschedule/can-apply/${scheduleId}`),
@@ -851,7 +858,31 @@ export const rescheduleAPI = {
       newEndTime
     })
     return apiRequest(`/api/reschedule/check-conflict/${scheduleId}?${params}`)
-  }
+  },
+
+  // 管理员：获取所有调课申请列表
+  getAdminRequests: (params: {
+    page?: number
+    size?: number
+    status?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        searchParams.append(key, params[key].toString())
+      }
+    })
+    return apiRequest(`/api/reschedule/admin/requests?${searchParams}`)
+  },
+
+  // 管理员：审批调课申请
+  adminApprove: (id: number, data: {
+    status: 'approved' | 'rejected'
+    reviewNotes?: string
+  }) => apiRequest(`/api/reschedule/${id}/approve`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  })
 }
 
 // 年级管理API

@@ -66,4 +66,9 @@ public interface RescheduleRequestMapper extends BaseMapper<RescheduleRequest> {
             "WHERE applicant_id = #{studentId} AND applicant_type = 'student' " +
             "AND status = #{status} AND is_deleted = 0")
     int countByStudentIdAndStatus(@Param("studentId") Long studentId, @Param("status") String status);
+
+    /**
+     * 管理员获取所有调课申请列表（分页）
+     */
+    Page<RescheduleRequest> findAllWithPage(Page<RescheduleRequest> page, @Param("status") String status);
 }

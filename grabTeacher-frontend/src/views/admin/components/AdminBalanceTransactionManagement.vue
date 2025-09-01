@@ -71,7 +71,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="reason" label="变动原因" min-width="200" show-overflow-tooltip />
-      <el-table-column label="关联预约" width="80" align="center">
+      <el-table-column label="关联预约" width="85" align="center">
         <template #default="{ row }">
           <span v-if="row.bookingId" class="booking-link">
             <el-link type="primary" :underline="false">

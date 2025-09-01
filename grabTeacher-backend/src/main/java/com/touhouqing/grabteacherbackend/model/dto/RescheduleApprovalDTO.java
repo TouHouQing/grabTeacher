@@ -20,9 +20,10 @@ import java.math.BigDecimal;
 public class RescheduleApprovalDTO {
 
     @NotBlank(message = "审批状态不能为空")
-    @Schema(description = "审批状态", example = "approved", allowableValues = {"approved", "rejected"}, required = true)
+    @Schema(description = "审批状态", example = "approved", allowableValues = {"approved", "rejected"})
     private String status;
 
+    @NotBlank(message = "审批原因不能为空")
     @Schema(description = "审核备注", example = "同意调课申请，请按时参加新的课程安排")
     private String reviewNotes;
 
