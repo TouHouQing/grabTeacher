@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 调课服务实现类
@@ -98,6 +99,14 @@ public class RescheduleServiceImpl implements RescheduleService {
             throw new RuntimeException("该课程已有待处理的调课申请，请等待审批结果");
         }
 
+        // 单次调课需校验：距原定开课时间需≥4小时
+        if ("single".equals(request.getRequestType())) {
+            LocalDateTime scheduleDateTime = LocalDateTime.of(schedule.getScheduledDate(), schedule.getStartTime());
+            if (!scheduleDateTime.isAfter(LocalDateTime.now().plusHours(4))) {
+                throw new RuntimeException("单次调课需在开课前4小时之外发起");
+            }
+        }
+
         // 计算提前通知小时数
         int advanceNoticeHours = calculateAdvanceNoticeHours(schedule.getScheduledDate(), schedule.getStartTime());
 
@@ -164,6 +173,14 @@ public class RescheduleServiceImpl implements RescheduleService {
         RescheduleRequest existingRequest = rescheduleRequestMapper.selectOne(queryWrapper);
         if (existingRequest != null) {
             throw new RuntimeException("该课程已有待处理的调课申请，请等待审批结果");
+        }
+
+        // 单次调课需校验：距原定开课时间需≥4小时
+        if ("single".equals(request.getRequestType())) {
+            LocalDateTime scheduleDateTime = LocalDateTime.of(schedule.getScheduledDate(), schedule.getStartTime());
+            if (!scheduleDateTime.isAfter(LocalDateTime.now().plusHours(4))) {
+                throw new RuntimeException("单次调课需在开课前4小时之外发起");
+            }
         }
 
         // 计算提前通知小时数
@@ -703,13 +720,9 @@ public class RescheduleServiceImpl implements RescheduleService {
             return false;
         }
 
-        // 检查是否在课程开始前
+        // 检查是否在课程开始前（单次调课4小时窗口限制）
         LocalDateTime scheduleDateTime = LocalDateTime.of(schedule.getScheduledDate(), schedule.getStartTime());
-        if (scheduleDateTime.isBefore(LocalDateTime.now().plusHours(2))) {
-            return false; // 课程开始前2小时内不允许调课
-        }
-
-        return true;
+        return !scheduleDateTime.isBefore(LocalDateTime.now().plusHours(4)); // 课程开始前4小时内不允许调课
     }
 
     @Override
@@ -1106,7 +1119,7 @@ public class RescheduleServiceImpl implements RescheduleService {
                     schedule.setScheduledDate(newDate);           // 上课日期
                     schedule.setStartTime(newStartTime);          // 开始时间
                     schedule.setEndTime(newEndTime);              // 结束时间
-                    schedule.setRecurringWeekdays(String.join(",", newWeekdays.stream().map(String::valueOf).collect(java.util.stream.Collectors.toList())));  // 周期性预约的星期几
+                    schedule.setRecurringWeekdays(newWeekdays.stream().map(String::valueOf).collect(Collectors.joining(",")));  // 周期性预约的星期几
                     schedule.setRecurringTimeSlots(String.join(",", newTimeSlots));  // 周期性预约的时间段
                     
                     log.info("课程安排 {} 字段更新完成，准备保存到数据库", schedule.getId());

@@ -12,7 +12,7 @@
       <div class="reschedule-info">
         <el-alert
           title="调课须知"
-          description="调课需要提前一天申请，老师确认后生效。剩余课时不变。"
+          description="单次调课须在开课前4小时之外发起，老师确认后生效。剩余课时不变。"
           type="info"
           show-icon
           :closable="false"
@@ -82,7 +82,7 @@
                 v-model="rescheduleForm.newDate"
                 type="date"
                 placeholder="选择新日期"
-                :disabled-date="(date) => !canReschedule(date.toISOString().split('T')[0])"
+                :disabled-date="(date) => isPastDate(date.toISOString().split('T')[0])"
                 format="YYYY-MM-DD"
                 value-format="YYYY-MM-DD"
                 style="width: 200px;"
@@ -528,14 +528,21 @@ const switchRescheduleType = (type: 'single' | 'recurring') => {
   }
 }
 
-// 检查日期是否可以调课（需要提前一天申请）
-const canReschedule = (dateStr: string): boolean => {
-  const targetDate = new Date(dateStr)
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  tomorrow.setHours(0, 0, 0, 0)
+// 判断是否为过去日期（禁止选择今天之前）
+const isPastDate = (dateStr: string): boolean => {
+  const target = new Date(dateStr)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return target < today
+}
 
-  return targetDate >= tomorrow
+// 校验是否满足开课前4小时规则
+const isAtLeastFourHoursBeforeOriginal = (): boolean => {
+  if (!rescheduleForm.value.originalDate || !rescheduleForm.value.originalTime) return false
+  const [start] = rescheduleForm.value.originalTime.split('-')
+  const originalStart = new Date(`${rescheduleForm.value.originalDate}T${start}:00`)
+  const nowPlus4 = new Date(Date.now() + 4 * 60 * 60 * 1000)
+  return originalStart > nowPlus4
 }
 
 // 检查调课时间冲突
@@ -787,14 +794,14 @@ const submitReschedule = async () => {
       return
     }
 
-    // 检查时间限制
-    if (!canReschedule(rescheduleForm.value.originalDate)) {
-      ElMessage.error('调课需要提前一天申请')
+    // 检查4小时限制（仅针对原定课程开始时间）
+    if (!isAtLeastFourHoursBeforeOriginal()) {
+      ElMessage.error('单次调课需在开课前4小时之外发起')
       return
     }
-
-    if (!canReschedule(rescheduleForm.value.newDate)) {
-      ElMessage.error('新的上课时间需要是明天之后')
+    // 新的上课日期不得早于今天
+    if (isPastDate(rescheduleForm.value.newDate)) {
+      ElMessage.error('新的上课日期不能早于今天')
       return
     }
 
