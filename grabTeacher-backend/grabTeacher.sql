@@ -1338,6 +1338,7 @@ CREATE TABLE `users`
     `is_deleted`     tinyint(1)                                                         DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
     `deleted_at`     timestamp                                                     NULL DEFAULT NULL COMMENT '删除时间',
     `trial_times`    int(11)                                                             DEFAULT '1' COMMENT '免费试听课次数，新用户默认为1',
+    `adjustment_times` int(11)                                                             DEFAULT '3' COMMENT '教师/学生调课次数，每个月三次，月初刷新',
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 184
