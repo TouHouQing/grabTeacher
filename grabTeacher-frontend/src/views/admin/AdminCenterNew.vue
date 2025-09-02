@@ -19,6 +19,7 @@ import AdminStudyAbroadStageManagement from './components/AdminStudyAbroadStageM
 import AdminStudyAbroadProgramManagement from './components/AdminStudyAbroadProgramManagement.vue'
 import AdminBalanceTransactionManagement from './components/AdminBalanceTransactionManagement.vue'
 import AdminMessageManagement from './components/AdminMessageManagement.vue'
+import AdminTeacherHourDetails from './components/AdminTeacherHourDetails.vue'
 import AdminCourseEvaluationManagement from './components/AdminCourseEvaluationManagement.vue'
 import AdminRescheduleManagement from './components/AdminRescheduleManagement.vue'
 
@@ -118,10 +119,20 @@ const handleMenuSelect = (key: string) => {
               <span>留学项目</span>
             </el-menu-item>
           </el-sub-menu>
-          <el-menu-item index="transactions">
-            <el-icon><Coin /></el-icon>
-            <span>交易明细</span>
-          </el-menu-item>
+          <el-sub-menu index="transactions">
+            <template #title>
+              <el-icon><Coin /></el-icon>
+              <span>交易明细</span>
+            </template>
+            <el-menu-item index="transactions-students">
+              <el-icon><UserFilled /></el-icon>
+              <span>学生明细</span>
+            </el-menu-item>
+            <el-menu-item index="transactions-teachers">
+              <el-icon><Avatar /></el-icon>
+              <span>教师明细</span>
+            </el-menu-item>
+          </el-sub-menu>
           <el-menu-item index="messages">
             <el-icon><Document /></el-icon>
             <span>消息管理</span>
@@ -205,9 +216,14 @@ const handleMenuSelect = (key: string) => {
           <AdminStudyAbroadProgramManagement />
         </div>
 
-        <!-- 交易明细 -->
-        <div v-if="activeMenu === 'transactions'" class="content-panel">
+        <!-- 交易明细 / 学生明细 -->
+        <div v-if="activeMenu === 'transactions-students'" class="content-panel">
           <AdminBalanceTransactionManagement />
+        </div>
+
+        <!-- 交易明细 / 教师明细 -->
+        <div v-if="activeMenu === 'transactions-teachers'" class="content-panel">
+          <AdminTeacherHourDetails />
         </div>
 
         <!-- 消息管理 -->

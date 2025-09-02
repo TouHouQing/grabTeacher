@@ -3,6 +3,8 @@ package com.touhouqing.grabteacherbackend.job;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
+import com.touhouqing.grabteacherbackend.mapper.HourDetailMapper;
+import com.touhouqing.grabteacherbackend.model.entity.HourDetail;
 import com.touhouqing.grabteacherbackend.model.entity.Schedule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ public class ScheduleCleanupJob {
 
     private final ScheduleMapper scheduleMapper;
     private final TeacherMapper teacherMapper;
+    private final HourDetailMapper hourDetailMapper;
 
     /**
      * 每天午夜00:00执行，将所有过期的进行中课程状态更新为已完成
@@ -65,6 +68,25 @@ public class ScheduleCleanupJob {
                     java.math.BigDecimal hours = new java.math.BigDecimal(duration.toMinutes())
                             .divide(new java.math.BigDecimal(60), 2, java.math.RoundingMode.HALF_UP);
                     if (hours.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        // 查询教师以获取用户ID与姓名
+                        com.touhouqing.grabteacherbackend.model.entity.Teacher teacher = teacherMapper.selectById(schedule.getTeacherId());
+                        Long teacherUserId = teacher != null ? teacher.getUserId() : null;
+                        String teacherName = teacher != null ? teacher.getRealName() : null;
+                        // 记录教师课时明细
+                        HourDetail detail = HourDetail.builder()
+                                .userId(teacherUserId)
+                                .name(teacherName)
+                                .hours(hours)
+                                .hoursBefore(null)
+                                .hoursAfter(null)
+                                .transactionType(1)
+                                .reason("课程完成自动结算")
+                                .bookingId(schedule.getId())
+                                .operatorId(null)
+                                .createdAt(java.time.LocalDateTime.now())
+                                .build();
+                        hourDetailMapper.insert(detail);
+                        // 累加教师本月课时
                         teacherMapper.incrementCurrentHours(schedule.getTeacherId(), hours);
                     }
                     log.debug("课程安排ID: {} 已更新为已完成状态，原定时间: {} {}-{}", 

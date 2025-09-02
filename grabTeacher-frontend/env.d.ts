@@ -12,6 +12,8 @@ declare module 'vue' {
   export const onMounted: (callback: () => void) => void;
   export const onUnmounted: (callback: () => void) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  export const defineAsyncComponent: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export const defineOptions: (options: Record<string, any>) => void;
 
   export const markRaw: <T extends object>(value: T) => T;

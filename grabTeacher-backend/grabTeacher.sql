@@ -1884,6 +1884,32 @@ CREATE TABLE `balance_transactions`
   COLLATE = utf8mb4_general_ci COMMENT ='学生余额变动记录表';
 
 
+-- ----------------------------
+-- Table structure for balance_transactions
+-- ----------------------------
+DROP TABLE IF EXISTS `hour_details`;
+CREATE TABLE `hour_details`
+(
+    `id`               bigint(20)                                                     NOT NULL AUTO_INCREMENT COMMENT '课时变动ID，主键自增',
+    `user_id`          bigint(20)                                                     NOT NULL COMMENT '教师用户ID，关联users表',
+    `name`             varchar(255) COLLATE utf8mb4_general_ci                        NOT NULL COMMENT '教师姓名',
+    `hours`           decimal(10, 2)                                                 NOT NULL COMMENT '变动课时数，正数表示增加，负数表示减少',
+    `hours_before`   decimal(10, 2)                                                 NOT NULL COMMENT '变动前课时数',
+    `hours_after`    decimal(10, 2)                                                 NOT NULL COMMENT '变动后课时数',
+    `transaction_type` tinyint(1)                                                    NOT NULL COMMENT '交易类型： 1-增加, 0-减少',
+    `reason`           varchar(255) COLLATE utf8mb4_general_ci                        NOT NULL COMMENT '变动原因',
+    `booking_id`       bigint(20)                                                          DEFAULT NULL COMMENT '关联的课程ID，可为空',
+    `operator_id`      bigint(20)                                                          DEFAULT NULL COMMENT '操作员ID（如管理员），可为空',
+    `created_at`       timestamp                                                      NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_booking_id` (`booking_id`)
+) ENGINE = InnoDB
+  AUTO_INCREMENT = 1
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='教师课时变动记录表';
+
+
 -- 创建消息表
 CREATE TABLE IF NOT EXISTS `message`
 (

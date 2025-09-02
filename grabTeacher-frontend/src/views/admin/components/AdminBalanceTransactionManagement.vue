@@ -1,7 +1,7 @@
 <template>
   <div class="balance-transaction-management">
     <div class="header">
-      <h2>交易明细管理</h2>
+      <h2>学生明细</h2>
       <p class="description">查看所有学生的余额变动记录</p>
     </div>
 

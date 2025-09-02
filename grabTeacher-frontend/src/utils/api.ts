@@ -439,6 +439,17 @@ export const teacherAPI = {
   // 获取教师统计数据
   getStatistics: () => apiRequest('/api/teacher/statistics'),
 
+  // 获取当前教师的课时明细
+  getMyHourDetails: (params: { page?: number; size?: number; transactionType?: number }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null && v !== '') searchParams.append(key, v.toString())
+    })
+    const query = searchParams.toString()
+    return apiRequest(`/api/teacher/hour-details/my${query ? `?${query}` : ''}`)
+  },
+
   // 验证学生预约时间匹配度
   validateBookingTime: (teacherId: number, data: {
     weekdays: number[]
@@ -1131,5 +1142,38 @@ export const balanceTransactionAPI = {
       }
     })
     return apiRequest(`/api/admin/balance-transactions?${searchParams}`)
+  }
+}
+
+// 学生端：我的余额明细
+export const myBalanceTransactionAPI = {
+  getList: (params: { page?: number; size?: number; transactionType?: string }) => {
+    const sp = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null && v !== '') sp.append(key, v.toString())
+    })
+    const q = sp.toString()
+    return apiRequest(`/api/student/balance-transactions/my${q ? `?${q}` : ''}`)
+  }
+}
+
+// 教师课时明细 API
+export const teacherHourDetailsAPI = {
+  getList: (params: {
+    page?: number
+    size?: number
+    userId?: string
+    name?: string
+    transactionType?: number // 1增加 0减少
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null && v !== '') {
+        searchParams.append(key, v.toString())
+      }
+    })
+    return apiRequest(`/api/admin/teacher-hour-details?${searchParams}`)
   }
 }

@@ -19,6 +19,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.touhouqing.grabteacherbackend.model.entity.BalanceTransaction;
+import com.touhouqing.grabteacherbackend.mapper.BalanceTransactionMapper;
 
 @RestController
 @RequestMapping("/api/student")
@@ -33,6 +37,9 @@ public class StudentController {
 
     @Autowired
     private MessageService messageService;
+
+    @Autowired
+    private BalanceTransactionMapper balanceTransactionMapper;
 
     /**
      * 获取学生个人信息
@@ -51,6 +58,32 @@ public class StudentController {
             return ResponseEntity.ok(CommonResult.success("获取成功", studentProfile));
         } catch (Exception e) {
             logger.error("获取学生信息异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
+        }
+    }
+
+    /**
+     * 获取当前登录学生的余额明细
+     */
+    @GetMapping("/balance-transactions/my")
+    public ResponseEntity<CommonResult<Page<BalanceTransaction>>> getMyBalanceTransactions(
+            Authentication authentication,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String transactionType) {
+        try {
+            UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+            Page<BalanceTransaction> pageReq = new Page<>(page, size);
+            QueryWrapper<BalanceTransaction> qw = new QueryWrapper<>();
+            qw.eq("user_id", principal.getId()).orderByDesc("created_at");
+            if (transactionType != null && !transactionType.trim().isEmpty()) {
+                qw.eq("transaction_type", transactionType.trim());
+            }
+            Page<BalanceTransaction> result = balanceTransactionMapper.selectPage(pageReq, qw);
+            return ResponseEntity.ok(CommonResult.success("获取成功", result));
+        } catch (Exception e) {
+            logger.error("获取当前学生余额明细异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResult.error("获取失败"));
         }

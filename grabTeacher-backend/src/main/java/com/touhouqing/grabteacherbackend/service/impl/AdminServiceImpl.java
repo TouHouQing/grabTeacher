@@ -46,6 +46,7 @@ public class AdminServiceImpl implements AdminService {
     private final CourseMapper courseMapper;
     private final AdminMapper adminMapper;
     private final BalanceTransactionMapper balanceTransactionMapper;
+    private final HourDetailMapper hourDetailMapper;
     private final AliyunOssUtil ossUtil;
     private final StringRedisTemplate stringRedisTemplate;
     private final FeaturedTeachersLocalCache featuredTeachersLocalCache;
@@ -708,6 +709,23 @@ public class AdminServiceImpl implements AdminService {
 
         // 管理员可更新教师课时（小时）
         if (request.getCurrentHours() != null) {
+            java.math.BigDecimal oldCurrent = teacher.getCurrentHours() == null ? java.math.BigDecimal.ZERO : teacher.getCurrentHours();
+            if (request.getCurrentHours().compareTo(oldCurrent) != 0) {
+                // 写入课时明细
+                java.math.BigDecimal delta = request.getCurrentHours().subtract(oldCurrent);
+                HourDetail detail = HourDetail.builder()
+                        .userId(teacher.getUserId())
+                        .name(teacher.getRealName())
+                        .hours(delta)
+                        .hoursBefore(oldCurrent)
+                        .hoursAfter(request.getCurrentHours())
+                        .transactionType(delta.compareTo(java.math.BigDecimal.ZERO) > 0 ? 1 : 0)
+                        .reason("管理员调整课时")
+                        .operatorId(null)
+                        .createdAt(java.time.LocalDateTime.now())
+                        .build();
+                hourDetailMapper.insert(detail);
+            }
             teacher.setCurrentHours(request.getCurrentHours());
         }
         if (request.getLastHours() != null) {

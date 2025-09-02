@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import { bookingAPI, teacherAPI } from '../../utils/api'
@@ -11,15 +11,16 @@ import {
   DocumentChecked,
   Calendar,
   Reading,
-  User,
   Money,
   Setting,
   VideoCamera,
-  ChatDotRound
+  ChatDotRound,
+  List
 } from '@element-plus/icons-vue'
 
 // 导入消息组件
 import TeacherMessages from './components/TeacherMessages.vue'
+const TeacherHourDetails = defineAsyncComponent(() => import('./components/TeacherHourDetails.vue'))
 
 // 课程安排接口定义
 interface ScheduleItem {
@@ -197,6 +198,11 @@ onMounted(async () => {
               <span>课程管理</span>
             </el-menu-item>
 
+            <el-menu-item index="my-hour-details">
+              <el-icon><List /></el-icon>
+              <span>课时明细</span>
+            </el-menu-item>
+
 
             <el-menu-item index="messages">
               <el-icon><ChatDotRound /></el-icon>
@@ -214,42 +220,6 @@ onMounted(async () => {
         <div v-if="activeMenu === 'dashboard'" class="dashboard">
           <h2>欢迎回来，{{ userStore.user?.realName }}!</h2>
           <div class="dashboard-stats">
-            <div class="stat-card">
-              <div class="stat-icon">
-                <el-icon><Calendar /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : statistics.rescheduleRequests }}</div>
-                <div class="stat-label">调课申请数</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">
-                <el-icon><Reading /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : statistics.totalCourses }}</div>
-                <div class="stat-label">总课程数</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">
-                <el-icon><VideoCamera /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : statistics.upcomingClasses }}</div>
-                <div class="stat-label">即将上课数</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">
-                <el-icon><DocumentChecked /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : statistics.bookingRequests }}</div>
-                <div class="stat-label">预约申请数</div>
-              </div>
-            </div>
             <div class="stat-card">
               <div class="stat-icon">
                 <el-icon><Money /></el-icon>
@@ -352,6 +322,10 @@ onMounted(async () => {
 
         <div v-else-if="activeMenu === 'messages'">
           <TeacherMessages />
+        </div>
+
+        <div v-else-if="activeMenu === 'my-hour-details'">
+          <TeacherHourDetails />
         </div>
 
         <div v-else>

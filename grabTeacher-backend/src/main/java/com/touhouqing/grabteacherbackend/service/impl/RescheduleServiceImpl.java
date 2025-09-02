@@ -63,6 +63,9 @@ public class RescheduleServiceImpl implements RescheduleService {
     @Autowired
     private BalanceTransactionMapper balanceTransactionMapper;
 
+    @Autowired
+    private HourDetailMapper hourDetailMapper;
+
     @Override
     @Transactional
     public RescheduleVO createRescheduleRequest(RescheduleApplyDTO request, Long studentUserId) {
@@ -189,6 +192,20 @@ public class RescheduleServiceImpl implements RescheduleService {
             }
             // 教师课时 +1h
             teacherMapper.incrementCurrentHours(schedule.getTeacherId(), BigDecimal.ONE);
+            // 写入教师课时明细
+            Teacher targetTeacher = teacherMapper.selectById(schedule.getTeacherId());
+            if (targetTeacher != null) {
+                HourDetail hd = HourDetail.builder()
+                        .userId(targetTeacher.getUserId())
+                        .name(targetTeacher.getRealName())
+                        .hours(new BigDecimal("1"))
+                        .transactionType(1)
+                        .reason("学生超额调课补偿")
+                        .bookingId(schedule.getId())
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                hourDetailMapper.insert(hd);
+            }
         }
 
         log.info("调课申请创建成功，ID: {}", rescheduleRequest.getId());
@@ -282,6 +299,17 @@ public class RescheduleServiceImpl implements RescheduleService {
         if (overQuota) {
             // 教师课时 -1h（不低于0）
             teacherMapper.decrementCurrentHours(teacher.getId(), BigDecimal.ONE);
+            // 写入教师课时明细
+            HourDetail hd = HourDetail.builder()
+                    .userId(teacher.getUserId())
+                    .name(teacher.getRealName())
+                    .hours(new BigDecimal("-1"))
+                    .transactionType(0)
+                    .reason("教师超额调课扣减")
+                    .bookingId(schedule.getId())
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            hourDetailMapper.insert(hd);
             // 学生补偿M豆并记录流水
             Course course = courseMapper.selectById(schedule.getCourseId());
             if (course != null && course.getPrice() != null) {

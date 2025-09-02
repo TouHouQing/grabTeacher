@@ -45,6 +45,8 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import org.springframework.security.core.Authentication;
+import com.touhouqing.grabteacherbackend.model.entity.HourDetail;
+import com.touhouqing.grabteacherbackend.mapper.HourDetailMapper;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -73,6 +75,9 @@ public class AdminController {
 
     @Autowired
     private ScheduleCleanupService scheduleCleanupService;
+
+    @Autowired
+    private HourDetailMapper hourDetailMapper;
 
     /**
      * 获取系统统计信息
@@ -700,6 +705,39 @@ public class AdminController {
             return ResponseEntity.ok(CommonResult.success("获取成功", result));
         } catch (Exception e) {
             logger.error("获取余额交易记录异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
+        }
+    }
+
+    /**
+     * 获取教师课时变动记录列表
+     */
+    @Operation(summary = "获取教师课时明细", description = "分页查询教师课时变动记录")
+    @GetMapping("/teacher-hour-details")
+    public ResponseEntity<CommonResult<Page<HourDetail>>> getTeacherHourDetails(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Integer transactionType) {
+        try {
+            Page<HourDetail> pageRequest = new Page<>(page, size);
+            QueryWrapper<HourDetail> qw = new QueryWrapper<>();
+            qw.orderByDesc("created_at");
+            if (userId != null) {
+                qw.eq("user_id", userId);
+            }
+            if (name != null && !name.trim().isEmpty()) {
+                qw.like("name", name.trim());
+            }
+            if (transactionType != null) {
+                qw.eq("transaction_type", transactionType);
+            }
+            Page<HourDetail> result = hourDetailMapper.selectPage(pageRequest, qw);
+            return ResponseEntity.ok(CommonResult.success("获取成功", result));
+        } catch (Exception e) {
+            logger.error("获取教师课时明细异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResult.error("获取失败"));
         }

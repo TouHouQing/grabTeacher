@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { HomeFilled, Connection, Document, Reading, User, Coin, ChatDotRound, Star } from '@element-plus/icons-vue'
+import { HomeFilled, Connection, Document, Reading, User, Coin, ChatDotRound, Star, List } from '@element-plus/icons-vue'
 import StudentCourses from './components/StudentCourses.vue'
 import StudentMessages from './components/StudentMessages.vue'
+const StudentBalanceDetails = defineAsyncComponent(() => import('./components/StudentBalanceDetails.vue'))
 import { bookingAPI, studentAPI } from '../../utils/api'
 import { ElMessage } from 'element-plus'
 
@@ -216,6 +217,11 @@ onMounted(async () => {
               <span>消息中心</span>
             </el-menu-item>
 
+            <el-menu-item index="my-balance-details">
+              <el-icon><List /></el-icon>
+              <span>余额明细</span>
+            </el-menu-item>
+
             <el-menu-item index="profile" @click="$router.push('/student-center/profile')">
               <el-icon><User /></el-icon>
               <span>个人资料</span>
@@ -308,6 +314,10 @@ onMounted(async () => {
         </div>
         <div v-else-if="activeMenu === 'messages'">
           <StudentMessages />
+        </div>
+
+        <div v-else-if="activeMenu === 'my-balance-details'">
+          <StudentBalanceDetails />
         </div>
 
 
