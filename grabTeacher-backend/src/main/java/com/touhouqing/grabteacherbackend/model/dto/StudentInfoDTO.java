@@ -41,4 +41,7 @@ public class    StudentInfoDTO {
 
     @Schema(description = "试听课次数（管理员可编辑）")
     private Integer trialTimes;
+
+    @Schema(description = "本月调课次数（管理员可编辑）")
+    private Integer adjustmentTimes;
 }

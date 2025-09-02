@@ -679,13 +679,33 @@ const isPastDate = (dateStr: string): boolean => {
   return target < today
 }
 
+// 可选日期校验：当前仅禁止选择过去日期
+const canReschedule = (dateStr: string): boolean => {
+  return !isPastDate(dateStr)
+}
+
+// 避免 toISOString 引起的时区偏移（备用）
+const canRescheduleDate = (date: Date): boolean => {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return d >= today
+}
+
 // 校验是否满足开课前4小时规则
 const isAtLeastFourHoursBeforeOriginal = (): boolean => {
-  if (!rescheduleForm.value.originalDate || !rescheduleForm.value.originalTime) return false
-  const [start] = rescheduleForm.value.originalTime.split('-')
-  const originalStart = new Date(`${rescheduleForm.value.originalDate}T${start}:00`)
-  const nowPlus4 = new Date(Date.now() + 4 * 60 * 60 * 1000)
-  return originalStart > nowPlus4
+  if (!rescheduleForm.value.originalDate || !rescheduleForm.value.originalTime) return true
+  try {
+    const [startRaw] = rescheduleForm.value.originalTime.split('-')
+    const start = startRaw.length === 5 ? `${startRaw}:00` : startRaw
+    const originalStart = new Date(`${rescheduleForm.value.originalDate}T${start}`)
+    if (isNaN(originalStart.getTime())) return true
+    const nowPlus4 = new Date(Date.now() + 4 * 60 * 60 * 1000)
+    return originalStart.getTime() > nowPlus4.getTime()
+  } catch {
+    return true
+  }
 }
 
 // 时间冲突检查状态
@@ -1680,11 +1700,11 @@ export default {
 
         <div class="reschedule-type-selection">
           <el-radio-group v-model="rescheduleType" @change="switchRescheduleType">
-            <el-radio-button label="single">
+            <el-radio-button :value="'single'">
               <el-icon><Calendar /></el-icon>
               单次调课
             </el-radio-button>
-            <el-radio-button label="recurring">
+            <el-radio-button :value="'recurring'">
               <el-icon><Timer /></el-icon>
               周期性调课
             </el-radio-button>

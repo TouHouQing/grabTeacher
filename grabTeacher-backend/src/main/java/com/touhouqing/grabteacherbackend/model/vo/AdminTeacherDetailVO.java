@@ -79,6 +79,9 @@ public class AdminTeacherDetailVO {
     @Schema(description = "是否为精选教师", example = "false")
     private Boolean featured;
 
+    @Schema(description = "本月剩余调课次数", example = "3")
+    private Integer adjustmentTimes;
+
     @Schema(description = "是否已删除", example = "false")
     private Boolean deleted;
 

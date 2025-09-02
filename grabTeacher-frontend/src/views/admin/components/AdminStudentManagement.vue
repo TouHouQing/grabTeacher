@@ -46,7 +46,8 @@ const studentForm = reactive({
   gender: '不愿透露',
   avatarUrl: '',
   balance: 0.00,
-  trialTimes: 1
+  trialTimes: 1,
+  adjustmentTimes: 3
 })
 
 const _studentAvatarFile = ref<File | null>(null)
@@ -215,7 +216,8 @@ const handleAddStudent = () => {
     gender: '不愿透露',
     avatarUrl: '',
     balance: 0.00,
-    trialTimes: 1
+    trialTimes: 1,
+    adjustmentTimes: 3
   })
   // 重置头像
   studentForm.avatarUrl = ''
@@ -258,7 +260,8 @@ const saveStudent = async () => {
       budgetRange: studentForm.budgetRange,
       gender: studentForm.gender,
       balance: studentForm.balance,
-      trialTimes: studentForm.trialTimes
+      trialTimes: studentForm.trialTimes,
+      adjustmentTimes: studentForm.adjustmentTimes
     }
 
     let result: any
@@ -605,6 +608,16 @@ onMounted(() => {
             :step="1"
             style="width: 200px"
             placeholder="请输入试听课次"
+          />
+        </el-form-item>
+        <el-form-item label="本月调课次数">
+          <el-input-number
+            v-model="studentForm.adjustmentTimes"
+            :min="0"
+            :precision="0"
+            :step="1"
+            style="width: 200px"
+            placeholder="请输入本月调课次数"
           />
         </el-form-item>
       </el-form>

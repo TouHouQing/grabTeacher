@@ -208,6 +208,7 @@ public class TeacherServiceImpl implements TeacherService {
                 .avatarUrl(avatarUrl)
                 .availableTimeSlots(availableTimeSlots)
                 .verified(teacher.getVerified())
+                .adjustmentTimes(user != null ? user.getAdjustmentTimes() : null)
                 .deleted(teacher.getDeleted())
                 .deletedAt(teacher.getDeletedAt())
                 .build();

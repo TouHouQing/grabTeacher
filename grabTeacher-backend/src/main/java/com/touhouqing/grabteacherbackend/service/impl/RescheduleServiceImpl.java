@@ -70,6 +70,16 @@ public class RescheduleServiceImpl implements RescheduleService {
             throw new RuntimeException("学生信息不存在");
         }
 
+        // 检查用户本月调课次数是否足够
+        User user = userMapper.selectById(studentUserId);
+        if (user == null || user.getDeleted()) {
+            throw new RuntimeException("用户不存在");
+        }
+        Integer adjustmentTimes = user.getAdjustmentTimes();
+        if (adjustmentTimes == null || adjustmentTimes <= 0) {
+            throw new RuntimeException("本月调课次数已用完");
+        }
+
         // 获取课程安排信息
         Schedule schedule = scheduleMapper.selectById(request.getScheduleId());
         if (schedule == null || schedule.getDeleted()) {
@@ -136,6 +146,12 @@ public class RescheduleServiceImpl implements RescheduleService {
 
         rescheduleRequestMapper.insert(rescheduleRequest);
 
+        // 扣减一次调课次数
+        int dec = userMapper.decrementAdjustmentTimes(studentUserId);
+        if (dec <= 0) {
+            throw new RuntimeException("扣减调课次数失败，请稍后重试");
+        }
+
         log.info("调课申请创建成功，ID: {}", rescheduleRequest.getId());
         return convertToRescheduleResponseDTO(rescheduleRequest);
     }
@@ -149,6 +165,16 @@ public class RescheduleServiceImpl implements RescheduleService {
         Teacher teacher = teacherMapper.findByUserId(teacherUserId);
         if (teacher == null) {
             throw new RuntimeException("教师信息不存在");
+        }
+
+        // 检查用户本月调课次数是否足够
+        User user = userMapper.selectById(teacherUserId);
+        if (user == null || user.getDeleted()) {
+            throw new RuntimeException("用户不存在");
+        }
+        Integer adjustmentTimes = user.getAdjustmentTimes();
+        if (adjustmentTimes == null || adjustmentTimes <= 0) {
+            throw new RuntimeException("本月调课次数已用完");
         }
 
         // 获取课程安排信息
@@ -210,6 +236,12 @@ public class RescheduleServiceImpl implements RescheduleService {
                 .build();
 
         rescheduleRequestMapper.insert(rescheduleRequest);
+
+        // 扣减一次调课次数
+        int dec = userMapper.decrementAdjustmentTimes(teacherUserId);
+        if (dec <= 0) {
+            throw new RuntimeException("扣减调课次数失败，请稍后重试");
+        }
 
         log.info("教师调课申请创建成功，ID: {}", rescheduleRequest.getId());
         return convertToRescheduleResponseDTO(rescheduleRequest);
@@ -407,6 +439,25 @@ public class RescheduleServiceImpl implements RescheduleService {
         rescheduleRequest.setUpdatedAt(LocalDateTime.now());
 
         rescheduleRequestMapper.updateById(rescheduleRequest);
+
+        // 如果管理员拒绝，返还申请人一次调课次数
+        if ("rejected".equals(approval.getStatus())) {
+            Long applicantUserId = null;
+            if ("student".equals(rescheduleRequest.getApplicantType())) {
+                Student applicant = studentMapper.selectById(rescheduleRequest.getApplicantId());
+                if (applicant != null) {
+                    applicantUserId = applicant.getUserId();
+                }
+            } else if ("teacher".equals(rescheduleRequest.getApplicantType())) {
+                Teacher applicant = teacherMapper.selectById(rescheduleRequest.getApplicantId());
+                if (applicant != null) {
+                    applicantUserId = applicant.getUserId();
+                }
+            }
+            if (applicantUserId != null) {
+                userMapper.incrementAdjustmentTimes(applicantUserId);
+            }
+        }
 
         // 如果审批通过，更新课程安排
         if ("approved".equals(approval.getStatus())) {
@@ -717,6 +768,20 @@ public class RescheduleServiceImpl implements RescheduleService {
 
         // 检查课程状态
         if (!"progressing".equals(schedule.getStatus())) {
+            return false;
+        }
+
+        // 检查用户本月调课次数是否足够
+        try {
+            User user = userMapper.selectById(studentUserId);
+            if (user == null || user.getDeleted()) {
+                return false;
+            }
+            Integer adjustmentTimes = user.getAdjustmentTimes();
+            if (adjustmentTimes == null || adjustmentTimes <= 0) {
+                return false;
+            }
+        } catch (Exception ignored) {
             return false;
         }
 

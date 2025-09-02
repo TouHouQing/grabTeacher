@@ -53,7 +53,8 @@ const teacherForm = reactive({
   videoIntroUrl: '',
   gender: '不愿透露',
   isVerified: false, // 表单内部仍使用 isVerified，编辑时从 row.verified 映射
-  avatarUrl: ''
+  avatarUrl: '',
+  adjustmentTimes: 3
 })
 const _teacherAvatarFile = ref<File | null>(null)
 
@@ -372,7 +373,8 @@ const saveTeacher = async () => {
       videoIntroUrl: teacherForm.videoIntroUrl,
       gender: teacherForm.gender,
       isVerified: teacherForm.isVerified,
-      availableTimeSlots: availableTimeSlots.value
+      availableTimeSlots: availableTimeSlots.value,
+      adjustmentTimes: teacherForm.adjustmentTimes
     }
 
     let result: any
@@ -739,6 +741,16 @@ onMounted(async () => {
         </el-form-item>
         <el-form-item label="认证状态">
           <el-switch v-model="teacherForm.isVerified" active-text="已认证" inactive-text="未认证" />
+        </el-form-item>
+        <el-form-item label="本月调课次数">
+          <el-input-number
+            v-model="teacherForm.adjustmentTimes"
+            :min="0"
+            :precision="0"
+            :step="1"
+            style="width: 200px"
+            placeholder="请输入本月调课次数"
+          />
         </el-form-item>
         <el-form-item label="可上课时间">
           <WideTimeSlotSelector

@@ -72,6 +72,9 @@ public class AdminStudentDetailVO {
     @Schema(description = "试听课次数", example = "1")
     private Integer trialTimes;
 
+    @Schema(description = "本月剩余调课次数", example = "3")
+    private Integer adjustmentTimes;
+
     @Schema(description = "是否已删除", example = "false")
     private Boolean deleted;
 

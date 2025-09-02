@@ -44,4 +44,7 @@ public class TeacherInfoDTO {
 
     @Schema(description = "手机号")
     private String phone;
+
+    @Schema(description = "本月调课次数（管理员可编辑）")
+    private Integer adjustmentTimes;
 }

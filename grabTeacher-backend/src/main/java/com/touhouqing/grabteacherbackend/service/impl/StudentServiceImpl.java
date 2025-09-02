@@ -106,6 +106,7 @@ public class StudentServiceImpl implements StudentService {
                 .gender(student.getGender())
                 .avatarUrl(avatarUrl)
                 .balance(student.getBalance())
+                .adjustmentTimes(user != null ? user.getAdjustmentTimes() : null)
                 .deleted(student.getDeleted())
                 .deletedAt(student.getDeletedAt())
                 .build();

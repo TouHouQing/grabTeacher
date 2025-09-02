@@ -22,9 +22,10 @@ const statistics = ref({
 })
 const statsLoading = ref(false)
 
-// 学生余额
+// 学生余额/调课次数
 const studentBalance = ref(0)
 const balanceLoading = ref(false)
+const studentAdjustmentTimes = ref<number | null>(null)
 
 // 根据当前路由设置激活菜单
 watch(() => route.path, (path: string) => {
@@ -141,7 +142,7 @@ const loadStatistics = async () => {
   }
 }
 
-// 获取学生余额
+// 获取学生余额和调课次数
 const loadStudentBalance = async () => {
   try {
     balanceLoading.value = true
@@ -149,6 +150,7 @@ const loadStudentBalance = async () => {
 
     if (result.success && result.data) {
       studentBalance.value = result.data.balance || 0
+      studentAdjustmentTimes.value = result.data.adjustmentTimes ?? null
     } else {
       ElMessage.error(result.message || '获取余额失败')
     }
@@ -245,20 +247,20 @@ onMounted(async () => {
             </div>
             <div class="stat-card">
               <div class="stat-icon">
+                <el-icon><Reading /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ balanceLoading ? '-' : (studentAdjustmentTimes ?? '-') }}</div>
+                <div class="stat-label">本月调课剩余</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">
                 <el-icon><Document /></el-icon>
               </div>
               <div class="stat-info">
                 <div class="stat-value">{{ statsLoading ? '-' : statistics.pendingBookings }}</div>
                 <div class="stat-label">待审批预约</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">
-                <el-icon><Reading /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : statistics.completedCourses }}</div>
-                <div class="stat-label">完成课程</div>
               </div>
             </div>
           </div>

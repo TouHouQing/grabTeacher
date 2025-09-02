@@ -241,6 +241,8 @@ export const studentAPI = {
 
 // 教师管理 API
 export const teacherAPI = {
+  // 获取教师个人资料
+  getProfile: () => apiRequest('/api/teacher/profile'),
   // 获取教师列表
   getList: (params: {
     page?: number
@@ -858,6 +860,16 @@ export const rescheduleAPI = {
       newEndTime
     })
     return apiRequest(`/api/reschedule/check-conflict/${scheduleId}?${params}`)
+  },
+
+  // 教师端：检查调课时间冲突
+  checkTeacherTimeConflict: (scheduleId: number, newDate: string, newStartTime: string, newEndTime: string) => {
+    const params = new URLSearchParams({
+      newDate,
+      newStartTime,
+      newEndTime
+    })
+    return apiRequest(`/api/reschedule/teacher/check-conflict/${scheduleId}?${params}`)
   },
 
   // 管理员：获取所有调课申请列表

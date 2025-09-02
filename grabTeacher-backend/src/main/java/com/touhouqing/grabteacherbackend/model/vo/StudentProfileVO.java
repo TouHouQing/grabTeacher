@@ -60,6 +60,9 @@ public class StudentProfileVO {
     @Schema(description = "学生余额，单位：M豆", example = "500.00")
     private BigDecimal balance;
 
+    @Schema(description = "本月剩余调课次数", example = "3")
+    private Integer adjustmentTimes;
+
     @Schema(description = "是否已删除", example = "false")
     private Boolean deleted;
 

@@ -51,6 +51,13 @@
         </div>
         <el-icon class="stat-icon"><Star /></el-icon>
       </el-card>
+      <el-card class="stat-card">
+        <div class="stat-content">
+          <div class="stat-number">{{ teacherAdjustmentTimes ?? '-' }}</div>
+          <div class="stat-label">本月调课剩余</div>
+        </div>
+        <el-icon class="stat-icon"><Refresh /></el-icon>
+      </el-card>
     </div>
 
     <!-- 课表列表 -->
@@ -355,7 +362,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Clock, Check, Star, Refresh } from '@element-plus/icons-vue'
-import { bookingAPI, apiRequest } from '@/utils/api'
+import { bookingAPI, apiRequest, teacherAPI } from '@/utils/api'
 import RescheduleModal from '@/components/RescheduleModal.vue'
 
 // 响应式数据
@@ -367,6 +374,7 @@ const dateRange = ref<[string, string]>([
   new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30天后
 ])
 const statusFilter = ref('')
+const teacherAdjustmentTimes = ref<number | null>(null)
 
 // 弹窗相关
 const showDetailModal = ref(false)
@@ -414,6 +422,7 @@ const scheduleStats = computed(() => {
 // 页面加载时获取数据
 onMounted(() => {
   loadSchedules()
+  loadTeacherAdjustmentTimes()
 })
 
 // 加载课程安排
@@ -447,6 +456,18 @@ const loadSchedules = async () => {
     ElMessage.error('获取课程安排失败，请稍后重试')
   } finally {
     loading.value = false
+  }
+}
+
+// 加载教师本月剩余调课次数
+const loadTeacherAdjustmentTimes = async () => {
+  try {
+    const res = await teacherAPI.getProfile()
+    if (res?.success && res.data) {
+      teacherAdjustmentTimes.value = res.data.adjustmentTimes ?? null
+    }
+  } catch (e) {
+    teacherAdjustmentTimes.value = null
   }
 }
 

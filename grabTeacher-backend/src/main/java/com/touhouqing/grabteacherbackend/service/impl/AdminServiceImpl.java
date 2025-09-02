@@ -242,6 +242,7 @@ public class AdminServiceImpl implements AdminService {
                 .gender(student.getGender())
                 .balance(student.getBalance())
                 .trialTimes(user != null ? user.getTrialTimes() : 0)
+                .adjustmentTimes(user != null ? user.getAdjustmentTimes() : null)
                 .deleted(student.getDeleted())
                 .deletedAt(student.getDeletedAt())
                 .build();
@@ -282,6 +283,7 @@ public class AdminServiceImpl implements AdminService {
                 .status("active")
                 .deleted(false)
                 .trialTimes(1)
+                .adjustmentTimes(3)
                 .build();
 
         userMapper.insert(user);
@@ -360,6 +362,10 @@ public class AdminServiceImpl implements AdminService {
                 // 更新试听课次数
                 if (request.getTrialTimes() != null) {
                     currentUser.setTrialTimes(request.getTrialTimes());
+                }
+                // 更新本月调课次数（管理员编辑）
+                if (request.getAdjustmentTimes() != null) {
+                    currentUser.setAdjustmentTimes(request.getAdjustmentTimes());
                 }
                 currentUser.setUpdatedAt(LocalDateTime.now());
                 userMapper.updateById(currentUser);
@@ -528,6 +534,7 @@ public class AdminServiceImpl implements AdminService {
                 .availableTimeSlots(availableTimeSlots)
                 .verified(teacher.getVerified())
                 .featured(teacher.getFeatured())
+                .adjustmentTimes(user != null ? user.getAdjustmentTimes() : null)
                 .deleted(teacher.getDeleted())
                 .deletedAt(teacher.getDeletedAt())
                 .build();
@@ -576,6 +583,7 @@ public class AdminServiceImpl implements AdminService {
                 .status("active")
                 .deleted(false)
                 .trialTimes(1)
+                .adjustmentTimes(3)
                 .build();
 
         userMapper.insert(user);

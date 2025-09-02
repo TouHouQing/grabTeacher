@@ -62,7 +62,11 @@ public class User {
 
     @TableField("trial_times")
     @Builder.Default
-    private Integer trialTimes = 0;
+    private Integer trialTimes = 1;
+
+    @TableField("adjustment_times")
+    @Builder.Default
+    private Integer adjustmentTimes = 3;
 
     // 保留必要的构造函数
     public User(String username, String email, String password, String userType) {

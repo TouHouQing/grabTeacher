@@ -68,6 +68,9 @@ public class TeacherProfileVO {
     @Schema(description = "是否已认证", example = "true")
     private Boolean verified;
 
+    @Schema(description = "本月剩余调课次数", example = "3")
+    private Integer adjustmentTimes;
+
     @Schema(description = "是否已删除", example = "false")
     private Boolean deleted;
 
