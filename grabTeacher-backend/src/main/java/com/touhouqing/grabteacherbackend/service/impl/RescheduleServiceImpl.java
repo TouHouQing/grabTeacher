@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -59,6 +60,9 @@ public class RescheduleServiceImpl implements RescheduleService {
     @Autowired
     private TeacherScheduleCacheService teacherScheduleCacheService;
 
+    @Autowired
+    private BalanceTransactionMapper balanceTransactionMapper;
+
     @Override
     @Transactional
     public RescheduleVO createRescheduleRequest(RescheduleApplyDTO request, Long studentUserId) {
@@ -76,9 +80,7 @@ public class RescheduleServiceImpl implements RescheduleService {
             throw new RuntimeException("用户不存在");
         }
         Integer adjustmentTimes = user.getAdjustmentTimes();
-        if (adjustmentTimes == null || adjustmentTimes <= 0) {
-            throw new RuntimeException("本月调课次数已用完");
-        }
+        boolean overQuota = (adjustmentTimes == null || adjustmentTimes <= 0);
 
         // 获取课程安排信息
         Schedule schedule = scheduleMapper.selectById(request.getScheduleId());
@@ -120,6 +122,19 @@ public class RescheduleServiceImpl implements RescheduleService {
         // 计算提前通知小时数
         int advanceNoticeHours = calculateAdvanceNoticeHours(schedule.getScheduledDate(), schedule.getStartTime());
 
+        // 若超额且余额不足以扣除0.5h对应M豆，则不允许创建申请
+        if (overQuota) {
+            Course course = courseMapper.selectById(schedule.getCourseId());
+            if (course == null || course.getPrice() == null) {
+                throw new RuntimeException("课程价格缺失，无法计算超额调课扣费");
+            }
+            BigDecimal halfHourBeans = course.getPrice().multiply(new BigDecimal("0.5"));
+            BigDecimal currentBalance = student.getBalance() == null ? BigDecimal.ZERO : student.getBalance();
+            if (currentBalance.compareTo(halfHourBeans) < 0) {
+                throw new RuntimeException("学生余额不足，无法进行超额调课");
+            }
+        }
+
         // 创建调课申请
         RescheduleRequest rescheduleRequest = RescheduleRequest.builder()
                 .scheduleId(request.getScheduleId())
@@ -147,9 +162,33 @@ public class RescheduleServiceImpl implements RescheduleService {
         rescheduleRequestMapper.insert(rescheduleRequest);
 
         // 扣减一次调课次数
-        int dec = userMapper.decrementAdjustmentTimes(studentUserId);
-        if (dec <= 0) {
-            throw new RuntimeException("扣减调课次数失败，请稍后重试");
+        // 优先尝试扣减一次调课次数（若本月次数为0则不变更）
+        userMapper.decrementAdjustmentTimes(studentUserId);
+
+        // 若超额，按照规则扣补：学生扣0.5h对应M豆，教师+1h
+        if (overQuota) {
+            Course course = courseMapper.selectById(schedule.getCourseId());
+            if (course != null && course.getPrice() != null) {
+                BigDecimal halfHourBeans = course.getPrice().multiply(new BigDecimal("0.5"));
+                // 学生扣除M豆并记录流水
+                BigDecimal before = student.getBalance() == null ? BigDecimal.ZERO : student.getBalance();
+                BigDecimal after = before.subtract(halfHourBeans);
+                studentMapper.incrementBalance(student.getId(), halfHourBeans.negate());
+                BalanceTransaction tx = BalanceTransaction.builder()
+                        .userId(student.getUserId())
+                        .name(student.getRealName())
+                        .amount(halfHourBeans.negate())
+                        .balanceBefore(before)
+                        .balanceAfter(after)
+                        .transactionType("DEDUCT")
+                        .reason("超额调课扣除0.5小时M豆")
+                        .bookingId(schedule.getBookingRequestId())
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                balanceTransactionMapper.insert(tx);
+            }
+            // 教师课时 +1h
+            teacherMapper.incrementCurrentHours(schedule.getTeacherId(), BigDecimal.ONE);
         }
 
         log.info("调课申请创建成功，ID: {}", rescheduleRequest.getId());
@@ -173,9 +212,7 @@ public class RescheduleServiceImpl implements RescheduleService {
             throw new RuntimeException("用户不存在");
         }
         Integer adjustmentTimes = user.getAdjustmentTimes();
-        if (adjustmentTimes == null || adjustmentTimes <= 0) {
-            throw new RuntimeException("本月调课次数已用完");
-        }
+        boolean overQuota = (adjustmentTimes == null || adjustmentTimes <= 0);
 
         // 获取课程安排信息
         Schedule schedule = scheduleMapper.selectById(request.getScheduleId());
@@ -238,9 +275,36 @@ public class RescheduleServiceImpl implements RescheduleService {
         rescheduleRequestMapper.insert(rescheduleRequest);
 
         // 扣减一次调课次数
-        int dec = userMapper.decrementAdjustmentTimes(teacherUserId);
-        if (dec <= 0) {
-            throw new RuntimeException("扣减调课次数失败，请稍后重试");
+        // 优先尝试扣减一次调课次数（若本月次数为0则不变更）
+        userMapper.decrementAdjustmentTimes(teacherUserId);
+
+        // 若超额，按照规则扣补：教师扣1h、学生补偿0.5h对应M豆
+        if (overQuota) {
+            // 教师课时 -1h（不低于0）
+            teacherMapper.decrementCurrentHours(teacher.getId(), BigDecimal.ONE);
+            // 学生补偿M豆并记录流水
+            Course course = courseMapper.selectById(schedule.getCourseId());
+            if (course != null && course.getPrice() != null) {
+                BigDecimal halfHourBeans = course.getPrice().multiply(new BigDecimal("0.5"));
+                Student targetStudent = studentMapper.selectById(schedule.getStudentId());
+                if (targetStudent != null) {
+                    BigDecimal before = targetStudent.getBalance() == null ? BigDecimal.ZERO : targetStudent.getBalance();
+                    BigDecimal after = before.add(halfHourBeans);
+                    studentMapper.incrementBalance(targetStudent.getId(), halfHourBeans);
+                    BalanceTransaction tx = BalanceTransaction.builder()
+                            .userId(targetStudent.getUserId())
+                            .name(targetStudent.getRealName())
+                            .amount(halfHourBeans)
+                            .balanceBefore(before)
+                            .balanceAfter(after)
+                            .transactionType("REFUND")
+                            .reason("教师超额调课补偿0.5小时M豆")
+                            .bookingId(schedule.getBookingRequestId())
+                            .createdAt(LocalDateTime.now())
+                            .build();
+                    balanceTransactionMapper.insert(tx);
+                }
+            }
         }
 
         log.info("教师调课申请创建成功，ID: {}", rescheduleRequest.getId());
@@ -771,15 +835,33 @@ public class RescheduleServiceImpl implements RescheduleService {
             return false;
         }
 
-        // 检查用户本月调课次数是否足够
+        // 放宽：允许次数为0时也可申请（超额将触发扣补规则；若余额不足则不允许）
         try {
             User user = userMapper.selectById(studentUserId);
             if (user == null || user.getDeleted()) {
                 return false;
             }
-            Integer adjustmentTimes = user.getAdjustmentTimes();
-            if (adjustmentTimes == null || adjustmentTimes <= 0) {
-                return false;
+            // 余额校验：当本月调课次数为0时，需有足够余额承担0.5h对应M豆
+            Integer times = user.getAdjustmentTimes();
+            boolean overQuota = (times == null || times <= 0);
+            if (overQuota) {
+                // 需要 schedule 和 course 信息
+                if (schedule == null) {
+                    return false;
+                }
+                Course course = courseMapper.selectById(schedule.getCourseId());
+                if (course == null || course.getPrice() == null) {
+                    return false;
+                }
+                Student stu = studentMapper.findByUserId(studentUserId);
+                if (stu == null) {
+                    return false;
+                }
+                java.math.BigDecimal halfHourBeans = course.getPrice().multiply(new java.math.BigDecimal("0.5"));
+                java.math.BigDecimal bal = stu.getBalance() == null ? java.math.BigDecimal.ZERO : stu.getBalance();
+                if (bal.compareTo(halfHourBeans) < 0) {
+                    return false;
+                }
             }
         } catch (Exception ignored) {
             return false;

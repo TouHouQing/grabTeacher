@@ -82,6 +82,12 @@ public class AdminTeacherDetailVO {
     @Schema(description = "本月剩余调课次数", example = "3")
     private Integer adjustmentTimes;
 
+    @Schema(description = "本月课时（小时）", example = "12.5")
+    private BigDecimal currentHours;
+
+    @Schema(description = "上月课时（小时）", example = "30.0")
+    private BigDecimal lastHours;
+
     @Schema(description = "是否已删除", example = "false")
     private Boolean deleted;
 

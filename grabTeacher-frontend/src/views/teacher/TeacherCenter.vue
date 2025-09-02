@@ -44,9 +44,13 @@ const statistics = ref({
   rescheduleRequests: 0,
   totalCourses: 0,
   upcomingClasses: 0,
-  bookingRequests: 0
+  bookingRequests: 0,
+  currentHours: 0,
+  lastHours: 0
 })
 const statsLoading = ref(false)
+// 工资统计（基于时薪 * 课时）
+const salary = ref({ currentSalary: 0, lastSalary: 0 })
 
 // 根据当前路由设置激活菜单
 watch(() => route.path, (path: string) => {
@@ -110,17 +114,33 @@ const formatTimeRange = (startTime: string, endTime: string) => {
 const loadStatistics = async () => {
   try {
     statsLoading.value = true
-    const result = await teacherAPI.getStatistics()
+    const [statsRes, profileRes] = await Promise.all([
+      teacherAPI.getStatistics(),
+      teacherAPI.getProfile()
+    ])
 
-    if (result.success && result.data) {
+    if (statsRes.success && statsRes.data) {
       statistics.value = {
-        rescheduleRequests: result.data.rescheduleRequests || 0,
-        totalCourses: result.data.totalCourses || 0,
-        upcomingClasses: result.data.upcomingClasses || 0,
-        bookingRequests: result.data.bookingRequests || 0
+        rescheduleRequests: statsRes.data.rescheduleRequests || 0,
+        totalCourses: statsRes.data.totalCourses || 0,
+        upcomingClasses: statsRes.data.upcomingClasses || 0,
+        bookingRequests: statsRes.data.bookingRequests || 0,
+        currentHours: statsRes.data.currentHours || 0,
+        lastHours: statsRes.data.lastHours || 0
       }
     } else {
-      ElMessage.error(result.message || '获取统计数据失败')
+      ElMessage.error(statsRes.message || '获取统计数据失败')
+    }
+
+    // 基于资料中的时薪计算工资
+    if (profileRes.success && profileRes.data) {
+      const rate = Number(profileRes.data.hourlyRate || 0)
+      const ch = Number(statistics.value.currentHours || 0)
+      const lh = Number(statistics.value.lastHours || 0)
+      salary.value.currentSalary = Math.round(rate * ch * 100) / 100
+      salary.value.lastSalary = Math.round(rate * lh * 100) / 100
+    } else {
+      ElMessage.error(profileRes.message || '获取教师资料失败')
     }
   } catch (error) {
     console.error('获取统计数据失败:', error)
@@ -228,6 +248,42 @@ onMounted(async () => {
               <div class="stat-info">
                 <div class="stat-value">{{ statsLoading ? '-' : statistics.bookingRequests }}</div>
                 <div class="stat-label">预约申请数</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">
+                <el-icon><Money /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.currentHours }}</div>
+                <div class="stat-label">本月课时(小时)</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">
+                <el-icon><Money /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.lastHours }}</div>
+                <div class="stat-label">上月课时(小时)</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">
+                <el-icon><Money /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ statsLoading ? '-' : `¥${salary.currentSalary}` }}</div>
+                <div class="stat-label">本月工资</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">
+                <el-icon><Money /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ statsLoading ? '-' : `¥${salary.lastSalary}` }}</div>
+                <div class="stat-label">上月工资</div>
               </div>
             </div>
           </div>
@@ -615,3 +671,4 @@ onMounted(async () => {
   }
 }
 </style>
+

@@ -54,7 +54,10 @@ const teacherForm = reactive({
   gender: '不愿透露',
   isVerified: false, // 表单内部仍使用 isVerified，编辑时从 row.verified 映射
   avatarUrl: '',
-  adjustmentTimes: 3
+  adjustmentTimes: 3,
+  // 展示用途：后端Teacher实体中的本月/上月课时
+  currentHours: 0,
+  lastHours: 0
 })
 const _teacherAvatarFile = ref<File | null>(null)
 
@@ -374,7 +377,9 @@ const saveTeacher = async () => {
       gender: teacherForm.gender,
       isVerified: teacherForm.isVerified,
       availableTimeSlots: availableTimeSlots.value,
-      adjustmentTimes: teacherForm.adjustmentTimes
+      adjustmentTimes: teacherForm.adjustmentTimes,
+      currentHours: teacherForm.currentHours,
+      lastHours: teacherForm.lastHours
     }
 
     let result: any
@@ -565,6 +570,11 @@ onMounted(async () => {
           ¥{{ row.hourlyRate }}
         </template>
       </el-table-column>
+      <el-table-column label="课时" min-width="160">
+        <template #default="{ row }">
+          <span>本月{{ (row.currentHours || 0) }}h / 上月{{ (row.lastHours || 0) }}h</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="verified" label="认证状态" width="100">
         <template #default="{ row }">
           <el-tag :type="row.verified ? 'success' : 'warning'">
@@ -752,6 +762,18 @@ onMounted(async () => {
             placeholder="请输入本月调课次数"
           />
         </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="本月课时(小时)">
+              <el-input-number v-model="teacherForm.currentHours" :min="0" :step="0.5" :precision="1" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="上月课时(小时)">
+              <el-input-number v-model="teacherForm.lastHours" :min="0" :step="0.5" :precision="1" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="可上课时间">
           <WideTimeSlotSelector
             v-model="availableTimeSlots"

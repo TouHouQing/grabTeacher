@@ -1145,6 +1145,8 @@ CREATE TABLE `teachers`
     `is_featured`          tinyint(1)                  DEFAULT '0' COMMENT '是否展示到首页：true-是，false-否',
     `is_deleted`           tinyint(1)                  DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
     `deleted_at`           timestamp   NULL            DEFAULT NULL COMMENT '删除时间',
+    `current_hours`        decimal(10, 2)              DEFAULT 0.00 COMMENT '本月课时数',
+    `last_hours`           decimal(10, 2)              DEFAULT 0.00 COMMENT '上个月课时数',
     `available_time_slots` text COMMENT '可上课时间安排，JSON格式存储：[{"weekday":1,"timeSlots":["08:00-10:00","17:00-19:00"]},{"weekday":6,"timeSlots":["13:00-15:00","15:00-17:00"]}]，weekday: 1=周一,2=周二...7=周日',
     PRIMARY KEY (`id`),
     UNIQUE KEY `user_id` (`user_id`),

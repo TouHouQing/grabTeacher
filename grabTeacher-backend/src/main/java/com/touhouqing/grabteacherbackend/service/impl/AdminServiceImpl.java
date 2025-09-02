@@ -535,6 +535,8 @@ public class AdminServiceImpl implements AdminService {
                 .verified(teacher.getVerified())
                 .featured(teacher.getFeatured())
                 .adjustmentTimes(user != null ? user.getAdjustmentTimes() : null)
+                .currentHours(teacher.getCurrentHours())
+                .lastHours(teacher.getLastHours())
                 .deleted(teacher.getDeleted())
                 .deletedAt(teacher.getDeletedAt())
                 .build();
@@ -703,6 +705,14 @@ public class AdminServiceImpl implements AdminService {
         teacher.setIntroduction(request.getIntroduction());
         teacher.setVideoIntroUrl(request.getVideoIntroUrl());
         teacher.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
+
+        // 管理员可更新教师课时（小时）
+        if (request.getCurrentHours() != null) {
+            teacher.setCurrentHours(request.getCurrentHours());
+        }
+        if (request.getLastHours() != null) {
+            teacher.setLastHours(request.getLastHours());
+        }
 
         // 更新可上课时间
         if (request.getAvailableTimeSlots() != null) {

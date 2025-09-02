@@ -83,6 +83,16 @@ public class Teacher {
     @TableField(exist = false)
     private String avatarUrl;
 
+    @Schema(description = "本月课时（小时）", example = "12.5")
+    @TableField("current_hours")
+    @Builder.Default
+    private BigDecimal currentHours = BigDecimal.ZERO;
+
+    @Schema(description = "上月课时（小时）", example = "30.0")
+    @TableField("last_hours")
+    @Builder.Default
+    private BigDecimal lastHours = BigDecimal.ZERO;
+
     // 保留必要的构造函数
     public Teacher(Long userId, String realName) {
         this.userId = userId;

@@ -2,6 +2,7 @@ package com.touhouqing.grabteacherbackend.job;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
+import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.model.entity.Schedule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ import java.util.List;
 public class ScheduleCleanupJob {
 
     private final ScheduleMapper scheduleMapper;
+    private final TeacherMapper teacherMapper;
 
     /**
      * 每天午夜00:00执行，将所有过期的进行中课程状态更新为已完成
@@ -48,7 +50,7 @@ public class ScheduleCleanupJob {
 
             log.info("找到{}个过期的进行中课程安排，准备批量更新状态", expiredSchedules.size());
             
-            // 批量更新课程状态为已完成
+            // 批量更新课程状态为已完成，并累加教师本月课时
             int updatedCount = 0;
             for (Schedule schedule : expiredSchedules) {
                 LambdaUpdateWrapper<Schedule> updateWrapper = new LambdaUpdateWrapper<>();
@@ -58,6 +60,13 @@ public class ScheduleCleanupJob {
                 int result = scheduleMapper.update(null, updateWrapper);
                 if (result > 0) {
                     updatedCount++;
+                    // 计算课时：基于开始和结束时间差，支持 1.0、1.5、2.0 小时等
+                    java.time.Duration duration = java.time.Duration.between(schedule.getStartTime(), schedule.getEndTime());
+                    java.math.BigDecimal hours = new java.math.BigDecimal(duration.toMinutes())
+                            .divide(new java.math.BigDecimal(60), 2, java.math.RoundingMode.HALF_UP);
+                    if (hours.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        teacherMapper.incrementCurrentHours(schedule.getTeacherId(), hours);
+                    }
                     log.debug("课程安排ID: {} 已更新为已完成状态，原定时间: {} {}-{}", 
                             schedule.getId(), 
                             schedule.getScheduledDate(),
@@ -71,6 +80,22 @@ public class ScheduleCleanupJob {
         } catch (Exception e) {
             log.error("执行定时任务时发生异常：更新过期课程状态失败", e);
             throw e; // 重新抛出异常，确保事务回滚
+        }
+    }
+
+    /**
+     * 每月1号 00:00 执行，current_hours -> last_hours，并清空 current_hours
+     */
+    @Scheduled(cron = "0 0 0 1 * ?")
+    @Transactional
+    public void resetTeacherMonthlyHours() {
+        log.info("开始执行定时任务：月初重置教师课时（current->last，并清空current）");
+        try {
+            int affected = teacherMapper.resetMonthlyHours();
+            log.info("月初重置完成，共影响教师记录数：{}", affected);
+        } catch (Exception e) {
+            log.error("月初重置教师课时失败", e);
+            throw e;
         }
     }
 }

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 import org.apache.ibatis.annotations.Param;
 import java.util.List;
 
@@ -132,4 +133,22 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
             "AND c.is_deleted = 0 AND c.status = 'active' AND c.course_type = 'one_on_one' " +
             "ORDER BY t.teaching_experience DESC")
     List<Teacher> findAllOneOnOneTeachers();
+
+    /**
+     * 教师本月课时增量累加
+     */
+    @Update("UPDATE teachers SET current_hours = COALESCE(current_hours, 0) + #{hours} WHERE id = #{teacherId} AND is_deleted = 0")
+    int incrementCurrentHours(@Param("teacherId") Long teacherId, @Param("hours") java.math.BigDecimal hours);
+
+    /**
+     * 月初重置：将 current_hours 赋值到 last_hours，并清零 current_hours
+     */
+    @Update("UPDATE teachers SET last_hours = COALESCE(current_hours, 0), current_hours = 0 WHERE is_deleted = 0")
+    int resetMonthlyHours();
+
+    /**
+     * 教师本月课时减量（不低于0）
+     */
+    @Update("UPDATE teachers SET current_hours = CASE WHEN current_hours IS NULL THEN 0 WHEN current_hours - #{hours} < 0 THEN 0 ELSE current_hours - #{hours} END WHERE id = #{teacherId} AND is_deleted = 0")
+    int decrementCurrentHours(@Param("teacherId") Long teacherId, @Param("hours") java.math.BigDecimal hours);
 }

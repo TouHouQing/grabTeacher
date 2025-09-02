@@ -17,6 +17,28 @@
           show-icon
           :closable="false"
         />
+
+        <!-- 教师端超额提示 -->
+        <div style="margin-top: 10px;">
+          <el-alert
+            v-if="!props.isTeacher"
+            :title="studentOverQuota ? '超额调课提示' : '余额与扣费规则说明'"
+            :description="studentOverQuota
+              ? '您本月可调课次数已用完，若继续调课，系统将扣除该课程0.5小时对应的M豆，且余额不足将无法提交。'
+              : '若本月可调课次数不足，将扣除该课程0.5小时对应的M豆，且余额不足将无法提交。'"
+            :type="studentOverQuota ? 'warning' : 'info'"
+            show-icon
+            :closable="false"
+          />
+          <el-alert
+            v-else
+            title="教师超额调课说明"
+            description="若本月可调课次数为0，教师仍可发起调课，但系统会扣除教师本月课时1小时，并自动补偿该学生0.5小时对应的M豆。"
+            type="info"
+            show-icon
+            :closable="false"
+          />
+        </div>
       </div>
 
       <div class="course-info">
@@ -274,7 +296,7 @@
 import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Calendar, Timer, Check, Loading } from '@element-plus/icons-vue'
-import { rescheduleAPI, teacherAPI } from '../utils/api'
+import { rescheduleAPI, teacherAPI, studentAPI } from '../utils/api'
 
 // 课程接口
 interface Course {
@@ -366,6 +388,10 @@ const rescheduleForm = ref({
 // 教师可用时间
 const teacherAvailableTimeSlots = ref<TeacherAvailableTime[]>([])
 
+// 本月剩余调课次数（来自用户资料）
+const userAdjustmentTimes = ref<number | null>(null)
+const studentOverQuota = computed(() => !props.isTeacher && (userAdjustmentTimes.value === null ? false : (userAdjustmentTimes.value <= 0)))
+
 // 时间冲突检查状态
 const timeConflictChecking = ref(false)
 const timeConflictResult = ref<TimeConflictResult | null>(null)
@@ -450,6 +476,7 @@ const getCurrentRescheduleTimeSlots = computed(() => {
 watch(() => props.modelValue, async (newVal) => {
   if (newVal && props.course) {
     await initializeReschedule()
+    await loadCurrentUserAdjustmentTimes()
   }
 })
 
@@ -487,6 +514,26 @@ const initializeReschedule = async () => {
 
   // 重置时间冲突检查结果
   timeConflictResult.value = null
+}
+
+// 加载当前用户本月可调课次数
+const loadCurrentUserAdjustmentTimes = async () => {
+  try {
+    if (props.isTeacher) {
+      const p: any = await teacherAPI.getProfile()
+      if (p?.success && p?.data?.adjustmentTimes !== undefined) {
+        userAdjustmentTimes.value = Number(p.data.adjustmentTimes)
+      }
+    } else {
+      const p: any = await studentAPI.getProfile()
+      if (p?.success && p?.data?.adjustmentTimes !== undefined) {
+        userAdjustmentTimes.value = Number(p.data.adjustmentTimes)
+      }
+    }
+  } catch (e) {
+    // 忽略读取失败，不阻塞弹窗
+    userAdjustmentTimes.value = userAdjustmentTimes.value ?? null
+  }
 }
 
 // 加载教师可用时间
@@ -890,6 +937,15 @@ const submitReschedule = async () => {
 
     // 根据用户类型选择API
     const apiCall = props.isTeacher ? rescheduleAPI.createTeacherRequest : rescheduleAPI.createRequest
+
+    // 学生端在提交前额外校验一次后端 canApply（用于余额不足等前置阻断）
+    if (!props.isTeacher) {
+      const can = await rescheduleAPI.canApply(nextSchedule.id)
+      if (can && can.success === true && can.data === false) {
+        ElMessage.error('当前无法申请调课（可能因余额不足或时间限制）')
+        return
+      }
+    }
 
     const result = await apiCall(requestData)
 

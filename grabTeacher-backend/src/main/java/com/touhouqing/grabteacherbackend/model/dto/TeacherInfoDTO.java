@@ -47,4 +47,10 @@ public class TeacherInfoDTO {
 
     @Schema(description = "本月调课次数（管理员可编辑）")
     private Integer adjustmentTimes;
+
+    @Schema(description = "本月课时（小时）")
+    private BigDecimal currentHours;
+
+    @Schema(description = "上月课时（小时）")
+    private BigDecimal lastHours;
 }
