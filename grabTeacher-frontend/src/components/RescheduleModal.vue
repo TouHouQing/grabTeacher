@@ -325,7 +325,7 @@ interface CourseSchedule {
   endTime: string;
   durationMinutes: number;
   totalTimes: number;
-  status: 'progressing' | 'completed' | 'cancelled';
+  status: 'progressing' | 'completed' | 'cancelled' | 'rescheduled';
   teacherNotes?: string;
   studentFeedback?: string;
   createdAt: string;

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, Timer, Refresh, Check, VideoCamera, InfoFilled, Clock, Collection, Reading, Loading, Star } from '@element-plus/icons-vue'
+import { Calendar, Timer, Refresh, VideoCamera, InfoFilled, Clock, Collection, Reading, Star } from '@element-plus/icons-vue'
 import { bookingAPI, rescheduleAPI, teacherAPI, studentAPI, apiRequest } from '../../../utils/api'
-import RescheduleModal from '@/components/RescheduleModal.vue'
+const RescheduleModal = defineAsyncComponent(() => import('../../../components/RescheduleModal.vue'))
 
-// 课程安排接口（基于后端ScheduleResponseDTO）
+// 课程安排接口（基于后端ScheduleVO）
 interface CourseSchedule {
   id: number;
   teacherId: number;
@@ -13,22 +14,24 @@ interface CourseSchedule {
   studentId: number;
   studentName: string;
   courseId: number;
-  courseTitle: string;
+  courseTitle?: string;
+  courseName?: string;
   subjectName: string;
   scheduledDate: string;
   startTime: string;
   endTime: string;
   durationMinutes: number;
   totalTimes: number;
-  status: 'progressing' | 'completed' | 'cancelled';
+  status: 'progressing' | 'completed' | 'cancelled' | 'rescheduled';
   teacherNotes?: string;
   studentFeedback?: string;
   createdAt: string;
-  bookingRequestId: number;
-  bookingSource: string;
-  isTrial: boolean;
-  sessionNumber: number;
-  courseType: string;
+  bookingRequestId?: number;
+  enrollmentId?: number;
+  bookingSource?: string;
+  trial?: boolean;  // 与后端字段名保持一致
+  sessionNumber?: number;
+  courseType?: string;
 }
 
 // 聚合后的课程信息（用于显示）
@@ -118,20 +121,34 @@ const loadStudentSchedules = async () => {
     // 获取学生的所有课程安排，不限日期范围
     const result = await bookingAPI.getAllStudentSchedules()
 
-    if (result.success && result.data) {
-      schedules.value = result.data
-      // 将课程安排转换为课程列表
-      courses.value = convertSchedulesToCourses(result.data)
-      // 加载调课申请状态
-      await loadRescheduleStatus()
-      // 加载课程评价状态
-      await loadCourseEvaluationStatus()
+    if (result.success) {
+      if (result.data && result.data.length > 0) {
+        console.log('获取到的课程安排数据:', result.data)
+        schedules.value = result.data
+        // 将课程安排转换为课程列表
+        courses.value = convertSchedulesToCourses(result.data)
+        console.log('转换后的课程列表:', courses.value)
+
+        // 加载调课申请状态
+        await loadRescheduleStatus()
+        // 加载课程评价状态
+        await loadCourseEvaluationStatus()
+      } else {
+        console.log('没有课程安排数据')
+        schedules.value = []
+        courses.value = []
+      }
     } else {
+      console.error('API返回失败:', result.message)
       ElMessage.error(result.message || '获取课程安排失败')
+      schedules.value = []
+      courses.value = []
     }
   } catch (error) {
     console.error('获取课程安排失败:', error)
     ElMessage.error('获取课程安排失败，请稍后重试')
+    schedules.value = []
+    courses.value = []
   } finally {
     loading.value = false
   }
@@ -139,28 +156,62 @@ const loadStudentSchedules = async () => {
 
 // 将课程安排转换为课程列表
 const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => {
-  // 按预约申请ID分组（每个预约申请对应一个课程系列）
+  console.log('开始转换课程安排数据，总数:', scheduleList.length)
+
+  if (!scheduleList || scheduleList.length === 0) {
+    console.log('没有课程安排数据')
+    return []
+  }
+
+  // 分组：优先使用 enrollmentId（新表），回退到 bookingRequestId（兼容旧数据）
   const courseGroups = new Map<number, CourseSchedule[]>()
 
   scheduleList.forEach((schedule, index) => {
-    const groupKey = schedule.bookingRequestId
+    // 确保有有效的分组键
+    const groupKey = schedule.enrollmentId || schedule.bookingRequestId
+    if (!groupKey) {
+      console.warn(`课程安排 ${index} 缺少分组键:`, schedule)
+      return
+    }
+
+    console.log(`处理课程安排 ${index}:`, {
+      scheduleId: schedule.id,
+      enrollmentId: schedule.enrollmentId,
+      bookingRequestId: schedule.bookingRequestId,
+      groupKey: groupKey,
+      courseTitle: schedule.courseTitle,
+      teacherName: schedule.teacherName,
+      subjectName: schedule.subjectName
+    })
+
     if (!courseGroups.has(groupKey)) {
       courseGroups.set(groupKey, [])
     }
     courseGroups.get(groupKey)!.push(schedule)
   })
 
+  console.log('分组后的课程组数量:', courseGroups.size)
+
   // 转换为Course对象
   const courseList: Course[] = []
 
-  courseGroups.forEach((scheduleGroup, bookingRequestId) => {
+  courseGroups.forEach((scheduleGroup, groupKey) => {
     const firstSchedule = scheduleGroup[0]
+
+    if (!firstSchedule) {
+      console.warn('课程组为空:', groupKey)
+      return
+    }
 
     // 过滤掉已取消的节次，只统计有效的节次
     const effectiveSchedules = scheduleGroup.filter(s => s.status !== 'cancelled')
     const completedCount = effectiveSchedules.filter(s => s.status === 'completed').length
-    // 强制使用有效节次数量作为总节数，确保显示正确
-    const totalCount = effectiveSchedules.length
+
+    // 新表以 enrollment 维度统计总节次，若 totalTimes 有值取其最大值，否则以有效节次数
+    const totalCount = Math.max(
+      ...effectiveSchedules.map(s => Number.isFinite(Number(s.totalTimes)) ? Number(s.totalTimes) : 0),
+      effectiveSchedules.length
+    )
     const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
     // 找到下一次课程
@@ -182,12 +233,28 @@ const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => 
       status = 'upcoming'
     }
 
+    // 确保课程标题不为空
+    const courseTitle = firstSchedule.courseTitle || firstSchedule.courseName || '未指定课程'
+    const teacherName = firstSchedule.teacherName || '未知教师'
+    const subjectName = firstSchedule.subjectName || '未知科目'
+
+    console.log(`创建课程对象:`, {
+      id: groupKey,
+      title: courseTitle,
+      teacher: teacherName,
+      subject: subjectName,
+      totalLessons: totalCount,
+      completedLessons: completedCount,
+      progress: progress,
+      status: status
+    })
+
     courseList.push({
-      id: bookingRequestId,
-      title: firstSchedule.courseTitle,
-      teacher: firstSchedule.teacherName,
+      id: groupKey,
+      title: courseTitle,
+      teacher: teacherName,
       teacherAvatar: '@/assets/pictures/teacherBoy1.jpeg', // 默认头像
-      subject: firstSchedule.subjectName,
+      subject: subjectName,
       schedule: generateScheduleText(scheduleGroup),
       progress,
       nextClass,
@@ -197,14 +264,15 @@ const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => 
       completedLessons: completedCount,
       remainingLessons: totalCount - completedCount,
       weeklySchedule: [],
-      image: getSubjectImage(firstSchedule.subjectName),
-      description: `${firstSchedule.courseTitle} - ${firstSchedule.subjectName}课程`,
+      image: getSubjectImage(subjectName),
+      description: `${courseTitle} - ${subjectName}课程`,
       status,
       schedules: scheduleGroup,
       hasEvaluation: false // 默认未评价，后续会通过API检查
     })
   })
 
+  console.log('转换后的课程列表:', courseList)
   return courseList
 }
 
@@ -214,6 +282,9 @@ const generateScheduleText = (schedules: CourseSchedule[]): string => {
 
   // 简单处理：显示第一个安排的时间
   const first = schedules[0]
+  if (!first || !first.startTime || !first.endTime) {
+    return '时间待定'
+  }
   return `${first.startTime}-${first.endTime}`
 }
 
@@ -521,9 +592,13 @@ const isWeekdaySelectable = (weekday: number): boolean => {
 const getNextSchedule = (schedules?: CourseSchedule[]): CourseSchedule | undefined => {
   if (!schedules) return undefined
 
-  return schedules.find(s =>
-    new Date(s.scheduledDate) > new Date() && s.status === 'progressing'
-  )
+  const now = new Date()
+  now.setSeconds(0, 0)
+  return schedules.find(s => {
+    const startTime = (s.startTime && s.startTime.length === 5) ? `${s.startTime}:00` : (s.startTime || '00:00:00')
+    const start = new Date(`${s.scheduledDate}T${startTime}`)
+    return s.status === 'progressing' && start > now
+  })
 }
 
 // 课程调课状态映射
@@ -972,9 +1047,11 @@ const getScheduleStatusClass = (status: string): string => {
       return 'schedule-completed'
     case 'cancelled':
       return 'schedule-cancelled'
-    case 'progressing':
+    case 'rescheduled':
+      return 'schedule-rescheduled'
+    case 'scheduled':
     default:
-      return 'schedule-progressing'
+      return 'schedule-scheduled'
   }
 }
 
@@ -985,7 +1062,9 @@ const getScheduleTagType = (status: string): string => {
       return 'success'
     case 'cancelled':
       return 'danger'
-    case 'progressing':
+    case 'rescheduled':
+      return 'warning'
+    case 'scheduled':
     default:
       return 'primary'
   }
@@ -998,6 +1077,8 @@ const getScheduleStatusText = (status: string): string => {
       return '已完成'
     case 'cancelled':
       return '已取消'
+    case 'rescheduled':
+      return '已调课'
     case 'progressing':
     default:
       return '进行中'
@@ -2328,8 +2409,12 @@ h2 {
   background-color: #f56c6c;
 }
 
-.schedule-progressing .schedule-number span {
+.schedule-scheduled .schedule-number span {
   background-color: #409eff;
+}
+
+.schedule-rescheduled .schedule-number span {
+  background-color: #e6a23c;
 }
 
 .time-tags {

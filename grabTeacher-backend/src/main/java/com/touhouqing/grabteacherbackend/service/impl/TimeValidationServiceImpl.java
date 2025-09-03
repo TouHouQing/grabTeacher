@@ -2,10 +2,10 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeValidationResultDTO;
+import com.touhouqing.grabteacherbackend.model.entity.CourseSchedule;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
-import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
-import com.touhouqing.grabteacherbackend.model.entity.Schedule;
 import com.touhouqing.grabteacherbackend.service.TimeValidationService;
 import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
@@ -26,7 +26,7 @@ import java.util.*;
 public class TimeValidationServiceImpl implements TimeValidationService {
 
     private final TeacherMapper teacherMapper;
-    private final ScheduleMapper scheduleMapper;
+    private final CourseScheduleMapper courseScheduleMapper;
     private final TeacherScheduleCacheService teacherScheduleCacheService;
 
     @Override
@@ -363,10 +363,10 @@ public class TimeValidationServiceImpl implements TimeValidationService {
 
     // 一次性构建范围 busyMap 并批量回填 Redis
     private Map<LocalDate, List<String>> buildBusyMapAndBackfill(Long teacherId, LocalDate startDate, LocalDate endDate) {
-        List<Schedule> range =
-                scheduleMapper.findByTeacherIdAndDateRange(teacherId, startDate, endDate);
+        List<CourseSchedule> range =
+                courseScheduleMapper.findByTeacherIdAndDateRange(teacherId, startDate, endDate);
         Map<LocalDate, List<String>> busyMap = new HashMap<>();
-        for (Schedule s : range) {
+        for (CourseSchedule s : range) {
             LocalDate d = s.getScheduledDate();
             String slot = s.getStartTime().toString() + "-" + s.getEndTime().toString();
             busyMap.computeIfAbsent(d, k -> new ArrayList<>()).add(slot);

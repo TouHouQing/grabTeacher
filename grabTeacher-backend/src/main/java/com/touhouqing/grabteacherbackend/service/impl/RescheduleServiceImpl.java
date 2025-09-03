@@ -1,6 +1,7 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.touhouqing.grabteacherbackend.model.dto.RescheduleApprovalDTO;
 import com.touhouqing.grabteacherbackend.model.dto.RescheduleApplyDTO;
@@ -8,7 +9,6 @@ import com.touhouqing.grabteacherbackend.model.entity.*;
 import com.touhouqing.grabteacherbackend.model.vo.RescheduleVO;
 import com.touhouqing.grabteacherbackend.mapper.*;
 import com.touhouqing.grabteacherbackend.service.RescheduleService;
-import com.touhouqing.grabteacherbackend.service.TeacherCacheWarmupService;
 import com.touhouqing.grabteacherbackend.service.CacheKeyEvictor;
 import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
 import lombok.extern.slf4j.Slf4j;
@@ -16,11 +16,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.math.BigDecimal;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -33,8 +34,13 @@ public class RescheduleServiceImpl implements RescheduleService {
     @Autowired
     private RescheduleRequestMapper rescheduleRequestMapper;
 
+    // 旧表已迁移，移除未使用的 ScheduleMapper
+
     @Autowired
-    private ScheduleMapper scheduleMapper;
+    private CourseScheduleMapper courseScheduleMapper;
+
+    @Autowired
+    private CourseEnrollmentMapper courseEnrollmentMapper;
 
     @Autowired
     private StudentMapper studentMapper;
@@ -51,8 +57,7 @@ public class RescheduleServiceImpl implements RescheduleService {
     @Autowired
     private UserMapper userMapper;
 
-    @Autowired
-    private TeacherCacheWarmupService teacherCacheWarmupService;
+    // 删除未使用的 teacherCacheWarmupService 以消除告警
 
     @Autowired
     private CacheKeyEvictor cacheKeyEvictor;
@@ -85,14 +90,19 @@ public class RescheduleServiceImpl implements RescheduleService {
         Integer adjustmentTimes = user.getAdjustmentTimes();
         boolean overQuota = (adjustmentTimes == null || adjustmentTimes <= 0);
 
-        // 获取课程安排信息
-        Schedule schedule = scheduleMapper.selectById(request.getScheduleId());
-        if (schedule == null || schedule.getDeleted()) {
+        // 获取课程安排信息（新表）
+        CourseSchedule schedule = courseScheduleMapper.findById(request.getScheduleId());
+        if (schedule == null || Boolean.TRUE.equals(schedule.getDeleted())) {
             throw new RuntimeException("课程安排不存在");
         }
 
+        CourseEnrollment enrollment = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
+        if (enrollment == null || Boolean.TRUE.equals(enrollment.getDeleted())) {
+            throw new RuntimeException("报名关系不存在");
+        }
+
         // 验证学生权限
-        if (!schedule.getStudentId().equals(student.getId())) {
+        if (!enrollment.getStudentId().equals(student.getId())) {
             throw new RuntimeException("无权限操作此课程安排");
         }
 
@@ -127,7 +137,7 @@ public class RescheduleServiceImpl implements RescheduleService {
 
         // 若超额且余额不足以扣除0.5h对应M豆，则不允许创建申请
         if (overQuota) {
-            Course course = courseMapper.selectById(schedule.getCourseId());
+            Course course = courseMapper.selectById(enrollment.getCourseId());
             if (course == null || course.getPrice() == null) {
                 throw new RuntimeException("课程价格缺失，无法计算超额调课扣费");
             }
@@ -232,7 +242,7 @@ public class RescheduleServiceImpl implements RescheduleService {
         boolean overQuota = (adjustmentTimes == null || adjustmentTimes <= 0);
 
         // 获取课程安排信息
-        Schedule schedule = scheduleMapper.selectById(request.getScheduleId());
+        CourseSchedule schedule = courseScheduleMapper.findById(request.getScheduleId());
         if (schedule == null || schedule.getDeleted()) {
             throw new RuntimeException("课程安排不存在");
         }
@@ -356,7 +366,7 @@ public class RescheduleServiceImpl implements RescheduleService {
         }
 
         // 获取课程安排信息验证权限
-        Schedule schedule = scheduleMapper.selectById(rescheduleRequest.getScheduleId());
+        CourseSchedule schedule = courseScheduleMapper.findById(rescheduleRequest.getScheduleId());
         if (schedule == null || !schedule.getTeacherId().equals(teacher.getId())) {
             throw new RuntimeException("无权限操作此调课申请");
         }
@@ -411,7 +421,7 @@ public class RescheduleServiceImpl implements RescheduleService {
             // 课表变化后，精准清理 + 立即回填教师 busy 缓存
             try {
                 Long teacherId = schedule.getTeacherId();
-                java.util.Set<java.time.LocalDate> affectedDates = new java.util.HashSet<>();
+                Set<LocalDate> affectedDates = new HashSet<>();
                 if ("single".equals(rescheduleRequest.getRequestType())) {
                     if (rescheduleRequest.getOriginalDate() != null) affectedDates.add(rescheduleRequest.getOriginalDate());
                     if (rescheduleRequest.getNewDate() != null) affectedDates.add(rescheduleRequest.getNewDate());
@@ -420,14 +430,14 @@ public class RescheduleServiceImpl implements RescheduleService {
                 }
                 cacheKeyEvictor.evictTeacherScheduleAndAvailability(teacherId, affectedDates);
                 if (!affectedDates.isEmpty()) {
-                    for (java.time.LocalDate d : affectedDates) {
-                        java.util.List<Schedule> dayAll = scheduleMapper.findByTeacherIdAndDate(teacherId, d);
-                        java.util.List<String> slots = new java.util.ArrayList<>();
-                        for (Schedule s : dayAll) {
+                    for (LocalDate d : affectedDates) {
+                        List<CourseSchedule> dayAll = courseScheduleMapper.findByTeacherIdAndDateRange(teacherId, d, d);
+                        List<String> slots = new ArrayList<>();
+                        for (CourseSchedule s : dayAll) {
                             slots.add(s.getStartTime().toString() + "-" + s.getEndTime().toString());
                         }
                         teacherScheduleCacheService.putBusySlots(teacherId, d,
-                            slots.isEmpty() ? java.util.Collections.emptyList() : slots);
+                            slots.isEmpty() ? Collections.emptyList() : slots);
                     }
                 }
             } catch (Exception e) {
@@ -497,7 +507,7 @@ public class RescheduleServiceImpl implements RescheduleService {
         }
 
         // 获取课程安排信息
-        Schedule schedule = scheduleMapper.selectById(rescheduleRequest.getScheduleId());
+        CourseSchedule schedule = courseScheduleMapper.findById(rescheduleRequest.getScheduleId());
         if (schedule == null) {
             throw new RuntimeException("课程安排不存在");
         }
@@ -558,7 +568,7 @@ public class RescheduleServiceImpl implements RescheduleService {
             // 课表变化后，精准清理 + 立即回填教师 busy 缓存
             try {
                 Long teacherId = schedule.getTeacherId();
-                java.util.Set<java.time.LocalDate> affectedDates = new java.util.HashSet<>();
+                Set<LocalDate> affectedDates = new HashSet<>();
                 if ("single".equals(rescheduleRequest.getRequestType())) {
                     if (rescheduleRequest.getOriginalDate() != null) affectedDates.add(rescheduleRequest.getOriginalDate());
                     if (rescheduleRequest.getNewDate() != null) affectedDates.add(rescheduleRequest.getNewDate());
@@ -567,14 +577,14 @@ public class RescheduleServiceImpl implements RescheduleService {
                 }
                 cacheKeyEvictor.evictTeacherScheduleAndAvailability(teacherId, affectedDates);
                 if (!affectedDates.isEmpty()) {
-                    for (java.time.LocalDate d : affectedDates) {
-                        java.util.List<Schedule> dayAll = scheduleMapper.findByTeacherIdAndDate(teacherId, d);
-                        java.util.List<String> slots = new java.util.ArrayList<>();
-                        for (Schedule s : dayAll) {
+                    for (LocalDate d : affectedDates) {
+                        List<CourseSchedule> dayAll = courseScheduleMapper.findByTeacherIdAndDateRange(teacherId, d, d);
+                        List<String> slots = new ArrayList<>();
+                        for (CourseSchedule s : dayAll) {
                             slots.add(s.getStartTime().toString() + "-" + s.getEndTime().toString());
                         }
                         teacherScheduleCacheService.putBusySlots(teacherId, d,
-                            slots.isEmpty() ? java.util.Collections.emptyList() : slots);
+                            slots.isEmpty() ? Collections.emptyList() : slots);
                     }
                 }
             } catch (Exception e) {
@@ -600,40 +610,48 @@ public class RescheduleServiceImpl implements RescheduleService {
             requestPage, student.getId(), "student", status);
 
         // 批量装配，避免 N+1
-        java.util.List<RescheduleRequest> records = resultPage.getRecords();
-        java.util.List<Long> scheduleIds = records.stream().map(RescheduleRequest::getScheduleId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
-        java.util.Map<Long, Schedule> scheduleMap = new java.util.HashMap<>();
+        List<RescheduleRequest> records = resultPage.getRecords();
+        List<Long> scheduleIds = records.stream().map(RescheduleRequest::getScheduleId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        Map<Long, CourseSchedule> scheduleMap = new HashMap<>();
         if (!scheduleIds.isEmpty()) {
-            QueryWrapper<Schedule> sq = new QueryWrapper<>();
-            sq.in("id", scheduleIds);
-            for (Schedule s : scheduleMapper.selectList(sq)) scheduleMap.put(s.getId(), s);
+            for (Long id : scheduleIds) {
+                CourseSchedule cs = courseScheduleMapper.findById(id);
+                if (cs != null) scheduleMap.put(id, cs);
+            }
         }
-        java.util.Map<Long, Course> courseMap = new java.util.HashMap<>();
-        java.util.Map<Long, Subject> subjectMap = new java.util.HashMap<>();
-        java.util.Map<Long, Teacher> teacherMap = new java.util.HashMap<>();
-        java.util.Map<Long, Student> studentMap = new java.util.HashMap<>();
+        Map<Long, Course> courseMap = new HashMap<>();
+        Map<Long, Subject> subjectMap = new HashMap<>();
+        Map<Long, Teacher> teacherMap = new HashMap<>();
+        Map<Long, Student> studentMap = new HashMap<>();
         if (!scheduleMap.isEmpty()) {
-            java.util.List<Long> courseIds = scheduleMap.values().stream().map(Schedule::getCourseId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            List<Long> enrollmentIds = scheduleMap.values().stream().map(CourseSchedule::getEnrollmentId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+            Map<Long, CourseEnrollment> enrollmentMap = new HashMap<>();
+            for (Long eid : enrollmentIds) {
+                CourseEnrollment ce = courseEnrollmentMapper.selectById(eid);
+                if (ce != null) enrollmentMap.put(eid, ce);
+            }
+
+            List<Long> courseIds = enrollmentMap.values().stream().map(CourseEnrollment::getCourseId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
             if (!courseIds.isEmpty()) {
                 QueryWrapper<Course> cq = new QueryWrapper<>();
                 cq.in("id", courseIds);
                 for (Course c : courseMapper.selectList(cq)) {
                     courseMap.put(c.getId(), c);
                 }
-                java.util.List<Long> subjectIds = courseMap.values().stream().map(Course::getSubjectId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+                List<Long> subjectIds = courseMap.values().stream().map(Course::getSubjectId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
                 if (!subjectIds.isEmpty()) {
                     QueryWrapper<Subject> subjQ = new QueryWrapper<>();
                     subjQ.in("id", subjectIds);
                     for (Subject s : subjectMapper.selectList(subjQ)) subjectMap.put(s.getId(), s);
                 }
             }
-            java.util.List<Long> teacherIds = scheduleMap.values().stream().map(Schedule::getTeacherId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            List<Long> teacherIds = enrollmentMap.values().stream().map(CourseEnrollment::getTeacherId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
             if (!teacherIds.isEmpty()) {
                 QueryWrapper<Teacher> tq = new QueryWrapper<>();
                 tq.in("id", teacherIds);
                 for (Teacher t : teacherMapper.selectList(tq)) teacherMap.put(t.getId(), t);
             }
-            java.util.List<Long> studentIds = scheduleMap.values().stream().map(Schedule::getStudentId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            List<Long> studentIds = enrollmentMap.values().stream().map(CourseEnrollment::getStudentId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
             if (!studentIds.isEmpty()) {
                 QueryWrapper<Student> stq = new QueryWrapper<>();
                 stq.in("id", studentIds);
@@ -641,20 +659,21 @@ public class RescheduleServiceImpl implements RescheduleService {
             }
         }
 
-        java.util.List<RescheduleVO> vos = new java.util.ArrayList<>();
+        List<RescheduleVO> vos = new ArrayList<>();
         for (RescheduleRequest rr : records) {
             RescheduleVO vo = convertToRescheduleResponseDTO(rr);
-            Schedule s = scheduleMap.get(rr.getScheduleId());
+            CourseSchedule s = scheduleMap.get(rr.getScheduleId());
             if (s != null) {
-                Course c = courseMap.get(s.getCourseId());
+                CourseEnrollment ce = courseEnrollmentMapper.selectById(s.getEnrollmentId());
+                Course c = ce != null ? courseMap.get(ce.getCourseId()) : null;
                 if (c != null) {
                     vo.setCourseTitle(c.getTitle());
                     Subject subj = subjectMap.get(c.getSubjectId());
                     if (subj != null) vo.setSubjectName(subj.getName());
                 }
-                Teacher t = teacherMap.get(s.getTeacherId());
+                Teacher t = ce != null ? teacherMap.get(ce.getTeacherId()) : null;
                 if (t != null) vo.setTeacherName(t.getRealName());
-                Student stu = studentMap.get(s.getStudentId());
+                Student stu = ce != null ? studentMap.get(ce.getStudentId()) : null;
                 if (stu != null) vo.setStudentName(stu.getRealName());
             }
             vos.add(vo);
@@ -680,40 +699,48 @@ public class RescheduleServiceImpl implements RescheduleService {
             requestPage, teacher.getId(), status);
 
         // 批量装配，避免 N+1
-        java.util.List<RescheduleRequest> records = resultPage.getRecords();
-        java.util.List<Long> scheduleIds = records.stream().map(RescheduleRequest::getScheduleId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
-        java.util.Map<Long, Schedule> scheduleMap = new java.util.HashMap<>();
+        List<RescheduleRequest> records = resultPage.getRecords();
+        List<Long> scheduleIds = records.stream().map(RescheduleRequest::getScheduleId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        Map<Long, CourseSchedule> scheduleMap = new HashMap<>();
         if (!scheduleIds.isEmpty()) {
-            QueryWrapper<Schedule> sq = new QueryWrapper<>();
-            sq.in("id", scheduleIds);
-            for (Schedule s : scheduleMapper.selectList(sq)) scheduleMap.put(s.getId(), s);
+            for (Long id : scheduleIds) {
+                CourseSchedule cs = courseScheduleMapper.findById(id);
+                if (cs != null) scheduleMap.put(id, cs);
+            }
         }
-        java.util.Map<Long, Course> courseMap = new java.util.HashMap<>();
-        java.util.Map<Long, Subject> subjectMap = new java.util.HashMap<>();
-        java.util.Map<Long, Teacher> teacherMap = new java.util.HashMap<>();
-        java.util.Map<Long, Student> studentMap = new java.util.HashMap<>();
+        Map<Long, Course> courseMap = new HashMap<>();
+        Map<Long, Subject> subjectMap = new HashMap<>();
+        Map<Long, Teacher> teacherMap = new HashMap<>();
+        Map<Long, Student> studentMap = new HashMap<>();
         if (!scheduleMap.isEmpty()) {
-            java.util.List<Long> courseIds = scheduleMap.values().stream().map(Schedule::getCourseId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            List<Long> enrollmentIds = scheduleMap.values().stream().map(CourseSchedule::getEnrollmentId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+            Map<Long, CourseEnrollment> enrollmentMap = new HashMap<>();
+            for (Long eid : enrollmentIds) {
+                CourseEnrollment ce = courseEnrollmentMapper.selectById(eid);
+                if (ce != null) enrollmentMap.put(eid, ce);
+            }
+
+            List<Long> courseIds = enrollmentMap.values().stream().map(CourseEnrollment::getCourseId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
             if (!courseIds.isEmpty()) {
                 QueryWrapper<Course> cq = new QueryWrapper<>();
                 cq.in("id", courseIds);
                 for (Course c : courseMapper.selectList(cq)) {
                     courseMap.put(c.getId(), c);
                 }
-                java.util.List<Long> subjectIds = courseMap.values().stream().map(Course::getSubjectId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+                List<Long> subjectIds = courseMap.values().stream().map(Course::getSubjectId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
                 if (!subjectIds.isEmpty()) {
                     QueryWrapper<Subject> subjQ = new QueryWrapper<>();
                     subjQ.in("id", subjectIds);
                     for (Subject s : subjectMapper.selectList(subjQ)) subjectMap.put(s.getId(), s);
                 }
             }
-            java.util.List<Long> teacherIds = scheduleMap.values().stream().map(Schedule::getTeacherId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            List<Long> teacherIds = enrollmentMap.values().stream().map(CourseEnrollment::getTeacherId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
             if (!teacherIds.isEmpty()) {
                 QueryWrapper<Teacher> tq = new QueryWrapper<>();
                 tq.in("id", teacherIds);
                 for (Teacher t : teacherMapper.selectList(tq)) teacherMap.put(t.getId(), t);
             }
-            java.util.List<Long> studentIds = scheduleMap.values().stream().map(Schedule::getStudentId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            List<Long> studentIds = enrollmentMap.values().stream().map(CourseEnrollment::getStudentId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
             if (!studentIds.isEmpty()) {
                 QueryWrapper<Student> stq = new QueryWrapper<>();
                 stq.in("id", studentIds);
@@ -721,20 +748,21 @@ public class RescheduleServiceImpl implements RescheduleService {
             }
         }
 
-        java.util.List<RescheduleVO> vos = new java.util.ArrayList<>();
+        List<RescheduleVO> vos = new ArrayList<>();
         for (RescheduleRequest rr : records) {
             RescheduleVO vo = convertToRescheduleResponseDTO(rr);
-            Schedule s = scheduleMap.get(rr.getScheduleId());
+            CourseSchedule s = scheduleMap.get(rr.getScheduleId());
             if (s != null) {
-                Course c = courseMap.get(s.getCourseId());
+                CourseEnrollment ce = courseEnrollmentMapper.selectById(s.getEnrollmentId());
+                Course c = ce != null ? courseMap.get(ce.getCourseId()) : null;
                 if (c != null) {
                     vo.setCourseTitle(c.getTitle());
                     Subject subj = subjectMap.get(c.getSubjectId());
                     if (subj != null) vo.setSubjectName(subj.getName());
                 }
-                Teacher t = teacherMap.get(s.getTeacherId());
+                Teacher t = ce != null ? teacherMap.get(ce.getTeacherId()) : null;
                 if (t != null) vo.setTeacherName(t.getRealName());
-                Student stu = studentMap.get(s.getStudentId());
+                Student stu = ce != null ? studentMap.get(ce.getStudentId()) : null;
                 if (stu != null) vo.setStudentName(stu.getRealName());
             }
             vos.add(vo);
@@ -754,40 +782,48 @@ public class RescheduleServiceImpl implements RescheduleService {
         Page<RescheduleRequest> resultPage = rescheduleRequestMapper.findAllWithPage(requestPage, status);
 
         // 批量装配，避免 N+1
-        java.util.List<RescheduleRequest> records = resultPage.getRecords();
-        java.util.List<Long> scheduleIds = records.stream().map(RescheduleRequest::getScheduleId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
-        java.util.Map<Long, Schedule> scheduleMap = new java.util.HashMap<>();
+        List<RescheduleRequest> records = resultPage.getRecords();
+        List<Long> scheduleIds = records.stream().map(RescheduleRequest::getScheduleId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        Map<Long, CourseSchedule> scheduleMap = new HashMap<>();
         if (!scheduleIds.isEmpty()) {
-            QueryWrapper<Schedule> sq = new QueryWrapper<>();
-            sq.in("id", scheduleIds);
-            for (Schedule s : scheduleMapper.selectList(sq)) scheduleMap.put(s.getId(), s);
+            for (Long id : scheduleIds) {
+                CourseSchedule cs = courseScheduleMapper.findById(id);
+                if (cs != null) scheduleMap.put(id, cs);
+            }
         }
-        java.util.Map<Long, Course> courseMap = new java.util.HashMap<>();
-        java.util.Map<Long, Subject> subjectMap = new java.util.HashMap<>();
-        java.util.Map<Long, Teacher> teacherMap = new java.util.HashMap<>();
-        java.util.Map<Long, Student> studentMap = new java.util.HashMap<>();
+        Map<Long, Course> courseMap = new HashMap<>();
+        Map<Long, Subject> subjectMap = new HashMap<>();
+        Map<Long, Teacher> teacherMap = new HashMap<>();
+        Map<Long, Student> studentMap = new HashMap<>();
         if (!scheduleMap.isEmpty()) {
-            java.util.List<Long> courseIds = scheduleMap.values().stream().map(Schedule::getCourseId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            List<Long> enrollmentIds = scheduleMap.values().stream().map(CourseSchedule::getEnrollmentId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+            Map<Long, CourseEnrollment> enrollmentMap = new HashMap<>();
+            for (Long eid : enrollmentIds) {
+                CourseEnrollment ce = courseEnrollmentMapper.selectById(eid);
+                if (ce != null) enrollmentMap.put(eid, ce);
+            }
+
+            List<Long> courseIds = enrollmentMap.values().stream().map(CourseEnrollment::getCourseId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
             if (!courseIds.isEmpty()) {
                 QueryWrapper<Course> cq = new QueryWrapper<>();
                 cq.in("id", courseIds);
                 for (Course c : courseMapper.selectList(cq)) {
                     courseMap.put(c.getId(), c);
                 }
-                java.util.List<Long> subjectIds = courseMap.values().stream().map(Course::getSubjectId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+                List<Long> subjectIds = courseMap.values().stream().map(Course::getSubjectId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
                 if (!subjectIds.isEmpty()) {
                     QueryWrapper<Subject> subjQ = new QueryWrapper<>();
                     subjQ.in("id", subjectIds);
                     for (Subject s : subjectMapper.selectList(subjQ)) subjectMap.put(s.getId(), s);
                 }
             }
-            java.util.List<Long> teacherIds = scheduleMap.values().stream().map(Schedule::getTeacherId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            List<Long> teacherIds = enrollmentMap.values().stream().map(CourseEnrollment::getTeacherId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
             if (!teacherIds.isEmpty()) {
                 QueryWrapper<Teacher> tq = new QueryWrapper<>();
                 tq.in("id", teacherIds);
                 for (Teacher t : teacherMapper.selectList(tq)) teacherMap.put(t.getId(), t);
             }
-            java.util.List<Long> studentIds = scheduleMap.values().stream().map(Schedule::getStudentId).filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+            List<Long> studentIds = enrollmentMap.values().stream().map(CourseEnrollment::getStudentId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
             if (!studentIds.isEmpty()) {
                 QueryWrapper<Student> stq = new QueryWrapper<>();
                 stq.in("id", studentIds);
@@ -795,20 +831,21 @@ public class RescheduleServiceImpl implements RescheduleService {
             }
         }
 
-        java.util.List<RescheduleVO> vos = new java.util.ArrayList<>();
+        List<RescheduleVO> vos = new ArrayList<>();
         for (RescheduleRequest rr : records) {
             RescheduleVO vo = convertToRescheduleResponseDTO(rr);
-            Schedule s = scheduleMap.get(rr.getScheduleId());
+            CourseSchedule s = scheduleMap.get(rr.getScheduleId());
             if (s != null) {
-                Course c = courseMap.get(s.getCourseId());
+                CourseEnrollment ce = courseEnrollmentMapper.selectById(s.getEnrollmentId());
+                Course c = ce != null ? courseMap.get(ce.getCourseId()) : null;
                 if (c != null) {
                     vo.setCourseTitle(c.getTitle());
                     Subject subj = subjectMap.get(c.getSubjectId());
                     if (subj != null) vo.setSubjectName(subj.getName());
                 }
-                Teacher t = teacherMap.get(s.getTeacherId());
+                Teacher t = ce != null ? teacherMap.get(ce.getTeacherId()) : null;
                 if (t != null) vo.setTeacherName(t.getRealName());
-                Student stu = studentMap.get(s.getStudentId());
+                Student stu = ce != null ? studentMap.get(ce.getStudentId()) : null;
                 if (stu != null) vo.setStudentName(stu.getRealName());
             }
             vos.add(vo);
@@ -848,18 +885,19 @@ public class RescheduleServiceImpl implements RescheduleService {
 
     @Override
     public boolean canApplyReschedule(Long scheduleId, Long studentUserId) {
-        Schedule schedule = scheduleMapper.selectById(scheduleId);
+        CourseSchedule schedule = courseScheduleMapper.findById(scheduleId);
         if (schedule == null || schedule.getDeleted()) {
             return false;
         }
 
         Student student = studentMapper.findByUserId(studentUserId);
-        if (student == null || !schedule.getStudentId().equals(student.getId())) {
+        CourseEnrollment enrollment = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
+        if (student == null || enrollment == null || !enrollment.getStudentId().equals(student.getId())) {
             return false;
         }
 
         // 检查课程状态
-        if (!"progressing".equals(schedule.getStatus())) {
+        if (!"scheduled".equals(schedule.getScheduleStatus())) {
             return false;
         }
 
@@ -873,11 +911,8 @@ public class RescheduleServiceImpl implements RescheduleService {
             Integer times = user.getAdjustmentTimes();
             boolean overQuota = (times == null || times <= 0);
             if (overQuota) {
-                // 需要 schedule 和 course 信息
-                if (schedule == null) {
-                    return false;
-                }
-                Course course = courseMapper.selectById(schedule.getCourseId());
+                // 需要课程信息
+                Course course = enrollment.getCourseId() != null ? courseMapper.selectById(enrollment.getCourseId()) : null;
                 if (course == null || course.getPrice() == null) {
                     return false;
                 }
@@ -885,8 +920,8 @@ public class RescheduleServiceImpl implements RescheduleService {
                 if (stu == null) {
                     return false;
                 }
-                java.math.BigDecimal halfHourBeans = course.getPrice().multiply(new java.math.BigDecimal("0.5"));
-                java.math.BigDecimal bal = stu.getBalance() == null ? java.math.BigDecimal.ZERO : stu.getBalance();
+                BigDecimal halfHourBeans = course.getPrice().multiply(new BigDecimal("0.5"));
+                BigDecimal bal = stu.getBalance() == null ? BigDecimal.ZERO : stu.getBalance();
                 if (bal.compareTo(halfHourBeans) < 0) {
                     return false;
                 }
@@ -907,38 +942,22 @@ public class RescheduleServiceImpl implements RescheduleService {
             LocalTime startTime = LocalTime.parse(newStartTime);
             LocalTime endTime = LocalTime.parse(newEndTime);
 
-            // 检查教师时间冲突
-            QueryWrapper<Schedule> teacherQuery = new QueryWrapper<>();
-            teacherQuery.eq("teacher_id", teacherId)
-                       .eq("scheduled_date", date)
-                       .eq("is_deleted", false)
-                       .ne("status", "cancelled");
-
-            if (excludeScheduleId != null) {
-                teacherQuery.ne("id", excludeScheduleId);
-            }
-
-            List<Schedule> teacherSchedules = scheduleMapper.selectList(teacherQuery);
-            for (Schedule schedule : teacherSchedules) {
-                if (isTimeOverlap(startTime, endTime, schedule.getStartTime(), schedule.getEndTime())) {
+            // 教师冲突
+            List<CourseSchedule> teacherSchedules =
+                    courseScheduleMapper.findByTeacherIdAndDateRange(teacherId, date, date);
+            for (CourseSchedule s : teacherSchedules) {
+                if (excludeScheduleId != null && excludeScheduleId.equals(s.getId())) continue;
+                if (!"cancelled".equals(s.getScheduleStatus()) && isTimeOverlap(startTime, endTime, s.getStartTime(), s.getEndTime())) {
                     return true;
                 }
             }
 
-            // 检查学生时间冲突
-            QueryWrapper<Schedule> studentQuery = new QueryWrapper<>();
-            studentQuery.eq("student_id", studentId)
-                       .eq("scheduled_date", date)
-                       .eq("is_deleted", false)
-                       .ne("status", "cancelled");
-
-            if (excludeScheduleId != null) {
-                studentQuery.ne("id", excludeScheduleId);
-            }
-
-            List<Schedule> studentSchedules = scheduleMapper.selectList(studentQuery);
-            for (Schedule schedule : studentSchedules) {
-                if (isTimeOverlap(startTime, endTime, schedule.getStartTime(), schedule.getEndTime())) {
+            // 学生冲突
+            List<CourseSchedule> studentSchedules =
+                    courseScheduleMapper.findByStudentIdAndDateRange(studentId, date, date);
+            for (CourseSchedule s : studentSchedules) {
+                if (excludeScheduleId != null && excludeScheduleId.equals(s.getId())) continue;
+                if (!"cancelled".equals(s.getScheduleStatus()) && isTimeOverlap(startTime, endTime, s.getStartTime(), s.getEndTime())) {
                     return true;
                 }
             }
@@ -968,7 +987,7 @@ public class RescheduleServiceImpl implements RescheduleService {
             return 0;
         }
 
-        return (int) java.time.Duration.between(now, scheduleDateTime).toHours();
+        return (int) Duration.between(now, scheduleDateTime).toHours();
     }
 
     /**
@@ -1014,25 +1033,36 @@ public class RescheduleServiceImpl implements RescheduleService {
     /**
      * 审批通过后更新课程安排
      */
-    private void updateScheduleAfterApproval(RescheduleRequest rescheduleRequest, Schedule schedule) {
+    private void updateScheduleAfterApproval(RescheduleRequest rescheduleRequest, CourseSchedule schedule) {
         if ("single".equals(rescheduleRequest.getRequestType())) {
             // 单次调课：更新课程安排时间
             schedule.setScheduledDate(rescheduleRequest.getNewDate());
             schedule.setStartTime(rescheduleRequest.getNewStartTime());
             schedule.setEndTime(rescheduleRequest.getNewEndTime());
-            scheduleMapper.updateById(schedule);
+            UpdateWrapper<CourseSchedule> uw1 = new UpdateWrapper<>();
+            uw1.eq("id", schedule.getId()).set("schedule_status", "cancelled");
+            courseScheduleMapper.update(null, uw1);
 
             // 重新计算同一预约申请下所有课程的session_number
             if (schedule.getBookingRequestId() != null) {
                 recalculateSessionNumbers(schedule.getBookingRequestId());
             }
         } else if ("recurring".equals(rescheduleRequest.getRequestType())) {
-            // 周期性调课：需要更新后续所有课程安排
+            // 周期性调课：需要更新后续所有课程安排（迁移至新表）
             log.info("周期性调课审批通过，开始更新后续课程安排");
             
             try {
-                // 获取同一预约申请下的所有未来课程安排
-                List<Schedule> futureSchedules = getFutureSchedulesForRecurringUpdate(schedule);
+                // 获取同一预约申请下的所有未来课程安排（新表）
+                List<CourseSchedule> all =
+                        courseScheduleMapper.findByBookingRequestId(schedule.getBookingRequestId());
+                List<CourseSchedule> futureSchedules = new ArrayList<>();
+                LocalDate nowDate = LocalDate.now();
+                for (CourseSchedule cs : all) {
+                    if (cs.getScheduledDate() != null && cs.getScheduledDate().isAfter(nowDate) &&
+                        (cs.getScheduleStatus() == null || !"cancelled".equals(cs.getScheduleStatus()))) {
+                        futureSchedules.add(cs);
+                    }
+                }
                 
                 if (futureSchedules.isEmpty()) {
                     log.warn("没有找到需要更新的未来课程安排");
@@ -1041,11 +1071,16 @@ public class RescheduleServiceImpl implements RescheduleService {
                 
                 log.info("找到 {} 个未来课程安排需要更新", futureSchedules.size());
                 
-                // 更新所有未来课程的周期性安排字段
-                updateRecurringScheduleFields(futureSchedules, rescheduleRequest.getNewWeeklySchedule());
+                // 更新所有未来课程的周期性安排字段：写入reschedule_request_id/reschedule_reason
+                for (CourseSchedule cs : futureSchedules) {
+                    UpdateWrapper<CourseSchedule> uw = new UpdateWrapper<>();
+                    uw.eq("id", cs.getId())
+                      .set("reschedule_request_id", rescheduleRequest.getId())
+                      .set("reschedule_reason", rescheduleRequest.getReason());
+                    courseScheduleMapper.update(null, uw);
+                }
                 
-                // 同步缓存
-                syncCacheAfterRecurringUpdate(schedule, futureSchedules);
+                // TODO: 同步缓存（按新表日期聚合回填）
                 
                 log.info("周期性调课更新完成，共更新 {} 个课程安排", futureSchedules.size());
                 
@@ -1055,8 +1090,10 @@ public class RescheduleServiceImpl implements RescheduleService {
             }
         } else if ("cancel".equals(rescheduleRequest.getRequestType())) {
             // 取消课程：更新课程状态
-            schedule.setStatus("cancelled");
-            scheduleMapper.updateById(schedule);
+            schedule.setScheduleStatus("cancelled");
+            UpdateWrapper<CourseSchedule> uw2 = new UpdateWrapper<>();
+            uw2.eq("id", schedule.getId()).set("schedule_status", "rescheduled");
+            courseScheduleMapper.update(null, uw2);
         }
     }
 
@@ -1067,8 +1104,8 @@ public class RescheduleServiceImpl implements RescheduleService {
     private void recalculateSessionNumbers(Long bookingRequestId) {
         log.info("重新计算预约申请 {} 下所有课程的session_number", bookingRequestId);
 
-        // 获取该预约申请下的所有课程安排，按时间排序
-        List<Schedule> schedules = scheduleMapper.findByBookingRequestId(bookingRequestId);
+        // 获取该预约申请下的所有课程安排（新表），按时间排序
+        List<CourseSchedule> schedules = courseScheduleMapper.findByBookingRequestId(bookingRequestId);
 
         if (schedules.isEmpty()) {
             log.warn("预约申请 {} 下没有找到课程安排", bookingRequestId);
@@ -1088,13 +1125,14 @@ public class RescheduleServiceImpl implements RescheduleService {
 
         // 重新分配session_number
         for (int i = 0; i < schedules.size(); i++) {
-            Schedule schedule = schedules.get(i);
+            CourseSchedule schedule = schedules.get(i);
             int newSessionNumber = i + 1;
 
             // 只有当session_number发生变化时才更新
             if (schedule.getSessionNumber() == null || !schedule.getSessionNumber().equals(newSessionNumber)) {
-                schedule.setSessionNumber(newSessionNumber);
-                scheduleMapper.updateById(schedule);
+                UpdateWrapper<CourseSchedule> uw3 = new UpdateWrapper<>();
+                uw3.eq("id", schedule.getId()).set("session_number", newSessionNumber);
+                courseScheduleMapper.update(null, uw3);
                 log.debug("更新课程安排 {} 的session_number: {} -> {}",
                          schedule.getId(), schedule.getSessionNumber(), newSessionNumber);
             }
@@ -1104,385 +1142,40 @@ public class RescheduleServiceImpl implements RescheduleService {
     }
 
     /**
-     * 获取同一预约申请下所有未来课程安排
+     * 获取同一预约申请下所有未来课程安排（新表）
      */
-    private List<Schedule> getFutureSchedulesForRecurringUpdate(Schedule currentSchedule) {
-        List<Schedule> futureSchedules = new java.util.ArrayList<>();
+    // 保留备用：获取同一预约申请下所有未来课程安排
+    @SuppressWarnings("unused")
+    private List<CourseSchedule> getFutureSchedulesForRecurringUpdate(CourseSchedule currentSchedule) {
+        List<CourseSchedule> futureSchedules = new ArrayList<>();
         LocalDate currentDate = LocalDate.now();
 
-        // 获取当前课程安排的预约申请ID
         Long bookingRequestId = currentSchedule.getBookingRequestId();
         if (bookingRequestId == null) {
             log.warn("课程安排 {} 没有预约申请ID，无法查找相关课程", currentSchedule.getId());
             return futureSchedules;
         }
 
-        // 获取该预约申请下的所有课程安排
-        List<Schedule> allSchedules = scheduleMapper.findByBookingRequestId(bookingRequestId);
+        List<CourseSchedule> allSchedules = courseScheduleMapper.findByBookingRequestId(bookingRequestId);
         log.info("预约申请 {} 下共有 {} 个课程安排", bookingRequestId, allSchedules.size());
 
-        if (allSchedules.isEmpty()) {
-            log.warn("预约申请 {} 下没有找到任何课程安排", bookingRequestId);
-            return futureSchedules;
-        }
-
-        // 过滤出当前时间以后的进行中课程安排（排除已取消和已完成的）
-        for (Schedule schedule : allSchedules) {
-            if (schedule != null && !schedule.getDeleted() && 
-                "progressing".equals(schedule.getStatus()) &&
-                schedule.getScheduledDate().isAfter(currentDate)) {
-                futureSchedules.add(schedule);
+        for (CourseSchedule s : allSchedules) {
+            if (s.getScheduledDate() != null && s.getScheduledDate().isAfter(currentDate) &&
+                (s.getScheduleStatus() == null || !"cancelled".equals(s.getScheduleStatus()))) {
+                futureSchedules.add(s);
             }
         }
 
-        // 按实际上课时间排序（日期+时间）
         futureSchedules.sort((s1, s2) -> {
             int dateCompare = s1.getScheduledDate().compareTo(s2.getScheduledDate());
-            if (dateCompare != 0) {
-                return dateCompare;
-            }
+            if (dateCompare != 0) return dateCompare;
             return s1.getStartTime().compareTo(s2.getStartTime());
         });
 
         log.info("找到 {} 个当前时间以后的进行中课程安排需要更新", futureSchedules.size());
         return futureSchedules;
     }
-
-    /**
-     * 更新周期性课程安排的字段
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public void updateRecurringScheduleFields(List<Schedule> futureSchedules, String newWeeklySchedule) {
-        if (newWeeklySchedule == null || newWeeklySchedule.isEmpty()) {
-            log.warn("新的周期性安排为空，无法更新");
-            return;
-        }
-
-        log.info("开始批量更新 {} 个周期性课程安排，新安排: {}", futureSchedules.size(), newWeeklySchedule);
-        
-        // 保存原始数据用于回滚
-        List<Schedule> originalSchedules = new java.util.ArrayList<>();
-        for (Schedule schedule : futureSchedules) {
-            Schedule original = new Schedule();
-            original.setId(schedule.getId());
-            original.setScheduledDate(schedule.getScheduledDate());
-            original.setStartTime(schedule.getStartTime());
-            original.setEndTime(schedule.getEndTime());
-            original.setRecurringWeekdays(schedule.getRecurringWeekdays());
-            original.setRecurringTimeSlots(schedule.getRecurringTimeSlots());
-            originalSchedules.add(original);
-        }
-        
-        try {
-            // 解析新的周期性安排
-            List<Integer> newWeekdays = parseWeekdaysFromString(newWeeklySchedule);
-            List<String> newTimeSlots = parseTimeSlotsFromString(newWeeklySchedule);
-            
-            log.info("解析结果 - 星期: {}, 时间段: {}", newWeekdays, newTimeSlots);
-            
-            if (newWeekdays.isEmpty() || newTimeSlots.isEmpty()) {
-                log.error("新的周期性安排格式无效: {}", newWeeklySchedule);
-                throw new RuntimeException("新的周期性安排格式无效，无法解析星期或时间段");
-            }
-
-            int updatedCount = 0;
-            
-            // 对于周期性调课，我们需要为每个时间段创建对应的课程安排
-            // 计算需要多少个周六来容纳所有课程
-            int totalTimeSlots = newTimeSlots.size();
-            int totalSchedules = futureSchedules.size();
-            int weeksNeeded = (int) Math.ceil((double) totalSchedules / totalTimeSlots);
-            
-            log.info("周期性调课分析：总课程数={}, 时间段数={}, 需要周数={}", 
-                     totalSchedules, totalTimeSlots, weeksNeeded);
-            
-            // 使用第一个课程的日期作为基准日期
-            LocalDate baseDate = futureSchedules.get(0).getScheduledDate();
-            
-            // 判断是多星期单时间段还是单星期多时间段
-            boolean isMultipleWeekdaysSingleTimeSlot = newWeekdays.size() > 1 && totalTimeSlots == 1;
-            
-            if (isMultipleWeekdaysSingleTimeSlot) {
-                log.info("检测到多星期单时间段格式，将循环使用星期几列表");
-            } else {
-                log.info("检测到单星期多时间段格式，将按周数递增");
-            }
-            
-            for (int i = 0; i < futureSchedules.size(); i++) {
-                Schedule schedule = futureSchedules.get(i);
-                try {
-                    log.info("=== 开始处理课程安排 {} ===", schedule.getId());
-                    
-                    // 获取当前课程安排的星期几
-                    int currentWeekday = schedule.getScheduledDate().getDayOfWeek().getValue();
-                    log.info("课程安排 {} 的当前星期几: {} (将被改为新的星期几)", schedule.getId(), currentWeekday);
-                    log.info("新的星期几列表: {}", newWeekdays);
-                    
-                    // 计算这个课程应该在第几周，以及对应的时间段
-                    int weekIndex = i / totalTimeSlots;  // 第几周
-                    int timeSlotIndex = i % totalTimeSlots;  // 该周的第几个时间段
-                    String newTimeSlot = newTimeSlots.get(timeSlotIndex);
-                    
-                    // 对于多星期单时间段，循环使用星期几列表
-                    int targetWeekday;
-                    if (isMultipleWeekdaysSingleTimeSlot) {
-                        targetWeekday = newWeekdays.get(i % newWeekdays.size());
-                        log.info("课程安排 {} 分配：第{}周，星期几: {} (循环使用), 时间段: {}", 
-                                 schedule.getId(), weekIndex + 1, targetWeekday, newTimeSlot);
-                    } else {
-                        targetWeekday = newWeekdays.get(0); // 使用第一个新的星期几
-                        log.info("课程安排 {} 分配：第{}周，时间段{}: {}", 
-                                 schedule.getId(), weekIndex + 1, timeSlotIndex + 1, newTimeSlot);
-                    }
-                    
-                    // 解析新的时间段
-                    LocalTime newStartTime = null;
-                    LocalTime newEndTime = null;
-                    
-                    if (newTimeSlot.contains("-")) {
-                        // 格式: "14:00-16:00"
-                        String[] timeParts = newTimeSlot.split("-");
-                        if (timeParts.length == 2) {
-                            newStartTime = LocalTime.parse(timeParts[0].trim());
-                            newEndTime = LocalTime.parse(timeParts[1].trim());
-                        }
-                    } else {
-                        // 格式: "14:00" - 只有开始时间，假设课程时长为2小时
-                        newStartTime = LocalTime.parse(newTimeSlot.trim());
-                        newEndTime = newStartTime.plusHours(2);
-                    }
-                    
-                    if (newStartTime == null || newEndTime == null) {
-                        log.error("无法解析时间段: {}", newTimeSlot);
-                        throw new RuntimeException("无法解析时间段: " + newTimeSlot);
-                    }
-                    
-                    log.info("解析时间 - 开始: {}, 结束: {}", newStartTime, newEndTime);
-                    
-                    // 计算新的日期
-                    LocalDate newDate;
-                    if (isMultipleWeekdaysSingleTimeSlot) {
-                        // 多星期单时间段：每个课程对应一个不同的星期几
-                        newDate = calculateNextDateForWeekday(baseDate, targetWeekday);
-                        // 如果这个星期几已经过了，就加一周
-                        if (newDate.isBefore(baseDate)) {
-                            newDate = newDate.plusWeeks(1);
-                        }
-                        log.info("多星期单时间段：课程 {} 分配到星期几 {}，日期: {}", 
-                                 schedule.getId(), targetWeekday, newDate);
-                    } else {
-                        // 单星期多时间段：基于第一周日期计算每周的日期
-                        LocalDate firstWeekDate = calculateNextDateForWeekday(baseDate, targetWeekday);
-                        newDate = firstWeekDate.plusWeeks(weekIndex);
-                        log.info("单星期多时间段：第{}周，日期: {}", weekIndex + 1, newDate);
-                    }
-                    
-                    log.info("计算的新日期: {} (目标星期几: {}, 第{}周)", newDate, targetWeekday, weekIndex + 1);
-                    
-                    // 检查时间冲突
-                    log.info("开始检查时间冲突...");
-                    if (hasTimeConflict(schedule.getTeacherId(), schedule.getStudentId(), 
-                                       newDate.toString(), newStartTime.toString(), newEndTime.toString(), 
-                                       schedule.getId())) {
-                        log.warn("课程安排 {} 的新时间存在冲突，跳过更新", schedule.getId());
-                        continue;
-                    }
-                    log.info("时间冲突检查通过");
-                    
-                    // 更新Schedule实体的字段
-                    log.info("开始更新课程安排 {} 的字段", schedule.getId());
-                    schedule.setScheduledDate(newDate);           // 上课日期
-                    schedule.setStartTime(newStartTime);          // 开始时间
-                    schedule.setEndTime(newEndTime);              // 结束时间
-                    schedule.setRecurringWeekdays(newWeekdays.stream().map(String::valueOf).collect(Collectors.joining(",")));  // 周期性预约的星期几
-                    schedule.setRecurringTimeSlots(String.join(",", newTimeSlots));  // 周期性预约的时间段
-                    
-                    log.info("课程安排 {} 字段更新完成，准备保存到数据库", schedule.getId());
-                    
-                    // 保存到数据库
-                    scheduleMapper.updateById(schedule);
-                    updatedCount++;
-                    
-                    log.info("课程安排 {} 保存成功，已更新 {} 个课程", schedule.getId(), updatedCount);
-                    
-                    log.debug("更新课程安排 {} 的周期性安排: 日期={}, 时间={}-{}, 星期={}, 时间段={}",
-                             schedule.getId(), newDate, newStartTime, newEndTime, 
-                             schedule.getRecurringWeekdays(), schedule.getRecurringTimeSlots());
-                } catch (Exception e) {
-                    log.error("更新课程安排 {} 失败，开始回滚", schedule.getId(), e);
-                    // 回滚已更新的课程安排
-                    rollbackScheduleUpdates(futureSchedules, originalSchedules);
-                    throw new RuntimeException("更新课程安排失败: " + e.getMessage());
-                }
-            }
-            
-            log.info("周期性调课批量更新完成，成功更新 {} 个课程安排", updatedCount);
-            
-        } catch (Exception e) {
-            log.error("批量更新周期性课程安排失败，开始回滚", e);
-            // 回滚所有更改
-            rollbackScheduleUpdates(futureSchedules, originalSchedules);
-            throw new RuntimeException("批量更新周期性课程安排失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 回滚课程安排更新
-     */
-    private void rollbackScheduleUpdates(List<Schedule> currentSchedules, List<Schedule> originalSchedules) {
-        log.info("开始回滚课程安排更新");
-        try {
-            for (int i = 0; i < currentSchedules.size() && i < originalSchedules.size(); i++) {
-                Schedule current = currentSchedules.get(i);
-                Schedule original = originalSchedules.get(i);
-                
-                if (current.getId().equals(original.getId())) {
-                    current.setScheduledDate(original.getScheduledDate());
-                    current.setStartTime(original.getStartTime());
-                    current.setEndTime(original.getEndTime());
-                    current.setRecurringWeekdays(original.getRecurringWeekdays());
-                    current.setRecurringTimeSlots(original.getRecurringTimeSlots());
-                    
-                    scheduleMapper.updateById(current);
-                    log.debug("回滚课程安排 {} 到原始状态", current.getId());
-                }
-            }
-            log.info("课程安排回滚完成");
-        } catch (Exception e) {
-            log.error("回滚课程安排失败", e);
-            // 回滚失败，记录错误但不抛出异常，避免无限循环
-        }
-    }
-
-    /**
-     * 计算下一个指定星期几的日期
-     */
-    private LocalDate calculateNextDateForWeekday(LocalDate currentDate, int targetWeekday) {
-        LocalDate nextDate = currentDate;
-        int currentDayOfWeek = currentDate.getDayOfWeek().getValue();
-
-        if (currentDayOfWeek == targetWeekday) {
-            return currentDate; // 如果当前日期就是目标星期几，则返回当前日期
-        }
-
-        int daysUntilTarget = targetWeekday - currentDayOfWeek;
-        if (daysUntilTarget <= 0) {
-            daysUntilTarget += 7; // 如果目标在当前日期之前，则加7天
-        }
-        return currentDate.plusDays(daysUntilTarget);
-    }
-
-    /**
-     * 解析周期性安排字符串中的星期几
-     */
-    private List<Integer> parseWeekdaysFromString(String weeklySchedule) {
-        List<Integer> weekdays = new java.util.ArrayList<>();
-        if (weeklySchedule == null || weeklySchedule.isEmpty()) {
-            return weekdays;
-        }
-
-        log.debug("开始解析星期，输入: {}", weeklySchedule);
-        
-        // 支持三种格式：
-        // 1. 多星期单时间段：周一、周二、周四、周六 13:00-15:00
-        // 2. 单星期多时间段：周六 13:00-15:00, 15:00-17:00, 17:00-19:00
-        // 3. 混合格式：周二 10:00-12:00;周四 15:00-17:00;周五 19:00-21:00
-        
-        // 首先检查是否是多星期单时间段格式（包含顿号）
-        if (weeklySchedule.contains("、")) {
-            // 多星期单时间段格式：周一、周二、周四、周六 13:00-15:00
-            String[] parts = weeklySchedule.split(" ");
-            if (parts.length >= 2) {
-                String weekdaysPart = parts[0]; // 周一、周二、周四、周六
-                String[] weekdayArray = weekdaysPart.split("、");
-                
-                for (String weekdayStr : weekdayArray) {
-                    weekdayStr = weekdayStr.trim();
-                    if (weekdayStr.isEmpty()) continue;
-                    
-                    // 尝试解析中文星期名称
-                    Integer weekday = parseChineseWeekday(weekdayStr);
-                    if (weekday != null) {
-                        weekdays.add(weekday);
-                        continue;
-                    }
-                    
-                    // 尝试解析数字星期
-                    try {
-                        int weekdayNum = Integer.parseInt(weekdayStr);
-                        if (weekdayNum >= 1 && weekdayNum <= 7) {
-                            weekdays.add(weekdayNum);
-                        } else {
-                            log.warn("无效的星期数: {}", weekdayStr);
-                        }
-                    } catch (NumberFormatException e) {
-                        log.warn("无法解析星期数: {}", weekdayStr);
-                    }
-                }
-            }
-        } else if (weeklySchedule.contains(";")) {
-            // 混合格式：周二 10:00-12:00;周四 15:00-17:00;周五 19:00-21:00
-            String[] parts = weeklySchedule.split(";");
-            for (String part : parts) {
-                part = part.trim();
-                if (part.isEmpty()) continue;
-
-                // 按空格分割，第一部分是星期，第二部分是时间
-                String[] weekdayAndTime = part.split(" ");
-                if (weekdayAndTime.length > 0) {
-                    String weekdayStr = weekdayAndTime[0].trim();
-                    
-                    // 尝试解析中文星期名称
-                    Integer weekday = parseChineseWeekday(weekdayStr);
-                    if (weekday != null) {
-                        weekdays.add(weekday);
-                        continue;
-                    }
-                    
-                    // 尝试解析数字星期
-                    try {
-                        int weekdayNum = Integer.parseInt(weekdayStr);
-                        if (weekdayNum >= 1 && weekdayNum <= 7) {
-                            weekdays.add(weekdayNum);
-                        } else {
-                            log.warn("无效的星期数: {}", weekdayStr);
-                        }
-                    } catch (NumberFormatException e) {
-                        log.warn("无法解析星期数: {}", weekdayStr);
-                    }
-                }
-            }
-        } else {
-            // 单星期多时间段格式：周六 13:00-15:00, 15:00-17:00, 17:00-19:00
-            // 按空格分割，第一部分是星期
-            String[] parts = weeklySchedule.split(" ");
-            if (parts.length > 0) {
-                String weekdayStr = parts[0].trim();
-                
-                // 尝试解析中文星期名称
-                Integer weekday = parseChineseWeekday(weekdayStr);
-                if (weekday != null) {
-                    weekdays.add(weekday);
-                } else {
-                    // 尝试解析数字星期
-                    try {
-                        int weekdayNum = Integer.parseInt(weekdayStr);
-                        if (weekdayNum >= 1 && weekdayNum <= 7) {
-                            weekdays.add(weekdayNum);
-                        } else {
-                            log.warn("无效的星期数: {}", weekdayStr);
-                        }
-                    } catch (NumberFormatException e) {
-                        log.warn("无法解析星期数: {}", weekdayStr);
-                    }
-                }
-            }
-        }
-        
-        log.debug("解析星期结果: {}", weekdays);
-        return weekdays;
-    }
-
+    
     /**
      * 解析中文星期名称
      */
@@ -1507,7 +1200,7 @@ public class RescheduleServiceImpl implements RescheduleService {
      * 解析周期性安排字符串中的时间段
      */
     private List<String> parseTimeSlotsFromString(String weeklySchedule) {
-        List<String> timeSlots = new java.util.ArrayList<>();
+        List<String> timeSlots = new ArrayList<>();
         if (weeklySchedule == null || weeklySchedule.isEmpty()) {
             return timeSlots;
         }
@@ -1562,7 +1255,7 @@ public class RescheduleServiceImpl implements RescheduleService {
             // 单星期多时间段格式：周六 13:00-15:00, 15:00-17:00, 17:00-19:00
             // 按空格分割，第一部分是星期，第二部分开始都是时间段
             String[] parts = weeklySchedule.split(" ");
-            log.info("按空格分割后的部分: {}", java.util.Arrays.toString(parts));
+            log.info("按空格分割后的部分: {}", Arrays.toString(parts));
             if (parts.length > 1) {
                 // 从第二个部分开始拼接所有时间段部分，然后按逗号分割
                 StringBuilder allTimeSlots = new StringBuilder();
@@ -1577,7 +1270,7 @@ public class RescheduleServiceImpl implements RescheduleService {
                     log.info("检测到逗号分隔，按逗号分割");
                     // 按逗号分割多个时间段
                     String[] timeSlotArray = allTimeSlotsStr.split(",");
-                    log.info("按逗号分割后的时间段: {}", java.util.Arrays.toString(timeSlotArray));
+                    log.info("按逗号分割后的时间段: {}", Arrays.toString(timeSlotArray));
                     for (String timeSlot : timeSlotArray) {
                         timeSlot = timeSlot.trim();
                         log.info("处理时间段: '{}'", timeSlot);
@@ -1598,40 +1291,7 @@ public class RescheduleServiceImpl implements RescheduleService {
         return timeSlots;
     }
 
-    /**
-     * 同步缓存，确保周期性调课后的缓存一致性
-     */
-    private void syncCacheAfterRecurringUpdate(Schedule currentSchedule, List<Schedule> futureSchedules) {
-        Long teacherId = currentSchedule.getTeacherId();
-        java.util.Set<java.time.LocalDate> affectedDates = new java.util.HashSet<>();
-
-        // 添加当前课程安排的日期
-        if (currentSchedule.getScheduledDate() != null) {
-            affectedDates.add(currentSchedule.getScheduledDate());
-        }
-
-        // 添加所有未来课程安排的日期
-        for (Schedule schedule : futureSchedules) {
-            if (schedule.getScheduledDate() != null) {
-                affectedDates.add(schedule.getScheduledDate());
-            }
-        }
-
-        // 清理缓存
-        cacheKeyEvictor.evictTeacherScheduleAndAvailability(teacherId, affectedDates);
-
-        // 重新回填缓存
-        for (java.time.LocalDate d : affectedDates) {
-            java.util.List<Schedule> dayAll = scheduleMapper.findByTeacherIdAndDate(teacherId, d);
-            java.util.List<String> slots = new java.util.ArrayList<>();
-            for (Schedule s : dayAll) {
-                slots.add(s.getStartTime().toString() + "-" + s.getEndTime().toString());
-            }
-            teacherScheduleCacheService.putBusySlots(teacherId, d,
-                slots.isEmpty() ? java.util.Collections.emptyList() : slots);
-        }
-        log.info("周期性调课更新后缓存同步完成，受影响日期: {}", affectedDates);
-    }
+    // 删除未使用的同步缓存私有方法
 
     /**
      * 检查是否有权限查看调课申请
@@ -1652,7 +1312,7 @@ public class RescheduleServiceImpl implements RescheduleService {
             Teacher teacher = teacherMapper.findByUserId(currentUserId);
             if (teacher == null) return false;
 
-            Schedule schedule = scheduleMapper.selectById(rescheduleRequest.getScheduleId());
+            CourseSchedule schedule = courseScheduleMapper.findById(rescheduleRequest.getScheduleId());
             return schedule != null && schedule.getTeacherId().equals(teacher.getId());
         }
 
@@ -1693,7 +1353,7 @@ public class RescheduleServiceImpl implements RescheduleService {
 
         // 获取关联信息
         try {
-            Schedule schedule = scheduleMapper.selectById(rescheduleRequest.getScheduleId());
+            CourseSchedule schedule = courseScheduleMapper.findById(rescheduleRequest.getScheduleId());
             if (schedule != null) {
                 Course course = courseMapper.selectById(schedule.getCourseId());
                 if (course != null) {

@@ -646,10 +646,10 @@ COMMIT;
 -- Table structure for lesson_grades
 -- ----------------------------
 DROP TABLE IF EXISTS `lesson_grades`;
-CREATE TABLE `lesson_grades` -- teacher_id、course_id、scheduled_date三个冗余字段，通过关联schedules表获取这些信息
+CREATE TABLE `lesson_grades` -- teacher_id、course_id、scheduled_date三个冗余字段，通过关联course_schedules表获取这些信息
 (
     `id`              bigint(20) NOT NULL AUTO_INCREMENT COMMENT '成绩记录ID，主键自增',
-    `schedule_id`     bigint(20) NOT NULL COMMENT '课程安排ID，关联schedules表',
+    `schedule_id`     bigint(20) NOT NULL COMMENT '课程安排ID，关联course_schedules表',
     `student_id`      bigint(20) NOT NULL COMMENT '学生ID，关联students表',
     -- 成绩信息
     `score`           decimal(5, 2)       DEFAULT NULL COMMENT '本节课成绩分数',
@@ -669,7 +669,7 @@ CREATE TABLE `lesson_grades` -- teacher_id、course_id、scheduled_date三个冗
     KEY `idx_schedule_id` (`schedule_id`),                          -- 教师查询某节课的成绩
     KEY `idx_graded_at` (`graded_at`),                              -- 按录入时间筛选
 
-    CONSTRAINT `fk_lesson_grades_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `schedules` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_lesson_grades_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `course_schedules` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_lesson_grades_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
@@ -719,233 +719,146 @@ BEGIN;
 COMMIT;
 
 -- ----------------------------
--- Table structure for schedules
+-- Table structure for course_enrollments
 -- ----------------------------
-DROP TABLE IF EXISTS `schedules`;
-CREATE TABLE `schedules`
+DROP TABLE IF EXISTS `course_enrollments`;
+CREATE TABLE `course_enrollments`
 (
-    `id`                   bigint(20) NOT NULL AUTO_INCREMENT COMMENT '排课ID，主键自增',
-    `teacher_id`           bigint(20) NOT NULL COMMENT '授课教师ID',
+    `id`                   bigint(20) NOT NULL AUTO_INCREMENT COMMENT '课程报名ID，主键自增',
     `student_id`           bigint(20) NOT NULL COMMENT '学生ID',
-    `course_id`            bigint(20)                                                    DEFAULT NULL COMMENT '课程ID',
+    `teacher_id`           bigint(20) NOT NULL COMMENT '授课教师ID',
+    `course_id`            bigint(20)                                                    DEFAULT NULL COMMENT '课程ID（一对一课程可能为空）',
+    `enrollment_type`      enum ('one_on_one','large_class') NOT NULL COMMENT '报名类型：one_on_one-一对一,large_class-大班课',
+    `total_sessions`       int(11)                                                       DEFAULT NULL COMMENT '总课程次数',
+    `completed_sessions`   int(11)                                                       DEFAULT 0 COMMENT '已完成课程次数',
+    `enrollment_status`    enum ('active','completed','cancelled','suspended')          DEFAULT 'active' COMMENT '报名状态：active-进行中，completed-已完成，cancelled-已取消，suspended-暂停',
+    `enrollment_date`      date       NOT NULL COMMENT '报名日期',
+    `start_date`           date                                                          DEFAULT NULL COMMENT '课程开始日期',
+    `end_date`             date                                                          DEFAULT NULL COMMENT '课程结束日期',
+    `is_trial`             tinyint(1)                                                    DEFAULT 0 COMMENT '是否为试听课：true-是，false-否',
+    `recurring_schedule`   json                                                          DEFAULT NULL COMMENT '周期性预约安排，JSON格式：{"weekdays":[1,3,5],"timeSlots":["14:00-16:00","18:00-20:00"]}，weekday: 1=周一,2=周二...7=周日',
+    `booking_request_id`   bigint(20)                                                    DEFAULT NULL COMMENT '关联预约申请ID',
+    `teacher_notes`        text COMMENT '教师备注',
+    `student_feedback`     text COMMENT '学生反馈',
+    `created_at`           timestamp  NULL                                               DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `is_deleted`           tinyint(1)                                                    DEFAULT 0 COMMENT '是否删除',
+    `deleted_at`           timestamp  NULL                                               DEFAULT NULL COMMENT '删除时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_student_id` (`student_id`),
+    KEY `idx_teacher_id` (`teacher_id`),
+    KEY `idx_course_id` (`course_id`)
+) ENGINE = InnoDB
+  AUTO_INCREMENT = 1
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='课程关系表，记录学生课程报名关系';
+
+-- ----------------------------
+-- Table structure for course_schedules
+-- ----------------------------
+DROP TABLE IF EXISTS `course_schedules`;
+CREATE TABLE `course_schedules`
+(
+    `id`                   bigint(20) NOT NULL AUTO_INCREMENT COMMENT '课程安排ID，主键自增',
+    `enrollment_id`        bigint(20) NOT NULL COMMENT '课程报名ID，关联course_enrollments表',
     `scheduled_date`       date       NOT NULL COMMENT '上课日期',
     `start_time`           time       NOT NULL COMMENT '开始时间',
     `end_time`             time       NOT NULL COMMENT '结束时间',
-    `total_times`          int(11)                                                       DEFAULT NULL COMMENT '总课程次数',
-    `status`               enum ('progressing','completed','cancelled')                  DEFAULT 'progressing' COMMENT '课程状态：progressing-进行中，confirmed-已确认，cancelled-已取消',
-    `teacher_notes`        text COMMENT '教师课后备注和反馈',
+    `session_number`       int(11)                                                       DEFAULT NULL COMMENT '课程序号（第几次课）',
+    `schedule_status`      enum ('scheduled','completed','cancelled','rescheduled')     DEFAULT 'scheduled' COMMENT '安排状态：scheduled-已安排，completed-已完成，cancelled-已取消，rescheduled-已调课',
+    `teacher_notes`        text COMMENT '教师课后备注',
     `student_feedback`     text COMMENT '学生课后反馈',
-    `created_at`           timestamp  NULL                                               DEFAULT CURRENT_TIMESTAMP COMMENT '排课创建时间',
-    `booking_request_id`   bigint(20)                                                    DEFAULT NULL COMMENT '关联预约申请ID',
-    `booking_source`       enum ('request','admin')                                      DEFAULT 'request' COMMENT '预约来源：request-申请预约，admin-管理员安排',
-    `is_deleted`           tinyint(1)                                                    DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
+    `reschedule_reason`    varchar(500)                                                  DEFAULT NULL COMMENT '调课原因',
+    `reschedule_request_id` bigint(20)                                                   DEFAULT NULL COMMENT '关联调课申请ID',
+    `created_at`           timestamp  NULL                                               DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `is_deleted`           tinyint(1)                                                    DEFAULT 0 COMMENT '是否删除',
     `deleted_at`           timestamp  NULL                                               DEFAULT NULL COMMENT '删除时间',
-    `recurring_weekdays`   varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  DEFAULT NULL COMMENT '周期性预约的星期几，逗号分隔：1,3,5',
-    `recurring_time_slots` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '周期性预约的时间段，逗号分隔：14:00-16:00,18:00-20:00',
-    `is_trial`             tinyint(1)                                                    DEFAULT '0' COMMENT '是否为试听课：true-是，false-否',
-    `session_number`       int(11)                                                       DEFAULT NULL COMMENT '课程序号（在周期性课程中的第几次课）',
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    KEY `idx_enrollment_id` (`enrollment_id`),
+    KEY `idx_scheduled_date` (`scheduled_date`),
+    KEY `idx_teacher_time` (`scheduled_date`, `start_time`, `end_time`)
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 33
+  AUTO_INCREMENT = 1
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='课程安排表，记录具体的上课时间';
+  COLLATE = utf8mb4_general_ci COMMENT ='课程安排表，记录具体的上课时间安排';
 
 -- ----------------------------
--- Records of schedules
+-- Records of course_enrollments
 -- ----------------------------
 BEGIN;
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (1, 7, 6, NULL, '2025-07-22', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3,
-        'request', 0, NULL, '2,3', '17:00-18:00', 0, 1);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (2, 7, 6, NULL, '2025-07-23', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3,
-        'request', 0, NULL, '2,3', '17:00-18:00', 0, 2);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (3, 7, 6, NULL, '2025-07-29', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3,
-        'request', 0, NULL, '2,3', '17:00-18:00', 0, 3);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (4, 7, 6, NULL, '2025-07-30', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3,
-        'request', 0, NULL, '2,3', '17:00-18:00', 0, 4);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (5, 7, 6, NULL, '2025-08-05', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3,
-        'request', 0, NULL, '2,3', '17:00-18:00', 0, 5);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (6, 7, 6, NULL, '2025-08-06', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3,
-        'request', 0, NULL, '2,3', '17:00-18:00', 0, 6);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (7, 7, 6, NULL, '2025-08-12', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3,
-        'request', 0, NULL, '2,3', '17:00-18:00', 0, 7);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (8, 7, 6, NULL, '2025-08-13', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3,
-        'request', 0, NULL, '2,3', '17:00-18:00', 0, 8);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (9, 7, 6, NULL, '2025-08-19', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3,
-        'request', 0, NULL, '2,3', '17:00-18:00', 0, 9);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (10, 7, 6, NULL, '2025-08-20', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3,
-        'request', 0, NULL, '2,3', '17:00-18:00', 0, 10);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (11, 7, 6, NULL, '2025-08-26', '17:00:00', '18:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:12:05', 3,
-        'request', 0, NULL, '2,3', '17:00-18:00', 0, 11);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (12, 7, 6, 3, '2025-07-25', '14:00:00', '15:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:47:58', 4,
-        'request', 1, '2025-07-28 15:23:31', '2,5', '14:00-15:00', 0, 1);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (13, 7, 6, 3, '2025-07-29', '14:00:00', '15:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:47:58', 4,
-        'request', 1, '2025-07-28 15:23:31', '2,5', '14:00-15:00', 0, 2);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (14, 7, 6, 3, '2025-08-01', '14:00:00', '15:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:47:58', 4,
-        'request', 1, '2025-07-28 15:23:31', '2,5', '14:00-15:00', 0, 3);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (15, 7, 6, 3, '2025-08-05', '14:00:00', '15:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:47:58', 4,
-        'request', 1, '2025-07-28 15:23:31', '2,5', '14:00-15:00', 0, 4);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (16, 7, 6, 3, '2025-08-08', '14:00:00', '15:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:47:58', 4,
-        'request', 1, '2025-07-28 15:23:31', '2,5', '14:00-15:00', 0, 5);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (17, 7, 6, 3, '2025-08-12', '14:00:00', '15:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:47:58', 4,
-        'request', 1, '2025-07-28 15:23:31', '2,5', '14:00-15:00', 0, 6);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (18, 7, 6, 3, '2025-08-15', '14:00:00', '15:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:47:58', 4,
-        'request', 1, '2025-07-28 15:23:31', '2,5', '14:00-15:00', 0, 7);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (19, 7, 6, 3, '2025-08-19', '14:00:00', '15:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:47:58', 4,
-        'request', 1, '2025-07-28 15:23:31', '2,5', '14:00-15:00', 0, 8);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (20, 7, 6, 3, '2025-08-22', '14:00:00', '15:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:47:58', 4,
-        'request', 1, '2025-07-28 15:23:31', '2,5', '14:00-15:00', 0, 9);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (21, 7, 6, 3, '2025-08-26', '14:00:00', '15:00:00', 12, 'progressing', NULL, NULL, '2025-07-21 13:47:58', 4,
-        'request', 1, '2025-07-28 15:23:31', '2,5', '14:00-15:00', 0, 10);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (22, 7, 6, 1, '2025-08-04', '15:00:00', '16:00:00', 12, 'progressing', NULL, NULL, '2025-07-28 16:14:46', 9,
-        'request', 0, NULL, '1', '15:00-16:00', 0, 1);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (23, 7, 6, 1, '2025-08-11', '15:00:00', '16:00:00', 12, 'progressing', NULL, NULL, '2025-07-28 16:14:46', 9,
-        'request', 0, NULL, '1', '15:00-16:00', 0, 2);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (24, 7, 6, 1, '2025-08-18', '15:00:00', '16:00:00', 12, 'progressing', NULL, NULL, '2025-07-28 16:14:46', 9,
-        'request', 0, NULL, '1', '15:00-16:00', 0, 3);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (25, 7, 6, 1, '2025-08-25', '15:00:00', '16:00:00', 12, 'progressing', NULL, NULL, '2025-07-28 16:14:46', 9,
-        'request', 0, NULL, '1', '15:00-16:00', 0, 4);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (26, 7, 6, 1, '2025-09-01', '15:00:00', '16:00:00', 12, 'progressing', NULL, NULL, '2025-07-28 16:14:46', 9,
-        'request', 0, NULL, '1', '15:00-16:00', 0, 5);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (27, 7, 6, 1, '2025-09-08', '15:00:00', '16:00:00', 12, 'progressing', NULL, NULL, '2025-07-28 16:14:46', 9,
-        'request', 0, NULL, '1', '15:00-16:00', 0, 6);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (28, 7, 6, 1, '2025-09-15', '15:00:00', '16:00:00', 12, 'progressing', NULL, NULL, '2025-07-28 16:14:46', 9,
-        'request', 0, NULL, '1', '15:00-16:00', 0, 7);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (29, 7, 6, 1, '2025-09-22', '15:00:00', '16:00:00', 12, 'progressing', NULL, NULL, '2025-07-28 16:14:46', 9,
-        'request', 0, NULL, '1', '15:00-16:00', 0, 8);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (30, 7, 6, 1, '2025-09-29', '15:00:00', '16:00:00', 12, 'progressing', NULL, NULL, '2025-07-28 16:14:46', 9,
-        'request', 0, NULL, '1', '15:00-16:00', 0, 9);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (31, 7, 6, 1, '2025-10-06', '15:00:00', '16:00:00', 12, 'progressing', NULL, NULL, '2025-07-28 16:14:46', 9,
-        'request', 0, NULL, '1', '15:00-16:00', 0, 10);
-INSERT INTO `schedules` (`id`, `teacher_id`, `student_id`, `course_id`, `scheduled_date`, `start_time`, `end_time`,
-                         `total_times`, `status`, `teacher_notes`, `student_feedback`, `created_at`,
-                         `booking_request_id`, `booking_source`, `is_deleted`, `deleted_at`, `recurring_weekdays`,
-                         `recurring_time_slots`, `is_trial`, `session_number`)
-VALUES (32, 7, 6, 1, '2025-10-13', '15:00:00', '16:00:00', 12, 'progressing', NULL, NULL, '2025-07-28 16:14:46', 9,
-        'request', 0, NULL, '1', '15:00-16:00', 0, 11);
+-- 示例：学生6与教师7的一对一课程报名（周期性预约）
+INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `enrollment_type`, `total_sessions`, 
+                                 `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, 
+                                 `is_trial`, `recurring_schedule`, `booking_request_id`, `teacher_notes`, `student_feedback`, 
+                                 `created_at`, `is_deleted`, `deleted_at`)
+VALUES (1, 6, 7, NULL, 'one_on_one', 12, 0, 'active', '2025-07-21', '2025-07-22', '2025-08-26', 0, 
+        '{"weekdays":[2,3],"timeSlots":["17:00-18:00"]}', 3, NULL, NULL, '2025-07-21 13:12:05', 0, NULL);
+-- 示例：学生6与教师7的大班课报名（周期性预约）
+INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `enrollment_type`, `total_sessions`, 
+                                 `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, 
+                                 `is_trial`, `recurring_schedule`, `booking_request_id`, `teacher_notes`, `student_feedback`, 
+                                 `created_at`, `is_deleted`, `deleted_at`)
+VALUES (2, 6, 7, 3, 'large_class', 12, 0, 'active', '2025-07-21', '2025-07-25', '2025-09-02', 0, 
+        '{"weekdays":[2,5],"timeSlots":["14:00-15:00"]}', 4, NULL, NULL, '2025-07-21 13:47:58', 0, NULL);
+-- 示例：学生6与教师7的另一门大班课报名（周期性预约）
+INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `enrollment_type`, `total_sessions`, 
+                                 `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, 
+                                 `is_trial`, `recurring_schedule`, `booking_request_id`, `teacher_notes`, `student_feedback`, 
+                                 `created_at`, `is_deleted`, `deleted_at`)
+VALUES (3, 6, 7, 1, 'large_class', 12, 0, 'active', '2025-07-28', '2025-07-25', '2025-10-13', 0, 
+        '{"weekdays":[1],"timeSlots":["15:00-16:00"]}', 9, NULL, NULL, '2025-07-28 16:14:46', 0, NULL);
+COMMIT;
+
+-- ----------------------------
+-- Records of course_schedules
+-- ----------------------------
+BEGIN;
+-- 第一个报名关系的具体课程安排（一对一课程，周二周三17:00-18:00）
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, 
+                               `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, 
+                               `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`)
+VALUES (1, 1, '2025-07-22', '17:00:00', '18:00:00', 1, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:12:05', 0, NULL),
+       (2, 1, '2025-07-23', '17:00:00', '18:00:00', 2, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:12:05', 0, NULL),
+       (3, 1, '2025-07-29', '17:00:00', '18:00:00', 3, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:12:05', 0, NULL),
+       (4, 1, '2025-07-30', '17:00:00', '18:00:00', 4, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:12:05', 0, NULL),
+       (5, 1, '2025-08-05', '17:00:00', '18:00:00', 5, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:12:05', 0, NULL),
+       (6, 1, '2025-08-06', '17:00:00', '18:00:00', 6, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:12:05', 0, NULL),
+       (7, 1, '2025-08-12', '17:00:00', '18:00:00', 7, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:12:05', 0, NULL),
+       (8, 1, '2025-08-13', '17:00:00', '18:00:00', 8, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:12:05', 0, NULL),
+       (9, 1, '2025-08-19', '17:00:00', '18:00:00', 9, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:12:05', 0, NULL),
+       (10, 1, '2025-08-20', '17:00:00', '18:00:00', 10, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:12:05', 0, NULL),
+       (11, 1, '2025-08-26', '17:00:00', '18:00:00', 11, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:12:05', 0, NULL);
+
+-- 第二个报名关系的具体课程安排（大班课，周二周五14:00-15:00）
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, 
+                               `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, 
+                               `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`)
+VALUES (12, 2, '2025-07-25', '14:00:00', '15:00:00', 1, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:47:58', 0, NULL),
+       (13, 2, '2025-07-29', '14:00:00', '15:00:00', 2, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:47:58', 0, NULL),
+       (14, 2, '2025-08-01', '14:00:00', '15:00:00', 3, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:47:58', 0, NULL),
+       (15, 2, '2025-08-05', '14:00:00', '15:00:00', 4, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:47:58', 0, NULL),
+       (16, 2, '2025-08-08', '14:00:00', '15:00:00', 5, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:47:58', 0, NULL),
+       (17, 2, '2025-08-12', '14:00:00', '15:00:00', 6, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:47:58', 0, NULL),
+       (18, 2, '2025-08-15', '14:00:00', '15:00:00', 7, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:47:58', 0, NULL),
+       (19, 2, '2025-08-19', '14:00:00', '15:00:00', 8, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:47:58', 0, NULL),
+       (20, 2, '2025-08-22', '14:00:00', '15:00:00', 9, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:47:58', 0, NULL),
+       (21, 2, '2025-08-26', '14:00:00', '15:00:00', 10, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:47:58', 0, NULL),
+       (22, 2, '2025-08-29', '14:00:00', '15:00:00', 11, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:47:58', 0, NULL),
+       (23, 2, '2025-09-02', '14:00:00', '15:00:00', 12, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-21 13:47:58', 0, NULL);
+
+-- 第三个报名关系的具体课程安排（大班课，周一15:00-16:00）
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, 
+                               `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, 
+                               `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`)
+VALUES (24, 3, '2025-07-25', '15:00:00', '16:00:00', 1, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-28 16:14:46', 0, NULL),
+       (25, 3, '2025-08-01', '15:00:00', '16:00:00', 2, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-28 16:14:46', 0, NULL),
+       (26, 3, '2025-08-08', '15:00:00', '16:00:00', 3, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-28 16:14:46', 0, NULL),
+       (27, 3, '2025-08-15', '15:00:00', '16:00:00', 4, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-28 16:14:46', 0, NULL),
+       (28, 3, '2025-08-22', '15:00:00', '16:00:00', 5, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-28 16:14:46', 0, NULL),
+       (29, 3, '2025-08-29', '15:00:00', '16:00:00', 6, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-28 16:14:46', 0, NULL),
+       (30, 3, '2025-09-05', '15:00:00', '16:00:00', 7, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-28 16:14:46', 0, NULL),
+       (31, 3, '2025-09-12', '15:00:00', '16:00:00', 8, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-28 16:14:46', 0, NULL),
+       (32, 3, '2025-10-13', '15:00:00', '16:00:00', 11, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-28 16:14:46', 0, NULL);
+COMMIT;
 COMMIT;
 
 -- ----------------------------

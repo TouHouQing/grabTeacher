@@ -59,7 +59,7 @@ public class ScheduleVO {
     @Schema(description = "总课程次数", example = "12")
     private Integer totalTimes;
 
-    @Schema(description = "课程状态", example = "progressing", allowableValues = {"progressing", "completed", "cancelled"})
+    @Schema(description = "课程状态", example = "progressing", allowableValues = {"progressing", "completed", "cancelled", "rescheduled"})
     private String status;
 
     @Schema(description = "教师课后备注和反馈", example = "学生表现良好，需要加强练习")
@@ -73,6 +73,9 @@ public class ScheduleVO {
 
     @Schema(description = "关联预约申请ID", example = "1")
     private Long bookingRequestId;
+
+    @Schema(description = "课程报名ID", example = "1")
+    private Long enrollmentId;
 
     @Schema(description = "预约来源", example = "request", allowableValues = {"request", "admin"})
     private String bookingSource;

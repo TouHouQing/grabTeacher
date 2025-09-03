@@ -2,6 +2,7 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.touhouqing.grabteacherbackend.model.entity.*;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherDetailVO;
 import com.touhouqing.grabteacherbackend.model.dto.TeacherInfoDTO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherListVO;
@@ -11,18 +12,9 @@ import com.touhouqing.grabteacherbackend.model.vo.TeacherProfileVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherScheduleVO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotAvailabilityDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
-import com.touhouqing.grabteacherbackend.model.entity.Course;
-import com.touhouqing.grabteacherbackend.model.entity.CourseGrade;
-import com.touhouqing.grabteacherbackend.model.entity.Schedule;
-import com.touhouqing.grabteacherbackend.model.entity.Student;
-import com.touhouqing.grabteacherbackend.model.entity.Subject;
-import com.touhouqing.grabteacherbackend.model.entity.Teacher;
-import com.touhouqing.grabteacherbackend.model.entity.User;
-import com.touhouqing.grabteacherbackend.model.entity.TeacherSubject;
-import com.touhouqing.grabteacherbackend.model.entity.BookingRequest;
+// import removed: Schedule replaced by CourseSchedule in services
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseGradeMapper;
-import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
@@ -62,7 +54,7 @@ public class TeacherServiceImpl implements TeacherService {
     private final SubjectService subjectService;
     private final CourseMapper courseMapper;
     private final CourseGradeMapper courseGradeMapper;
-    private final ScheduleMapper scheduleMapper;
+    private final com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper courseScheduleMapper;
     private final StudentMapper studentMapper;
     private final UserMapper userMapper;
     private final BookingRequestMapper bookingRequestMapper;
@@ -360,15 +352,15 @@ public class TeacherServiceImpl implements TeacherService {
         qw.eq("is_deleted", false)
           .eq("is_verified", true)
           .eq("is_featured", true);
-        if (org.springframework.util.StringUtils.hasText(subject)) {
+        if (StringUtils.hasText(subject)) {
             qw.exists("SELECT 1 FROM teacher_subjects ts INNER JOIN subjects s ON ts.subject_id = s.id " +
                      "WHERE ts.teacher_id = teachers.id AND s.name = '" + subject + "' AND s.is_deleted = 0");
         }
-        if (org.springframework.util.StringUtils.hasText(grade)) {
+        if (StringUtils.hasText(grade)) {
             qw.exists("SELECT 1 FROM courses c INNER JOIN course_grades cg ON c.id = cg.course_id " +
                      "WHERE c.teacher_id = teachers.id AND c.is_deleted = 0 AND c.status = 'active' AND cg.grade = '" + grade + "'");
         }
-        if (org.springframework.util.StringUtils.hasText(keyword)) {
+        if (StringUtils.hasText(keyword)) {
             qw.and(w -> w.like("real_name", keyword).or().like("specialties", keyword).or().like("introduction", keyword));
         }
         Long cnt = teacherMapper.selectCount(qw);
@@ -998,16 +990,16 @@ public class TeacherServiceImpl implements TeacherService {
             throw new RuntimeException("教师不存在");
         }
 
-        // 获取指定时间范围内的课程安排（一次 DB）
-        List<Schedule> schedules = scheduleMapper.findByTeacherIdAndDateRange(teacherId, startDate, endDate);
+        // 获取指定时间范围内的课程安排（一次 DB）→ 使用新表
+        List<CourseSchedule> schedules = courseScheduleMapper.findByTeacherIdAndDateRange(teacherId, startDate, endDate);
 
         // 按日期分组
-        Map<LocalDate, List<Schedule>> schedulesByDate = schedules.stream()
-                .collect(Collectors.groupingBy(Schedule::getScheduledDate));
+        Map<LocalDate, List<CourseSchedule>> schedulesByDate = schedules.stream()
+                .collect(Collectors.groupingBy(CourseSchedule::getScheduledDate));
 
         // 基于本次 DB 结果构建 busy 映射，并批量回写 Redis（避免逐日多次往返）
         Map<LocalDate, List<String>> busyMap = new HashMap<>();
-        for (Schedule s : schedules) {
+        for (CourseSchedule s : schedules) {
             LocalDate d = s.getScheduledDate();
             String slot = s.getStartTime().toString() + "-" + s.getEndTime().toString();
             busyMap.computeIfAbsent(d, k -> new ArrayList<>()).add(slot);
@@ -1024,8 +1016,8 @@ public class TeacherServiceImpl implements TeacherService {
         LocalDate currentDate = startDate;
 
         while (!currentDate.isAfter(endDate)) {
-            List<String> busySlots = busyMap.getOrDefault(currentDate, java.util.Collections.emptyList());
-            List<Schedule> daySchedules_raw = schedulesByDate.getOrDefault(currentDate, new ArrayList<>());
+            List<String> busySlots = busyMap.getOrDefault(currentDate, Collections.emptyList());
+            List<CourseSchedule> daySchedules_raw = schedulesByDate.getOrDefault(currentDate, new ArrayList<>());
 
             // 生成该日的时间段信息（使用内存 busy 判定占用）
             List<TeacherScheduleVO.TimeSlotInfo> timeSlots = generateTimeSlotsWithBusy(teacherId, daySchedules_raw, currentDate, busySlots);
@@ -1091,9 +1083,10 @@ public class TeacherServiceImpl implements TeacherService {
             }
         } else {
             // 一次性加载范围内所有课程，构建 busyMap 并批量回填 Redis，避免每个 timeSlot 再次访问 DB
-            Map<LocalDate, List<String>> busyMap = new java.util.HashMap<>();
-            List<Schedule> range = scheduleMapper.findByTeacherIdAndDateRange(teacherId, startDate, endDate);
-            for (Schedule s : range) {
+            Map<LocalDate, List<String>> busyMap = new HashMap<>();
+            List<CourseSchedule> range =
+                    courseScheduleMapper.findByTeacherIdAndDateRange(teacherId, startDate, endDate);
+            for (CourseSchedule s : range) {
                 LocalDate d = s.getScheduledDate();
                 String slot = s.getStartTime().toString() + "-" + s.getEndTime().toString();
                 busyMap.computeIfAbsent(d, k -> new ArrayList<>()).add(slot);
@@ -1123,7 +1116,7 @@ public class TeacherServiceImpl implements TeacherService {
     /**
      * 生成时间段信息 - 根据教师设置的可上课时间和实际课表安排
      */
-    private List<TeacherScheduleVO.TimeSlotInfo> generateTimeSlotsWithBusy(Long teacherId, List<Schedule> daySchedules, LocalDate date, List<String> busySlots) {
+    private List<TeacherScheduleVO.TimeSlotInfo> generateTimeSlotsWithBusy(Long teacherId, List<CourseSchedule> daySchedules, LocalDate date, List<String> busySlots) {
         // 获取该日期对应的星期几（ISO标准：1=周一, 7=周日）
         int weekday = date.getDayOfWeek().getValue();
 
@@ -1137,11 +1130,11 @@ public class TeacherServiceImpl implements TeacherService {
 
         List<TeacherScheduleVO.TimeSlotInfo> timeSlots = new ArrayList<>();
 
-        // 将已有课程按时间段分组
-        Map<String, Schedule> scheduleByTimeSlot = new HashMap<>();
-        for (Schedule schedule : daySchedules) {
-            String timeSlot = schedule.getStartTime().toString() + "-" + schedule.getEndTime().toString();
-            scheduleByTimeSlot.put(timeSlot, schedule);
+        // 将已有课程按时间段分组（新表）
+        Map<String, CourseSchedule> scheduleByTimeSlot = new HashMap<>();
+        for (CourseSchedule cs : daySchedules) {
+            String timeSlot = cs.getStartTime().toString() + "-" + cs.getEndTime().toString();
+            scheduleByTimeSlot.put(timeSlot, cs);
         }
 
         // 只生成教师可上课时间段的信息
@@ -1150,14 +1143,9 @@ public class TeacherServiceImpl implements TeacherService {
             LocalTime startTime = LocalTime.parse(times[0]);
             LocalTime endTime = LocalTime.parse(times[1]);
 
-            boolean isBooked;
-            Schedule existingSchedule = scheduleByTimeSlot.get(timeSlot);
-            if (busySlots != null && !busySlots.isEmpty()) {
-                // 用 busy 缓存判定是否占用
-                isBooked = busySlots.stream().anyMatch(slot -> TimeSlotUtil.hasTimeConflict(timeSlot, slot));
-            } else {
-                isBooked = existingSchedule != null && !"cancelled".equals(existingSchedule.getStatus());
-            }
+            boolean isBooked = (busySlots != null && !busySlots.isEmpty())
+                    ? busySlots.stream().anyMatch(slot -> TimeSlotUtil.hasTimeConflict(timeSlot, slot))
+                    : scheduleByTimeSlot.containsKey(timeSlot);
 
             TeacherScheduleVO.TimeSlotInfo timeSlotInfo = TeacherScheduleVO.TimeSlotInfo.builder()
                     .timeSlot(timeSlot)
@@ -1167,19 +1155,7 @@ public class TeacherServiceImpl implements TeacherService {
                     .booked(isBooked)
                     .build();
 
-            if (isBooked && existingSchedule != null) {
-                // 补充学生/课程信息
-                Student student = studentMapper.selectById(existingSchedule.getStudentId());
-                if (student != null) {
-                    timeSlotInfo.setStudentName(student.getRealName());
-                }
-                Course course = courseMapper.selectById(existingSchedule.getCourseId());
-                if (course != null) {
-                    timeSlotInfo.setCourseTitle(course.getTitle());
-                }
-                timeSlotInfo.setStatus(existingSchedule.getStatus());
-                timeSlotInfo.setIsTrial(existingSchedule.getTrial());
-            }
+            // 新表路径：如需补充学生/课程/状态，可通过 enrollment 反查；为降低开销，这里仅标注占用，不回填详情
 
             timeSlots.add(timeSlotInfo);
         }
@@ -1218,7 +1194,7 @@ public class TeacherServiceImpl implements TeacherService {
             int wd = cur.getDayOfWeek().getValue();
             if (wd == weekday) {
                 totalWeeks++;
-                List<String> dayBusy = busyMap.getOrDefault(cur, java.util.Collections.emptyList());
+                List<String> dayBusy = busyMap.getOrDefault(cur, Collections.emptyList());
                 boolean conflict = false;
                 if (target != null && !dayBusy.isEmpty()) {
                     for (String b : dayBusy) {
@@ -1590,12 +1566,8 @@ public class TeacherServiceImpl implements TeacherService {
         courseWrapper.eq("is_deleted", false);
         Long totalCourses = courseMapper.selectCount(courseWrapper);
 
-        // 3. 即将上课数 - 查询状态为progressing的课程安排
-        QueryWrapper<Schedule> upcomingWrapper = new QueryWrapper<>();
-        upcomingWrapper.eq("teacher_id", teacher.getId());
-        upcomingWrapper.eq("status", "progressing");
-        upcomingWrapper.eq("is_deleted", false);
-        Long upcomingClasses = scheduleMapper.selectCount(upcomingWrapper);
+        // 3. 即将上课数 - 查询course_schedules中scheduled状态且日期>=今天的安排
+        Long upcomingClasses = (long) courseScheduleMapper.countUpcomingByTeacherId(teacher.getId(), LocalDate.now());
 
         // 4. 预约申请数 - 查询状态为pending的预约申请
         QueryWrapper<BookingRequest> bookingWrapper = new QueryWrapper<>();

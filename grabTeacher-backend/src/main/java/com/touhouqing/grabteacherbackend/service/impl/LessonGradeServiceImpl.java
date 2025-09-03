@@ -4,14 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.touhouqing.grabteacherbackend.exception.BusinessException;
-import com.touhouqing.grabteacherbackend.mapper.LessonGradeMapper;
-import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
-import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
+import com.touhouqing.grabteacherbackend.mapper.*;
 import com.touhouqing.grabteacherbackend.model.dto.LessonGradeCreateDTO;
 import com.touhouqing.grabteacherbackend.model.dto.LessonGradeQueryDTO;
 import com.touhouqing.grabteacherbackend.model.dto.LessonGradeUpdateDTO;
+import com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment;
+import com.touhouqing.grabteacherbackend.model.entity.CourseSchedule;
 import com.touhouqing.grabteacherbackend.model.entity.LessonGrade;
-import com.touhouqing.grabteacherbackend.model.entity.Schedule;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 import com.touhouqing.grabteacherbackend.model.vo.LessonGradeVO;
 import com.touhouqing.grabteacherbackend.service.LessonGradeService;
@@ -30,8 +29,9 @@ import java.util.List;
 public class LessonGradeServiceImpl implements LessonGradeService {
 
     private final LessonGradeMapper lessonGradeMapper;
-    private final ScheduleMapper scheduleMapper;
     private final TeacherMapper teacherMapper;
+    private final CourseScheduleMapper courseScheduleMapper;
+    private final CourseEnrollmentMapper courseEnrollmentMapper;
 
     @Override
     @Transactional
@@ -187,17 +187,18 @@ public class LessonGradeServiceImpl implements LessonGradeService {
         // 获取教师信息
         Teacher teacher = getTeacherByUserId(userId);
         
-        // 获取课程安排信息
-        Schedule schedule = scheduleMapper.selectById(scheduleId);
-        if (schedule == null || schedule.getDeleted()) {
+        // 获取课程安排信息（新表）
+        CourseSchedule schedule = courseScheduleMapper.findById(scheduleId);
+        if (schedule == null || Boolean.TRUE.equals(schedule.getDeleted())) {
             log.warn("课程安排不存在: scheduleId={}", scheduleId);
             return false;
         }
 
-        // 检查是否是该课程的授课教师
-        boolean hasPermission = teacher.getId().equals(schedule.getTeacherId());
+        // 检查是否是该课程的授课教师：通过报名关系反查
+        CourseEnrollment enrollment = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
+        boolean hasPermission = enrollment != null && teacher.getId().equals(enrollment.getTeacherId());
         log.debug("权限检查结果: userId={}, teacherId={}, scheduleTeacherId={}, hasPermission={}", 
-                userId, teacher.getId(), schedule.getTeacherId(), hasPermission);
+                userId, teacher.getId(), enrollment != null ? enrollment.getTeacherId() : null, hasPermission);
         
         return hasPermission;
     }

@@ -10,7 +10,6 @@ import com.touhouqing.grabteacherbackend.model.dto.BookingApprovalDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
 import com.touhouqing.grabteacherbackend.service.BookingService;
 import com.touhouqing.grabteacherbackend.service.DistributedLockService;
-import com.touhouqing.grabteacherbackend.service.TeacherCacheWarmupService;
 import com.touhouqing.grabteacherbackend.service.CacheKeyEvictor;
 import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
 import com.touhouqing.grabteacherbackend.service.StudentService;
@@ -37,8 +36,13 @@ public class BookingServiceImpl implements BookingService {
     @Autowired
     private BookingRequestMapper bookingRequestMapper;
 
+    // 旧表已迁移，移除未使用的 ScheduleMapper
+
     @Autowired
-    private ScheduleMapper scheduleMapper;
+    private CourseEnrollmentMapper courseEnrollmentMapper;
+
+    @Autowired
+    private CourseScheduleMapper courseScheduleMapper;
 
     @Autowired
     private UserMapper userMapper;
@@ -58,8 +62,7 @@ public class BookingServiceImpl implements BookingService {
     @Autowired
     private DistributedLockService distributedLockService;
 
-    @Autowired
-    private TeacherCacheWarmupService teacherCacheWarmupService;
+    // 未直接使用，避免未使用警告
 
     @Autowired
     private CacheKeyEvictor cacheKeyEvictor;
@@ -231,8 +234,8 @@ public class BookingServiceImpl implements BookingService {
                 if ("single".equals(bookingRequest.getBookingType())) {
                     if (bookingRequest.getRequestedDate() != null) affectedDates.add(bookingRequest.getRequestedDate());
                 } else {
-                    List<Schedule> schedules = scheduleMapper.findByBookingRequestId(bookingRequest.getId());
-                    for (Schedule s : schedules) {
+                    java.util.List<CourseSchedule> schedules = courseScheduleMapper.findByBookingRequestId(bookingRequest.getId());
+                    for (CourseSchedule s : schedules) {
                         if (s.getScheduledDate() != null) affectedDates.add(s.getScheduledDate());
                     }
                 }
@@ -241,9 +244,10 @@ public class BookingServiceImpl implements BookingService {
                 // 立即回填 busy slots（避免下一次读 miss）
                 if (!affectedDates.isEmpty()) {
                     for (LocalDate d : affectedDates) {
-                        List<Schedule> dayAll = scheduleMapper.findByTeacherIdAndDate(bookingRequest.getTeacherId(), d);
+                        java.util.List<CourseSchedule> dayAll =
+                                courseScheduleMapper.findByTeacherIdAndDateRange(bookingRequest.getTeacherId(), d, d);
                         List<String> slots = new ArrayList<>();
-                        for (Schedule s : dayAll) {
+                        for (CourseSchedule s : dayAll) {
                             String slot = s.getStartTime().toString() + "-" + s.getEndTime().toString();
                             slots.add(slot);
                         }
@@ -534,9 +538,22 @@ public class BookingServiceImpl implements BookingService {
             throw new RuntimeException("教师信息不存在");
         }
 
-        List<Schedule> schedules = scheduleMapper.findByTeacherIdAndDateRange(teacher.getId(), startDate, endDate);
+        java.util.List<CourseSchedule> schedules =
+                courseScheduleMapper.findByTeacherIdAndDateRange(teacher.getId(), startDate, endDate);
         return schedules.stream()
-                .map(this::convertToScheduleResponseDTO)
+                .map(cs -> {
+                    ScheduleVO vo = new ScheduleVO();
+                    vo.setId(cs.getId());
+                    // 兼容前端：补充常用关联字段
+                    vo.setTeacherId(cs.getTeacherId());
+                    vo.setStudentId(cs.getStudentId());
+                    vo.setCourseId(cs.getCourseId());
+                    vo.setScheduledDate(cs.getScheduledDate());
+                    vo.setStartTime(cs.getStartTime());
+                    vo.setEndTime(cs.getEndTime());
+                    vo.setStatus(mapScheduleStatusToLegacy(cs.getScheduleStatus()));
+                    return vo;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -547,23 +564,119 @@ public class BookingServiceImpl implements BookingService {
             throw new RuntimeException("学生信息不存在");
         }
 
-        List<Schedule> schedules = scheduleMapper.findByStudentIdAndDateRange(student.getId(), startDate, endDate);
+        java.util.List<CourseSchedule> schedules =
+                courseScheduleMapper.findByStudentIdAndDateRange(student.getId(), startDate, endDate);
         return schedules.stream()
-                .map(this::convertToScheduleResponseDTO)
+                .map(cs -> convertToScheduleVO(cs))
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<ScheduleVO> getAllStudentSchedules(Long studentUserId) {
+        log.info("获取学生所有课程安排，用户ID: {}", studentUserId);
+        
         Student student = studentMapper.findByUserId(studentUserId);
         if (student == null) {
-            throw new RuntimeException("学生信息不存在");
+            log.warn("学生信息不存在，用户ID: {}", studentUserId);
+            throw new RuntimeException("学生信息不存在，请先完善学生资料");
         }
+        
+        log.info("找到学生信息，学生ID: {}, 学生姓名: {}", student.getId(), student.getRealName());
 
-        List<Schedule> schedules = scheduleMapper.findByStudentId(student.getId());
-        return schedules.stream()
-                .map(this::convertToScheduleResponseDTO)
+        List<CourseSchedule> schedules =
+                courseScheduleMapper.findByStudentId(student.getId());
+        
+        log.info("查询到课程安排数量: {}", schedules.size());
+        
+        List<ScheduleVO> result = schedules.stream()
+                .map(cs -> convertToScheduleVO(cs))
                 .collect(Collectors.toList());
+                
+        log.info("转换后的课程安排数量: {}", result.size());
+        return result;
+    }
+
+    /**
+     * 将CourseSchedule实体转换为ScheduleVO
+     */
+    private ScheduleVO convertToScheduleVO(CourseSchedule cs) {
+        ScheduleVO vo = new ScheduleVO();
+        vo.setId(cs.getId());
+        vo.setTeacherId(cs.getTeacherId());
+        vo.setStudentId(cs.getStudentId());
+        vo.setCourseId(cs.getCourseId());
+        vo.setScheduledDate(cs.getScheduledDate());
+        vo.setStartTime(cs.getStartTime());
+        vo.setEndTime(cs.getEndTime());
+        vo.setStatus(mapScheduleStatusToLegacy(cs.getScheduleStatus()));
+        vo.setTeacherNotes(cs.getTeacherNotes());
+        vo.setStudentFeedback(cs.getStudentFeedback());
+        vo.setCreatedAt(cs.getCreatedAt());
+        vo.setBookingRequestId(cs.getBookingRequestId());
+        vo.setEnrollmentId(cs.getEnrollmentId());
+        vo.setSessionNumber(cs.getSessionNumber());
+        
+        // 计算课程时长
+        if (cs.getStartTime() != null && cs.getEndTime() != null) {
+            long durationMinutes = java.time.Duration.between(cs.getStartTime(), cs.getEndTime()).toMinutes();
+            vo.setDurationMinutes((int) durationMinutes);
+        }
+        
+        // 获取教师信息
+        if (cs.getTeacherId() != null) {
+            Teacher teacher = teacherMapper.selectById(cs.getTeacherId());
+            if (teacher != null) {
+                vo.setTeacherName(teacher.getRealName());
+            }
+        }
+        
+        // 获取学生信息
+        if (cs.getStudentId() != null) {
+            Student student = studentMapper.selectById(cs.getStudentId());
+            if (student != null) {
+                vo.setStudentName(student.getRealName());
+            }
+        }
+        
+        // 获取课程信息
+        if (cs.getCourseId() != null) {
+            Course course = courseMapper.selectById(cs.getCourseId());
+            if (course != null) {
+                vo.setCourseTitle(course.getTitle());
+                vo.setCourseType(course.getCourseType());
+                
+                // 获取科目名称
+                if (course.getSubjectId() != null) {
+                    Subject subject = subjectMapper.selectById(course.getSubjectId());
+                    if (subject != null) {
+                        vo.setSubjectName(subject.getName());
+                    }
+                }
+            }
+        }
+        
+        // 获取报名信息
+        if (cs.getEnrollmentId() != null) {
+            CourseEnrollment enrollment =
+                courseEnrollmentMapper.selectById(cs.getEnrollmentId());
+            if (enrollment != null) {
+                vo.setTrial(enrollment.getTrial());
+                if (enrollment.getTotalSessions() != null) {
+                    vo.setTotalTimes(enrollment.getTotalSessions());
+                }
+            }
+        }
+        
+        return vo;
+    }
+
+    /**
+     * 兼容前端旧状态：scheduled -> progressing
+     */
+    private String mapScheduleStatusToLegacy(String scheduleStatus) {
+        if (scheduleStatus == null) return null;
+        if ("scheduled".equals(scheduleStatus)) return "progressing";
+        return scheduleStatus; // completed/cancelled/rescheduled 原样
     }
 
     @Override
@@ -600,7 +713,8 @@ public class BookingServiceImpl implements BookingService {
     public boolean hasTeacherTimeConflict(Long teacherId, LocalDate date, String startTime, String endTime) {
         LocalTime start = LocalTime.parse(startTime);
         LocalTime end = LocalTime.parse(endTime);
-        int conflictCount = scheduleMapper.countConflictingSchedules(teacherId, date, start, end);
+        // 改为查询新表
+        int conflictCount = courseScheduleMapper.countTeacherConflicts(teacherId, date, start, end);
         return conflictCount > 0;
     }
 
@@ -608,7 +722,8 @@ public class BookingServiceImpl implements BookingService {
     public boolean hasStudentTimeConflict(Long studentId, LocalDate date, String startTime, String endTime) {
         LocalTime start = LocalTime.parse(startTime);
         LocalTime end = LocalTime.parse(endTime);
-        int conflictCount = scheduleMapper.countStudentConflictingSchedules(studentId, date, start, end);
+        // 改为查询新表
+        int conflictCount = courseScheduleMapper.countStudentConflicts(studentId, date, start, end);
         return conflictCount > 0;
     }
 
@@ -631,6 +746,26 @@ public class BookingServiceImpl implements BookingService {
         }
 
         log.info("预约配置 - 星期几: {}, 时间段: {}", weekdays, timeSlots);
+
+        // 1) 先创建报名关系
+        CourseEnrollment enrollment =
+                CourseEnrollment.builder()
+                        .studentId(bookingRequest.getStudentId())
+                        .teacherId(bookingRequest.getTeacherId())
+                        .courseId(bookingRequest.getCourseId())
+                        .enrollmentType(bookingRequest.getCourseId() == null ? "one_on_one" : "large_class")
+                        .totalSessions(bookingRequest.getTotalTimes())
+                        .completedSessions(0)
+                        .enrollmentStatus("active")
+                        .enrollmentDate(java.time.LocalDate.now())
+                        .startDate(bookingRequest.getStartDate())
+                        .endDate(bookingRequest.getEndDate())
+                        .trial(Boolean.TRUE.equals(bookingRequest.getTrial()))
+                        .recurringSchedule(buildRecurringScheduleJson(weekdays, timeSlots))
+                        .bookingRequestId(bookingRequest.getId())
+                        .deleted(false)
+                        .build();
+        courseEnrollmentMapper.insert(enrollment);
 
         int generatedCount = 0;
         int sessionNumber = 1;
@@ -667,28 +802,22 @@ public class BookingServiceImpl implements BookingService {
                             LocalTime startTime = LocalTime.parse(times[0]);
                             LocalTime endTime = LocalTime.parse(times[1]);
 
-                            // 检查时间冲突
+                            // 检查时间冲突（使用新表）
                             if (!hasTeacherTimeConflict(bookingRequest.getTeacherId(), currentDate, times[0], times[1]) &&
                                 !hasStudentTimeConflict(bookingRequest.getStudentId(), currentDate, times[0], times[1])) {
 
-                                Schedule schedule = Schedule.builder()
-                                        .teacherId(bookingRequest.getTeacherId())
-                                        .studentId(bookingRequest.getStudentId())
-                                        .courseId(bookingRequest.getCourseId())
-                                        .scheduledDate(currentDate)
-                                        .startTime(startTime)
-                                        .endTime(endTime)
-                                        .totalTimes(bookingRequest.getTotalTimes())
-                                        .status("progressing")
-                                        .bookingRequestId(bookingRequest.getId())
-                                        .bookingSource("request")
-                                        .trial(bookingRequest.getTrial())
-                                        .sessionNumber(sessionNumber)
-                                        .recurringWeekdays(bookingRequest.getRecurringWeekdays())
-                                        .recurringTimeSlots(bookingRequest.getRecurringTimeSlots())
-                                        .build();
+                                    CourseSchedule cs =
+                                        CourseSchedule.builder()
+                                                .enrollmentId(enrollment.getId())
+                                                .scheduledDate(currentDate)
+                                                .startTime(startTime)
+                                                .endTime(endTime)
+                                                .sessionNumber(sessionNumber)
+                                                .scheduleStatus("scheduled")
+                                                .deleted(false)
+                                                .build();
 
-                                scheduleMapper.insert(schedule);
+                                courseScheduleMapper.insert(cs);
                                 generatedCount++;
                                 sessionNumber++;
 
@@ -732,6 +861,26 @@ public class BookingServiceImpl implements BookingService {
                                                       List<String> timeSlots,
                                                       LocalDate currentDate,
                                                       LocalDate endDate) {
+        // 与有限次逻辑保持一致：先创建报名，再生成安排
+        CourseEnrollment enrollment =
+                CourseEnrollment.builder()
+                        .studentId(bookingRequest.getStudentId())
+                        .teacherId(bookingRequest.getTeacherId())
+                        .courseId(bookingRequest.getCourseId())
+                        .enrollmentType(bookingRequest.getCourseId() == null ? "one_on_one" : "large_class")
+                        .totalSessions(null)
+                        .completedSessions(0)
+                        .enrollmentStatus("active")
+                        .enrollmentDate(java.time.LocalDate.now())
+                        .startDate(bookingRequest.getStartDate())
+                        .endDate(bookingRequest.getEndDate())
+                        .trial(Boolean.TRUE.equals(bookingRequest.getTrial()))
+                        .recurringSchedule(buildRecurringScheduleJson(weekdays, timeSlots))
+                        .bookingRequestId(bookingRequest.getId())
+                        .deleted(false)
+                        .build();
+        courseEnrollmentMapper.insert(enrollment);
+
         int generatedCount = 0;
         int sessionNumber = 1;
 
@@ -746,28 +895,22 @@ public class BookingServiceImpl implements BookingService {
                         LocalTime startTime = LocalTime.parse(times[0]);
                         LocalTime endTime = LocalTime.parse(times[1]);
 
-                        // 检查时间冲突
+                        // 检查时间冲突（使用新表）
                         if (!hasTeacherTimeConflict(bookingRequest.getTeacherId(), currentDate, times[0], times[1]) &&
                             !hasStudentTimeConflict(bookingRequest.getStudentId(), currentDate, times[0], times[1])) {
 
-                            Schedule schedule = Schedule.builder()
-                                    .teacherId(bookingRequest.getTeacherId())
-                                    .studentId(bookingRequest.getStudentId())
-                                    .courseId(bookingRequest.getCourseId())
-                                    .scheduledDate(currentDate)
-                                    .startTime(startTime)
-                                    .endTime(endTime)
-                                    .totalTimes(bookingRequest.getTotalTimes())
-                                    .status("progressing")
-                                    .bookingRequestId(bookingRequest.getId())
-                                    .bookingSource("request")
-                                    .trial(bookingRequest.getTrial())
-                                    .sessionNumber(sessionNumber)
-                                    .recurringWeekdays(bookingRequest.getRecurringWeekdays())
-                                    .recurringTimeSlots(bookingRequest.getRecurringTimeSlots())
-                                    .build();
+                            CourseSchedule cs =
+                                    CourseSchedule.builder()
+                                            .enrollmentId(enrollment.getId())
+                                            .scheduledDate(currentDate)
+                                            .startTime(startTime)
+                                            .endTime(endTime)
+                                            .sessionNumber(sessionNumber)
+                                            .scheduleStatus("scheduled")
+                                            .deleted(false)
+                                            .build();
 
-                            scheduleMapper.insert(schedule);
+                            courseScheduleMapper.insert(cs);
                             generatedCount++;
                             sessionNumber++;
 
@@ -930,31 +1073,46 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        Schedule schedule = Schedule.builder()
-                .teacherId(bookingRequest.getTeacherId())
-                .studentId(bookingRequest.getStudentId())
-                .courseId(bookingRequest.getCourseId())
-                .scheduledDate(bookingRequest.getRequestedDate())
-                .startTime(bookingRequest.getRequestedStartTime())
-                .endTime(bookingRequest.getRequestedEndTime())
-                .totalTimes(1)
-                .status("progressing")
-                .bookingRequestId(bookingRequest.getId())
-                .bookingSource("request")
-                .trial(bookingRequest.getTrial())
-                .sessionNumber(1)
-                .build();
+        // 1) 创建报名关系（单次）
+        CourseEnrollment enrollment =
+                CourseEnrollment.builder()
+                        .studentId(bookingRequest.getStudentId())
+                        .teacherId(bookingRequest.getTeacherId())
+                        .courseId(bookingRequest.getCourseId())
+                        .enrollmentType(bookingRequest.getCourseId() == null ? "one_on_one" : "large_class")
+                        .totalSessions(1)
+                        .completedSessions(0)
+                        .enrollmentStatus("active")
+                        .enrollmentDate(java.time.LocalDate.now())
+                        .startDate(bookingRequest.getRequestedDate())
+                        .endDate(bookingRequest.getRequestedDate())
+                        .trial(Boolean.TRUE.equals(bookingRequest.getTrial()))
+                        .bookingRequestId(bookingRequest.getId())
+                        .deleted(false)
+                        .build();
+        courseEnrollmentMapper.insert(enrollment);
 
-        scheduleMapper.insert(schedule);
+        // 2) 创建单次课程安排
+        CourseSchedule cs =
+                CourseSchedule.builder()
+                        .enrollmentId(enrollment.getId())
+                        .scheduledDate(bookingRequest.getRequestedDate())
+                        .startTime(bookingRequest.getRequestedStartTime())
+                        .endTime(bookingRequest.getRequestedEndTime())
+                        .sessionNumber(1)
+                        .scheduleStatus("scheduled")
+                        .deleted(false)
+                        .build();
+        courseScheduleMapper.insert(cs);
 
         // 计算并记录时长信息
         if (bookingRequest.getRequestedStartTime() != null && bookingRequest.getRequestedEndTime() != null) {
             LocalTime startTime = bookingRequest.getRequestedStartTime();
             LocalTime endTime = bookingRequest.getRequestedEndTime();
             int durationMinutes = (int) java.time.Duration.between(startTime, endTime).toMinutes();
-            log.info("单次课程安排生成完成，安排ID: {}，时长: {}分钟", schedule.getId(), durationMinutes);
+            log.info("单次课程安排生成完成，安排ID: {}，时长: {}分钟", cs.getId(), durationMinutes);
         } else {
-            log.info("单次课程安排生成完成，安排ID: {}", schedule.getId());
+            log.info("单次课程安排生成完成，安排ID: {}", cs.getId());
         }
     }
 
@@ -991,6 +1149,14 @@ public class BookingServiceImpl implements BookingService {
                 .map(String::trim)
                 .map(Integer::parseInt)
                 .collect(Collectors.toList());
+    }
+
+    private String buildRecurringScheduleJson(List<Integer> weekdays, List<String> timeSlots) {
+        // 简单JSON拼装，保持与SQL文件示例一致
+        String weekdayArray = weekdays == null || weekdays.isEmpty() ? "[]" : weekdays.toString();
+        String timeArray = timeSlots == null || timeSlots.isEmpty() ? "[]" :
+                ("[" + timeSlots.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(",")) + "]");
+        return "{\"weekdays\":" + weekdayArray + ",\"timeSlots\":" + timeArray + "}";
     }
 
     /**
@@ -1051,61 +1217,7 @@ public class BookingServiceImpl implements BookingService {
                 .build();
     }
 
-    /**
-     * 将Schedule转换为ScheduleResponseDTO
-     */
-    private ScheduleVO convertToScheduleResponseDTO(Schedule schedule) {
-        // 获取学生信息
-        Student student = studentMapper.selectById(schedule.getStudentId());
-        String studentName = student != null ? student.getRealName() : "未知学生";
-
-        // 获取教师信息
-        Teacher teacher = teacherMapper.selectById(schedule.getTeacherId());
-        String teacherName = teacher != null ? teacher.getRealName() : "未知教师";
-
-        // 获取课程信息
-        Course course = courseMapper.selectById(schedule.getCourseId());
-        String courseTitle = course != null ? course.getTitle() : "未知课程";
-        String courseType = course != null ? course.getCourseType() : null;
-
-        // 获取科目信息
-        String subjectName = null;
-        if (course != null && course.getSubjectId() != null) {
-            Subject subject = subjectMapper.selectById(course.getSubjectId());
-            subjectName = subject != null ? subject.getName() : null;
-        }
-
-        // 计算课程时长
-        Integer durationMinutes = null;
-        if (schedule.getStartTime() != null && schedule.getEndTime() != null) {
-            durationMinutes = (int) java.time.Duration.between(schedule.getStartTime(), schedule.getEndTime()).toMinutes();
-        }
-
-        return ScheduleVO.builder()
-                .id(schedule.getId())
-                .teacherId(schedule.getTeacherId())
-                .teacherName(teacherName)
-                .studentId(schedule.getStudentId())
-                .studentName(studentName)
-                .courseId(schedule.getCourseId())
-                .courseTitle(courseTitle)
-                .subjectName(subjectName)
-                .scheduledDate(schedule.getScheduledDate())
-                .startTime(schedule.getStartTime())
-                .endTime(schedule.getEndTime())
-                .durationMinutes(durationMinutes)
-                .totalTimes(schedule.getTotalTimes())
-                .status(schedule.getStatus())
-                .teacherNotes(schedule.getTeacherNotes())
-                .studentFeedback(schedule.getStudentFeedback())
-                .createdAt(schedule.getCreatedAt())
-                .bookingRequestId(schedule.getBookingRequestId())
-                .bookingSource(schedule.getBookingSource())
-                .trial(schedule.getTrial())
-                .sessionNumber(schedule.getSessionNumber())
-                .courseType(courseType)
-                .build();
-    }
+    // 删除未使用的 convertToScheduleResponseDTO(Schedule)
 
     /**
      * 验证单次预约时间是否在教师可预约时间范围内

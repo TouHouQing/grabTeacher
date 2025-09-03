@@ -5,11 +5,13 @@ import com.touhouqing.grabteacherbackend.common.result.CommonResult;
 import com.touhouqing.grabteacherbackend.common.result.RescheduleTimeCheckResult;
 import com.touhouqing.grabteacherbackend.model.dto.RescheduleApprovalDTO;
 import com.touhouqing.grabteacherbackend.model.dto.RescheduleApplyDTO;
+import com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment;
+import com.touhouqing.grabteacherbackend.model.entity.CourseSchedule;
 import com.touhouqing.grabteacherbackend.model.vo.RescheduleVO;
-import com.touhouqing.grabteacherbackend.model.entity.Schedule;
 import com.touhouqing.grabteacherbackend.model.entity.Student;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
-import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseEnrollmentMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
@@ -49,7 +51,10 @@ public class RescheduleController {
     private RescheduleService rescheduleService;
 
     @Autowired
-    private ScheduleMapper scheduleMapper;
+    private CourseScheduleMapper courseScheduleMapper;
+
+    @Autowired
+    private CourseEnrollmentMapper courseEnrollmentMapper;
 
     @Autowired
     private StudentMapper studentMapper;
@@ -252,7 +257,7 @@ public class RescheduleController {
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             // 获取课程安排信息
-            Schedule schedule = scheduleMapper.selectById(scheduleId);
+            CourseSchedule schedule = courseScheduleMapper.findById(scheduleId);
             if (schedule == null) {
                 return ResponseEntity.badRequest()
                         .body(CommonResult.error("课程安排不存在"));
@@ -260,7 +265,8 @@ public class RescheduleController {
 
             // 验证学生权限
             Student student = studentMapper.findByUserId(currentUser.getId());
-            if (student == null || !schedule.getStudentId().equals(student.getId())) {
+            CourseEnrollment enrollment = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
+            if (student == null || enrollment == null || !enrollment.getStudentId().equals(student.getId())) {
                 return ResponseEntity.badRequest()
                         .body(CommonResult.error("无权限操作此课程安排"));
             }
@@ -278,8 +284,8 @@ public class RescheduleController {
 
             // 然后检查时间冲突
             boolean hasConflict = rescheduleService.hasTimeConflict(
-                    schedule.getTeacherId(),
-                    schedule.getStudentId(),
+                    enrollment.getTeacherId(),
+                    enrollment.getStudentId(),
                     newDate.toString(),
                     newStartTime,
                     newEndTime,
@@ -389,7 +395,7 @@ public class RescheduleController {
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             // 获取课程安排信息
-            Schedule schedule = scheduleMapper.selectById(scheduleId);
+            CourseSchedule schedule = courseScheduleMapper.findById(scheduleId);
             if (schedule == null) {
                 return ResponseEntity.badRequest()
                         .body(CommonResult.error("课程安排不存在"));
@@ -397,7 +403,8 @@ public class RescheduleController {
 
             // 验证教师权限
             Teacher teacher = teacherMapper.findByUserId(currentUser.getId());
-            if (teacher == null || !schedule.getTeacherId().equals(teacher.getId())) {
+            CourseEnrollment enrollment2 = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
+            if (teacher == null || enrollment2 == null || !enrollment2.getTeacherId().equals(teacher.getId())) {
                 return ResponseEntity.badRequest()
                         .body(CommonResult.error("无权限操作此课程安排"));
             }
@@ -415,8 +422,8 @@ public class RescheduleController {
 
             // 然后检查时间冲突
             boolean hasConflict = rescheduleService.hasTimeConflict(
-                    schedule.getTeacherId(),
-                    schedule.getStudentId(),
+                    enrollment2.getTeacherId(),
+                    enrollment2.getStudentId(),
                     newDate.toString(),
                     newStartTime,
                     newEndTime,
@@ -455,7 +462,7 @@ public class RescheduleController {
             }
 
             // 验证课程安排是否属于该教师
-            Schedule schedule = scheduleMapper.selectById(request.getScheduleId());
+            CourseSchedule schedule = courseScheduleMapper.findById(request.getScheduleId());
             if (schedule == null || !schedule.getTeacherId().equals(teacher.getId())) {
                 return ResponseEntity.badRequest()
                         .body(CommonResult.error("无权限操作此课程安排"));

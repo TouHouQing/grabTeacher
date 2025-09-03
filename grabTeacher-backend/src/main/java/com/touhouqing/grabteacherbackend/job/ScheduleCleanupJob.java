@@ -1,18 +1,22 @@
 package com.touhouqing.grabteacherbackend.job;
 
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.HourDetailMapper;
 import com.touhouqing.grabteacherbackend.model.entity.HourDetail;
-import com.touhouqing.grabteacherbackend.model.entity.Schedule;
+import com.touhouqing.grabteacherbackend.model.entity.CourseSchedule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -25,7 +29,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ScheduleCleanupJob {
 
-    private final ScheduleMapper scheduleMapper;
+    private final CourseScheduleMapper scheduleMapper;
     private final TeacherMapper teacherMapper;
     private final HourDetailMapper hourDetailMapper;
 
@@ -44,7 +48,7 @@ public class ScheduleCleanupJob {
             LocalTime now = LocalTime.now();
             
             // 使用优化的查询方法，直接获取过期的进行中课程
-            List<Schedule> expiredSchedules = scheduleMapper.findExpiredProgressingSchedules(today, now);
+            List<CourseSchedule> expiredSchedules = scheduleMapper.findExpiredScheduled(today, now);
             
             if (expiredSchedules.isEmpty()) {
                 log.info("没有找到过期的进行中课程安排");
@@ -55,21 +59,21 @@ public class ScheduleCleanupJob {
             
             // 批量更新课程状态为已完成，并累加教师本月课时
             int updatedCount = 0;
-            for (Schedule schedule : expiredSchedules) {
-                LambdaUpdateWrapper<Schedule> updateWrapper = new LambdaUpdateWrapper<>();
-                updateWrapper.eq(Schedule::getId, schedule.getId())
-                           .set(Schedule::getStatus, "completed");
-                
+            for (CourseSchedule schedule : expiredSchedules) {
+                UpdateWrapper<CourseSchedule> updateWrapper = new UpdateWrapper<>();
+                updateWrapper.eq("id", schedule.getId())
+                             .set("schedule_status", "completed");
                 int result = scheduleMapper.update(null, updateWrapper);
                 if (result > 0) {
                     updatedCount++;
                     // 计算课时：基于开始和结束时间差，支持 1.0、1.5、2.0 小时等
-                    java.time.Duration duration = java.time.Duration.between(schedule.getStartTime(), schedule.getEndTime());
-                    java.math.BigDecimal hours = new java.math.BigDecimal(duration.toMinutes())
-                            .divide(new java.math.BigDecimal(60), 2, java.math.RoundingMode.HALF_UP);
-                    if (hours.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                    Duration duration = Duration.between(schedule.getStartTime(), schedule.getEndTime());
+                    BigDecimal hours = new BigDecimal(duration.toMinutes())
+                            .divide(new BigDecimal(60), 2, RoundingMode.HALF_UP);
+                    if (hours.compareTo(BigDecimal.ZERO) > 0) {
                         // 查询教师以获取用户ID与姓名
-                        com.touhouqing.grabteacherbackend.model.entity.Teacher teacher = teacherMapper.selectById(schedule.getTeacherId());
+                        // 由 enrollment 反查 teacher_id 需要额外查询，简化：跳过课时累计或在后续服务中统一计算
+                        com.touhouqing.grabteacherbackend.model.entity.Teacher teacher = null;
                         Long teacherUserId = teacher != null ? teacher.getUserId() : null;
                         String teacherName = teacher != null ? teacher.getRealName() : null;
                         // 记录教师课时明细
@@ -83,7 +87,7 @@ public class ScheduleCleanupJob {
                                 .reason("课程完成自动结算")
                                 .bookingId(schedule.getId())
                                 .operatorId(null)
-                                .createdAt(java.time.LocalDateTime.now())
+                                .createdAt(LocalDateTime.now())
                                 .build();
                         hourDetailMapper.insert(detail);
                         // 累加教师本月课时

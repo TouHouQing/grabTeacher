@@ -2,24 +2,17 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.touhouqing.grabteacherbackend.model.dto.StudentInfoDTO;
+import com.touhouqing.grabteacherbackend.model.entity.*;
 import com.touhouqing.grabteacherbackend.model.vo.StudentProfileVO;
-import com.touhouqing.grabteacherbackend.model.entity.Student;
-import com.touhouqing.grabteacherbackend.model.entity.StudentSubject;
-import com.touhouqing.grabteacherbackend.model.entity.BookingRequest;
-import com.touhouqing.grabteacherbackend.model.entity.Schedule;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
-import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.UserMapper;
-import com.touhouqing.grabteacherbackend.model.entity.User;
 import com.touhouqing.grabteacherbackend.service.StudentService;
-import com.touhouqing.grabteacherbackend.model.entity.BalanceTransaction;
 import com.touhouqing.grabteacherbackend.mapper.BalanceTransactionMapper;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -41,7 +34,7 @@ public class StudentServiceImpl implements StudentService {
     private final StudentMapper studentMapper;
     private final StudentSubjectMapper studentSubjectMapper;
     private final BookingRequestMapper bookingRequestMapper;
-    private final ScheduleMapper scheduleMapper;
+    private final com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper courseScheduleMapper;
     private final UserMapper userMapper;
     private final BalanceTransactionMapper balanceTransactionMapper;
 
@@ -212,12 +205,16 @@ public class StudentServiceImpl implements StudentService {
         bookingWrapper.eq("is_deleted", false);
         Long pendingBookings = bookingRequestMapper.selectCount(bookingWrapper);
 
-        // 3. 完成课程数 - 查询状态为completed的课程安排
-        QueryWrapper<Schedule> completedWrapper = new QueryWrapper<>();
-        completedWrapper.eq("student_id", student.getId());
-        completedWrapper.eq("status", "completed");
-        completedWrapper.eq("is_deleted", false);
-        Long completedCourses = scheduleMapper.selectCount(completedWrapper);
+        // 3. 完成课程数 - 查询course_schedules + join enrollments（使用 Mapper 进行统计）
+        QueryWrapper<CourseSchedule> completedQw =
+                new QueryWrapper<>();
+        completedQw.apply(
+                "exists (select 1 from course_enrollments ce where ce.id = course_schedules.enrollment_id and ce.student_id = {0} and ce.is_deleted = 0)",
+                student.getId()
+        );
+        completedQw.eq("schedule_status", "completed");
+        completedQw.eq("is_deleted", 0);
+        Long completedCourses = courseScheduleMapper.selectCount(completedQw);
 
         statistics.put("remainingTrialTimes", remainingTrialTimes);
         statistics.put("pendingBookings", pendingBookings != null ? pendingBookings.intValue() : 0);

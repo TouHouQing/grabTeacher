@@ -1,8 +1,8 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
-import com.touhouqing.grabteacherbackend.model.entity.Schedule;
+import com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper;
+import com.touhouqing.grabteacherbackend.model.entity.CourseSchedule;
 import com.touhouqing.grabteacherbackend.service.ScheduleCleanupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +16,7 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 public class ScheduleCleanupServiceImpl implements ScheduleCleanupService {
-    private final ScheduleMapper scheduleMapper;
+    private final CourseScheduleMapper scheduleMapper;
 
     /**
      * 手动触发清理任务（用于测试或手动执行）
@@ -31,7 +31,7 @@ public class ScheduleCleanupServiceImpl implements ScheduleCleanupService {
             LocalTime now = LocalTime.now();
 
             // 使用优化的查询方法，直接获取过期的进行中课程
-            List<Schedule> expiredSchedules = scheduleMapper.findExpiredProgressingSchedules(today, now);
+            List<CourseSchedule> expiredSchedules = scheduleMapper.findExpiredScheduled(today, now);
 
             if (expiredSchedules.isEmpty()) {
                 log.info("没有找到过期的进行中课程安排");
@@ -42,10 +42,10 @@ public class ScheduleCleanupServiceImpl implements ScheduleCleanupService {
 
             // 批量更新课程状态为已完成
             int updatedCount = 0;
-            for (Schedule schedule : expiredSchedules) {
-                LambdaUpdateWrapper<Schedule> updateWrapper = new LambdaUpdateWrapper<>();
-                updateWrapper.eq(Schedule::getId, schedule.getId())
-                        .set(Schedule::getStatus, "completed");
+            for (CourseSchedule schedule : expiredSchedules) {
+                com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<CourseSchedule> updateWrapper = new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<>();
+                updateWrapper.eq("id", schedule.getId())
+                        .set("schedule_status", "completed");
 
                 int result = scheduleMapper.update(null, updateWrapper);
                 if (result > 0) {

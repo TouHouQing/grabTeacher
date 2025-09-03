@@ -281,12 +281,18 @@ public class BookingController {
     public ResponseEntity<CommonResult<List<ScheduleVO>>> getAllStudentSchedules(
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
+            logger.info("学生请求获取所有课程安排，用户ID: {}, 用户名: {}", currentUser.getId(), currentUser.getUsername());
             List<ScheduleVO> response = bookingService.getAllStudentSchedules(currentUser.getId());
+            logger.info("成功获取学生课程安排，数量: {}", response.size());
             return ResponseEntity.ok(CommonResult.success("获取成功", response));
+        } catch (RuntimeException e) {
+            logger.error("获取学生所有课程安排列表业务异常: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
-            logger.error("获取学生所有课程安排列表异常: ", e);
+            logger.error("获取学生所有课程安排列表系统异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResult.error("获取失败"));
+                    .body(CommonResult.error("系统异常，请稍后重试"));
         }
     }
 

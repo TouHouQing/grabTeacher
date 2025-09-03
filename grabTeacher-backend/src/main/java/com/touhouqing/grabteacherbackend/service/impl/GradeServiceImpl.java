@@ -1,18 +1,17 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.touhouqing.grabteacherbackend.model.dto.GradeDTO;
+import com.touhouqing.grabteacherbackend.model.entity.*;
 import com.touhouqing.grabteacherbackend.model.vo.GradeVO;
-import com.touhouqing.grabteacherbackend.model.entity.BookingRequest;
-import com.touhouqing.grabteacherbackend.model.entity.Course;
-import com.touhouqing.grabteacherbackend.model.entity.Grade;
-import com.touhouqing.grabteacherbackend.model.entity.Schedule;
 import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseGradeMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
 import com.touhouqing.grabteacherbackend.mapper.GradeMapper;
-import com.touhouqing.grabteacherbackend.mapper.ScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.JobPostGradeMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseEnrollmentMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper;
 import com.touhouqing.grabteacherbackend.service.GradeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,8 +42,9 @@ public class GradeServiceImpl implements GradeService {
     private final BookingRequestMapper bookingRequestMapper;
     private final ApplicationEventPublisher eventPublisher;
 
-    private final ScheduleMapper scheduleMapper;
     private final JobPostGradeMapper jobPostGradeMapper;
+    private final CourseEnrollmentMapper courseEnrollmentMapper;
+    private final CourseScheduleMapper courseScheduleMapper;
 
     @Override
     @Cacheable(cacheNames = "grades", key = "'all'")
@@ -211,16 +211,20 @@ public class GradeServiceImpl implements GradeService {
                 }
                 log.info("删除课程 {} 的 {} 个预约申请", course.getTitle(), bookingRequests.size());
 
-                // 2.2 处理该课程的课程安排（软删除）
-                List<Schedule> schedules = scheduleMapper.findByCourseId(courseId);
-                for (Schedule schedule : schedules) {
-                    if (!schedule.getDeleted()) {
-                        schedule.setDeleted(true);
-                        schedule.setDeletedAt(LocalDateTime.now());
-                        scheduleMapper.updateById(schedule);
-                    }
+                // 2.2 处理该课程的课程安排（软删除）- 新表
+                QueryWrapper<CourseEnrollment> ew = new QueryWrapper<>();
+                ew.eq("course_id", courseId).eq("is_deleted", 0);
+                java.util.List<CourseEnrollment> enrollments = courseEnrollmentMapper.selectList(ew);
+                int scheduleDeleteCount = 0;
+                for (CourseEnrollment ce : enrollments) {
+                    UpdateWrapper<CourseSchedule> su = new UpdateWrapper<>();
+                    su.eq("enrollment_id", ce.getId()).eq("is_deleted", 0).set("is_deleted", 1).set("deleted_at", LocalDateTime.now());
+                    scheduleDeleteCount += courseScheduleMapper.update(null, su);
+                    UpdateWrapper<CourseEnrollment> eu = new UpdateWrapper<>();
+                    eu.eq("id", ce.getId()).eq("is_deleted", 0).set("is_deleted", 1).set("deleted_at", LocalDateTime.now());
+                    courseEnrollmentMapper.update(null, eu);
                 }
-                log.info("删除课程 {} 的 {} 个课程安排", course.getTitle(), schedules.size());
+                log.info("删除课程 {} 的 {} 个课程安排", course.getTitle(), scheduleDeleteCount);
 
                 // 2.3 删除课程年级关联
                 courseGradeMapper.deleteByCourseId(courseId);
