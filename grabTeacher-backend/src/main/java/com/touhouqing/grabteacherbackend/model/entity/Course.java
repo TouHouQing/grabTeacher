@@ -56,8 +56,9 @@ public class Course {
     @Schema(description = "课程类型", example = "one_on_one", allowableValues = {"one_on_one", "large_class"})
     private String courseType;
 
+    @NotNull(message = "课程时长不能为空")
     @TableField(value = "duration_minutes", fill = FieldFill.DEFAULT)
-    @Schema(description = "单次课程时长，单位：分钟,为空则俩小时或一个半小时均可", example = "120")
+    @Schema(description = "单次课程时长，单位：分钟，只能选择90分钟或120分钟", example = "120")
     private Integer durationMinutes;
 
     @Builder.Default

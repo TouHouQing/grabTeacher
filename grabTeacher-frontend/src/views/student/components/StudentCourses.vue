@@ -122,7 +122,7 @@ const courseSuspensionStatus = ref<Map<number, string>>(new Map())
 // 已停课报名集合
 const suspendedEnrollmentSet = ref<Set<number>>(new Set())
 // 已停课报名的细节（若后端返回）
-const suspendedEnrollmentDetails = ref<Map<number, { title?: string; teacher?: string; subject?: string; totalLessons?: number; completedLessons?: number; teacherId?: number }>>(new Map())
+const suspendedEnrollmentDetails = ref<Map<number, { title?: string; teacher?: string; subject?: string; totalLessons?: number; completedLessons?: number; teacherId?: number; durationMinutes?: number }>>(new Map())
 
 const router = useRouter()
 
@@ -557,6 +557,82 @@ const getAvailableWeekdaysForResume = computed(() => {
 })
 
 const isWeekdaySelectableForResume = (weekday: number) => getAvailableWeekdaysForResume.value.includes(weekday)
+
+// 找到1.5小时时间段对应的基础2小时时间段（用于恢复课程）
+const findBaseTimeSlotFor90MinResume = (timeSlot: string): string | null => {
+  const [startTime] = timeSlot.split('-')
+  const [startHour, startMinute] = startTime.split(':').map(Number)
+
+  // 获取基础2小时时间段
+  const baseTimeSlots = availableTimeSlots.value
+
+  // 找到包含这个开始时间的基础时间段
+  for (const baseSlot of baseTimeSlots) {
+    const [baseStart] = baseSlot.split('-')
+    const [baseStartHour, baseStartMinute] = baseStart.split(':').map(Number)
+
+    // 计算基础时间段的开始时间（分钟）
+    const baseStartMinutes = baseStartHour * 60 + baseStartMinute
+    // 计算当前开始时间（分钟）
+    const currentStartMinutes = startHour * 60 + startMinute
+
+    // 如果当前开始时间在基础时间段内，返回基础时间段
+    if (currentStartMinutes >= baseStartMinutes && currentStartMinutes < baseStartMinutes + 120) {
+      return baseSlot
+    }
+  }
+
+  return null
+}
+
+// 检查时间段是否与已选择的时间段冲突（在同一基础区间内）- 恢复课程专用
+const isTimeSlotConflictWithSelectedForResume = (timeSlot: string): boolean => {
+  const currentDuration = getCourseDurationMinutes(currentResumeCourse.value)
+
+  // 只有1.5小时课程需要检查区间冲突
+  if (currentDuration !== 90) {
+    return false
+  }
+
+  // 如果当前时间段已经被选中，则不算冲突（允许取消选择）
+  if (resumeForm.value.selectedTimeSlots.includes(timeSlot)) {
+    return false
+  }
+
+  // 找到当前时间段对应的基础区间
+  const currentBaseSlot = findBaseTimeSlotFor90MinResume(timeSlot)
+  if (!currentBaseSlot) {
+    return false
+  }
+
+  // 检查已选择的时间段中是否有与当前时间段在同一基础区间的
+  return resumeForm.value.selectedTimeSlots.some(selectedSlot => {
+    const selectedBaseSlot = findBaseTimeSlotFor90MinResume(selectedSlot)
+    return selectedBaseSlot === currentBaseSlot
+  })
+}
+
+// 选择恢复课程的时间段
+const selectResumeTimeSlot = (timeSlot: string) => {
+  // 如果已经选中，则取消选择
+  if (resumeForm.value.selectedTimeSlots.includes(timeSlot)) {
+    resumeForm.value.selectedTimeSlots = resumeForm.value.selectedTimeSlots.filter(t => t !== timeSlot)
+    // 清空之前选择的星期，让用户重新选择
+    resumeForm.value.selectedWeekdays = []
+    return
+  }
+
+  // 检查是否与已选择的时间段冲突（同一区间内）
+  if (isTimeSlotConflictWithSelectedForResume(timeSlot)) {
+    ElMessage.warning('该时间段与已选择的时间段在同一时间区间内，1.5小时课程在同一区间只能选择一个时间段')
+    return
+  }
+
+  // 添加新的时间段
+  resumeForm.value.selectedTimeSlots.push(timeSlot)
+  // 清空之前选择的星期，让用户重新选择
+  resumeForm.value.selectedWeekdays = []
+}
 
 // 计算恢复课程的结束日期
 const computeResumeEndDate = (
@@ -1158,9 +1234,9 @@ const loadSuspendedEnrollments = async () => {
   try {
     const result = await enrollmentAPI.getStudentSuspended()
     if (result.success && Array.isArray(result.data)) {
-      type EnrollmentLite = { id?: number; courseTitle?: string; teacherName?: string; subjectName?: string; totalTimes?: number; completedTimes?: number; teacherId?: number }
+      type EnrollmentLite = { id?: number; courseTitle?: string; teacherName?: string; subjectName?: string; totalTimes?: number; completedTimes?: number; teacherId?: number; durationMinutes?: number }
       const idSet = new Set<number>()
-      const detailMap = new Map<number, { title?: string; teacher?: string; subject?: string; totalLessons?: number; completedLessons?: number; teacherId?: number }>()
+      const detailMap = new Map<number, { title?: string; teacher?: string; subject?: string; totalLessons?: number; completedLessons?: number; teacherId?: number; durationMinutes?: number }>()
       ;(result.data as EnrollmentLite[]).forEach((ce) => {
         if (ce.id) {
           const eid = Number(ce.id)
@@ -1171,7 +1247,8 @@ const loadSuspendedEnrollments = async () => {
             subject: ce.subjectName,
             totalLessons: ce.totalTimes,
             completedLessons: ce.completedTimes,
-            teacherId: ce.teacherId
+            teacherId: ce.teacherId,
+            durationMinutes: ce.durationMinutes
           })
         }
       })
@@ -1212,6 +1289,7 @@ const mergeSuspendedEnrollmentsIntoCourses = () => {
       const subject = detail?.subject || '未知科目'
       const totalLessons = Number(detail?.totalLessons || 0)
       const completedLessons = Number(detail?.completedLessons || 0)
+      const durationMinutes = detail?.durationMinutes || 120 // 使用后端返回的课程时长，默认为120分钟
       const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
 
       // 插入占位课程（无课表），供"暂停中"标签显示与"恢复课程"按钮跳转使用
@@ -1235,7 +1313,7 @@ const mergeSuspendedEnrollmentsIntoCourses = () => {
         status: 'active',
         schedules: [],
         hasEvaluation: false,
-        durationMinutes: 120 // 默认2小时，实际时长会在恢复时从教师设置中获取
+        durationMinutes: durationMinutes // 使用从后端获取的课程时长
       })
     }
   })
@@ -1734,6 +1812,10 @@ export default {
                       <el-icon><Timer /></el-icon>
                       <span>下次课程: {{ course.nextClass }}</span>
                     </div>
+                    <div class="schedule-item" v-if="course.durationMinutes">
+                      <el-icon><Clock /></el-icon>
+                      <span>课程时长: {{ course.durationMinutes === 90 ? '1.5小时' : '2小时' }}</span>
+                    </div>
                   </div>
                   <div class="course-actions">
                     <el-button size="small" type="success" @click="showGradeChart(course)">
@@ -1812,6 +1894,10 @@ export default {
                     <div class="schedule-item">
                       <el-icon><Timer /></el-icon>
                       <span>下次课程: {{ course.nextClass }}</span>
+                    </div>
+                    <div class="schedule-item" v-if="course.durationMinutes">
+                      <el-icon><Clock /></el-icon>
+                      <span>课程时长: {{ course.durationMinutes === 90 ? '1.5小时' : '2小时' }}</span>
                     </div>
                   </div>
                   <div class="course-actions">
@@ -1929,6 +2015,10 @@ export default {
                     <div class="schedule-item">
                       <el-icon><Timer /></el-icon>
                       <span>下次课程: 暂无安排</span>
+                    </div>
+                    <div class="schedule-item" v-if="course.durationMinutes">
+                      <el-icon><Clock /></el-icon>
+                      <span>课程时长: {{ course.durationMinutes === 90 ? '1.5小时' : '2小时' }}</span>
                     </div>
                   </div>
                   <div class="course-actions">
@@ -2278,15 +2368,21 @@ export default {
                 v-for="slot in getResumeTimeSlots"
                 :key="slot"
                 class="time-slot-card"
-                :class="{ selected: resumeForm.selectedTimeSlots.includes(slot), disabled: false }"
-                @click="() => {
-                  const i = resumeForm.selectedTimeSlots.indexOf(slot)
-                  if (i >= 0) resumeForm.selectedTimeSlots.splice(i, 1)
-                  else resumeForm.selectedTimeSlots.push(slot)
+                :class="{
+                  selected: resumeForm.selectedTimeSlots.includes(slot),
+                  disabled: isTimeSlotConflictWithSelectedForResume(slot) && !resumeForm.selectedTimeSlots.includes(slot)
                 }"
+                @click="selectResumeTimeSlot(slot)"
               >
                 <span class="slot-time">{{ slot }}</span>
+                <div v-if="isTimeSlotConflictWithSelectedForResume(slot) && !resumeForm.selectedTimeSlots.includes(slot)" class="unavailable-overlay">
+                  <span class="unavailable-text">冲突</span>
+                </div>
               </div>
+            </div>
+            <div v-if="getCourseDurationMinutes(currentResumeCourse) === 90" class="time-slot-tip">
+              <el-icon><InfoFilled /></el-icon>
+              <span>1.5小时课程在同一时间区间内只能选择一个时间段</span>
             </div>
           </el-form-item>
 
@@ -3151,6 +3247,24 @@ h2 {
 }
 .resume-modal {
   min-height: 480px;
+}
+
+/* 时间段选择提示样式 */
+.time-slot-tip {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background-color: #f0f9ff;
+  border: 1px solid #b3d8ff;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #409eff;
+}
+
+.time-slot-tip .el-icon {
+  font-size: 14px;
 }
 
 /* 响应式调整 */

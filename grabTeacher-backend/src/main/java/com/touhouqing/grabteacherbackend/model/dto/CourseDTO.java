@@ -36,7 +36,8 @@ public class CourseDTO {
     @Schema(description = "课程类型", example = "one_on_one", allowableValues = {"one_on_one", "large_class"})
     private String courseType;
 
-    @Schema(description = "单次课程时长（分钟），为空表示灵活时间（一个半小时或俩小时均可），具体时间只能选择90分钟或120分钟", example = "120", allowableValues = {"90", "120"})
+    @NotNull(message = "课程时长不能为空")
+    @Schema(description = "单次课程时长（分钟），只能选择90分钟或120分钟", example = "120", allowableValues = {"90", "120"})
     private Integer durationMinutes;
 
     @Schema(description = "课程状态", example = "active", allowableValues = {"active", "inactive", "full"})

@@ -670,6 +670,10 @@ public class BookingServiceImpl implements BookingService {
                 if (enrollment.getTotalSessions() != null) {
                     vo.setTotalTimes(enrollment.getTotalSessions());
                 }
+                // 优先使用报名关系中的课程时长
+                if (enrollment.getDurationMinutes() != null) {
+                    vo.setDurationMinutes(enrollment.getDurationMinutes());
+                }
             }
         }
         
@@ -753,6 +757,19 @@ public class BookingServiceImpl implements BookingService {
 
         log.info("预约配置 - 星期几: {}, 时间段: {}", weekdays, timeSlots);
 
+        // 获取课程时长信息
+        Integer courseDurationMinutes = null;
+        if (bookingRequest.getCourseId() != null) {
+            Course course = courseMapper.selectById(bookingRequest.getCourseId());
+            if (course != null) {
+                courseDurationMinutes = course.getDurationMinutes();
+            }
+        }
+        // 如果课程没有设置时长，使用默认值120分钟
+        if (courseDurationMinutes == null) {
+            courseDurationMinutes = 120;
+        }
+
         // 1) 先创建报名关系
         CourseEnrollment enrollment =
                 CourseEnrollment.builder()
@@ -768,6 +785,7 @@ public class BookingServiceImpl implements BookingService {
                         .endDate(bookingRequest.getEndDate())
                         .trial(Boolean.TRUE.equals(bookingRequest.getTrial()))
                         .recurringSchedule(buildRecurringScheduleJson(weekdays, timeSlots))
+                        .durationMinutes(courseDurationMinutes)
                         .bookingRequestId(bookingRequest.getId())
                         .deleted(false)
                         .build();
@@ -867,6 +885,19 @@ public class BookingServiceImpl implements BookingService {
                                                       List<String> timeSlots,
                                                       LocalDate currentDate,
                                                       LocalDate endDate) {
+        // 获取课程时长信息
+        Integer courseDurationMinutes = null;
+        if (bookingRequest.getCourseId() != null) {
+            Course course = courseMapper.selectById(bookingRequest.getCourseId());
+            if (course != null) {
+                courseDurationMinutes = course.getDurationMinutes();
+            }
+        }
+        // 如果课程没有设置时长，使用默认值120分钟
+        if (courseDurationMinutes == null) {
+            courseDurationMinutes = 120;
+        }
+
         // 与有限次逻辑保持一致：先创建报名，再生成安排
         CourseEnrollment enrollment =
                 CourseEnrollment.builder()
@@ -882,6 +913,7 @@ public class BookingServiceImpl implements BookingService {
                         .endDate(bookingRequest.getEndDate())
                         .trial(Boolean.TRUE.equals(bookingRequest.getTrial()))
                         .recurringSchedule(buildRecurringScheduleJson(weekdays, timeSlots))
+                        .durationMinutes(courseDurationMinutes)
                         .bookingRequestId(bookingRequest.getId())
                         .deleted(false)
                         .build();
@@ -1090,6 +1122,19 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
+        // 获取课程时长信息
+        Integer courseDurationMinutes = null;
+        if (bookingRequest.getCourseId() != null) {
+            Course course = courseMapper.selectById(bookingRequest.getCourseId());
+            if (course != null) {
+                courseDurationMinutes = course.getDurationMinutes();
+            }
+        }
+        // 如果课程没有设置时长，使用默认值120分钟
+        if (courseDurationMinutes == null) {
+            courseDurationMinutes = 120;
+        }
+
         // 1) 创建报名关系（单次）
         CourseEnrollment enrollment =
                 CourseEnrollment.builder()
@@ -1104,6 +1149,7 @@ public class BookingServiceImpl implements BookingService {
                         .startDate(bookingRequest.getRequestedDate())
                         .endDate(bookingRequest.getRequestedDate())
                         .trial(Boolean.TRUE.equals(bookingRequest.getTrial()))
+                        .durationMinutes(courseDurationMinutes)
                         .bookingRequestId(bookingRequest.getId())
                         .deleted(false)
                         .build();

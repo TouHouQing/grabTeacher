@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, View, Search, Refresh } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue'
 import { courseAPI, subjectAPI, gradeApi, fileAPI } from '../../../utils/api'
 
 // 课程接口定义
@@ -112,14 +112,11 @@ const formRules = {
     { required: true, message: '请选择课程类型', trigger: 'change' }
   ],
   durationMinutes: [
+    { required: true, message: '请选择课程时长', trigger: 'change' },
     {
       validator: (_rule: any, value: any, callback: any) => {
-        if (value !== null && value !== undefined) {
-          if (value !== 90 && value !== 120) {
-            callback(new Error('课程时长只能选择90分钟（一个半小时）或120分钟（俩小时），或者留空表示灵活时间'))
-          } else {
-            callback()
-          }
+        if (value !== 90 && value !== 120) {
+          callback(new Error('课程时长只能选择90分钟或120分钟'))
         } else {
           callback()
         }
@@ -330,7 +327,7 @@ const openEditDialog = (course: Course) => {
   courseForm.title = course.title
   courseForm.description = course.description || ''
   courseForm.courseType = course.courseType
-  courseForm.durationMinutes = course.durationMinutes
+  courseForm.durationMinutes = course.durationMinutes ?? 120
   courseForm.status = 'pending' // 教师编辑课程时状态重置为待审批
   courseForm.grade = course.grade || ''
   courseForm.price = course.price || null
@@ -566,12 +563,7 @@ onMounted(() => {
                 <div class="info-item">
                   <span class="label">时长：</span>
                   <span class="value">
-                    <template v-if="course.durationMinutes">
-                      {{ course.durationMinutes }}分钟
-                    </template>
-                    <template v-else>
-                      1.5/2小时
-                    </template>
+                    {{ course.durationMinutes }}分钟
                   </span>
                 </div>
                 <div class="info-item">
@@ -739,24 +731,19 @@ onMounted(() => {
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="课程时长" prop="durationMinutes">
+        <el-form-item label="课程时长" prop="durationMinutes" required>
           <el-select
             v-model="courseForm.durationMinutes"
-            placeholder="90或120分钟"
+            placeholder="请选择课程时长"
             style="width: 200px"
-            clearable
           >
             <el-option
-              :value="null"
-              label="90或120分钟"
-            />
-            <el-option
               :value="90"
-              label="90分钟"
+              label="90分钟（一个半小时）"
             />
             <el-option
               :value="120"
-              label="120分钟"
+              label="120分钟（俩小时）"
             />
           </el-select>
         </el-form-item>

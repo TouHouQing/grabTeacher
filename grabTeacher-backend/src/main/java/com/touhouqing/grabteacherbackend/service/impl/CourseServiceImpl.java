@@ -122,6 +122,15 @@ public class CourseServiceImpl implements CourseService {
         // 验证大班课专用字段
         validateLargeClassFields(request);
 
+        // 验证课程时长 - 现在必须选择90分钟或120分钟
+        Integer durationMinutes = request.getDurationMinutes();
+        if (durationMinutes == null) {
+            throw new RuntimeException("课程时长不能为空，必须选择90分钟或120分钟");
+        }
+        if (durationMinutes != 90 && durationMinutes != 120) {
+            throw new RuntimeException("课程时长只能选择90分钟（一个半小时）或120分钟（俩小时）");
+        }
+
         // 确定课程状态：教师创建的课程默认为pending，管理员创建的课程可以直接设置状态
         String courseStatus;
         if ("teacher".equals(userType)) {
@@ -231,15 +240,14 @@ public class CourseServiceImpl implements CourseService {
         // 验证大班课专用字段
         validateLargeClassFields(request);
 
-        // 验证课程时长
+        // 验证课程时长 - 现在必须选择90分钟或120分钟
         Integer durationMinutes = request.getDurationMinutes();
-        if (durationMinutes != null) {
-            // 如果设置了具体时长，只能是90分钟或120分钟
-            if (durationMinutes != 90 && durationMinutes != 120) {
-                throw new RuntimeException("课程时长只能选择90分钟（一个半小时）或120分钟（俩小时），或者留空表示灵活时间");
-            }
+        if (durationMinutes == null) {
+            throw new RuntimeException("课程时长不能为空，必须选择90分钟或120分钟");
         }
-        // 如果为null，表示灵活时间，允许一个半小时或俩小时均可
+        if (durationMinutes != 90 && durationMinutes != 120) {
+            throw new RuntimeException("课程时长只能选择90分钟（一个半小时）或120分钟（俩小时）");
+        }
 
         course.setSubjectId(request.getSubjectId());
         course.setTitle(request.getTitle());
@@ -280,21 +288,7 @@ public class CourseServiceImpl implements CourseService {
         }
 
         // 执行更新
-        // 使用更明确的更新方式，确保null值能够正确更新
-        int updateResult = courseMapper.updateById(course);
-        
-        // 如果durationMinutes为null，需要特殊处理确保null值能够正确更新
-        if (durationMinutes == null) {
-            // 手动执行SQL更新duration_minutes字段为NULL
-            try {
-                int nullUpdateResult = courseMapper.update(null, 
-                    new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<Course>()
-                        .eq("id", id)
-                        .set("duration_minutes", null));
-            } catch (Exception e) {
-                log.error("手动更新duration_minutes为NULL失败 - 课程ID: {}", id, e);
-            }
-        }
+        courseMapper.updateById(course);
 
         // 如果封面发生变更，删除旧图
         if (oldImageUrl != null && !oldImageUrl.equals(course.getImageUrl())) {

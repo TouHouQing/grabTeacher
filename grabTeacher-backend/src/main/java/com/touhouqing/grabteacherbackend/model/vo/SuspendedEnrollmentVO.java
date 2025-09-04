@@ -16,6 +16,7 @@ public class SuspendedEnrollmentVO {
     private String subjectName;
     private Integer totalTimes;
     private Integer completedTimes;
+    private Integer durationMinutes;
 }
 
 

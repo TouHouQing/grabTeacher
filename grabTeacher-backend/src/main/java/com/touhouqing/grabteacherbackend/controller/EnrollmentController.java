@@ -73,6 +73,7 @@ public class EnrollmentController {
                     .subjectName(subjectName)
                     .totalTimes(ce.getTotalSessions())
                     .completedTimes(ce.getCompletedSessions())
+                    .durationMinutes(c != null ? c.getDurationMinutes() : null)
                     .build();
             vos.add(vo);
         }

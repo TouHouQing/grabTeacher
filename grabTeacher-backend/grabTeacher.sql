@@ -310,7 +310,7 @@ CREATE TABLE `courses`
     `person_limit`      int(11)                                                                                      DEFAULT NULL COMMENT '最大报名人数，null表示不限制',
     `course_time_slots` text COMMENT '上课时间安排（只有大班课才需要设置上课时间安排），JSON格式存储：[{"weekday":1,"timeSlots":["08:00-10:00","17:00-19:00"]},{"weekday":6,"timeSlots":["13:00-15:00","15:00-17:00"]}]，weekday: 1=周一,2=周二...7=周日',
     `image_url`         varchar(500) COLLATE utf8mb4_general_ci                                                      DEFAULT NULL COMMENT '课程封面图URL',
-    `duration_minutes`  int(11)                                                      DEFAULT NULL COMMENT '单次课程时长，单位：分钟,为空则俩小时或一个半小时均可',
+    `duration_minutes`  int(11)                                                      NOT NULL DEFAULT 120 COMMENT '单次课程时长，单位：分钟，只能选择90分钟或120分钟',
     `status`            enum ('active','inactive','full','pending') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'active' COMMENT '课程状态：active-可报名，inactive-已下架，full-已满员，pending-待审批',
     `is_featured`       tinyint(1)                                                                                   DEFAULT '0' COMMENT '是否为精选课程，在首页展示：1-是，0-否',
     `created_at`        timestamp                                                    NULL                            DEFAULT CURRENT_TIMESTAMP COMMENT '课程创建时间',
@@ -770,6 +770,7 @@ CREATE TABLE `course_enrollments`
     `end_date`             date                                                          DEFAULT NULL COMMENT '课程结束日期',
     `is_trial`             tinyint(1)                                                    DEFAULT 0 COMMENT '是否为试听课：true-是，false-否',
     `recurring_schedule`   json                                                          DEFAULT NULL COMMENT '周期性预约安排，JSON格式：{"weekdays":[1,3,5],"timeSlots":["14:00-16:00","18:00-20:00"]}，weekday: 1=周一,2=周二...7=周日',
+    `duration_minutes`     int(11)                                                       NOT NULL DEFAULT 120 COMMENT '单次课程时长，单位：分钟，只能选择90分钟或120分钟',
     `booking_request_id`   bigint(20)                                                    DEFAULT NULL COMMENT '关联预约申请ID',
     `teacher_notes`        text COMMENT '教师备注',
     `student_feedback`     text COMMENT '学生反馈',
@@ -821,24 +822,24 @@ BEGIN;
 -- 示例：学生6与教师7的一对一课程报名（周期性预约）
 INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `enrollment_type`, `total_sessions`, 
                                  `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, 
-                                 `is_trial`, `recurring_schedule`, `booking_request_id`, `teacher_notes`, `student_feedback`, 
+                                 `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, 
                                  `created_at`, `is_deleted`, `deleted_at`)
 VALUES (1, 6, 7, NULL, 'one_on_one', 12, 0, 'active', '2025-07-21', '2025-07-22', '2025-08-26', 0, 
-        '{"weekdays":[2,3],"timeSlots":["17:00-18:00"]}', 3, NULL, NULL, '2025-07-21 13:12:05', 0, NULL);
+        '{"weekdays":[2,3],"timeSlots":["17:00-18:00"]}', 120, 3, NULL, NULL, '2025-07-21 13:12:05', 0, NULL);
 -- 示例：学生6与教师7的大班课报名（周期性预约）
 INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `enrollment_type`, `total_sessions`, 
                                  `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, 
-                                 `is_trial`, `recurring_schedule`, `booking_request_id`, `teacher_notes`, `student_feedback`, 
+                                 `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, 
                                  `created_at`, `is_deleted`, `deleted_at`)
 VALUES (2, 6, 7, 3, 'large_class', 12, 0, 'active', '2025-07-21', '2025-07-25', '2025-09-02', 0, 
-        '{"weekdays":[2,5],"timeSlots":["14:00-15:00"]}', 4, NULL, NULL, '2025-07-21 13:47:58', 0, NULL);
+        '{"weekdays":[2,5],"timeSlots":["14:00-15:00"]}', 120, 4, NULL, NULL, '2025-07-21 13:47:58', 0, NULL);
 -- 示例：学生6与教师7的另一门大班课报名（周期性预约）
 INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `enrollment_type`, `total_sessions`, 
                                  `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, 
-                                 `is_trial`, `recurring_schedule`, `booking_request_id`, `teacher_notes`, `student_feedback`, 
+                                 `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, 
                                  `created_at`, `is_deleted`, `deleted_at`)
 VALUES (3, 6, 7, 1, 'large_class', 12, 0, 'active', '2025-07-28', '2025-07-25', '2025-10-13', 0, 
-        '{"weekdays":[1],"timeSlots":["15:00-16:00"]}', 9, NULL, NULL, '2025-07-28 16:14:46', 0, NULL);
+        '{"weekdays":[1],"timeSlots":["15:00-16:00"]}', 120, 9, NULL, NULL, '2025-07-28 16:14:46', 0, NULL);
 COMMIT;
 
 -- ----------------------------

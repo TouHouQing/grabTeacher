@@ -15,7 +15,7 @@ interface Course {
   description?: string
   courseType: string
   courseTypeDisplay: string
-  durationMinutes: number | null
+  durationMinutes: number
   status: string
   statusDisplay: string
   grade?: string
@@ -80,7 +80,7 @@ const courseForm = reactive({
   title: '',
   description: '',
   courseType: 'one_on_one',
-  durationMinutes: null as number | null,
+  durationMinutes: 120 as number,
   status: 'active',
   grade: '',
   price: null as number | null,
@@ -139,14 +139,11 @@ const formRules = {
     { required: true, message: '请选择课程类型', trigger: 'change' }
   ],
   durationMinutes: [
+    { required: true, message: '请选择课程时长', trigger: 'change' },
     {
       validator: (_rule: any, value: any, callback: any) => {
-        if (value !== null && value !== undefined) {
-          if (value !== 90 && value !== 120) {
-            callback(new Error('课程时长只能选择90分钟（一个半小时）或120分钟（俩小时），或者留空表示灵活时间'))
-          } else {
-            callback()
-          }
+        if (value !== 90 && value !== 120) {
+          callback(new Error('课程时长只能选择90分钟或120分钟'))
         } else {
           callback()
         }
@@ -316,7 +313,7 @@ const resetForm = () => {
   courseForm.title = ''
   courseForm.description = ''
   courseForm.courseType = 'one_on_one'
-  courseForm.durationMinutes = null
+  courseForm.durationMinutes = 120
   courseForm.status = 'active'
   courseForm.grade = ''
   courseForm.price = null
@@ -344,7 +341,7 @@ const openEditDialog = (course: Course) => {
   courseForm.title = course.title
   courseForm.description = course.description || ''
   courseForm.courseType = course.courseType
-  courseForm.durationMinutes = course.durationMinutes ?? null
+  courseForm.durationMinutes = course.durationMinutes ?? 120
   courseForm.status = course.status
   courseForm.grade = course.grade || ''
   courseForm.price = course.price || null
@@ -688,12 +685,7 @@ onMounted(() => {
         <el-table-column prop="courseTypeDisplay" label="类型" width="80" />
         <el-table-column prop="durationMinutes" label="时长" width="90">
           <template #default="{ row }">
-            <template v-if="row.durationMinutes">
-              {{ row.durationMinutes }}分钟
-            </template>
-            <template v-else>
-              1.5/2小时
-            </template>
+            {{ row.durationMinutes }}分钟
           </template>
         </el-table-column>
         <el-table-column label="价格" width="120">
@@ -916,24 +908,19 @@ onMounted(() => {
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="课程时长" prop="durationMinutes">
+        <el-form-item label="课程时长" prop="durationMinutes" required>
           <el-select
             v-model="courseForm.durationMinutes"
-            placeholder="90或120分钟"
+            placeholder="请选择课程时长"
             style="width: 200px"
-            clearable
           >
             <el-option
-              :value="null"
-              label="90或120分钟"
-            />
-            <el-option
               :value="90"
-              label="90分钟"
+              label="90分钟（一个半小时）"
             />
             <el-option
               :value="120"
-              label="120分钟"
+              label="120分钟（俩小时）"
             />
           </el-select>
         </el-form-item>
