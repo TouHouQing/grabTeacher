@@ -6,10 +6,12 @@ import com.touhouqing.grabteacherbackend.mapper.CourseEnrollmentMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
+import com.touhouqing.grabteacherbackend.mapper.SubjectMapper;
 import com.touhouqing.grabteacherbackend.model.entity.Course;
 import com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment;
 import com.touhouqing.grabteacherbackend.model.entity.Student;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
+import com.touhouqing.grabteacherbackend.model.entity.Subject;
 import com.touhouqing.grabteacherbackend.model.vo.SuspendedEnrollmentVO;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,6 +39,8 @@ public class EnrollmentController {
     private TeacherMapper teacherMapper;
     @Autowired
     private CourseMapper courseMapper;
+    @Autowired
+    private SubjectMapper subjectMapper;
 
     @GetMapping("/student/suspended")
     @PreAuthorize("hasRole('STUDENT')")
@@ -53,6 +57,11 @@ public class EnrollmentController {
         for (CourseEnrollment ce : list) {
             Teacher t = ce.getTeacherId() != null ? teacherMapper.selectById(ce.getTeacherId()) : null;
             Course c = ce.getCourseId() != null ? courseMapper.selectById(ce.getCourseId()) : null;
+            String subjectName = null;
+            if (c != null && c.getSubjectId() != null) {
+                Subject s = subjectMapper.selectById(c.getSubjectId());
+                subjectName = s != null ? s.getName() : null;
+            }
             SuspendedEnrollmentVO vo = SuspendedEnrollmentVO.builder()
                     .id(ce.getId())
                     .studentId(ce.getStudentId())
@@ -61,7 +70,7 @@ public class EnrollmentController {
                     .teacherName(t != null ? t.getRealName() : null)
                     .courseId(ce.getCourseId())
                     .courseTitle(c != null ? c.getTitle() : null)
-                    .subjectName(c != null ? null : null)
+                    .subjectName(subjectName)
                     .totalTimes(ce.getTotalSessions())
                     .completedTimes(ce.getCompletedSessions())
                     .build();

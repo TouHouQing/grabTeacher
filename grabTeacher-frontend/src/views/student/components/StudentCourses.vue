@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Timer, Refresh, VideoCamera, InfoFilled, Clock, Collection, Reading, Star } from '@element-plus/icons-vue'
 import { bookingAPI, rescheduleAPI, teacherAPI, studentAPI, apiRequest, suspensionAPI, enrollmentAPI } from '../../../utils/api'
 import { useRouter } from 'vue-router'
@@ -56,6 +56,7 @@ interface Course {
   status: 'active' | 'completed' | 'upcoming';
   schedules?: CourseSchedule[]; // 关联的课程安排
   hasEvaluation?: boolean; // 是否已评价
+  durationMinutes?: number; // 课程时长（分钟）
 }
 
 // 调课相关接口
@@ -269,7 +270,8 @@ const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => 
       description: `${courseTitle} - ${subjectName}课程`,
       status,
       schedules: scheduleGroup,
-      hasEvaluation: false // 默认未评价，后续会通过API检查
+      hasEvaluation: false, // 默认未评价，后续会通过API检查
+      durationMinutes: firstSchedule?.durationMinutes // 从数据库获取真实时长
     })
   })
 
@@ -516,6 +518,11 @@ const resumeForm = ref({
 })
 
 const getCourseDurationMinutes = (course?: Course | null): number => {
+  // 优先使用课程直接设置的时长
+  if (course?.durationMinutes && Number.isFinite(Number(course.durationMinutes)) && Number(course.durationMinutes) > 0) {
+    return Number(course.durationMinutes)
+  }
+  // 回退到从课程安排中获取时长
   const dur = course?.schedules?.[0]?.durationMinutes
   return Number.isFinite(Number(dur)) && Number(dur) > 0 ? Number(dur) : 120
 }
@@ -525,8 +532,18 @@ const getResumeTimeSlots = computed(() => {
 })
 
 const isTimeSlotSelectableForResume = (weekday: number, timeSlot: string): boolean => {
-  // 复用教师可用时间校验
-  return isTimeSlotAvailable(weekday, timeSlot)
+  // 基于恢复课程的时长（可能为1.5小时或2小时）检查可用性
+  if (teacherAvailableTimeSlots.value.length === 0) return true
+  const daySlot = teacherAvailableTimeSlots.value.find(slot => slot.weekday === weekday)
+  if (!daySlot || !daySlot.timeSlots) return false
+
+  const duration = getCourseDurationMinutes(currentResumeCourse.value)
+  if (duration === 90) {
+    const baseTimeSlot = findBaseTimeSlotFor90Min(timeSlot)
+    if (!baseTimeSlot) return false
+    return daySlot.timeSlots.includes(baseTimeSlot)
+  }
+  return daySlot.timeSlots.includes(timeSlot)
 }
 
 const getAvailableWeekdaysForResume = computed(() => {
@@ -1197,7 +1214,7 @@ const mergeSuspendedEnrollmentsIntoCourses = () => {
       const completedLessons = Number(detail?.completedLessons || 0)
       const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
 
-      // 插入占位课程（无课表），供“暂停中”标签显示与“恢复课程”按钮跳转使用
+      // 插入占位课程（无课表），供"暂停中"标签显示与"恢复课程"按钮跳转使用
       courses.value.push({
         id: eid,
         title,
@@ -1217,7 +1234,8 @@ const mergeSuspendedEnrollmentsIntoCourses = () => {
         description: `${title} - ${subject}课程`,
         status: 'active',
         schedules: [],
-        hasEvaluation: false
+        hasEvaluation: false,
+        durationMinutes: 120 // 默认2小时，实际时长会在恢复时从教师设置中获取
       })
     }
   })
@@ -1230,6 +1248,17 @@ const resumeCourse = (course: Course) => {
 
 // 发起停课申请
 const requestSuspension = async (course: Course) => {
+  // 确认对话框
+  try {
+    await ElMessageBox.confirm(
+      '确认停课吗？这将暂停剩余课时，稍后可发起“恢复课程”重新安排。',
+      '确认停课',
+      { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+
   try {
     const firstSchedule = course.schedules?.[0]
     const enrollmentId = firstSchedule?.enrollmentId
@@ -1729,7 +1758,7 @@ export default {
                       <el-icon><Refresh /></el-icon> 调课
                     </el-button>
                     <el-button
-                      v-if="course.status === 'active' && course.remainingLessons && course.remainingLessons > 0 && !isCourseSuspended(course)"
+                      v-if="(course.status === 'active' || course.status === 'upcoming') && course.remainingLessons && course.remainingLessons > 0 && !isCourseSuspended(course)"
                       size="small"
                       type="danger"
                       @click="requestSuspension(course)"
