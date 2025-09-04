@@ -853,12 +853,8 @@ export const rescheduleAPI = {
     return apiRequest(`/api/reschedule/student/requests?${searchParams}`)
   },
 
-
-
   // 根据ID获取调课申请详情
   getById: (id: number) => apiRequest(`/api/reschedule/${id}`),
-
-
 
   // 检查是否可以申请调课
   canApply: (scheduleId: number) => apiRequest(`/api/reschedule/can-apply/${scheduleId}`),
@@ -906,6 +902,38 @@ export const rescheduleAPI = {
     method: 'PUT',
     body: JSON.stringify(data)
   })
+}
+
+// 学生端 停课管理 API
+export const suspensionAPI = {
+  createRequest: (data: { enrollmentId: number; reason?: string }) =>
+    apiRequest('/api/suspension/request', { method: 'POST', body: JSON.stringify(data) }),
+
+  getStudentRequests: (params: { page?: number; size?: number; status?: string }) => {
+    const sp = new URLSearchParams()
+    Object.keys(params || {}).forEach(k => {
+      const v: any = (params as any)[k]
+      if (v !== undefined && v !== null && v !== '') sp.append(k, v.toString())
+    })
+    return apiRequest(`/api/suspension/student/requests?${sp}`)
+  },
+
+  // 管理端
+  getAdminRequests: (params: { page?: number; size?: number; status?: string }) => {
+    const sp = new URLSearchParams()
+    Object.keys(params || {}).forEach(k => {
+      const v: any = (params as any)[k]
+      if (v !== undefined && v !== null && v !== '') sp.append(k, v.toString())
+    })
+    return apiRequest(`/api/suspension/admin/requests?${sp}`)
+  },
+  adminApprove: (id: number, data: { status: 'approved' | 'rejected'; reviewNotes: string }) =>
+    apiRequest(`/api/suspension/${id}/approve`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+// 报名查询 API（用于展示已停课课程）
+export const enrollmentAPI = {
+  getStudentSuspended: () => apiRequest('/api/enrollments/student/suspended')
 }
 
 // 年级管理API

@@ -1,7 +1,8 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseEnrollmentMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper;
+import com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment;
 import com.touhouqing.grabteacherbackend.model.entity.CourseSchedule;
 import com.touhouqing.grabteacherbackend.service.ScheduleCleanupService;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ScheduleCleanupServiceImpl implements ScheduleCleanupService {
     private final CourseScheduleMapper scheduleMapper;
+    private final CourseEnrollmentMapper courseEnrollmentMapper;
 
     /**
      * 手动触发清理任务（用于测试或手动执行）
@@ -50,6 +52,20 @@ public class ScheduleCleanupServiceImpl implements ScheduleCleanupService {
                 int result = scheduleMapper.update(null, updateWrapper);
                 if (result > 0) {
                     updatedCount++;
+                    // 累加报名的已完成课次
+                    if (schedule.getEnrollmentId() != null) {
+                        CourseEnrollment enrollment = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
+                        if (enrollment != null && (enrollment.getCompletedSessions() == null || enrollment.getCompletedSessions() < (enrollment.getTotalSessions() != null ? enrollment.getTotalSessions() : Integer.MAX_VALUE))) {
+                            int newCompleted = (enrollment.getCompletedSessions() == null ? 0 : enrollment.getCompletedSessions()) + 1;
+                            com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment> euw = new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<>();
+                            euw.eq("id", enrollment.getId())
+                                    .set("completed_sessions", newCompleted);
+                            if (enrollment.getTotalSessions() != null && newCompleted >= enrollment.getTotalSessions()) {
+                                euw.set("enrollment_status", "completed");
+                            }
+                            courseEnrollmentMapper.update(null, euw);
+                        }
+                    }
                     log.debug("课程安排ID: {} 已更新为已完成状态，原定时间: {} {}-{}",
                             schedule.getId(),
                             schedule.getScheduledDate(),

@@ -71,4 +71,15 @@ public interface RescheduleRequestMapper extends BaseMapper<RescheduleRequest> {
      * 管理员获取所有调课申请列表（分页）
      */
     Page<RescheduleRequest> findAllWithPage(Page<RescheduleRequest> page, @Param("status") String status);
+
+    /**
+     * 查询教师在某日期的单次待处理调课申请（基于新表关联获取 teacher_id）
+     */
+    @Select("SELECT rr.* FROM reschedule_requests rr \n" +
+            "JOIN course_schedules cs ON rr.schedule_id = cs.id \n" +
+            "JOIN course_enrollments ce ON cs.enrollment_id = ce.id \n" +
+            "WHERE ce.teacher_id = #{teacherId} AND rr.status = 'pending' AND rr.is_deleted = 0 \n" +
+            "AND rr.request_type = 'single' AND rr.new_date = #{date}")
+    List<RescheduleRequest> findPendingSingleByTeacherAndDate(@Param("teacherId") Long teacherId,
+                                                             @Param("date") java.time.LocalDate date);
 }

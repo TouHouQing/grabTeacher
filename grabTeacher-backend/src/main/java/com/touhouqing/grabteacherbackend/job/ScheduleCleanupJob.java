@@ -1,9 +1,11 @@
 package com.touhouqing.grabteacherbackend.job;
 
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseEnrollmentMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.HourDetailMapper;
+import com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment;
 import com.touhouqing.grabteacherbackend.model.entity.HourDetail;
 import com.touhouqing.grabteacherbackend.model.entity.CourseSchedule;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ public class ScheduleCleanupJob {
     private final CourseScheduleMapper scheduleMapper;
     private final TeacherMapper teacherMapper;
     private final HourDetailMapper hourDetailMapper;
+    private final CourseEnrollmentMapper courseEnrollmentMapper;
 
     /**
      * 每天午夜00:00执行，将所有过期的进行中课程状态更新为已完成
@@ -66,6 +69,21 @@ public class ScheduleCleanupJob {
                 int result = scheduleMapper.update(null, updateWrapper);
                 if (result > 0) {
                     updatedCount++;
+                    // 累加报名的已完成课次
+                    if (schedule.getEnrollmentId() != null) {
+                        CourseEnrollment enrollment = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
+                        if (enrollment != null && (enrollment.getCompletedSessions() == null || enrollment.getCompletedSessions() < (enrollment.getTotalSessions() != null ? enrollment.getTotalSessions() : Integer.MAX_VALUE))) {
+                            int newCompleted = (enrollment.getCompletedSessions() == null ? 0 : enrollment.getCompletedSessions()) + 1;
+                            com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment> euw = new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<>();
+                            euw.eq("id", enrollment.getId())
+                                    .set("completed_sessions", newCompleted);
+                            // 如果达到总次数，自动置为 completed
+                            if (enrollment.getTotalSessions() != null && newCompleted >= enrollment.getTotalSessions()) {
+                                euw.set("enrollment_status", "completed");
+                            }
+                            courseEnrollmentMapper.update(null, euw);
+                        }
+                    }
                     // 计算课时：基于开始和结束时间差，支持 1.0、1.5、2.0 小时等
                     Duration duration = Duration.between(schedule.getStartTime(), schedule.getEndTime());
                     BigDecimal hours = new BigDecimal(duration.toMinutes())

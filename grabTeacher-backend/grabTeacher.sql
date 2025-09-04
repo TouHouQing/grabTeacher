@@ -719,6 +719,39 @@ BEGIN;
 COMMIT;
 
 -- ----------------------------
+-- Table structure for suspension_requests
+-- ----------------------------
+DROP TABLE IF EXISTS `suspension_requests`;
+CREATE TABLE `suspension_requests`
+(
+    `id`                 bigint(20)                           NOT NULL AUTO_INCREMENT COMMENT '停课申请ID',
+    `enrollment_id`      bigint(20)                           NOT NULL COMMENT '课程报名ID，关联course_enrollments',
+    `student_id`         bigint(20)                           NOT NULL COMMENT '学生ID',
+    `teacher_id`         bigint(20)                           NOT NULL COMMENT '教师ID',
+    `reason`             text                                               DEFAULT NULL COMMENT '停课原因',
+    `status`             enum ('pending','approved','rejected','cancelled') DEFAULT 'pending' COMMENT '申请状态',
+    `admin_id`           bigint(20)                                         DEFAULT NULL COMMENT '审核管理员ID',
+    `admin_notes`        text                                               DEFAULT NULL COMMENT '管理员审核备注',
+    `created_at`         timestamp                            NULL          DEFAULT CURRENT_TIMESTAMP COMMENT '申请时间',
+    `updated_at`         timestamp                            NULL          DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `reviewed_at`        timestamp                            NULL          DEFAULT NULL COMMENT '审核时间',
+    `is_deleted`         tinyint(1)                                         DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
+    `deleted_at`         timestamp                            NULL          DEFAULT NULL COMMENT '删除时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_enrollment_id` (`enrollment_id`),
+    KEY `idx_student_id` (`student_id`),
+    KEY `idx_teacher_id` (`teacher_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='停课申请表，记录学生发起的课程暂停申请';
+
+-- ----------------------------
+-- Records of suspension_requests
+-- ----------------------------
+BEGIN;
+COMMIT;
+
+-- ----------------------------
 -- Table structure for course_enrollments
 -- ----------------------------
 DROP TABLE IF EXISTS `course_enrollments`;

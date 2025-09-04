@@ -1,27 +1,28 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, defineAsyncComponent } from 'vue'
 import { useUserStore } from '../../stores/user'
-import { User, Lock, Setting, Document, DataBoard, UserFilled, Avatar, Reading, Coin } from '@element-plus/icons-vue'
+import { User, Lock, Setting, Document, DataBoard, UserFilled, Avatar, Reading, Coin, Calendar } from '@element-plus/icons-vue'
 
-// 导入拆分后的组件
-import AdminDashboard from './components/AdminDashboard.vue'
-import AdminStudentManagement from './components/AdminStudentManagement.vue'
-import AdminTeacherManagement from './components/AdminTeacherManagement.vue'
-import AdminSubjectManagement from './components/AdminSubjectManagement.vue'
-import AdminCourseManagement from './AdminCourseManagement.vue'
-import AdminGradeManagement from '../../components/AdminGradeManagement.vue'
-import AdminJobPostManagement from './components/AdminJobPostManagement.vue'
-import AdminPasswordChange from './components/AdminPasswordChange.vue'
-import AdminProfileSettings from './components/AdminProfileSettings.vue'
-import AdminBookingManagement from './components/AdminBookingManagement.vue'
-import AdminStudyAbroadCountryManagement from './components/AdminStudyAbroadCountryManagement.vue'
-import AdminStudyAbroadStageManagement from './components/AdminStudyAbroadStageManagement.vue'
-import AdminStudyAbroadProgramManagement from './components/AdminStudyAbroadProgramManagement.vue'
-import AdminBalanceTransactionManagement from './components/AdminBalanceTransactionManagement.vue'
-import AdminMessageManagement from './components/AdminMessageManagement.vue'
-import AdminTeacherHourDetails from './components/AdminTeacherHourDetails.vue'
-import AdminCourseEvaluationManagement from './components/AdminCourseEvaluationManagement.vue'
-import AdminRescheduleManagement from './components/AdminRescheduleManagement.vue'
+// 动态导入组件，避免默认导出类型报错
+const AdminDashboard = defineAsyncComponent(() => import('./components/AdminDashboard.vue'))
+const AdminStudentManagement = defineAsyncComponent(() => import('./components/AdminStudentManagement.vue'))
+const AdminTeacherManagement = defineAsyncComponent(() => import('./components/AdminTeacherManagement.vue'))
+const AdminSubjectManagement = defineAsyncComponent(() => import('./components/AdminSubjectManagement.vue'))
+const AdminCourseManagement = defineAsyncComponent(() => import('./AdminCourseManagement.vue'))
+const AdminGradeManagement = defineAsyncComponent(() => import('../../components/AdminGradeManagement.vue'))
+const AdminJobPostManagement = defineAsyncComponent(() => import('./components/AdminJobPostManagement.vue'))
+const AdminPasswordChange = defineAsyncComponent(() => import('./components/AdminPasswordChange.vue'))
+const AdminProfileSettings = defineAsyncComponent(() => import('./components/AdminProfileSettings.vue'))
+const AdminBookingManagement = defineAsyncComponent(() => import('./components/AdminBookingManagement.vue'))
+const AdminStudyAbroadCountryManagement = defineAsyncComponent(() => import('./components/AdminStudyAbroadCountryManagement.vue'))
+const AdminStudyAbroadStageManagement = defineAsyncComponent(() => import('./components/AdminStudyAbroadStageManagement.vue'))
+const AdminStudyAbroadProgramManagement = defineAsyncComponent(() => import('./components/AdminStudyAbroadProgramManagement.vue'))
+const AdminBalanceTransactionManagement = defineAsyncComponent(() => import('./components/AdminBalanceTransactionManagement.vue'))
+const AdminMessageManagement = defineAsyncComponent(() => import('./components/AdminMessageManagement.vue'))
+const AdminTeacherHourDetails = defineAsyncComponent(() => import('./components/AdminTeacherHourDetails.vue'))
+const AdminCourseEvaluationManagement = defineAsyncComponent(() => import('./components/AdminCourseEvaluationManagement.vue'))
+const AdminRescheduleManagement = defineAsyncComponent(() => import('./components/AdminRescheduleManagement.vue'))
+const AdminSuspensionManagement = defineAsyncComponent(() => import('./components/AdminSuspensionManagement.vue'))
 
 // 获取用户信息
 const userStore = useUserStore()
@@ -48,11 +49,7 @@ const handleMenuSelect = (key: string) => {
     <div class="admin-container">
       <!-- 侧边菜单 -->
       <div class="admin-sidebar">
-        <el-menu
-          :default-active="activeMenu"
-          class="admin-menu"
-          @select="handleMenuSelect"
-        >
+        <el-menu :default-active="activeMenu" class="admin-menu" @select="handleMenuSelect">
           <el-menu-item index="dashboard">
             <el-icon><DataBoard /></el-icon>
             <span>数据概览</span>
@@ -72,6 +69,10 @@ const handleMenuSelect = (key: string) => {
           <el-menu-item index="reschedule">
             <el-icon><Calendar /></el-icon>
             <span>调课管理</span>
+          </el-menu-item>
+          <el-menu-item index="suspension">
+            <el-icon><Calendar /></el-icon>
+            <span>停课管理</span>
           </el-menu-item>
 
           <el-sub-menu index="course-mgmt">
@@ -150,96 +151,25 @@ const handleMenuSelect = (key: string) => {
 
       <!-- 主要内容区域 -->
       <div class="admin-content">
-        <!-- 数据概览 -->
-        <div v-if="activeMenu === 'dashboard'" class="content-panel">
-          <AdminDashboard />
-        </div>
-
-        <!-- 学生管理 -->
-        <div v-if="activeMenu === 'students'" class="content-panel">
-          <AdminStudentManagement />
-        </div>
-
-        <!-- 教师管理 -->
-        <div v-if="activeMenu === 'teachers'" class="content-panel">
-          <AdminTeacherManagement />
-        </div>
-
-        <!-- 科目管理 -->
-        <div v-if="activeMenu === 'subjects'" class="content-panel">
-          <AdminSubjectManagement />
-        </div>
-
-        <!-- 课程管理 -->
-        <div v-if="activeMenu === 'courses'" class="content-panel">
-          <AdminCourseManagement />
-        </div>
-
-        <!-- 学生评价管理 -->
-        <div v-if="activeMenu === 'course-evaluations'" class="content-panel">
-          <AdminCourseEvaluationManagement />
-        </div>
-
-        <!-- 招聘管理 -->
-        <div v-if="activeMenu === 'jobposts'" class="content-panel">
-          <AdminJobPostManagement />
-        </div>
-
-
-        <!-- 预约管理 -->
-        <div v-if="activeMenu === 'bookings'" class="content-panel">
-          <AdminBookingManagement />
-        </div>
-
-        <!-- 调课管理 -->
-        <div v-if="activeMenu === 'reschedule'" class="content-panel">
-          <AdminRescheduleManagement />
-        </div>
-
-        <!-- 年级管理 -->
-        <div v-if="activeMenu === 'grades'" class="content-panel">
-          <AdminGradeManagement />
-        </div>
-
-        <!-- 留学管理：国家 -->
-        <div v-if="activeMenu === 'abroad-countries'" class="content-panel">
-          <AdminStudyAbroadCountryManagement />
-        </div>
-
-        <!-- 留学管理：阶段 -->
-        <div v-if="activeMenu === 'abroad-stages'" class="content-panel">
-          <AdminStudyAbroadStageManagement />
-        </div>
-
-        <!-- 留学管理：项目 -->
-        <div v-if="activeMenu === 'abroad-programs'" class="content-panel">
-          <AdminStudyAbroadProgramManagement />
-        </div>
-
-        <!-- 交易明细 / 学生明细 -->
-        <div v-if="activeMenu === 'transactions-students'" class="content-panel">
-          <AdminBalanceTransactionManagement />
-        </div>
-
-        <!-- 交易明细 / 教师明细 -->
-        <div v-if="activeMenu === 'transactions-teachers'" class="content-panel">
-          <AdminTeacherHourDetails />
-        </div>
-
-        <!-- 消息管理 -->
-        <div v-if="activeMenu === 'messages'" class="content-panel">
-          <AdminMessageManagement />
-        </div>
-
-        <!-- 管理员资料 -->
-        <div v-if="activeMenu === 'profile'" class="content-panel">
-          <AdminProfileSettings />
-        </div>
-
-        <!-- 账户设置 -->
-        <div v-if="activeMenu === 'password'" class="content-panel">
-          <AdminPasswordChange />
-        </div>
+        <div v-if="activeMenu === 'dashboard'" class="content-panel"><AdminDashboard /></div>
+        <div v-if="activeMenu === 'students'" class="content-panel"><AdminStudentManagement /></div>
+        <div v-if="activeMenu === 'teachers'" class="content-panel"><AdminTeacherManagement /></div>
+        <div v-if="activeMenu === 'subjects'" class="content-panel"><AdminSubjectManagement /></div>
+        <div v-if="activeMenu === 'courses'" class="content-panel"><AdminCourseManagement /></div>
+        <div v-if="activeMenu === 'course-evaluations'" class="content-panel"><AdminCourseEvaluationManagement /></div>
+        <div v-if="activeMenu === 'jobposts'" class="content-panel"><AdminJobPostManagement /></div>
+        <div v-if="activeMenu === 'bookings'" class="content-panel"><AdminBookingManagement /></div>
+        <div v-if="activeMenu === 'reschedule'" class="content-panel"><AdminRescheduleManagement /></div>
+        <div v-if="activeMenu === 'suspension'" class="content-panel"><AdminSuspensionManagement /></div>
+        <div v-if="activeMenu === 'grades'" class="content-panel"><AdminGradeManagement /></div>
+        <div v-if="activeMenu === 'abroad-countries'" class="content-panel"><AdminStudyAbroadCountryManagement /></div>
+        <div v-if="activeMenu === 'abroad-stages'" class="content-panel"><AdminStudyAbroadStageManagement /></div>
+        <div v-if="activeMenu === 'abroad-programs'" class="content-panel"><AdminStudyAbroadProgramManagement /></div>
+        <div v-if="activeMenu === 'transactions-students'" class="content-panel"><AdminBalanceTransactionManagement /></div>
+        <div v-if="activeMenu === 'transactions-teachers'" class="content-panel"><AdminTeacherHourDetails /></div>
+        <div v-if="activeMenu === 'messages'" class="content-panel"><AdminMessageManagement /></div>
+        <div v-if="activeMenu === 'profile'" class="content-panel"><AdminProfileSettings /></div>
+        <div v-if="activeMenu === 'password'" class="content-panel"><AdminPasswordChange /></div>
       </div>
     </div>
   </div>

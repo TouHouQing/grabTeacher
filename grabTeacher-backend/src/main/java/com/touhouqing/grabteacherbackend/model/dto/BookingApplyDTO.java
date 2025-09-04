@@ -23,14 +23,14 @@ import java.util.List;
 public class BookingApplyDTO {
     
     @NotNull(message = "教师ID不能为空")
-    @Schema(description = "教师ID", example = "1", required = true)
+    @Schema(description = "教师ID", example = "1")
     private Long teacherId;
 
     @Schema(description = "课程ID，可为空(自定义预约)", example = "1")
     private Long courseId;
 
     @NotBlank(message = "预约类型不能为空")
-    @Schema(description = "预约类型", example = "single", allowableValues = {"single", "recurring"}, required = true)
+    @Schema(description = "预约类型", example = "single", allowableValues = {"single", "recurring"})
     private String bookingType;
 
     // 单次预约相关字段（包括试听课）
@@ -71,4 +71,10 @@ public class BookingApplyDTO {
 
     @Schema(description = "学生选择的课程时长（分钟），仅在课程时长为空时可选", example = "90", allowableValues = {"90", "120"})
     private Integer selectedDurationMinutes;
+
+    @Schema(description = "是否为恢复停课的预约申请（不扣费）", example = "true")
+    private Boolean resume;
+
+    @Schema(description = "关联的报名ID（用于恢复课程时识别原报名）", example = "1001")
+    private Long enrollmentId;
 }

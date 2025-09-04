@@ -104,4 +104,14 @@ public interface BookingRequestMapper extends BaseMapper<BookingRequest> {
      */
     @Select("SELECT * FROM booking_requests WHERE course_id = #{courseId} AND is_deleted = 0 ORDER BY created_at DESC")
     List<BookingRequest> findByCourseId(@Param("courseId") Long courseId);
+
+    /**
+     * 查询指定教师在日期范围内的待处理预约（包含：
+     *  - 单次预约：requested_date 在范围内
+     *  - 周期预约：与范围有日期重叠）
+     */
+    @Select("SELECT * FROM booking_requests WHERE teacher_id = #{teacherId} AND status = 'pending' AND is_deleted = 0 AND ((booking_type = 'single' AND requested_date BETWEEN #{startDate} AND #{endDate}) OR (booking_type = 'recurring' AND start_date <= #{endDate} AND end_date >= #{startDate})) ORDER BY created_at DESC")
+    List<BookingRequest> findPendingByTeacherAndDateRange(@Param("teacherId") Long teacherId,
+                                                          @Param("startDate") java.time.LocalDate startDate,
+                                                          @Param("endDate") java.time.LocalDate endDate);
 }

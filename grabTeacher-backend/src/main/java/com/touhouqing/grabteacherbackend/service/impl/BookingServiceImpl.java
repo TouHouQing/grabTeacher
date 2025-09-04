@@ -73,6 +73,9 @@ public class BookingServiceImpl implements BookingService {
     @Autowired
     private StudentService studentService;
 
+    @Autowired
+    private RescheduleRequestMapper rescheduleRequestMapper;
+
     @Override
     @Transactional
     public BookingVO createBookingRequest(BookingApplyDTO request, Long studentUserId) {
@@ -142,9 +145,10 @@ public class BookingServiceImpl implements BookingService {
         bookingRequestMapper.insert(bookingRequest);
         log.info("预约申请创建成功，预约ID: {}", bookingRequest.getId());
 
-        // 计算预约费用并扣除余额（试听课免费）
+        // 计算预约费用并扣除余额（试听课和恢复预约免费）
         BigDecimal totalCost = BigDecimal.ZERO;
-        if (!isTrial) {
+        boolean isResume = request.getResume() != null && request.getResume();
+        if (!isTrial && !isResume) {
             totalCost = calculateBookingCost(request);
             
             // 检查余额是否足够
@@ -166,6 +170,8 @@ public class BookingServiceImpl implements BookingService {
             }
             
             log.info("已扣除学生余额，用户ID: {}, 扣除金额: {}M豆, 预约ID: {}", studentUserId, totalCost, bookingRequest.getId());
+        } else if (isResume) {
+            log.info("恢复课程预约，跳过费用计算与扣费，用户ID: {}, 预约ID: {}", studentUserId, bookingRequest.getId());
         }
 
         log.info("预约申请创建完成，ID: {}", bookingRequest.getId());
@@ -1033,6 +1039,17 @@ public class BookingServiceImpl implements BookingService {
 
             // 验证单次预约时间是否在教师可预约时间范围内
             validateSingleBookingTime(request, teacherId);
+
+            // 额外：对该日期的“待处理单次调课”做占用检查（避免与调课申请抢占）
+            java.util.List<RescheduleRequest> pendingReschedules =
+                    rescheduleRequestMapper.findPendingSingleByTeacherAndDate(teacherId, request.getRequestedDate());
+            if (pendingReschedules != null && !pendingReschedules.isEmpty()) {
+                for (RescheduleRequest rr : pendingReschedules) {
+                    if (isOverlap(request.getRequestedStartTime(), request.getRequestedEndTime(), rr.getNewStartTime(), rr.getNewEndTime())) {
+                        throw new RuntimeException("教师该时间段已有待处理调课占用，暂不可选择");
+                    }
+                }
+            }
         } else if ("recurring".equals(request.getBookingType())) {
             // 周期性预约验证
             if (request.getRecurringWeekdays() == null || request.getRecurringWeekdays().isEmpty() ||
@@ -1257,6 +1274,40 @@ public class BookingServiceImpl implements BookingService {
                     weekdayName, requestedTimeSlot));
         }
 
+        // 额外校验：该时间段是否已被其他学生的“待处理”预约占用
+        // 单次预约仅校验当天
+        java.time.LocalDate date = request.getRequestedDate();
+        java.util.List<BookingRequest> pendings = bookingRequestMapper.findPendingByTeacherAndDateRange(teacherId, date, date);
+        if (pendings != null && !pendings.isEmpty()) {
+            for (BookingRequest br : pendings) {
+                if ("single".equals(br.getBookingType())) {
+                    if (br.getRequestedDate() != null && br.getRequestedDate().isEqual(date)) {
+                        if (isOverlap(request.getRequestedStartTime(), request.getRequestedEndTime(), br.getRequestedStartTime(), br.getRequestedEndTime())) {
+                            throw new RuntimeException("教师该时间段已有待处理预约，暂不可选择");
+                        }
+                    }
+                } else if ("recurring".equals(br.getBookingType())) {
+                    // 周期性待处理：若星期相同且时间段重叠则视为冲突
+                    java.util.List<Integer> brWeekdays = convertStringToIntegerList(br.getRecurringWeekdays());
+                    java.util.List<String> brSlots = convertStringToList(br.getRecurringTimeSlots());
+                    int wd = request.getRequestedDate().getDayOfWeek().getValue();
+                    int weekdayValue = wd == 7 ? 0 : wd;
+                    if (brWeekdays != null && brWeekdays.contains(weekdayValue) && brSlots != null) {
+                        for (String slot : brSlots) {
+                            String[] times = slot.split("-");
+                            if (times.length == 2) {
+                                java.time.LocalTime brStart = java.time.LocalTime.parse(times[0]);
+                                java.time.LocalTime brEnd = java.time.LocalTime.parse(times[1]);
+                                if (isOverlap(request.getRequestedStartTime(), request.getRequestedEndTime(), brStart, brEnd)) {
+                                    throw new RuntimeException("教师该时间段已有待处理预约，暂不可选择");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         log.info("单次预约时间验证通过，教师ID: {}, 时间: {} {}", teacherId, getWeekdayName(weekday), requestedTimeSlot);
     }
 
@@ -1315,6 +1366,60 @@ public class BookingServiceImpl implements BookingService {
                     String.join("、", invalidCombinations)));
         }
 
+        // 额外校验：与其他“待处理”预约占用冲突（日期区间内）
+        java.time.LocalDate start = request.getStartDate();
+        java.time.LocalDate end = request.getEndDate();
+        java.util.List<BookingRequest> pendings = bookingRequestMapper.findPendingByTeacherAndDateRange(teacherId, start, end);
+        if (pendings != null && !pendings.isEmpty()) {
+            for (BookingRequest br : pendings) {
+                if ("single".equals(br.getBookingType())) {
+                    // 若单次在区间内，则比对其对应weekday与时间段
+                    if (br.getRequestedDate() != null && !br.getRequestedDate().isBefore(start) && !br.getRequestedDate().isAfter(end)) {
+                        int wd = br.getRequestedDate().getDayOfWeek().getValue();
+                        int weekdayValue = wd == 7 ? 0 : wd;
+                        if (request.getRecurringWeekdays().contains(weekdayValue)) {
+                            for (String slot : request.getRecurringTimeSlots()) {
+                                String[] times = slot.split("-");
+                                if (times.length == 2) {
+                                    java.time.LocalTime reqStart = java.time.LocalTime.parse(times[0]);
+                                    java.time.LocalTime reqEnd = java.time.LocalTime.parse(times[1]);
+                                    if (isOverlap(reqStart, reqEnd, br.getRequestedStartTime(), br.getRequestedEndTime())) {
+                                        throw new RuntimeException("所选周期时间内部分时段已被待处理预约占用，请调整");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if ("recurring".equals(br.getBookingType())) {
+                    java.util.List<Integer> brWeekdays = convertStringToIntegerList(br.getRecurringWeekdays());
+                    java.util.List<String> brSlots = convertStringToList(br.getRecurringTimeSlots());
+                    if (brWeekdays != null && brSlots != null) {
+                        for (Integer wd : request.getRecurringWeekdays()) {
+                            if (brWeekdays.contains(wd)) {
+                                for (String slotReq : request.getRecurringTimeSlots()) {
+                                    String[] a = slotReq.split("-");
+                                    if (a.length == 2) {
+                                        java.time.LocalTime reqStart = java.time.LocalTime.parse(a[0]);
+                                        java.time.LocalTime reqEnd = java.time.LocalTime.parse(a[1]);
+                                        for (String slotBr : brSlots) {
+                                            String[] b = slotBr.split("-");
+                                            if (b.length == 2) {
+                                                java.time.LocalTime brStart = java.time.LocalTime.parse(b[0]);
+                                                java.time.LocalTime brEnd = java.time.LocalTime.parse(b[1]);
+                                                if (isOverlap(reqStart, reqEnd, brStart, brEnd)) {
+                                                    throw new RuntimeException("所选周期时间内部分时段已被待处理预约占用，请调整");
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         log.info("周期性预约时间验证通过，教师ID: {}, 星期: {}, 时间段: {}",
                 teacherId, request.getRecurringWeekdays(), request.getRecurringTimeSlots());
     }
@@ -1359,6 +1464,16 @@ public class BookingServiceImpl implements BookingService {
             log.error("时间段比较失败: requested={}, available={}", requestedTimeSlot, availableTimeSlot, e);
             return false;
         }
+    }
+
+    /**
+     * 判断两个时间段是否重叠
+     */
+    private boolean isOverlap(java.time.LocalTime aStart, java.time.LocalTime aEnd,
+                              java.time.LocalTime bStart, java.time.LocalTime bEnd) {
+        if (aStart == null || aEnd == null || bStart == null || bEnd == null) return false;
+        // 存在任意重叠：aStart < bEnd 且 bStart < aEnd
+        return aStart.isBefore(bEnd) && bStart.isBefore(aEnd);
     }
 
     /**

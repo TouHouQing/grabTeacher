@@ -130,6 +130,18 @@ public class RescheduleServiceImpl implements RescheduleService {
             if (!scheduleDateTime.isAfter(LocalDateTime.now().plusHours(4))) {
                 throw new RuntimeException("单次调课需在开课前4小时之外发起");
             }
+            // 额外：对新请求的时间进行“待处理占用”检查
+            if (request.getNewDate() != null && request.getNewStartTime() != null && request.getNewEndTime() != null) {
+                List<RescheduleRequest> pendings = rescheduleRequestMapper.findPendingSingleByTeacherAndDate(schedule.getTeacherId(), request.getNewDate());
+                if (pendings != null && !pendings.isEmpty()) {
+                    for (RescheduleRequest rr : pendings) {
+                        if (rr.getId() == null) continue;
+                        if (isTimeOverlap(request.getNewStartTime(), request.getNewEndTime(), rr.getNewStartTime(), rr.getNewEndTime())) {
+                            throw new RuntimeException("该新时间段已有待处理调课占用，暂不可选择");
+                        }
+                    }
+                }
+            }
         }
 
         // 计算提前通知小时数
