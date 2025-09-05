@@ -108,7 +108,7 @@ server:
 # ========================================
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
-  type-aliases-package: com.touhouqing.grabteacherbackend.entity
+  type-aliases-package: com.touhouqing.grabteacherbackend.model.entity
   configuration:
     map-underscore-to-camel-case: true
     # 关闭控制台 SQL 输出，降低噪音；如需调试可用环境变量 MYBATIS_LOG_IMPL 重启覆盖

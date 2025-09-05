@@ -126,16 +126,18 @@ public class SuspensionServiceImpl implements SuspensionService {
     @Override
     public Page<SuspensionVO> getAllSuspensionRequests(int page, int size, String status) {
         Page<SuspensionVO> voPage = new Page<>(page, size);
-        List<SuspensionRequest> list = suspensionRequestMapper.selectList(new QueryWrapper<SuspensionRequest>().eq("is_deleted", false));
-        List<SuspensionRequest> filtered = new ArrayList<>();
-        for (SuspensionRequest s : list) {
-            if (status == null || status.equals(s.getStatus())) filtered.add(s);
+        QueryWrapper<SuspensionRequest> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("is_deleted", false);
+        if (status != null && !status.isEmpty()) {
+            queryWrapper.eq("status", status);
         }
-        voPage.setTotal(filtered.size());
+        queryWrapper.orderByAsc("created_at");
+        List<SuspensionRequest> list = suspensionRequestMapper.selectList(queryWrapper);
+        voPage.setTotal(list.size());
         int from = Math.max(0, (page - 1) * size);
-        int to = Math.min(filtered.size(), from + size);
+        int to = Math.min(list.size(), from + size);
         List<SuspensionVO> vos = new ArrayList<>();
-        for (int i = from; i < to; i++) vos.add(toVO(filtered.get(i)));
+        for (int i = from; i < to; i++) vos.add(toVO(list.get(i)));
         voPage.setRecords(vos);
         return voPage;
     }
