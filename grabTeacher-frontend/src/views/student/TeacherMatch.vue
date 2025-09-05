@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, onMounted, nextTick, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock, Close, Warning, SuccessFilled, ArrowDown, Document } from '@element-plus/icons-vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { teacherAPI, subjectAPI, bookingAPI, gradeApi } from '@/utils/api'
-import ImprovedTimePreference from '../../components/ImprovedTimePreference.vue'
+const route = useRoute()
+const isTrialMode = computed(() => route.path.includes('/student-center/trial'))
+const isRecurringMode = computed(() => route.path.includes('/student-center/match'))
 
 // 声明图片相对路径，使用getImageUrl方法加载
 const teacherImages = {
@@ -81,9 +83,26 @@ const matchForm = reactive({
   subject: '',
   grade: '',
   preferredWeekdays: [] as number[], // 偏好的星期几
-  preferredTimeSlots: [] as string[], // 偏好的时间段
+  preferredTimeSlots: [] as string[], // 偏好的时间段（由 selectedPeriods 自动映射）
   gender: '' // 使用空字符串作为默认值
 })
+
+// 三段时间偏好：morning/afternoon/evening
+const selectedPeriods = ref<string[]>([])
+
+watch(selectedPeriods, (periods) => {
+  const slots: string[] = []
+  if (periods.includes('morning')) {
+    slots.push('08:00-10:00', '10:00-12:00')
+  }
+  if (periods.includes('afternoon')) {
+    slots.push('13:00-15:00', '15:00-17:00')
+  }
+  if (periods.includes('evening')) {
+    slots.push('17:00-19:00', '19:00-21:00')
+  }
+  matchForm.preferredTimeSlots = slots
+}, { immediate: true })
 
 const loading = ref(false)
 const showResults = ref(false)
@@ -111,6 +130,10 @@ const loadingCourses = ref(false)
 const recurringSchedules = ref<RecurringSchedule[]>([])
 const availableTimeSlots = ref<AvailableTimeSlot[]>([])
 const selectedRecurringSchedule = ref<RecurringSchedule | null>(null)
+
+// 试听课时间段选择相关数据
+const selectedTimePeriod = ref<string>('') // 选中的时间段类型：morning/afternoon/evening
+const availableTrialSlotsByPeriod = ref<string[]>([]) // 当前选中时间段类型下的可用时间段
 // 获取明天的日期作为默认开始日期
 const getDefaultStartDate = () => {
   const tomorrow = new Date()
@@ -130,6 +153,11 @@ const scheduleForm = reactive({
   trialStartTime: '',
   trialEndTime: '',
   selectedDurationMinutes: 90 // 默认选择1.5小时
+})
+
+onMounted(() => {
+  // 根据路由强制设置模式
+  scheduleForm.bookingType = isTrialMode.value ? 'trial' : 'recurring'
 })
 
 // 准确的时间匹配度信息
@@ -285,6 +313,7 @@ const resetForm = () => {
   matchForm.grade = ''
   matchForm.preferredWeekdays = []
   matchForm.preferredTimeSlots = []
+  selectedPeriods.value = []
   matchForm.gender = ''
 
   // 重置匹配结果和状态
@@ -469,7 +498,7 @@ const showTeacherSchedule = async (teacher: Teacher) => {
   await generateAvailableTimeSlots()
 
   // 重置选课表单
-  scheduleForm.bookingType = 'recurring'
+  scheduleForm.bookingType = isTrialMode.value ? 'trial' : 'recurring'
   scheduleForm.selectedWeekdays = []
   scheduleForm.selectedTimeSlots = []
   // 设置开始日期为明天
@@ -629,53 +658,179 @@ const checkTimeSlotConflicts = (weekday: number, time: string): { conflicts: str
   return { conflicts, availableFromDate, conflictEndDate, conflictReason }
 }
 
-// 获取可用的试听课时间段
-const getAvailableTrialTimeSlots = (): string[] => {
-  if (!scheduleForm.trialDate) {
-    return []
-  }
-
-  // 获取试听日期对应的星期几
-  const trialDate = new Date(scheduleForm.trialDate)
-  const weekday = trialDate.getDay() === 0 ? 7 : trialDate.getDay() // 转换为后端格式
-
-  // 获取该星期几的可用时间段
-  const availableSlots = availableTimeSlots.value.filter(slot =>
-    slot.weekday === weekday && slot.isTeacherAvailable !== false
-  )
-
-  if (availableSlots.length === 0) {
-    // 如果没有找到可用时间段，返回完整的时间段列表
-    return getCompleteTimeSlots()
-  }
-
-  // 提取唯一的时间段
-  const uniqueSlots = new Set<string>()
-  availableSlots.forEach(slot => {
-    const timeSlot = slot.timeSlot || slot.time
-    if (timeSlot) {
-      uniqueSlots.add(timeSlot)
+// 将开始时间映射到基础2小时区间
+const getBaseSlotForStart = (startTime: string): string | null => {
+  const baseSlots = getCompleteTimeSlots() // ['08:00-10:00', ...]
+  const [sH, sM] = startTime.split(':').map(Number)
+  const startMinutes = sH * 60 + sM
+  for (const slot of baseSlots) {
+    const [bStart, bEnd] = slot.split('-')
+    const [bSH, bSM] = bStart.split(':').map(Number)
+    const [bEH, bEM] = bEnd.split(':').map(Number)
+    const bStartMin = bSH * 60 + bSM
+    const bEndMin = bEH * 60 + bEM
+    if (startMinutes >= bStartMin && startMinutes < bEndMin) {
+      return slot
     }
-  })
-
-  return Array.from(uniqueSlots).sort((a, b) => {
-    const timeA = a.split('-')[0]
-    const timeB = b.split('-')[0]
-    return timeA.localeCompare(timeB)
-  })
+  }
+  return null
 }
 
-// 检查试听课时间段是否可用
-const isTrialTimeSlotAvailable = (timeSlot: string): boolean => {
-  if (!scheduleForm.trialDate) {
-    return false
+// 生成指定日期可选的30分钟试听时间段（在三个大区间内）
+const getAvailableTrialTimeSlots = (): string[] => {
+  if (!scheduleForm.trialDate) return []
+
+  const makeRange = (start: string, end: string): string[] => {
+    const [sH, sM] = start.split(':').map(Number)
+    const [eH, eM] = end.split(':').map(Number)
+    const startMin = sH * 60 + sM
+    const endMin = eH * 60 + eM
+    const slots: string[] = []
+    for (let m = startMin; m + 30 <= endMin; m += 30) {
+      const sh = Math.floor(m / 60).toString().padStart(2, '0')
+      const sm = (m % 60).toString().padStart(2, '0')
+      const eh = Math.floor((m + 30) / 60).toString().padStart(2, '0')
+      const em = ((m + 30) % 60).toString().padStart(2, '0')
+      slots.push(`${sh}:${sm}-${eh}:${em}`)
+    }
+    return slots
   }
 
+  // 三个区间：08:00-12:00, 13:00-17:00, 17:00-21:00
+  const ranges = [
+    ...makeRange('08:00', '12:00'),
+    ...makeRange('13:00', '17:00'),
+    ...makeRange('17:00', '21:00')
+  ]
+
+  // 若教师设置了可预约时间，基于基础区间可用性过滤
   const trialDate = new Date(scheduleForm.trialDate)
   const weekday = trialDate.getDay() === 0 ? 7 : trialDate.getDay()
+  const filtered = ranges.filter(t => {
+    const start = t.split('-')[0]
+    const baseSlot = getBaseSlotForStart(start)
+    if (!baseSlot) return false
+    const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === baseSlot)
+    if (!slot) return true // 无数据则默认可选
+    return slot.isTeacherAvailable !== false && slot.available
+  })
 
-  return isTimeSlotAvailable(weekday, timeSlot)
+  return filtered
 }
+
+// 根据时间段类型获取对应的可用时间段
+const getTrialTimeSlotsByPeriod = (period: string): string[] => {
+  if (!scheduleForm.trialDate) return []
+
+  const allSlots = getAvailableTrialTimeSlots()
+
+  switch (period) {
+    case 'morning':
+      return allSlots.filter(slot => {
+        const startHour = parseInt(slot.split('-')[0].split(':')[0])
+        return startHour >= 8 && startHour < 12
+      })
+    case 'afternoon':
+      return allSlots.filter(slot => {
+        const startHour = parseInt(slot.split('-')[0].split(':')[0])
+        return startHour >= 13 && startHour < 17
+      })
+    case 'evening':
+      return allSlots.filter(slot => {
+        const startHour = parseInt(slot.split('-')[0].split(':')[0])
+        return startHour >= 17 && startHour < 21
+      })
+    default:
+      return []
+  }
+}
+
+// 选择时间段类型
+const selectTimePeriod = (period: string) => {
+  selectedTimePeriod.value = period
+  availableTrialSlotsByPeriod.value = getTrialTimeSlotsByPeriod(period)
+
+  // 清空已选择的时间段
+  scheduleForm.trialStartTime = ''
+  scheduleForm.trialEndTime = ''
+}
+
+// 获取时间段类型的显示名称
+const getTimePeriodName = (period: string): string => {
+  const names = {
+    morning: '上午时段',
+    afternoon: '下午时段',
+    evening: '晚上时段'
+  }
+  return names[period] || ''
+}
+
+// 获取时间段类型的图标
+const getTimePeriodIcon = (period: string) => {
+  const icons = {
+    morning: 'Sunrise',
+    afternoon: 'Sunny',
+    evening: 'Moon'
+  }
+  return icons[period] || 'Clock'
+}
+
+// 检查试听课时间段是否可用（30分钟）
+const isTrialTimeSlotAvailable = (timeSlot: string): boolean => {
+  if (!scheduleForm.trialDate) return false
+  const trialDate = new Date(scheduleForm.trialDate)
+  const weekday = trialDate.getDay() === 0 ? 7 : trialDate.getDay()
+  const start = timeSlot.split('-')[0]
+  const baseSlot = getBaseSlotForStart(start)
+  if (!baseSlot) return false
+  // 基础2小时区间必须可用
+  return isTimeSlotAvailable(weekday, baseSlot)
+}
+
+// 下拉选择：上午/下午/晚上三个下拉，各自列出30分钟起始时间
+const trialSelectMorning = ref<string | null>(null)
+const trialSelectAfternoon = ref<string | null>(null)
+const trialSelectEvening = ref<string | null>(null)
+
+const getTrialOptionsByPeriod = (period: 'morning' | 'afternoon' | 'evening'): string[] => {
+  const all = getAvailableTrialTimeSlots()
+  const inRange = (t: string, startHour: number, endHour: number) => {
+    const sh = parseInt(t.split('-')[0].split(':')[0])
+    return sh >= startHour && sh < endHour
+  }
+  if (period === 'morning') return all.filter(t => inRange(t, 8, 12))
+  if (period === 'afternoon') return all.filter(t => inRange(t, 13, 17))
+  return all.filter(t => inRange(t, 17, 21))
+}
+
+const onTrialSelectChange = (period: 'morning' | 'afternoon' | 'evening', value: string | null) => {
+  // 清空其他下拉，确保只选择一个时间
+  if (period !== 'morning') trialSelectMorning.value = null
+  if (period !== 'afternoon') trialSelectAfternoon.value = null
+  if (period !== 'evening') trialSelectEvening.value = null
+
+  if (!value) {
+    scheduleForm.trialStartTime = ''
+    scheduleForm.trialEndTime = ''
+    return
+  }
+
+  // 使用统一的选择逻辑
+  selectTrialTimeSlot(value)
+}
+
+// 切换日期时清空下拉与已选试听时间
+watch(() => scheduleForm.trialDate, () => {
+  trialSelectMorning.value = null
+  trialSelectAfternoon.value = null
+  trialSelectEvening.value = null
+  scheduleForm.trialStartTime = ''
+  scheduleForm.trialEndTime = ''
+  // 清空时间段类型选择
+  selectedTimePeriod.value = ''
+  availableTrialSlotsByPeriod.value = []
+})
+
 
 // 选择试听课时间段
 const selectTrialTimeSlot = (timeSlot: string) => {
@@ -704,6 +859,43 @@ const getTrialTimeSlot = (): string => {
     return ''
   }
   return `${scheduleForm.trialStartTime}-${scheduleForm.trialEndTime}`
+}
+
+// 检查指定日期是否有任何可用的试听时间段
+const hasAvailableTrialSlots = (date: Date): boolean => {
+  const weekday = date.getDay() === 0 ? 7 : date.getDay()
+
+  // 检查三个时间段：上午(8-12)、下午(13-17)、晚上(17-21)
+  const timeRanges = [
+    { start: 8, end: 12, name: 'morning' },
+    { start: 13, end: 17, name: 'afternoon' },
+    { start: 17, end: 21, name: 'evening' }
+  ]
+
+  for (const range of timeRanges) {
+    // 生成该时间段内的30分钟试听时间段
+    const slots: string[] = []
+    for (let hour = range.start; hour < range.end; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const startTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+        const endHour = minute + 30 >= 60 ? hour + 1 : hour
+        const endMinute = minute + 30 >= 60 ? minute + 30 - 60 : minute + 30
+        const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
+        slots.push(`${startTime}-${endTime}`)
+      }
+    }
+
+    // 检查是否有任何时间段可用
+    for (const slot of slots) {
+      const start = slot.split('-')[0]
+      const baseSlot = getBaseSlotForStart(start)
+      if (baseSlot && isTimeSlotAvailable(weekday, baseSlot)) {
+        return true
+      }
+    }
+  }
+
+  return false
 }
 
 // 获取时间段的样式类
@@ -1952,8 +2144,8 @@ watch(selectedCourse, (newCourse) => {
 
 <template>
   <div class="teacher-match">
-    <h2>智能匹配教师</h2>
-    <p class="description">根据您的学习需求和偏好，系统将为您匹配最合适的1对1教师</p>
+    <h2>{{ isTrialMode ? '预约免费试听课' : '智能匹配教师' }}</h2>
+    <p class="description">{{ isTrialMode ? '选择合适的日期与时间，提交30分钟免费试听申请' : '根据您的学习需求和偏好，系统将为您匹配最合适的1对1教师' }}</p>
 
     <div class="match-container">
       <div class="match-form-section">
@@ -1987,12 +2179,11 @@ watch(selectedCourse, (newCourse) => {
 
 
           <el-form-item label="偏好上课时间 Preferred Schedule">
-            <ImprovedTimePreference
-              :weekdays="matchForm.preferredWeekdays"
-              :time-slots="matchForm.preferredTimeSlots"
-              @update:weekdays="handleWeekdaysUpdate"
-              @update:time-slots="handleTimeSlotsUpdate"
-            />
+            <el-checkbox-group v-model="selectedPeriods">
+              <el-checkbox label="morning">上午</el-checkbox>
+              <el-checkbox label="afternoon">下午</el-checkbox>
+              <el-checkbox label="evening">晚上</el-checkbox>
+            </el-checkbox-group>
           </el-form-item>
 
           <el-form-item>
@@ -2174,7 +2365,7 @@ watch(selectedCourse, (newCourse) => {
             </div>
           </el-form-item>
 
-          <el-form-item label="预约类型">
+          <el-form-item v-if="!isTrialMode && !isRecurringMode" label="预约类型">
             <el-radio-group v-model="scheduleForm.bookingType" size="large">
               <el-radio-button label="trial">试听课</el-radio-button>
               <el-radio-button label="recurring">正式课</el-radio-button>
@@ -2265,7 +2456,7 @@ watch(selectedCourse, (newCourse) => {
                 v-model="scheduleForm.trialDate"
                 type="date"
                 placeholder="选择试听日期"
-                :disabled-date="(date) => date < new Date()"
+                :disabled-date="(date) => date < new Date() || !hasAvailableTrialSlots(date)"
                 format="YYYY-MM-DD"
                 value-format="YYYY-MM-DD"
                 style="width: 200px"
@@ -2273,38 +2464,41 @@ watch(selectedCourse, (newCourse) => {
             </el-form-item>
 
             <el-form-item label="试听时间">
-              <div class="form-item-tip">请选择教师可预约的时间段进行试听（30分钟免费体验）</div>
+              <div class="form-item-tip">请先选择时间段类型，然后选择具体时间进行试听（30分钟免费体验）</div>
 
-              <!-- 统一的时间段网格布局 -->
-              <div class="trial-time-container">
-                <!-- 时间段标题行 -->
-                <div class="time-periods-header">
-                  <div class="period-header morning">
-                    <el-icon><Sunrise /></el-icon>
-                    <span>上午时段</span>
-                  </div>
-                  <div class="period-header afternoon">
-                    <el-icon><Sunny /></el-icon>
-                    <span>下午时段</span>
-                  </div>
-                  <div class="period-header evening">
-                    <el-icon><Moon /></el-icon>
-                    <span>晚上时段</span>
-                  </div>
+              <!-- 时间段类型选择 -->
+              <div class="time-period-selection" v-if="scheduleForm.trialDate">
+                <div class="period-buttons">
+                  <el-button
+                    v-for="period in ['morning', 'afternoon', 'evening']"
+                    :key="period"
+                    :type="selectedTimePeriod === period ? 'primary' : 'default'"
+                    :icon="getTimePeriodIcon(period)"
+                    size="large"
+                    class="period-button"
+                    @click="selectTimePeriod(period)"
+                  >
+                    {{ getTimePeriodName(period) }}
+                  </el-button>
                 </div>
+              </div>
 
-                <!-- 统一的时间段网格 -->
-                <div class="trial-time-unified-grid">
+              <!-- 具体时间段选择 -->
+              <div class="trial-time-slots" v-if="selectedTimePeriod && availableTrialSlotsByPeriod.length > 0">
+                <div class="slots-header">
+                  <el-icon><Clock /></el-icon>
+                  <span>{{ getTimePeriodName(selectedTimePeriod) }} - 可选时间段</span>
+                </div>
+                <div class="time-slots-grid">
                   <div
-                    v-for="time in getAvailableTrialTimeSlots()"
+                    v-for="time in availableTrialSlotsByPeriod"
                     :key="time"
                     :class="[
-                      'trial-time-card-unified',
+                      'trial-time-slot-card',
                       {
                         'selected': getTrialTimeSlot() === time,
                         'disabled': !isTrialTimeSlotAvailable(time)
-                      },
-                      getTimePeriodClass(time)
+                      }
                     ]"
                     @click="selectTrialTimeSlot(time)"
                   >
@@ -2317,6 +2511,17 @@ watch(selectedCourse, (newCourse) => {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <!-- 无可用时间段提示 -->
+              <div v-else-if="selectedTimePeriod && availableTrialSlotsByPeriod.length === 0" class="no-slots-message">
+                <el-alert
+                  title="该时间段暂无可用时间"
+                  description="请选择其他时间段或日期"
+                  type="warning"
+                  show-icon
+                  :closable="false"
+                />
               </div>
 
               <!-- 选择结果显示 -->
@@ -5294,6 +5499,150 @@ h2 {
   color: #909399;
   font-size: 12px;
   font-style: italic;
+}
+
+/* 新的时间段选择样式 */
+.time-period-selection {
+  margin: 20px 0;
+}
+
+.period-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.period-button {
+  flex: 1;
+  min-width: 150px;
+  max-width: 180px;
+  height: 50px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.period-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.period-button.is-active {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.3);
+}
+
+.trial-time-slots {
+  margin-top: 24px;
+}
+
+.slots-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.time-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  max-width: 100%;
+}
+
+.trial-time-slot-card {
+  border: 2px solid #e4e7ed;
+  border-radius: 12px;
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #fff;
+  position: relative;
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.trial-time-slot-card:hover:not(.disabled) {
+  border-color: #409eff;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.15);
+  transform: translateY(-3px);
+}
+
+.trial-time-slot-card.selected {
+  border-color: #67c23a;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%);
+  box-shadow: 0 6px 16px rgba(103, 194, 58, 0.2);
+  transform: translateY(-3px);
+}
+
+.trial-time-slot-card.disabled {
+  border-color: #dcdfe6;
+  background: #f5f7fa;
+  color: #c0c4cc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.no-slots-message {
+  margin-top: 20px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .period-buttons {
+    flex-direction: column;
+    align-items: center;
+    max-width: 300px;
+  }
+
+  .period-button {
+    width: 100%;
+    max-width: 250px;
+    font-size: 14px;
+    height: 45px;
+  }
+
+  .time-slots-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .trial-time-slot-card {
+    height: 90px;
+    padding: 12px 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .period-buttons {
+    max-width: 250px;
+  }
+
+  .period-button {
+    max-width: 200px;
+  }
+
+  .time-slots-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .trial-time-slot-card {
+    height: 80px;
+    padding: 10px 6px;
+  }
 }
 
 </style>

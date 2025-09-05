@@ -32,6 +32,8 @@ const studentAdjustmentTimes = ref<number | null>(null)
 watch(() => route.path, (path: string) => {
   if (path.includes('/profile')) {
     activeMenu.value = 'profile'
+  } else if (path.includes('/trial')) {
+    activeMenu.value = 'trial'
   } else if (path.includes('/match')) {
     activeMenu.value = 'match'
   } else if (path.includes('/bookings')) {
@@ -198,6 +200,10 @@ onMounted(async () => {
               <el-icon><HomeFilled /></el-icon>
               <span>控制台</span>
             </el-menu-item>
+            <el-menu-item index="trial" @click="$router.push('/student-center/trial')">
+              <el-icon><Connection /></el-icon>
+              <span>预约免费试听课</span>
+            </el-menu-item>
             <el-menu-item index="match" @click="$router.push('/student-center/match')">
               <el-icon><Connection /></el-icon>
               <span>1V1教师智能匹配</span>
@@ -274,7 +280,12 @@ onMounted(async () => {
           <div class="quick-actions">
             <h3>快捷操作</h3>
             <div class="action-buttons">
-              <el-button type="primary" @click="$router.push('/student-center/match')">
+              <el-button type="primary" @click="$router.push('/student-center/trial')">
+                <el-icon><Connection /></el-icon>
+                预约免费试听课
+              </el-button>
+
+              <el-button @click="$router.push('/student-center/match')">
                 <el-icon><Connection /></el-icon>
                 智能匹配教师
               </el-button>
