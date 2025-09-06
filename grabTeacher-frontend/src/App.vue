@@ -49,7 +49,7 @@ function updateLangClass() {
 
     <!-- 桌面端导航 -->
     <header class="header desktop-only">
-      <div class="logo">Mindrift</div>
+      <div class="logo">Freelanspace</div>
       <el-menu mode="horizontal" router class="nav-menu">
         <el-menu-item index="/">{{ $t('nav.home') }}</el-menu-item>
         <el-menu-item index="/latest-courses">{{ $t('nav.latestCourses') }}</el-menu-item>
@@ -86,7 +86,7 @@ function updateLangClass() {
     <footer class="footer">
       <div class="footer-content">
         <p>
-          © 2025 Mindrift 个性化教学平台
+          © 2025 Freelanspace 个性化教学平台
           <a href="https://beian.miit.gov.cn" target="_blank" class="icp-link">
             {{ langStore.currentLang === 'zh' ? '津ICP备2025035841' : 'ICP License: 津ICP备2025035841' }}
           </a>

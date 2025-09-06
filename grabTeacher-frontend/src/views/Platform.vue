@@ -155,7 +155,7 @@ const resetForm = () => {
     <div class="banner">
       <div class="banner-content">
         <h1>工作机会</h1>
-        <p>加入Mindrift，成为优秀教育者的一员</p>
+        <p>加入Freelanspace，成为优秀教育者的一员</p>
       </div>
     </div>
 
