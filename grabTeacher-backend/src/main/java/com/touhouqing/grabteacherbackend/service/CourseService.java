@@ -47,13 +47,13 @@ public interface CourseService {
      * 获取课程列表（分页） - 公开端建议使用（带缓存）
      */
     Page<CourseVO> getCourseList(int page, int size, String keyword, Long subjectId,
-                                 Long teacherId, String status, String courseType, String grade);
+                                 Long teacherId, String status, String courseType);
 
     /**
      * 获取课程列表（分页） - 管理端使用（直查DB，不缓存）
      */
     Page<CourseVO> getCourseListNoCache(int page, int size, String keyword, Long subjectId,
-                                        Long teacherId, String status, String courseType, String grade);
+                                        Long teacherId, String status, String courseType);
 
     /**
      * 获取教师的课程列表
@@ -98,10 +98,9 @@ public interface CourseService {
      * @param page 页码
      * @param size 每页大小
      * @param subjectId 科目ID
-     * @param grade 年级
      * @return 分页精选课程列表
      */
-    Page<CourseVO> getFeaturedCourses(int page, int size, Long subjectId, String grade);
+    Page<CourseVO> getFeaturedCourses(int page, int size, Long subjectId);
 
     /**
      * 获取所有精选课程列表（不分页，用于首页滚动展示）
@@ -110,7 +109,7 @@ public interface CourseService {
     List<CourseVO> getAllFeaturedCourses();
 
     // 管理端：直查 DB 的精选课程分页
-    Page<CourseVO> getFeaturedCoursesNoCache(int page, int size, Long subjectId, String grade);
+    Page<CourseVO> getFeaturedCoursesNoCache(int page, int size, Long subjectId);
 
     /**
      * 设置课程为精选课程

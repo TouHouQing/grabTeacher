@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue'
-import { courseAPI, subjectAPI, gradeApi, fileAPI } from '../../../utils/api'
+import { courseAPI, subjectAPI, fileAPI } from '../../../utils/api'
 
 // 课程接口定义
 interface Course {
@@ -18,7 +18,6 @@ interface Course {
   durationMinutes: number
   status: string
   statusDisplay: string
-  grade?: string
   createdAt: string
   price?: number
   startDate?: string
@@ -38,9 +37,6 @@ interface Subject {
 const loading = ref(false)
 const courses = ref<Course[]>([])
 const subjects = ref<Subject[]>([])
-const availableGrades = ref<any[]>([])
-const loadingGrades = ref(false)
-const selectedGrades = ref<string[]>([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const isEditing = ref(false)
@@ -62,7 +58,6 @@ const courseForm = reactive({
   courseType: 'one_on_one',
   durationMinutes: 120,
   status: 'active',
-  grade: '',
   price: null as number | null,
   startDate: '',
   endDate: '',
@@ -122,20 +117,6 @@ const formRules = {
         }
       },
       trigger: 'change'
-    }
-  ],
-  grade: [
-    {
-      required: true,
-      message: '请选择适用年级',
-      trigger: 'change',
-      validator: (_rule: any, _value: any, callback: any) => {
-        if (selectedGrades.value.length === 0) {
-          callback(new Error('请选择适用年级'))
-        } else {
-          callback()
-        }
-      }
     }
   ],
   price: [
@@ -273,20 +254,6 @@ const fetchSubjects = async () => {
   }
 }
 
-// 获取年级列表
-const fetchGrades = async () => {
-  try {
-    loadingGrades.value = true
-    const response = await gradeApi.getAllPublic()
-    if (response.success && response.data) {
-      availableGrades.value = response.data
-    }
-  } catch (error) {
-    console.error('获取年级列表失败:', error)
-  } finally {
-    loadingGrades.value = false
-  }
-}
 
 // 重置表单（包含封面预览与文件清理）
 const resetForm = () => {
@@ -297,7 +264,6 @@ const resetForm = () => {
   courseForm.courseType = 'one_on_one'
   courseForm.durationMinutes = 120
   courseForm.status = 'pending' // 教师创建的课程始终为待审批状态
-  courseForm.grade = ''
   courseForm.price = null
   courseForm.startDate = ''
   courseForm.endDate = ''
@@ -308,8 +274,6 @@ const resetForm = () => {
   courseForm._localPreviewUrl = ''
   courseForm._localImageFile = null
 
-  // 清空选中的年级
-  selectedGrades.value = []
 }
 
 // 打开新增对话框
@@ -329,14 +293,11 @@ const openEditDialog = (course: Course) => {
   courseForm.courseType = course.courseType
   courseForm.durationMinutes = course.durationMinutes ?? 120
   courseForm.status = 'pending' // 教师编辑课程时状态重置为待审批
-  courseForm.grade = course.grade || ''
   courseForm.price = course.price || null
   courseForm.startDate = course.startDate || ''
   courseForm.endDate = course.endDate || ''
   courseForm.personLimit = course.personLimit || null
 
-  // 将年级字符串转换为数组
-  selectedGrades.value = course.grade ? course.grade.split(',').map(g => g.trim()) : []
 
   // 封面回显与清理本地预览
   courseForm.imageUrl = course.imageUrl || ''
@@ -371,7 +332,6 @@ const saveCourse = async () => {
       courseType: courseForm.courseType,
       durationMinutes: courseForm.durationMinutes,
       status: 'pending', // 教师创建/编辑的课程始终为待审批状态
-      grade: selectedGrades.value.join(','), // 将选中的年级转换为逗号分隔的字符串
       price: courseForm.price, // 所有课程类型都可以设置价格
       ...(courseForm.courseType === 'large_class' && {
         startDate: courseForm.startDate,
@@ -463,7 +423,6 @@ const getStatusTagType = (status: string) => {
 onMounted(() => {
   fetchCourses()
   fetchSubjects()
-  fetchGrades()
 })
 </script>
 
@@ -551,10 +510,6 @@ onMounted(() => {
                 <div class="info-item">
                   <span class="label">科目：</span>
                   <span class="value">{{ course.subjectName }}</span>
-                </div>
-                <div class="info-item" v-if="course.grade">
-                  <span class="label">年级：</span>
-                  <span class="value">{{ course.grade }}</span>
                 </div>
                 <div class="info-item">
                   <span class="label">类型：</span>
@@ -679,25 +634,6 @@ onMounted(() => {
           </div>
         </el-form-item>
 
-        <el-form-item label="适用年级" prop="grade">
-          <el-select
-            v-model="selectedGrades"
-            multiple
-            placeholder="请选择适用年级"
-            style="width: 100%;"
-            :loading="loadingGrades"
-          >
-            <el-option
-              v-for="grade in availableGrades"
-              :key="grade.id"
-              :label="grade.gradeName"
-              :value="grade.gradeName"
-            />
-          </el-select>
-          <div style="color: #909399; font-size: 12px; margin-top: 4px;">
-            可以选择多个年级，系统会自动保存关联关系
-          </div>
-        </el-form-item>
 
         <el-form-item label="课程标题" prop="title">
           <el-input

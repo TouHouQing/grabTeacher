@@ -7,6 +7,18 @@ import { getApiBaseUrl } from '../../../utils/env'
 import AvatarUploader from '../../../components/AvatarUploader.vue'
 import WideTimeSlotSelector from '../../../components/WideTimeSlotSelector.vue'
 
+// 学历枚举与归一化
+const EDUCATION_ALLOWED = ['专科及以下', '本科', '硕士', '博士'] as const
+const normalizeEducation = (value: string): string => {
+  if (!value) return ''
+  if (EDUCATION_ALLOWED.includes(value as any)) return value
+  if (value.includes('硕士')) return '硕士'
+  if (value.includes('博士')) return '博士'
+  if (value.includes('本科')) return '本科'
+  if (value.includes('专科')) return '专科及以下'
+  return ''
+}
+
 // 时间段接口
 interface TimeSlot {
   weekday: number
@@ -49,6 +61,7 @@ const teacherForm = reactive({
   specialties: '',
   subjectIds: [] as number[],
   hourlyRate: 0,
+  rating: 5.0, // 添加评分字段，默认5.0分
   introduction: '',
   videoIntroUrl: '',
   gender: '不愿透露',
@@ -285,6 +298,7 @@ const handleAddTeacher = () => {
     specialties: '',
     subjectIds: [],
     hourlyRate: 0,
+    rating: 5.0, // 默认评分5.0分
     introduction: '',
     videoIntroUrl: '',
     gender: '不愿透露',
@@ -305,6 +319,8 @@ const handleEditTeacher = async (teacher: any) => {
     const detail = await teacherAPI.getById(teacher.id)
     if (detail.success && detail.data) {
       Object.assign(teacherForm, detail.data)
+      // 统一旧值到新枚举：如“硕士研究生”=>“硕士”，“博士研究生”=>“博士”，“专科”=>“专科及以下”
+      teacherForm.educationBackground = normalizeEducation(teacherForm.educationBackground || '')
       teacherForm.isVerified = !!detail.data.verified
     } else {
       Object.assign(teacherForm, teacher)
@@ -367,11 +383,12 @@ const saveTeacher = async () => {
       username: teacherForm.username,
       email: teacherForm.email,
       phone: teacherForm.phone,
-      educationBackground: teacherForm.educationBackground,
+      educationBackground: normalizeEducation(teacherForm.educationBackground || ''),
       teachingExperience: teacherForm.teachingExperience,
       specialties: teacherForm.specialties,
       subjectIds: teacherForm.subjectIds,
       hourlyRate: teacherForm.hourlyRate,
+      rating: teacherForm.rating, // 包含评分字段
       introduction: teacherForm.introduction,
       videoIntroUrl: teacherForm.videoIntroUrl,
       gender: teacherForm.gender,
@@ -570,6 +587,11 @@ onMounted(async () => {
           ¥{{ row.hourlyRate }}
         </template>
       </el-table-column>
+      <el-table-column prop="rating" label="评分" width="100">
+        <template #default="{ row }">
+          <span class="rating-display">{{ (row.rating || 0).toFixed(3) }}分</span>
+        </template>
+      </el-table-column>
       <el-table-column label="课时" min-width="160">
         <template #default="{ row }">
           <span>本月{{ (row.currentHours || 0) }}h / 上月{{ (row.lastHours || 0) }}h</span>
@@ -703,8 +725,27 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="教育背景">
-          <el-input v-model="teacherForm.educationBackground" placeholder="请输入教育背景" />
+        <el-form-item label="教师评分">
+          <el-input-number
+            v-model="teacherForm.rating"
+            :min="0"
+            :max="5"
+            :step="0.001"
+            :precision="3"
+            placeholder="请输入评分"
+            style="width: 200px"
+          />
+          <div class="rating-tip">
+            <el-text type="info" size="small">评分范围：0-5分，支持0.001分精度</el-text>
+          </div>
+        </el-form-item>
+        <el-form-item label="学历">
+          <el-select v-model="teacherForm.educationBackground" placeholder="请选择学历" style="width: 100%">
+            <el-option label="专科及以下" value="专科及以下" />
+            <el-option label="本科" value="本科" />
+            <el-option label="硕士" value="硕士" />
+            <el-option label="博士" value="博士" />
+          </el-select>
         </el-form-item>
         <el-form-item label="头像">
           <AvatarUploader
@@ -869,5 +910,16 @@ onMounted(async () => {
 .avatar-tip {
   margin-top: 8px;
   text-align: center;
+}
+
+.rating-tip {
+  margin-top: 8px;
+  text-align: left;
+}
+
+.rating-display {
+  font-weight: 600;
+  color: #ff9900;
+  font-size: 14px;
 }
 </style>

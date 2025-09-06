@@ -49,8 +49,6 @@ public class TeacherCacheWarmupService {
             // 预热教师匹配
             warmupTeacherMatches();
             
-            // 预热年级数据
-            warmupGradeData();
             
             log.info("教师缓存预热完成");
         } catch (Exception e) {
@@ -103,27 +101,18 @@ public class TeacherCacheWarmupService {
             log.info("预热教师列表缓存...");
             
             // 预热第一页教师列表（最常访问）
-            teacherService.getTeacherListWithSubjects(1, 10, null, null, null);
+            teacherService.getTeacherListWithSubjects(1, 10, null, null);
             
             // 预热科目的教师列表（从数据库动态获取激活科目）
             List<Subject> activeSubjects = subjectService.getAllActiveSubjects();
             for (Subject s : activeSubjects) {
                 try {
-                    teacherService.getTeacherListWithSubjects(1, 10, s.getName(), null, null);
+                    teacherService.getTeacherListWithSubjects(1, 10, s.getName(), null);
                 } catch (Exception e) {
                     log.debug("预热科目教师列表失败: {}", s.getName(), e);
                 }
             }
 
-            // 预热年级的教师列表（从数据库动态获取可用年级）
-            List<String> dbGrades = teacherService.getAvailableGrades();
-            for (String grade : dbGrades) {
-                try {
-                    teacherService.getTeacherListWithSubjects(1, 10, null, grade, null);
-                } catch (Exception e) {
-                    log.debug("预热年级教师列表失败: {}", grade, e);
-                }
-            }
 
             log.info("预热教师列表缓存完成");
         } catch (Exception e) {
@@ -138,22 +127,18 @@ public class TeacherCacheWarmupService {
         try {
             log.info("预热教师匹配缓存...");
             
-            // 预热教师匹配请求（从数据库动态获取科目与年级）
+            // 预热教师匹配请求（从数据库动态获取科目）
             List<Subject> activeSubjects = subjectService.getAllActiveSubjects();
-            List<String> dbGrades = teacherService.getAvailableGrades();
 
             for (Subject s : activeSubjects) {
-                for (String grade : dbGrades) {
-                    try {
-                        TeacherMatchDTO request = new TeacherMatchDTO();
-                        request.setSubject(s.getName());
-                        request.setGrade(grade);
-                        request.setLimit(10);
+                try {
+                    TeacherMatchDTO request = new TeacherMatchDTO();
+                    request.setSubject(s.getName());
+                    request.setLimit(10);
 
-                        teacherService.matchTeachers(request);
-                    } catch (Exception e) {
-                        log.debug("预热教师匹配缓存失败: subject={}, grade={}", s.getName(), grade, e);
-                    }
+                    teacherService.matchTeachers(request);
+                } catch (Exception e) {
+                    log.debug("预热教师匹配缓存失败: subject={}", s.getName(), e);
                 }
             }
 
@@ -163,21 +148,6 @@ public class TeacherCacheWarmupService {
         }
     }
 
-    /**
-     * 预热年级数据缓存
-     */
-    private void warmupGradeData() {
-        try {
-            log.info("预热年级数据缓存...");
-
-            // 预热可用年级列表
-            teacherService.getAvailableGrades();
-
-            log.info("预热年级数据缓存完成");
-        } catch (Exception e) {
-            log.error("预热年级数据缓存失败", e);
-        }
-    }
 
     /**
      * 为智能匹配结果的教师进行就近预热（课表/可用性/忙时）— 事件监听器
@@ -214,7 +184,7 @@ public class TeacherCacheWarmupService {
     @CacheEvict(cacheNames = {
         "teachers", "teacherDetails", "teacherList", 
         "teacherMatch", "teacherSubjects", "teacherSchedule", 
-        "teacherAvailability", "grades"
+        "teacherAvailability"
     }, allEntries = true)
     public void clearAllTeacherCaches() {
         log.info("清理所有教师相关缓存");

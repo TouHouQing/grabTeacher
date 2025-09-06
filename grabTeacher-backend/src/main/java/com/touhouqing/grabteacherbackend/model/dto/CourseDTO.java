@@ -43,8 +43,6 @@ public class CourseDTO {
     @Schema(description = "课程状态", example = "active", allowableValues = {"active", "inactive", "full"})
     private String status = "active";
 
-    @Schema(description = "课程适用年级", example = "小学一年级,小学二年级")
-    private String grade;
 
     @Schema(description = "课程价格（大班课专用，为空表示可定制价格）", example = "299.00")
     private BigDecimal price;

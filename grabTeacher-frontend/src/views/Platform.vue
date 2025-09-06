@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { jobPostAPI, gradeApi, subjectAPI } from '../utils/api'
+import { jobPostAPI, subjectAPI } from '../utils/api'
 import ContactUs from '../components/ContactUs.vue'
 
 // 组件名称
@@ -10,12 +10,10 @@ defineOptions({ name })
 
 // 筛选条件
 const filterForm = reactive({
-  gradeId: undefined as number | undefined,
   subjectId: undefined as number | undefined,
 })
 
 // 选项数据
-const gradeOptions = ref<any[]>([])
 const subjectOptions = ref<any[]>([])
 
 // 后端招聘数据
@@ -29,11 +27,7 @@ const hasMore = ref(true)
 
 const loadOptions = async () => {
   try {
-    const [gradesRes, subjectsRes] = await Promise.all([
-      gradeApi.getAllPublic(),
-      subjectAPI.getActiveSubjects(),
-    ])
-    gradeOptions.value = (gradesRes?.data || []).map((g: any) => ({ label: g.gradeName, value: g.id }))
+    const subjectsRes = await subjectAPI.getActiveSubjects()
     subjectOptions.value = (subjectsRes?.data || []).map((s: any) => ({ label: s.name, value: s.id }))
   } catch (e) {
     console.error('加载选项失败', e)
@@ -51,7 +45,6 @@ const loadJobPosts = async (isLoadMore = false) => {
     const res = await jobPostAPI.list({
       page: page.value,
       size: size.value,
-      gradeId: filterForm.gradeId,
       subjectId: filterForm.subjectId
     })
     // 兼容 CommonResult 结构 { code, message, data }
@@ -84,7 +77,6 @@ const onFilterChange = () => {
 }
 
 const onResetFilter = () => {
-  filterForm.gradeId = undefined
   filterForm.subjectId = undefined
   page.value = 1
   loadJobPosts(false)
@@ -240,11 +232,6 @@ const resetForm = () => {
         <!-- 筛选条件 -->
         <div class="filter-section">
           <el-form :model="filterForm" inline class="filter-form">
-            <el-form-item label="年级">
-              <el-select v-model="filterForm.gradeId" placeholder="全部年级" clearable filterable style="width: 180px" @change="onFilterChange">
-                <el-option v-for="g in gradeOptions" :key="g.value" :label="g.label" :value="g.value" />
-              </el-select>
-            </el-form-item>
             <el-form-item label="科目">
               <el-select v-model="filterForm.subjectId" placeholder="全部科目" clearable filterable style="width: 180px" @change="onFilterChange">
                 <el-option v-for="s in subjectOptions" :key="s.value" :label="s.label" :value="s.value" />
@@ -261,7 +248,6 @@ const resetForm = () => {
             <div class="position-card">
               <h3>{{ job.title }}</h3>
               <div class="position-tags">
-                <el-tag size="small" type="info">{{ job.gradeNames || '不限年级' }}</el-tag>
                 <el-tag size="small" type="success">{{ job.subjectNames || '不限科目' }}</el-tag>
                 <el-tag v-for="(t, idx) in (Array.isArray(job.positionTags) ? job.positionTags : (job.positionTags ? JSON.parse(job.positionTags) : []))"
                         :key="`t-${idx}`" size="small" type="warning">{{ t }}</el-tag>

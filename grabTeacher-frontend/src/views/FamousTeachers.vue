@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import ContactUs from '../components/ContactUs.vue'
 import { useRouter } from 'vue-router'
-import { gradeApi, subjectAPI, teacherAPI } from '../utils/api'
+import { subjectAPI, teacherAPI } from '../utils/api'
 import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 
@@ -31,13 +31,9 @@ const pageSize = ref(6)
 // 过滤条件
 const filter = reactive({
   subject: '',
-  grade: '',
   experience: ''
 })
 
-// 年级相关数据
-const availableGrades = ref([])
-const loadingGrades = ref(false)
 
 // 科目相关数据
 const availableSubjects = ref([])
@@ -67,9 +63,6 @@ const filteredTeachers = computed(() => {
   return teachers.value.filter(teacher => {
     let match = true
     if (filter.subject && teacher.subject !== filter.subject) {
-      match = false
-    }
-    if (filter.grade && !teacher.grade.includes(filter.grade)) {
       match = false
     }
     if (filter.experience) {
@@ -143,7 +136,6 @@ const transformTeacherData = (teacherList: any[]) => {
       id: teacher.id,
       name: teacher.realName,
       subject: primarySubject,
-      grade: Array.isArray(teacher.grades) && teacher.grades.length > 0 ? teacher.grades.join('、') : '未设置',
       experience: teacher.teachingExperience || 0,
       rating: Math.round(rating * 10) / 10, // 保留一位小数
       description: teacher.introduction || `${teacher.realName}是一位优秀的${primarySubject}教师，教学经验丰富，深受学生喜爱。`,
@@ -170,9 +162,6 @@ const loadTeachersWithFilter = async () => {
     if (filter.subject) {
       params.subject = filter.subject
     }
-    if (filter.grade) {
-      params.grade = filter.grade
-    }
 
     const response = await teacherAPI.getPublicList(params)
     if (response.success && response.data) {
@@ -191,7 +180,6 @@ const loadTeachersWithFilter = async () => {
 // 重置筛选
 const resetFilter = async () => {
   filter.subject = ''
-  filter.grade = ''
   filter.experience = ''
   currentPage.value = 1
   await loadTeachers() // 重新加载所有教师数据
@@ -200,7 +188,6 @@ const resetFilter = async () => {
 // 刷新数据
 const refreshData = async () => {
   await Promise.all([
-    loadGrades(),
     loadSubjects(),
     loadTeachers()
   ])
@@ -212,21 +199,6 @@ const viewTeacherDetail = (teacherId: number) => {
   router.push(`/teacher-detail/${teacherId}`)
 }
 
-// 获取年级列表
-const loadGrades = async () => {
-  try {
-    loadingGrades.value = true
-    const response = await gradeApi.getAllPublic()
-    if (response.success && response.data) {
-      availableGrades.value = response.data
-    }
-  } catch (error) {
-    console.error('获取年级列表失败:', error)
-    ElMessage.error('获取年级列表失败')
-  } finally {
-    loadingGrades.value = false
-  }
-}
 
 // 获取科目列表
 const loadSubjects = async () => {
@@ -253,7 +225,6 @@ const loadTeachers = async () => {
       page: currentPage.value,
       size: pageSize.value,
       subject: filter.subject || undefined,
-      grade: filter.grade || undefined
     })
     if (response.success && response.data) {
       const records = Array.isArray(response.data.records) ? response.data.records : []
@@ -270,7 +241,7 @@ const loadTeachers = async () => {
 
 // 分页变化事件（服务端分页）
 const handlePageChange = () => {
-  if (filter.subject || filter.grade) {
+  if (filter.subject) {
     loadTeachersWithFilter()
   } else {
     loadTeachers()
@@ -285,7 +256,6 @@ const handleSizeChange = () => {
 
 // 组件挂载时加载数据
 onMounted(() => {
-  loadGrades()
   loadSubjects()
   loadTeachers()
 })
@@ -314,16 +284,6 @@ onMounted(() => {
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="年级">
-            <el-select v-model="filter.grade" placeholder="选择年级" clearable :loading="loadingGrades">
-              <el-option
-                v-for="grade in availableGrades"
-                :key="grade.id"
-                :label="grade.gradeName"
-                :value="grade.gradeName"
-              />
-            </el-select>
-          </el-form-item>
           <el-form-item label="教龄">
             <el-select v-model="filter.experience" placeholder="教学经验" clearable>
               <el-option label="5年以下" value="0-5" />
@@ -334,7 +294,7 @@ onMounted(() => {
           <el-form-item>
             <el-button type="primary" @click="handleFilter">筛选</el-button>
             <el-button @click="resetFilter">重置</el-button>
-            <el-button @click="refreshData" :loading="loadingTeachers || loadingSubjects || loadingGrades">刷新</el-button>
+            <el-button @click="refreshData" :loading="loadingTeachers || loadingSubjects">刷新</el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -358,7 +318,7 @@ onMounted(() => {
             </div>
             <div class="teacher-info">
               <h3>{{ teacher.name }}</h3>
-              <p>{{ teacher.subject }} | {{ teacher.grade }} | {{ teacher.experience }}年教龄</p>
+              <p>{{ teacher.subject }} | {{ teacher.experience }}年教龄</p>
               <p class="teacher-description">{{ teacher.description }}</p>
               <div class="teacher-tags">
                 <el-tag v-for="(tag, i) in teacher.tags" :key="i" size="small" class="teacher-tag">{{ tag }}</el-tag>

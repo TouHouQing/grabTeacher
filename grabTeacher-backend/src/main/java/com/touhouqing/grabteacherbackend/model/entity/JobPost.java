@@ -21,12 +21,6 @@ public class JobPost {
     @TableField("position_tags")
     private String positionTags; // JSON字符串
 
-    @TableField("grade_ids")
-    private String gradeIds; // 逗号分隔的ID
-
-    @TableField("grade_names")
-    private String gradeNames; // 逗号分隔的名称
-
     @TableField("subject_ids")
     private String subjectIds;
 

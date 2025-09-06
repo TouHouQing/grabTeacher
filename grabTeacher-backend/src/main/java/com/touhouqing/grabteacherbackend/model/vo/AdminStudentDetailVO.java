@@ -45,8 +45,6 @@ public class AdminStudentDetailVO {
     @Schema(description = "出生年月", example = "2005-01")
     private String birthDate;
 
-    @Schema(description = "年级水平", example = "高三")
-    private String gradeLevel;
 
     @Schema(description = "感兴趣的科目", example = "数学,物理,化学")
     private String subjectsInterested;

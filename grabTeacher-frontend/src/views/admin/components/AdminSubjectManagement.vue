@@ -36,9 +36,6 @@ const subjectRules = {
   name: [
     { required: true, message: '请输入科目名称', trigger: 'blur' }
   ],
-  gradeLevels: [
-    { required: true, message: '请输入适用年级', trigger: 'blur' }
-  ]
 }
 
 // 获取科目列表

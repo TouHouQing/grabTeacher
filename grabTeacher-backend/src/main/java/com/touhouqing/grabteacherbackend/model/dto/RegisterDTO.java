@@ -4,6 +4,7 @@ import com.touhouqing.grabteacherbackend.validation.ValidPassword;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -43,7 +44,6 @@ public class RegisterDTO {
     private String birthDate;
 
     // 学生额外信息
-    private String gradeLevel;
     private String subjectsInterested; // 保留兼容性
     private List<Long> studentSubjectIds; // 学生感兴趣的科目ID列表
     private String learningGoals;
@@ -52,6 +52,7 @@ public class RegisterDTO {
     private String gender;
 
     // 教师额外信息
+    @Pattern(regexp = "^(专科及以下|本科|硕士|博士)$", message = "学历仅限：专科及以下、本科、硕士、博士")
     private String educationBackground;
     private Integer teachingExperience;
     private String specialties;

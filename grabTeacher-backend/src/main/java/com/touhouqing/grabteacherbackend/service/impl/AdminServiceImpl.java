@@ -165,7 +165,7 @@ public class AdminServiceImpl implements AdminService {
     // ===================== 学生管理实现 =====================
 
     @Override
-    public Page<Student> getStudentList(int page, int size, String keyword, String gradeLevel) {
+    public Page<Student> getStudentList(int page, int size, String keyword) {
         Page<Student> pageParam = new Page<>(page, size);
         QueryWrapper<Student> queryWrapper = new QueryWrapper<>();
 
@@ -174,9 +174,6 @@ public class AdminServiceImpl implements AdminService {
         // 搜索条件
         if (StringUtils.hasText(keyword)) {
             queryWrapper.like("real_name", keyword);
-        }
-        if (StringUtils.hasText(gradeLevel)) {
-            queryWrapper.eq("grade_level", gradeLevel);
         }
 
         // 排序
@@ -234,7 +231,6 @@ public class AdminServiceImpl implements AdminService {
                 .phone(user != null ? user.getPhone() : null)
                 .avatarUrl(user != null ? user.getAvatarUrl() : null)
                 .birthDate(user != null ? user.getBirthDate() : null)
-                .gradeLevel(student.getGradeLevel())
                 .subjectsInterested(student.getSubjectsInterested())
                 .subjectIds(subjectIds)
                 .learningGoals(student.getLearningGoals())
@@ -294,7 +290,6 @@ public class AdminServiceImpl implements AdminService {
         Student student = Student.builder()
                 .userId(user.getId()) // 关联到刚创建的用户
                 .realName(request.getRealName())
-                .gradeLevel(request.getGradeLevel())
                 .subjectsInterested(request.getSubjectsInterested())
                 .learningGoals(request.getLearningGoals())
                 .preferredTeachingStyle(request.getPreferredTeachingStyle())
@@ -380,7 +375,6 @@ public class AdminServiceImpl implements AdminService {
         BigDecimal oldBalance = student.getBalance();
         
         student.setRealName(request.getRealName());
-        student.setGradeLevel(request.getGradeLevel());
         student.setSubjectsInterested(request.getSubjectsInterested());
         student.setLearningGoals(request.getLearningGoals());
         student.setPreferredTeachingStyle(request.getPreferredTeachingStyle());
@@ -529,6 +523,7 @@ public class AdminServiceImpl implements AdminService {
                 .specialties(teacher.getSpecialties())
                 .subjectIds(subjectIds)
                 .hourlyRate(teacher.getHourlyRate())
+                .rating(teacher.getRating())
                 .introduction(teacher.getIntroduction())
                 .videoIntroUrl(teacher.getVideoIntroUrl())
                 .gender(teacher.getGender())
@@ -624,6 +619,7 @@ public class AdminServiceImpl implements AdminService {
                 .videoIntroUrl(request.getVideoIntroUrl())
                 .gender(request.getGender() != null ? request.getGender() : "不愿透露")
                 .availableTimeSlots(availableTimeSlotsJson)
+                .rating(request.getRating() != null ? request.getRating() : BigDecimal.valueOf(5.0)) // 默认评分5.0
                 .verified(true) // 管理员添加的教师默认已审核
                 .build();
 
@@ -706,6 +702,11 @@ public class AdminServiceImpl implements AdminService {
         teacher.setIntroduction(request.getIntroduction());
         teacher.setVideoIntroUrl(request.getVideoIntroUrl());
         teacher.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
+        
+        // 更新教师评分
+        if (request.getRating() != null) {
+            teacher.setRating(request.getRating());
+        }
 
         // 管理员可更新教师课时（小时）
         if (request.getCurrentHours() != null) {
@@ -882,16 +883,13 @@ public class AdminServiceImpl implements AdminService {
         } catch (Exception ignore) {}
         try {
             if (stringRedisTemplate != null) {
-                // 清理不分页的缓存键格式：featuredTeachers:json:all:subject:...:grade:...:keyword:...
+                // 清理不分页的缓存键格式：featuredTeachers:json:all:subject:...:keyword:...
                 String[] subjects = new String[]{"all"};
-                String[] grades = new String[]{"all"};
                 String[] keywords = new String[]{"all"};
                 for (String sub : subjects) {
-                    for (String g : grades) {
-                        for (String k : keywords) {
-                            String key = String.format("featuredTeachers:json:all:subject:%s:grade:%s:keyword:%s", sub, g, k);
+                    for (String k : keywords) {
+                        String key = String.format("featuredTeachers:json:all:subject:%s:keyword:%s", sub, k);
                             stringRedisTemplate.delete(key);
-                        }
                     }
                 }
             }

@@ -35,7 +35,6 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
             case "getTeacherByUserId" -> generateTeacherByUserIdKey(params);
             case "getTeacherPublicSchedule" -> generateTeacherScheduleKey(params);
             case "checkTeacherAvailability" -> generateTeacherAvailabilityKey(params);
-            case "getAvailableGrades" -> "availableGrades:all";
             default -> generateDefaultKey(target, method, params);
         };
     }

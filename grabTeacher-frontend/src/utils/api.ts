@@ -152,7 +152,6 @@ export const studentAPI = {
     page?: number
     size?: number
     keyword?: string
-    gradeLevel?: string
   }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params).forEach(key => {
@@ -172,7 +171,6 @@ export const studentAPI = {
     username?: string
     email?: string
     phone?: string
-    gradeLevel?: string
     subjectsInterested?: string
     subjectIds?: number[]
     learningGoals?: string
@@ -193,7 +191,6 @@ export const studentAPI = {
     username?: string
     email?: string
     phone?: string
-    gradeLevel?: string
     subjectsInterested?: string
     subjectIds?: number[]
     learningGoals?: string
@@ -343,7 +340,6 @@ export const teacherAPI = {
   // 匹配教师
   matchTeachers: (data: {
     subject?: string
-    grade?: string
     preferredTime?: string
     preferredDateStart?: string
     preferredDateEnd?: string
@@ -356,8 +352,6 @@ export const teacherAPI = {
     body: JSON.stringify(data)
   }),
 
-  // 获取可用年级选项
-  getAvailableGrades: () => apiRequest('/api/teacher/grades'),
 
   // 批量获取教师科目ID映射（管理员）
   getSubjectsByTeacherIds: (ids: number[]) => apiRequest('/api/admin/teachers/subjects/batch', {
@@ -420,7 +414,6 @@ export const teacherAPI = {
     page?: number
     size?: number
     subject?: string
-    grade?: string
     keyword?: string
   }) => {
     const searchParams = new URLSearchParams()
@@ -433,7 +426,7 @@ export const teacherAPI = {
   },
 
   // 获取精选教师列表（不分页，供首页使用）
-  getFeaturedList: (params?: { subject?: string; grade?: string; keyword?: string }) => {
+  getFeaturedList: (params?: { subject?: string; keyword?: string }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params || {}).forEach(key => {
       const v: any = (params as any)[key]
@@ -618,7 +611,6 @@ export const courseAPI = {
     teacherId?: number
     status?: string
     courseType?: string
-    grade?: string
     gender?: string
   }) => {
     const searchParams = new URLSearchParams()
@@ -642,7 +634,6 @@ export const courseAPI = {
     courseType: string
     durationMinutes: number
     status?: string
-    grade?: string
     gender?: string
     price?: number | null
     startDate?: string
@@ -663,7 +654,6 @@ export const courseAPI = {
     courseType: string
     durationMinutes: number
     status?: string
-    grade?: string
     gender?: string
     price?: number | null
     startDate?: string
@@ -699,7 +689,6 @@ export const courseAPI = {
     page?: number
     size?: number
     subjectId?: number
-    grade?: string
   }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params).forEach(key => {
@@ -718,7 +707,6 @@ export const courseAPI = {
     subjectId?: number
     teacherId?: number
     courseType?: string
-    grade?: string
   }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params).forEach(key => {
@@ -747,7 +735,6 @@ export const courseAPI = {
     teacherId?: number
     status?: string
     courseType?: string
-    grade?: string
   }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params).forEach(key => {
@@ -763,7 +750,6 @@ export const courseAPI = {
     page?: number
     size?: number
     subjectId?: number
-    grade?: string
   }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params).forEach(key => {
@@ -948,40 +934,6 @@ export const enrollmentAPI = {
   getStudentSuspended: () => apiRequest('/api/enrollments/student/suspended')
 }
 
-// 年级管理API
-export const gradeApi = {
-  // 获取所有年级列表（管理员接口）
-  getAll: () => apiRequest('/api/admin/grades'),
-
-  // 获取所有年级列表（公开接口）
-  getAllPublic: () => apiRequest('/api/public/grades'),
-
-  // 获取年级名称列表（公开接口）
-  getGradeNames: () => apiRequest('/api/public/grades/names'),
-
-  // 根据ID获取年级信息
-  getById: (id: number) => apiRequest(`/api/admin/grades/${id}`),
-
-  // 创建年级
-  create: (data: { gradeName: string; description?: string }) =>
-    apiRequest('/api/admin/grades', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-
-  // 更新年级
-  update: (id: number, data: { gradeName: string; description?: string }) =>
-    apiRequest(`/api/admin/grades/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }),
-
-  // 删除年级
-  delete: (id: number) =>
-    apiRequest(`/api/admin/grades/${id}`, {
-      method: 'DELETE'
-    })
-}
 
 
 // 留学咨询 API
@@ -1088,7 +1040,7 @@ export const evaluationAPI = {
 
 export const jobPostAPI = {
   // 公开列表
-  list: (params: { page?: number; size?: number; gradeId?: number; subjectId?: number }) => {
+  list: (params: { page?: number; size?: number; subjectId?: number }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params || {}).forEach(key => {
       const v: any = (params as any)[key]
@@ -1101,7 +1053,7 @@ export const jobPostAPI = {
   getDetailFast: (id: number) => apiRequest(`/api/job-posts/public/${id}/fast`),
 
   // 管理端：分页列表
-  adminList: (params: { page?: number; size?: number; gradeId?: number; subjectId?: number; status?: string; keyword?: string; createdStart?: string; createdEnd?: string; includeDeleted?: boolean }) => {
+  adminList: (params: { page?: number; size?: number; subjectId?: number; status?: string; keyword?: string; createdStart?: string; createdEnd?: string; includeDeleted?: boolean }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params || {}).forEach(key => {
       const v: any = (params as any)[key]
@@ -1112,10 +1064,10 @@ export const jobPostAPI = {
   // 管理端：详情
   adminGetById: (id: number) => apiRequest(`/api/job-posts/admin/${id}`),
   // 创建
-  create: (data: { title: string; introduction?: string; gradeIds: number[]; subjectIds: number[]; tags?: string[]; status?: string; priority?: number }) =>
+  create: (data: { title: string; introduction?: string; subjectIds: number[]; tags?: string[]; status?: string; priority?: number }) =>
     apiRequest('/api/job-posts', { method: 'POST', body: JSON.stringify(data) }),
   // 更新
-  update: (id: number, data: { title?: string; introduction?: string; gradeIds?: number[]; subjectIds?: number[]; tags?: string[]; status?: string; priority?: number }) =>
+  update: (id: number, data: { title?: string; introduction?: string; subjectIds?: number[]; tags?: string[]; status?: string; priority?: number }) =>
     apiRequest(`/api/job-posts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   // 删除
   delete: (id: number) => apiRequest(`/api/job-posts/${id}`, { method: 'DELETE' }),

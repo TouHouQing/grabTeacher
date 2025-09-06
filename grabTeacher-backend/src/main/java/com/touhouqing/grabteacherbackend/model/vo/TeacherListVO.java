@@ -41,8 +41,6 @@ public class TeacherListVO {
     @Schema(description = "教授科目名称列表", example = "[\"数学\", \"物理\"]")
     private List<String> subjects;
     
-    @Schema(description = "教授年级列表", example = "[\"初一\", \"初二\", \"初三\"]")
-    private List<String> grades;
     
     @Schema(description = "小时收费", example = "100.00")
     private BigDecimal hourlyRate;

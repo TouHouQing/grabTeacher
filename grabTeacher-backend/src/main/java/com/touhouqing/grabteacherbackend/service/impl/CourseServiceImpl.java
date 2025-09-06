@@ -5,15 +5,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.touhouqing.grabteacherbackend.model.dto.CourseDTO;
 import com.touhouqing.grabteacherbackend.model.vo.CourseVO;
 import com.touhouqing.grabteacherbackend.model.entity.Course;
-import com.touhouqing.grabteacherbackend.model.entity.CourseGrade;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 import com.touhouqing.grabteacherbackend.model.entity.Subject;
-import com.touhouqing.grabteacherbackend.model.entity.Grade;
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
-import com.touhouqing.grabteacherbackend.mapper.CourseGradeMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.SubjectMapper;
-import com.touhouqing.grabteacherbackend.mapper.GradeMapper;
 import com.touhouqing.grabteacherbackend.service.CourseService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,8 +36,6 @@ public class CourseServiceImpl implements CourseService {
     @Autowired
     private CourseMapper courseMapper;
 
-    @Autowired
-    private CourseGradeMapper courseGradeMapper;
 
     @Autowired
     private TeacherMapper teacherMapper;
@@ -49,8 +43,6 @@ public class CourseServiceImpl implements CourseService {
     @Autowired
     private SubjectMapper subjectMapper;
 
-    @Autowired
-    private GradeMapper gradeMapper;
 
     @Autowired
     private com.touhouqing.grabteacherbackend.util.AliyunOssUtil ossUtil;
@@ -165,23 +157,6 @@ public class CourseServiceImpl implements CourseService {
 
         courseMapper.insert(course);
 
-        // 处理年级数据 - 验证年级是否存在于年级管理表中
-        if (StringUtils.hasText(request.getGrade())) {
-            String[] grades = request.getGrade().split(",");
-            for (String grade : grades) {
-                String trimmedGrade = grade.trim();
-                if (StringUtils.hasText(trimmedGrade)) {
-                    // 验证年级是否存在于年级管理表中
-                    Grade gradeEntity = gradeMapper.findByGradeName(trimmedGrade);
-                    if (gradeEntity == null) {
-                        throw new RuntimeException("年级 '" + trimmedGrade + "' 不存在，请先在年级管理中添加该年级");
-                    }
-
-                    CourseGrade courseGrade = new CourseGrade(course.getId(), trimmedGrade);
-                    courseGradeMapper.insert(courseGrade);
-                }
-            }
-        }
 
         log.info("课程创建成功: {}", course.getTitle());
         try { eventPublisher.publishEvent(new CourseChangedEvent(this, CourseChangedEvent.ChangeType.CREATE)); } catch (Exception ignore) {}
@@ -300,24 +275,6 @@ public class CourseServiceImpl implements CourseService {
             }
         }
 
-        // 更新年级数据：先删除原有关联，再插入新的关联
-        courseGradeMapper.deleteByCourseId(course.getId());
-        if (StringUtils.hasText(request.getGrade())) {
-            String[] grades = request.getGrade().split(",");
-            for (String grade : grades) {
-                String trimmedGrade = grade.trim();
-                if (StringUtils.hasText(trimmedGrade)) {
-                    // 验证年级是否存在于年级管理表中
-                    Grade gradeEntity = gradeMapper.findByGradeName(trimmedGrade);
-                    if (gradeEntity == null) {
-                        throw new RuntimeException("年级 '" + trimmedGrade + "' 不存在，请先在年级管理中添加该年级");
-                    }
-
-                    CourseGrade courseGrade = new CourseGrade(course.getId(), trimmedGrade);
-                    courseGradeMapper.insert(courseGrade);
-                }
-            }
-        }
 
         log.info("课程更新成功: {}", course.getTitle());
         try { eventPublisher.publishEvent(new CourseChangedEvent(this, CourseChangedEvent.ChangeType.UPDATE)); } catch (Exception ignore) {}
@@ -352,8 +309,6 @@ public class CourseServiceImpl implements CourseService {
         course.setDeletedAt(LocalDateTime.now());
         courseMapper.updateById(course);
 
-        // 删除课程年级关联
-        courseGradeMapper.deleteByCourseId(id);
 
         log.info("课程删除成功: {}", course.getTitle());
         try { eventPublisher.publishEvent(new CourseChangedEvent(this, CourseChangedEvent.ChangeType.DELETE)); } catch (Exception ignore) {}
@@ -414,20 +369,20 @@ public class CourseServiceImpl implements CourseService {
                keyGenerator = "courseCacheKeyGenerator",
                unless = "#result == null || #result.records.isEmpty()")
     public Page<CourseVO> getCourseList(int page, int size, String keyword, Long subjectId,
-                                        Long teacherId, String status, String courseType, String grade) {
-        return doGetCourseList(page, size, keyword, subjectId, teacherId, status, courseType, grade);
+                                        Long teacherId, String status, String courseType) {
+        return doGetCourseList(page, size, keyword, subjectId, teacherId, status, courseType);
     }
 
     // 管理端直查 DB
     @Override
     public Page<CourseVO> getCourseListNoCache(int page, int size, String keyword, Long subjectId,
-                                               Long teacherId, String status, String courseType, String grade) {
-        return doGetCourseList(page, size, keyword, subjectId, teacherId, status, courseType, grade);
+                                               Long teacherId, String status, String courseType) {
+        return doGetCourseList(page, size, keyword, subjectId, teacherId, status, courseType);
     }
 
     // 共享查询实现
     private Page<CourseVO> doGetCourseList(int page, int size, String keyword, Long subjectId,
-                                           Long teacherId, String status, String courseType, String grade) {
+                                           Long teacherId, String status, String courseType) {
         Page<Course> pageParam = new Page<>(page, size);
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
 
@@ -453,16 +408,6 @@ public class CourseServiceImpl implements CourseService {
             queryWrapper.eq("course_type", courseType);
         }
 
-        // 如果有年级筛选条件，需要通过关联表查询
-        if (StringUtils.hasText(grade)) {
-            List<Long> courseIds = courseGradeMapper.findCourseIdsByGrade(grade);
-            if (courseIds.isEmpty()) {
-                Page<CourseVO> emptyPage = new Page<>(page, size, 0);
-                emptyPage.setRecords(new ArrayList<>());
-                return emptyPage;
-            }
-            queryWrapper.in("id", courseIds);
-        }
 
         queryWrapper.orderByDesc("created_at");
 
@@ -632,12 +577,6 @@ public class CourseServiceImpl implements CourseService {
         Subject subject = subjectMapper.selectById(course.getSubjectId());
         String subjectName = subject != null ? subject.getName() : "未知科目";
 
-        // 获取课程年级信息
-        List<CourseGrade> courseGrades = courseGradeMapper.findByCourseId(course.getId());
-        String gradeStr = courseGrades.isEmpty() ? "未设置" :
-            courseGrades.stream()
-                .map(CourseGrade::getGrade)
-                .collect(Collectors.joining(","));
 
         CourseVO response = CourseVO.builder()
                 .id(course.getId())
@@ -652,7 +591,6 @@ public class CourseServiceImpl implements CourseService {
                 .status(course.getStatus())
                 .featured(course.getFeatured())
                 .createdAt(course.getCreatedAt())
-                .grade(gradeStr) // 从course_grades表获取年级信息
                 .price(course.getPrice())
                 .startDate(course.getStartDate())
                 .endDate(course.getEndDate())
@@ -672,15 +610,15 @@ public class CourseServiceImpl implements CourseService {
      */
     @Override
     @Cacheable(cacheNames = "featuredCourses",
-               key = "'page:' + #page + ':size:' + #size + ':subject:' + (#subjectId ?: 'all') + ':grade:' + (#grade ?: 'all')",
+               key = "'page:' + #page + ':size:' + #size + ':subject:' + (#subjectId ?: 'all')",
                unless = "#result == null || #result.records.isEmpty()")
-    public Page<CourseVO> getFeaturedCourses(int page, int size, Long subjectId, String grade) {
-        return doGetFeaturedCourses(page, size, subjectId, grade);
+    public Page<CourseVO> getFeaturedCourses(int page, int size, Long subjectId) {
+        return doGetFeaturedCourses(page, size, subjectId);
     }
 
     @Override
-    public Page<CourseVO> getFeaturedCoursesNoCache(int page, int size, Long subjectId, String grade) {
-        return doGetFeaturedCourses(page, size, subjectId, grade);
+    public Page<CourseVO> getFeaturedCoursesNoCache(int page, int size, Long subjectId) {
+        return doGetFeaturedCourses(page, size, subjectId);
     }
 
     /**
@@ -699,7 +637,7 @@ public class CourseServiceImpl implements CourseService {
         return assembleCourseResponses(courses);
     }
 
-    private Page<CourseVO> doGetFeaturedCourses(int page, int size, Long subjectId, String grade) {
+    private Page<CourseVO> doGetFeaturedCourses(int page, int size, Long subjectId) {
         Page<Course> pageParam = new Page<>(page, size);
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
 
@@ -711,17 +649,6 @@ public class CourseServiceImpl implements CourseService {
             queryWrapper.eq("subject_id", subjectId);
         }
 
-        // 如果指定了年级，改为两段式查询：先查 course_ids 再 IN 过滤，避免 exists 带来的执行波动
-        if (grade != null && !grade.trim().isEmpty()) {
-            String g = grade.trim();
-            List<Long> idsByGrade = courseGradeMapper.findCourseIdsByGrade(g);
-            if (idsByGrade == null || idsByGrade.isEmpty()) {
-                Page<CourseVO> emptyPage = new Page<>(page, size, 0);
-                emptyPage.setRecords(new ArrayList<>());
-                return emptyPage;
-            }
-            queryWrapper.in("id", idsByGrade);
-        }
 
         queryWrapper.orderByDesc("created_at");
 
@@ -766,25 +693,12 @@ public class CourseServiceImpl implements CourseService {
             }
         }
 
-        // 4) 批量查询年级
-        Map<Long, String> courseGradesStr = new HashMap<>();
-        if (!courseIds.isEmpty()) {
-            List<CourseGrade> all = courseGradeMapper.findByCourseIds(courseIds);
-            Map<Long, List<String>> tmp = new HashMap<>();
-            for (CourseGrade cg : all) {
-                tmp.computeIfAbsent(cg.getCourseId(), k -> new ArrayList<>()).add(cg.getGrade());
-            }
-            for (Map.Entry<Long, List<String>> e : tmp.entrySet()) {
-                courseGradesStr.put(e.getKey(), String.join(",", e.getValue()));
-            }
-        }
 
         // 5) 组装响应
         List<CourseVO> list = new ArrayList<>();
         for (Course c : courses) {
             String teacherName = teacherNameMap.getOrDefault(c.getTeacherId(), "未知教师");
             String subjectName = subjectNameMap.getOrDefault(c.getSubjectId(), "未知科目");
-            String gradeStr = courseGradesStr.getOrDefault(c.getId(), "未设置");
 
             CourseVO resp = CourseVO.builder()
                     .id(c.getId())
@@ -799,7 +713,6 @@ public class CourseServiceImpl implements CourseService {
                     .status(c.getStatus())
                     .featured(c.getFeatured())
                     .createdAt(c.getCreatedAt())
-                    .grade(gradeStr)
                     .price(c.getPrice())
                     .startDate(c.getStartDate())
                     .endDate(c.getEndDate())

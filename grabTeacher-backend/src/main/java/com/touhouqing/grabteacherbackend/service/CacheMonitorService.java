@@ -197,7 +197,7 @@ public class CacheMonitorService {
         
         try {
             // 获取各个缓存的key数量
-            String[] cacheNames = {"course", "courseList", "teacherCourses", "activeCourses", "subjects", "grades"};
+            String[] cacheNames = {"course", "courseList", "teacherCourses", "activeCourses", "subjects"};
             
             for (String cacheName : cacheNames) {
                 Set<String> keys = redisTemplate.keys("grabTeacher:" + cacheName + ":*");

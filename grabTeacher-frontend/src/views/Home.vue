@@ -234,7 +234,7 @@ const testimonials = computed(() => {
       },
       {
         name: '王芳',
-        role: '小学二年级学生',
+        role: '小学学生',
         content: '老师教学很有耐心，会根据我的弱点定制学习计划，学习效率比自己学习提高了很多。',
         avatar: '@/assets/pictures/studentGirl1.jpeg'
       }
@@ -243,7 +243,7 @@ const testimonials = computed(() => {
     return [
       {
         name: 'Zhang Ming',
-        role: 'Grade 9 Student',
+        role: 'Student',
         content: 'Through the platform, I found a math teacher who is very suitable for me. In half a year, my math score increased from 80 to 120 points. Thank you very much!',
         avatar: '@/assets/pictures/studentBoy1.jpeg'
       },
@@ -255,7 +255,7 @@ const testimonials = computed(() => {
       },
       {
         name: 'Wang Fang',
-        role: 'Grade 2 Student',
+        role: 'Student',
         content: 'The teacher is very patient in teaching and will customize a learning plan according to my weaknesses. The learning efficiency is much higher than self-study.',
         avatar: '@/assets/pictures/studentGirl1.jpeg'
       }

@@ -47,12 +47,12 @@ public class FeaturedTeacherCacheWarmupService implements CommandLineRunner {
             
             for (int pageSize : pageSizes) {
                 // 预热第一页数据
-                List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(1, pageSize, null, null, null);
+                List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(1, pageSize, null, null);
                 log.debug("预热精选教师缓存: page=1, size={}, count={}", pageSize, teachers.size());
                 
                 // 如果有数据，预热第二页
                 if (teachers.size() == pageSize) {
-                    List<TeacherListVO> secondPage = teacherService.getFeaturedTeachers(2, pageSize, null, null, null);
+                    List<TeacherListVO> secondPage = teacherService.getFeaturedTeachers(2, pageSize, null, null);
                     log.debug("预热精选教师缓存: page=2, size={}, count={}", pageSize, secondPage.size());
                 }
             }
@@ -60,16 +60,10 @@ public class FeaturedTeacherCacheWarmupService implements CommandLineRunner {
             // 预热科目的精选教师列表（动态获取激活科目）
             List<Subject> activeSubjects = subjectService.getAllActiveSubjects();
             for (Subject s : activeSubjects) {
-                List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(1, 10, s.getName(), null, null);
+                List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(1, 10, s.getName(), null);
                 log.debug("预热精选教师缓存: subject={}, count={}", s.getName(), teachers.size());
             }
 
-            // 预热年级的精选教师列表（动态获取可用年级）
-            List<String> dbGrades = teacherService.getAvailableGrades();
-            for (String grade : dbGrades) {
-                List<TeacherListVO> teachers = teacherService.getFeaturedTeachers(1, 10, null, grade, null);
-                log.debug("预热精选教师缓存: grade={}, count={}", grade, teachers.size());
-            }
 
             log.info("精选教师列表缓存预热完成");
         } catch (Exception e) {

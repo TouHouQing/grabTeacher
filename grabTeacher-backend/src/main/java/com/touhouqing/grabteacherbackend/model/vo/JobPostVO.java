@@ -14,7 +14,6 @@ public class JobPostVO {
     private String title;
     private String introduction;
     private String positionTags; // JSON字符串
-    private String gradeNames;
     private String subjectNames;
     private String status;
     private Integer priority;

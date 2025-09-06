@@ -7,15 +7,12 @@ import com.touhouqing.grabteacherbackend.model.entity.Student;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 import com.touhouqing.grabteacherbackend.model.vo.AdminStudentDetailVO;
 import com.touhouqing.grabteacherbackend.model.vo.AdminTeacherDetailVO;
-import com.touhouqing.grabteacherbackend.model.dto.GradeDTO;
 import com.touhouqing.grabteacherbackend.model.dto.StudentInfoDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TeacherInfoDTO;
 import com.touhouqing.grabteacherbackend.service.AdminService;
-import com.touhouqing.grabteacherbackend.service.GradeService;
 import com.touhouqing.grabteacherbackend.service.CourseService;
 import com.touhouqing.grabteacherbackend.service.MessageService;
 import com.touhouqing.grabteacherbackend.service.ScheduleCleanupService;
-import com.touhouqing.grabteacherbackend.model.vo.GradeVO;
 import jakarta.validation.Valid;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -64,8 +61,6 @@ public class AdminController {
     @Autowired
     private BalanceTransactionMapper balanceTransactionMapper;
 
-    @Autowired
-    private GradeService gradeService;
 
     @Autowired
     private CourseService courseService;
@@ -140,15 +135,15 @@ public class AdminController {
     /**
      * 获取学生列表（分页查询）
      */
-    @Operation(summary = "获取学生列表", description = "分页查询学生信息，支持按姓名、年级搜索")
+    @Operation(summary = "获取学生列表", description = "分页查询学生信息，支持按姓名搜索")
     @GetMapping("/students")
     public ResponseEntity<CommonResult<Page<Student>>> getStudentList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String gradeLevel) {
+            @RequestParam(required = false) String keyword
+) {
         try {
-            Page<Student> students = adminService.getStudentList(page, size, keyword, gradeLevel);
+            Page<Student> students = adminService.getStudentList(page, size, keyword);
             return ResponseEntity.ok(CommonResult.success("获取成功", students));
         } catch (Exception e) {
             logger.error("获取学生列表异常: ", e);
@@ -288,7 +283,7 @@ public class AdminController {
      */
     @Operation(summary = "添加教师", description = "管理员添加新教师")
     @PostMapping("/teachers")
-    public ResponseEntity<CommonResult<Teacher>> addTeacher(@RequestBody TeacherInfoDTO request) {
+    public ResponseEntity<CommonResult<Teacher>> addTeacher(@Valid @RequestBody TeacherInfoDTO request) {
         try {
             Teacher teacher = adminService.addTeacher(request);
             return ResponseEntity.ok(CommonResult.success("添加成功", teacher));
@@ -310,7 +305,7 @@ public class AdminController {
     @PutMapping("/teachers/{teacherId}")
     public ResponseEntity<CommonResult<Teacher>> updateTeacher(
             @PathVariable Long teacherId,
-            @RequestBody TeacherInfoDTO request) {
+            @Valid @RequestBody TeacherInfoDTO request) {
         try {
             Teacher teacher = adminService.updateTeacher(teacherId, request);
             return ResponseEntity.ok(CommonResult.success("更新成功", teacher));
@@ -437,104 +432,6 @@ public class AdminController {
         }
     }
 
-    // ==================== 年级管理接口 ====================
-
-    /**
-     * 获取所有年级列表
-     */
-    @Operation(summary = "获取所有年级列表", description = "获取系统中所有年级信息")
-    @GetMapping("/grades")
-    public ResponseEntity<CommonResult<List<GradeVO>>> getAllGrades() {
-        try {
-            // 管理端一致性优先：直查 DB 不走缓存
-            List<GradeVO> grades = gradeService.getAllGradesNoCache();
-            return ResponseEntity.ok(CommonResult.success("获取成功", grades));
-        } catch (Exception e) {
-            logger.error("获取年级列表异常: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResult.error("获取失败"));
-        }
-    }
-
-    /**
-     * 根据ID获取年级信息
-     */
-    @Operation(summary = "根据ID获取年级信息", description = "根据年级ID获取详细信息")
-    @GetMapping("/grades/{id}")
-    public ResponseEntity<CommonResult<GradeVO>> getGradeById(@PathVariable Long id) {
-        try {
-            GradeVO grade = gradeService.getGradeById(id);
-            return ResponseEntity.ok(CommonResult.success("获取成功", grade));
-        } catch (RuntimeException e) {
-            logger.warn("获取年级失败: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(CommonResult.error(e.getMessage()));
-        } catch (Exception e) {
-            logger.error("获取年级异常: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResult.error("获取失败"));
-        }
-    }
-
-    /**
-     * 创建年级
-     */
-    @Operation(summary = "创建年级", description = "创建新的年级")
-    @PostMapping("/grades")
-    public ResponseEntity<CommonResult<GradeVO>> createGrade(@Valid @RequestBody GradeDTO request) {
-        try {
-            GradeVO grade = gradeService.createGrade(request);
-            return ResponseEntity.ok(CommonResult.success("创建成功", grade));
-        } catch (RuntimeException e) {
-            logger.warn("创建年级失败: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(CommonResult.error(e.getMessage()));
-        } catch (Exception e) {
-            logger.error("创建年级异常: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResult.error("创建失败"));
-        }
-    }
-
-    /**
-     * 更新年级
-     */
-    @Operation(summary = "更新年级", description = "更新年级信息")
-    @PutMapping("/grades/{id}")
-    public ResponseEntity<CommonResult<GradeVO>> updateGrade(@PathVariable Long id, @Valid @RequestBody GradeDTO request) {
-        try {
-            GradeVO grade = gradeService.updateGrade(id, request);
-            return ResponseEntity.ok(CommonResult.success("更新成功", grade));
-        } catch (RuntimeException e) {
-            logger.warn("更新年级失败: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(CommonResult.error(e.getMessage()));
-        } catch (Exception e) {
-            logger.error("更新年级异常: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResult.error("更新失败"));
-        }
-    }
-
-    /**
-     * 删除年级
-     */
-    @Operation(summary = "删除年级", description = "删除指定年级")
-    @DeleteMapping("/grades/{id}")
-    public ResponseEntity<CommonResult<String>> deleteGrade(@PathVariable Long id) {
-        try {
-            gradeService.deleteGrade(id);
-            return ResponseEntity.ok(CommonResult.success("删除成功", "删除成功"));
-        } catch (RuntimeException e) {
-            logger.warn("删除年级失败: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(CommonResult.error(e.getMessage()));
-        } catch (Exception e) {
-            logger.error("删除年级异常: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResult.error("删除失败"));
-        }
-    }
 
     // ==================== 精选课程管理接口 ====================
 
@@ -546,11 +443,11 @@ public class AdminController {
     public ResponseEntity<CommonResult<Map<String, Object>>> getFeaturedCourses(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) Long subjectId,
-            @RequestParam(required = false) String grade) {
+            @RequestParam(required = false) Long subjectId
+) {
         try {
             // 管理端一致性优先：直查 DB 不走缓存
-            Page<CourseVO> coursePage = courseService.getFeaturedCoursesNoCache(page, size, subjectId, grade);
+            Page<CourseVO> coursePage = courseService.getFeaturedCoursesNoCache(page, size, subjectId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("courses", coursePage.getRecords());

@@ -338,7 +338,6 @@ const fetchTeacherDetail = async () => {
         id: teacherData.id,
         name: teacherData.realName,
         subject: teacherData.subjects && teacherData.subjects.length > 0 ? teacherData.subjects[0] : '未设置',
-        grade: teacherData.grades && teacherData.grades.length > 0 ? teacherData.grades.join('、') : '未设置',
         experience: teacherData.teachingExperience || 0,
         rating: 4.8, // 暂时使用默认值
         description: teacherData.introduction || '暂无介绍',
@@ -429,7 +428,6 @@ const bookLesson = () => {
             <div class="teacher-tags">
               <div class="tag-group">
                 <el-tag type="success" effect="dark" class="subject-tag">{{ teacher.subject }}</el-tag>
-                <el-tag type="info" effect="plain" class="grade-tag">{{ teacher.grade }}</el-tag>
                 <el-tag type="warning" effect="plain" class="experience-tag">{{ teacher.experience }}年教龄</el-tag>
                 <el-tag type="info" effect="plain" class="gender-tag">
                   {{ teacher.gender === 'Male' ? '男' : '女' }}

@@ -80,11 +80,11 @@ public class FeaturedCourseCacheWarmupService implements ApplicationRunner {
     private void warmupFeaturedCoursesList() {
         try {
             // 预热第一页精选课程（最常访问）
-            courseService.getFeaturedCourses(1, 6, null, null);
+            courseService.getFeaturedCourses(1, 6, null);
             log.debug("预热精选课程列表（第一页）完成");
             
             // 预热第二页精选课程
-            courseService.getFeaturedCourses(2, 6, null, null);
+            courseService.getFeaturedCourses(2, 6, null);
             log.debug("预热精选课程列表（第二页）完成");
             
         } catch (Exception e) {
@@ -101,7 +101,7 @@ public class FeaturedCourseCacheWarmupService implements ApplicationRunner {
             List<Subject> activeSubjects = subjectService.getAllActiveSubjects();
             for (Subject s : activeSubjects) {
                 try {
-                    courseService.getFeaturedCourses(1, 6, s.getId(), null);
+                    courseService.getFeaturedCourses(1, 6, s.getId());
                     log.debug("预热科目{}的精选课程完成", s.getName());
                 } catch (Exception e) {
                     log.warn("预热科目{}的精选课程失败", s.getName(), e);

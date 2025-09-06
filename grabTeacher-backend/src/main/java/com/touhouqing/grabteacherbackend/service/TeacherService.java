@@ -27,7 +27,7 @@ public interface TeacherService {
     Teacher getTeacherById(Long teacherId);
 
     /**
-     * 根据ID获取教师详情（包含用户信息、科目信息、年级信息）
+     * 根据ID获取教师详情（包含用户信息、科目信息）
      */
     TeacherDetailVO getTeacherDetailById(Long teacherId);
 
@@ -44,22 +44,22 @@ public interface TeacherService {
     /**
      * 获取教师列表（包含科目信息）
      */
-    List<TeacherListVO> getTeacherListWithSubjects(int page, int size, String subject, String grade, String keyword);
+    List<TeacherListVO> getTeacherListWithSubjects(int page, int size, String subject, String keyword);
 
     /**
      * 统计教师总数（用于分页）
      */
-    long countTeachers(String subject, String grade, String keyword);
+    long countTeachers(String subject, String keyword);
 
     /**
      * 获取精选教师列表（天下名师页面使用）
      */
-    List<TeacherListVO> getFeaturedTeachers(int page, int size, String subject, String grade, String keyword);
+    List<TeacherListVO> getFeaturedTeachers(int page, int size, String subject, String keyword);
 
     /**
      * 统计精选教师总数（支持筛选）
      */
-    long countFeaturedTeachers(String subject, String grade, String keyword);
+    long countFeaturedTeachers(String subject, String keyword);
 
     /**
      * 更新教师信息
@@ -71,10 +71,6 @@ public interface TeacherService {
      */
     List<TeacherMatchVO> matchTeachers(TeacherMatchDTO request);
 
-    /**
-     * 获取所有可用的年级选项（从课程表获取）
-     */
-    List<String> getAvailableGrades();
 
     /**
      * 获取教师的公开课表（供学生查看）

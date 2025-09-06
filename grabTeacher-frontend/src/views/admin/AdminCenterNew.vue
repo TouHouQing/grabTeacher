@@ -9,7 +9,6 @@ const AdminStudentManagement = defineAsyncComponent(() => import('./components/A
 const AdminTeacherManagement = defineAsyncComponent(() => import('./components/AdminTeacherManagement.vue'))
 const AdminSubjectManagement = defineAsyncComponent(() => import('./components/AdminSubjectManagement.vue'))
 const AdminCourseManagement = defineAsyncComponent(() => import('./AdminCourseManagement.vue'))
-const AdminGradeManagement = defineAsyncComponent(() => import('../../components/AdminGradeManagement.vue'))
 const AdminJobPostManagement = defineAsyncComponent(() => import('./components/AdminJobPostManagement.vue'))
 const AdminPasswordChange = defineAsyncComponent(() => import('./components/AdminPasswordChange.vue'))
 const AdminProfileSettings = defineAsyncComponent(() => import('./components/AdminProfileSettings.vue'))
@@ -80,10 +79,6 @@ const handleMenuSelect = (key: string) => {
               <el-icon><Reading /></el-icon>
               <span>课程管理</span>
             </template>
-            <el-menu-item index="grades">
-              <el-icon><Setting /></el-icon>
-              <span>年级管理</span>
-            </el-menu-item>
             <el-menu-item index="subjects">
               <el-icon><Document /></el-icon>
               <span>科目管理</span>
@@ -161,7 +156,6 @@ const handleMenuSelect = (key: string) => {
         <div v-if="activeMenu === 'bookings'" class="content-panel"><AdminBookingManagement /></div>
         <div v-if="activeMenu === 'reschedule'" class="content-panel"><AdminRescheduleManagement /></div>
         <div v-if="activeMenu === 'suspension'" class="content-panel"><AdminSuspensionManagement /></div>
-        <div v-if="activeMenu === 'grades'" class="content-panel"><AdminGradeManagement /></div>
         <div v-if="activeMenu === 'abroad-countries'" class="content-panel"><AdminStudyAbroadCountryManagement /></div>
         <div v-if="activeMenu === 'abroad-stages'" class="content-panel"><AdminStudyAbroadStageManagement /></div>
         <div v-if="activeMenu === 'abroad-programs'" class="content-panel"><AdminStudyAbroadProgramManagement /></div>

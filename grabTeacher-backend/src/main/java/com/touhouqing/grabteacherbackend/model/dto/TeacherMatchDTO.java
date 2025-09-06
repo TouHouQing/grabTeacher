@@ -21,10 +21,6 @@ public class TeacherMatchDTO {
      */
     private String subject;
     
-    /**
-     * 年级
-     */
-    private String grade;
     
     /**
      * 偏好时间

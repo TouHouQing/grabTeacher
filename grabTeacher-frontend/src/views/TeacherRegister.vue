@@ -14,6 +14,7 @@ interface ExtendedRegisterRequest {
   realName: string
   phone?: string
   birthDate: string // 出生年月
+  educationBackground?: string // 教育背景
 }
 
 const router = useRouter()
@@ -30,7 +31,8 @@ const registerForm = reactive<ExtendedRegisterRequest>({
   userType: 'teacher', // 固定为教师
   realName: '',
   phone: '',
-  birthDate: '' // 出生年月
+  birthDate: '', // 出生年月
+  educationBackground: '' // 教育背景
 })
 
 
@@ -111,6 +113,11 @@ const validateForm = async (): Promise<boolean> => {
 
   if (!registerForm.birthDate) {
     errorMessage.value = '请选择出生年月'
+    return false
+  }
+
+  if (!registerForm.educationBackground) {
+    errorMessage.value = '请选择学历'
     return false
   }
 
@@ -224,6 +231,21 @@ const handleRegister = async () => {
               type="tel"
               placeholder="请输入手机号码"
             />
+          </div>
+
+          <div class="form-group">
+            <label for="educationBackground">学历 *</label>
+            <select
+              id="educationBackground"
+              v-model="registerForm.educationBackground"
+              required
+            >
+              <option value="">请选择学历</option>
+              <option value="专科及以下">专科及以下</option>
+              <option value="本科">本科</option>
+              <option value="硕士">硕士</option>
+              <option value="博士">博士</option>
+            </select>
           </div>
 
           <div class="form-group">

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import jakarta.validation.constraints.Pattern;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -14,6 +15,8 @@ import java.util.List;
 public class TeacherInfoDTO {
     private String realName;
     private String birthDate;
+    @Schema(description = "学历", allowableValues = {"专科及以下", "本科", "硕士", "博士"})
+    @Pattern(regexp = "^(专科及以下|本科|硕士|博士)$", message = "学历仅限：专科及以下、本科、硕士、博士")
     private String educationBackground;
     private Integer teachingExperience;
     private String specialties;
@@ -53,4 +56,7 @@ public class TeacherInfoDTO {
 
     @Schema(description = "上月课时（小时）")
     private BigDecimal lastHours;
+
+    @Schema(description = "教师评分", example = "4.5")
+    private BigDecimal rating;
 }

@@ -57,12 +57,11 @@ public class PublicCourseController {
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "科目ID") @RequestParam(required = false) Long subjectId,
             @Parameter(description = "教师ID") @RequestParam(required = false) Long teacherId,
-            @Parameter(description = "课程类型") @RequestParam(required = false) String courseType,
-            @Parameter(description = "适用年级") @RequestParam(required = false) String grade) {
+            @Parameter(description = "课程类型") @RequestParam(required = false) String courseType) {
         try {
             // 只返回活跃状态的课程
             Page<CourseVO> coursePage = courseService.getCourseList(page, size, keyword,
-                    subjectId, teacherId, "active", courseType, grade);
+                    subjectId, teacherId, "active", courseType);
             
             Map<String, Object> response = new HashMap<>();
             response.put("courses", coursePage.getRecords());
@@ -169,11 +168,10 @@ public class PublicCourseController {
     public ResponseEntity<CommonResult<Map<String, Object>>> getLatestCourses(
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "6") int size,
-            @Parameter(description = "科目ID") @RequestParam(required = false) Long subjectId,
-            @Parameter(description = "适用年级") @RequestParam(required = false) String grade) {
+            @Parameter(description = "科目ID") @RequestParam(required = false) Long subjectId) {
         try {
             // 获取精选课程列表
-            Page<CourseVO> coursePage = courseService.getFeaturedCourses(page, size, subjectId, grade);
+            Page<CourseVO> coursePage = courseService.getFeaturedCourses(page, size, subjectId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("courses", coursePage.getRecords());

@@ -47,9 +47,6 @@ public class CacheWarmupService implements ApplicationRunner {
     private com.touhouqing.grabteacherbackend.cache.ActiveCoursesLocalCache activeCoursesLocalCache;
 
     @Autowired
-    private com.touhouqing.grabteacherbackend.cache.GradesLocalCache gradesLocalCache;
-
-    @Autowired
     private com.touhouqing.grabteacherbackend.cache.ActiveSubjectsLocalCache activeSubjectsLocalCache;
 
     @Autowired
@@ -131,11 +128,11 @@ public class CacheWarmupService implements ApplicationRunner {
             log.info("预热热门课程列表缓存...");
 
             // 预热第一页课程列表（最常访问）
-            courseService.getCourseList(1, 10, null, null, null, "active", null, null);
+            courseService.getCourseList(1, 10, null, null, null, "active", null);
 
             // 预热不同课程类型的列表
-            courseService.getCourseList(1, 10, null, null, null, "active", "one_on_one", null);
-            courseService.getCourseList(1, 10, null, null, null, "active", "large_class", null);
+            courseService.getCourseList(1, 10, null, null, null, "active", "one_on_one");
+            courseService.getCourseList(1, 10, null, null, null, "active", "large_class");
 
             log.info("预热热门课程列表缓存完成");
         } catch (Exception e) {
@@ -227,13 +224,6 @@ public class CacheWarmupService implements ApplicationRunner {
         }
     }
 
-    /**
-     * 轻量清理公开端年级 JSON 文本缓存
-     */
-    public void invalidatePublicGradeNamesJson() {
-        try { if (gradesLocalCache != null) gradesLocalCache.clear(); } catch (Exception ignore) {}
-        try { if (stringRedisTemplate != null) stringRedisTemplate.delete("public:grades:names:json"); } catch (Exception ignore) {}
-    }
 
     /**
      * 轻量清理公开端激活科目 JSON 文本缓存

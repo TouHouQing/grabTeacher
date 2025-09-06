@@ -2,18 +2,14 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.touhouqing.grabteacherbackend.mapper.JobPostGradeMapper;
 import com.touhouqing.grabteacherbackend.mapper.JobPostMapper;
 import com.touhouqing.grabteacherbackend.mapper.JobPostSubjectMapper;
 import com.touhouqing.grabteacherbackend.cache.JobPostCacheManager;
 import com.touhouqing.grabteacherbackend.cache.JobPostDetailLocalCache;
-import com.touhouqing.grabteacherbackend.mapper.GradeMapper;
 import com.touhouqing.grabteacherbackend.mapper.SubjectMapper;
 import com.touhouqing.grabteacherbackend.model.dto.JobPostDTO;
 import com.touhouqing.grabteacherbackend.model.entity.JobPost;
-import com.touhouqing.grabteacherbackend.model.entity.JobPostGrade;
 import com.touhouqing.grabteacherbackend.model.entity.JobPostSubject;
-import com.touhouqing.grabteacherbackend.model.entity.Grade;
 import com.touhouqing.grabteacherbackend.model.entity.Subject;
 import com.touhouqing.grabteacherbackend.model.vo.JobPostVO;
 import com.touhouqing.grabteacherbackend.service.JobPostService;
@@ -31,11 +27,7 @@ public class JobPostServiceImpl implements JobPostService {
     @Autowired
     private JobPostMapper jobPostMapper;
     @Autowired
-    private JobPostGradeMapper jobPostGradeMapper;
-    @Autowired
     private JobPostSubjectMapper jobPostSubjectMapper;
-    @Autowired
-    private GradeMapper gradeMapper;
     @Autowired
     private SubjectMapper subjectMapper;
     @Autowired
@@ -46,9 +38,9 @@ public class JobPostServiceImpl implements JobPostService {
     private static final DateTimeFormatter DTF = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Override
-    public Page<JobPostVO> pageActive(int page, int size, Long gradeId, Long subjectId) {
+    public Page<JobPostVO> pageActive(int page, int size, Long subjectId) {
         // 细化缓存键并防穿透/击穿
-        String cacheKey = cacheManager.buildListKey(page, size, gradeId, subjectId);
+        String cacheKey = cacheManager.buildListKey(page, size, subjectId);
         Object cached = cacheManager.getList(cacheKey);
         if (cached instanceof Page) {
             return (Page<JobPostVO>) cached;
@@ -62,19 +54,19 @@ public class JobPostServiceImpl implements JobPostService {
         try {
             if (!locked) {
                 // 无法获取锁，兜底直接按 DB 查询，避免被锁阻塞
-                return queryPageFromDb(page, size, gradeId, subjectId);
+                return queryPageFromDb(page, size, subjectId);
             }
             // 双检缓存
             Object second = cacheManager.getList(cacheKey);
             if (second instanceof Page) {
                 return (Page<JobPostVO>) second;
             }
-            Page<JobPostVO> result = queryPageFromDb(page, size, gradeId, subjectId);
+            Page<JobPostVO> result = queryPageFromDb(page, size, subjectId);
             if (result.getTotal() == 0) {
                 // 穿透保护：写入空标记，短 TTL
-                cacheManager.saveList(cacheKey, "EMPTY", gradeId, subjectId, java.time.Duration.ofSeconds(30));
+                cacheManager.saveList(cacheKey, "EMPTY", subjectId, java.time.Duration.ofSeconds(30));
             } else {
-                cacheManager.saveList(cacheKey, result, gradeId, subjectId, java.time.Duration.ofSeconds(60));
+                cacheManager.saveList(cacheKey, result, subjectId, java.time.Duration.ofSeconds(60));
             }
             return result;
         } finally {
@@ -82,13 +74,9 @@ public class JobPostServiceImpl implements JobPostService {
         }
     }
 
-    private Page<JobPostVO> queryPageFromDb(int page, int size, Long gradeId, Long subjectId) {
+    private Page<JobPostVO> queryPageFromDb(int page, int size, Long subjectId) {
         // 先从关联表筛选 id 列表（小集合），再回表取详情
         Set<Long> idSet = null;
-        if (gradeId != null) {
-            List<JobPostGrade> list = jobPostGradeMapper.selectList(new QueryWrapper<JobPostGrade>().eq("grade_id", gradeId));
-            idSet = list.stream().map(JobPostGrade::getJobPostId).collect(Collectors.toSet());
-        }
         if (subjectId != null) {
             List<JobPostSubject> list = jobPostSubjectMapper.selectList(new QueryWrapper<JobPostSubject>().eq("subject_id", subjectId));
             Set<Long> subIds = list.stream().map(JobPostSubject::getJobPostId).collect(Collectors.toSet());
@@ -118,24 +106,20 @@ public class JobPostServiceImpl implements JobPostService {
 
     @Override
     public Page<JobPostVO> pageAdmin(int page, int size,
-                                     Long gradeId, Long subjectId,
+                                     Long subjectId,
                                      String status, String keyword,
                                      java.time.LocalDateTime createdStart, java.time.LocalDateTime createdEnd,
                                      Boolean includeDeleted) {
         // 管理端：一致性优先，直接查询数据库（移除缓存）
-        return queryAdminFromDb(page, size, gradeId, subjectId, status, keyword, createdStart, createdEnd, includeDeleted);
+        return queryAdminFromDb(page, size, subjectId, status, keyword, createdStart, createdEnd, includeDeleted);
     }
 
     private Page<JobPostVO> queryAdminFromDb(int page, int size,
-                                             Long gradeId, Long subjectId,
+                                             Long subjectId,
                                              String status, String keyword,
                                              java.time.LocalDateTime createdStart, java.time.LocalDateTime createdEnd,
                                              Boolean includeDeleted) {
         Set<Long> idSet = null;
-        if (gradeId != null) {
-            List<JobPostGrade> list = jobPostGradeMapper.selectList(new QueryWrapper<JobPostGrade>().eq("grade_id", gradeId));
-            idSet = list.stream().map(JobPostGrade::getJobPostId).collect(Collectors.toSet());
-        }
         if (subjectId != null) {
             List<JobPostSubject> list = jobPostSubjectMapper.selectList(new QueryWrapper<JobPostSubject>().eq("subject_id", subjectId));
             Set<Long> subIds = list.stream().map(JobPostSubject::getJobPostId).collect(Collectors.toSet());
@@ -172,7 +156,7 @@ public class JobPostServiceImpl implements JobPostService {
     @Override
     @Transactional
     public JobPost create(JobPostDTO dto) {
-        // 基本校验：必须至少一个年级与科目，且ID有效
+        // 基本校验：必须至少一个科目，且ID有效
         validateAndNormalize(dto);
 
         JobPost entity = new JobPost();
@@ -185,13 +169,12 @@ public class JobPostServiceImpl implements JobPostService {
         jobPostMapper.insert(entity);
 
         // 维护关联
-        saveMapping(entity.getId(), dto.getGradeIds(), dto.getSubjectIds());
+        saveMapping(entity.getId(), dto.getSubjectIds());
         // 冗余回填
         refreshDenormalizedFields(entity.getId());
         // 精准驱逐：该岗位涉及的维度
-        java.util.Set<Long> gset = dto.getGradeIds()==null?null:new java.util.HashSet<>(dto.getGradeIds());
         java.util.Set<Long> sset = dto.getSubjectIds()==null?null:new java.util.HashSet<>(dto.getSubjectIds());
-        cacheManager.evictByDimensions(gset, sset);
+        cacheManager.evictByDimensions(sset);
         // 管理端列表：短TTL缓存直接全清，保证新建后列表即时更新
         cacheManager.evictAllAdminLists();
         // 清掉本地详情缓存
@@ -209,8 +192,6 @@ public class JobPostServiceImpl implements JobPostService {
         }
 
         // 读取旧维度集合
-        java.util.Set<Long> oldG = jobPostGradeMapper.selectList(new QueryWrapper<JobPostGrade>().eq("job_post_id", id))
-                .stream().map(JobPostGrade::getGradeId).collect(java.util.stream.Collectors.toSet());
         java.util.Set<Long> oldS = jobPostSubjectMapper.selectList(new QueryWrapper<JobPostSubject>().eq("job_post_id", id))
                 .stream().map(JobPostSubject::getSubjectId).collect(java.util.stream.Collectors.toSet());
 
@@ -220,47 +201,36 @@ public class JobPostServiceImpl implements JobPostService {
         if (dto.getStatus() != null) entity.setStatus(dto.getStatus());
         if (dto.getPriority() != null) entity.setPriority(dto.getPriority());
 
-        // 当请求携带年级/科目时，检查有效性；若提供为空列表，视为非法
-        if (dto.getGradeIds() != null || dto.getSubjectIds() != null) {
+        // 当请求携带科目时，检查有效性；若提供为空列表，视为非法
+        if (dto.getSubjectIds() != null) {
             validateAndNormalize(dto);
         }
 
         jobPostMapper.updateById(entity);
 
         // 精准驱逐：合并旧+新维度
-        java.util.Set<Long> newG = dto.getGradeIds()==null?java.util.Collections.emptySet():new java.util.HashSet<>(dto.getGradeIds());
         java.util.Set<Long> newS = dto.getSubjectIds()==null?java.util.Collections.emptySet():new java.util.HashSet<>(dto.getSubjectIds());
-        java.util.Set<Long> gAll = new java.util.HashSet<>(oldG); gAll.addAll(newG);
         java.util.Set<Long> sAll = new java.util.HashSet<>(oldS); sAll.addAll(newS);
-        cacheManager.evictByDimensions(gAll, sAll);
+        cacheManager.evictByDimensions(sAll);
         cacheManager.evictAllAdminLists();
         detailLocalCache.evict(id);
 
-        if (dto.getGradeIds() != null || dto.getSubjectIds() != null) {
+        if (dto.getSubjectIds() != null) {
             // 先清除再写入
-            jobPostGradeMapper.delete(new QueryWrapper<JobPostGrade>().eq("job_post_id", id));
             jobPostSubjectMapper.delete(new QueryWrapper<JobPostSubject>().eq("job_post_id", id));
-            saveMapping(id, dto.getGradeIds(), dto.getSubjectIds());
+            saveMapping(id, dto.getSubjectIds());
             refreshDenormalizedFields(id);
         }
         return jobPostMapper.selectById(id);
     }
 
     private void validateAndNormalize(JobPostDTO dto) {
-        if (dto.getGradeIds() == null || dto.getGradeIds().isEmpty()) {
-            throw new RuntimeException("教师招聘必须至少关联一个年级");
-        }
         if (dto.getSubjectIds() == null || dto.getSubjectIds().isEmpty()) {
             throw new RuntimeException("教师招聘必须至少关联一个科目");
         }
         // 去重
-        dto.setGradeIds(new java.util.ArrayList<>(new java.util.LinkedHashSet<>(dto.getGradeIds())));
         dto.setSubjectIds(new java.util.ArrayList<>(new java.util.LinkedHashSet<>(dto.getSubjectIds())));
         // 校验ID是否存在且未删除
-        List<Grade> validGrades = gradeMapper.selectList(new QueryWrapper<Grade>().in("id", dto.getGradeIds()).eq("is_deleted", 0));
-        if (validGrades.size() != dto.getGradeIds().size()) {
-            throw new RuntimeException("存在无效的年级ID");
-        }
         List<Subject> validSubjects = subjectMapper.selectList(new QueryWrapper<Subject>().in("id", dto.getSubjectIds()).eq("is_deleted", 0));
         if (validSubjects.size() != dto.getSubjectIds().size()) {
             throw new RuntimeException("存在无效的科目ID");
@@ -287,11 +257,9 @@ public class JobPostServiceImpl implements JobPostService {
         entity.setDeleted(true);
         jobPostMapper.updateById(entity);
         // 清理所有维度缓存与本地详情
-        java.util.Set<Long> gset = jobPostGradeMapper.selectList(new QueryWrapper<JobPostGrade>().eq("job_post_id", id))
-                .stream().map(JobPostGrade::getGradeId).collect(java.util.stream.Collectors.toSet());
         java.util.Set<Long> sset = jobPostSubjectMapper.selectList(new QueryWrapper<JobPostSubject>().eq("job_post_id", id))
                 .stream().map(JobPostSubject::getSubjectId).collect(java.util.stream.Collectors.toSet());
-        cacheManager.evictByDimensions(gset, sset);
+        cacheManager.evictByDimensions(sset);
         // 管理端列表：短TTL缓存直接全清，保证列表即时更新
         cacheManager.evictAllAdminLists();
         detailLocalCache.evict(id);
@@ -311,19 +279,15 @@ public class JobPostServiceImpl implements JobPostService {
             jobPostMapper.updateById(jp);
         }
         // 汇总维度做一次性精准驱逐
-        java.util.Set<Long> gsetAll = new java.util.HashSet<>();
         java.util.Set<Long> ssetAll = new java.util.HashSet<>();
         for (Long id0 : valid.stream().map(JobPost::getId).toList()) {
-            java.util.Set<Long> gset = jobPostGradeMapper.selectList(new QueryWrapper<JobPostGrade>().eq("job_post_id", id0))
-                    .stream().map(JobPostGrade::getGradeId).collect(java.util.stream.Collectors.toSet());
             java.util.Set<Long> sset = jobPostSubjectMapper.selectList(new QueryWrapper<JobPostSubject>().eq("job_post_id", id0))
                     .stream().map(JobPostSubject::getSubjectId).collect(java.util.stream.Collectors.toSet());
-            gsetAll.addAll(gset);
             ssetAll.addAll(sset);
             // 本地详情逐个驱逐
             detailLocalCache.evict(id0);
         }
-        cacheManager.evictByDimensions(gsetAll, ssetAll);
+        cacheManager.evictByDimensions(ssetAll);
         cacheManager.evictAllAdminLists();
     }
 
@@ -340,15 +304,7 @@ public class JobPostServiceImpl implements JobPostService {
         return jobPostMapper.selectById(id);
     }
 
-    private void saveMapping(Long jobId, List<Long> gradeIds, List<Long> subjectIds) {
-        if (gradeIds != null) {
-            for (Long gid : new HashSet<>(gradeIds)) {
-                JobPostGrade g = new JobPostGrade();
-                g.setJobPostId(jobId);
-                g.setGradeId(gid);
-                jobPostGradeMapper.insert(g);
-            }
-        }
+    private void saveMapping(Long jobId, List<Long> subjectIds) {
         if (subjectIds != null) {
             for (Long sid : new HashSet<>(subjectIds)) {
                 JobPostSubject s = new JobPostSubject();
@@ -360,15 +316,6 @@ public class JobPostServiceImpl implements JobPostService {
     }
 
     private void refreshDenormalizedFields(Long jobId) {
-        // 年级
-        List<JobPostGrade> jgs = jobPostGradeMapper.selectList(new QueryWrapper<JobPostGrade>().eq("job_post_id", jobId));
-        List<Long> gradeIds = jgs.stream().map(JobPostGrade::getGradeId).sorted().toList();
-        String gidStr = gradeIds.stream().map(String::valueOf).collect(Collectors.joining(","));
-        Map<Long, String> gradeNameMap = Optional.ofNullable(gradeMapper.selectBatchIds(gradeIds))
-                .orElse(Collections.emptyList())
-                .stream().collect(Collectors.toMap(Grade::getId, Grade::getGradeName));
-        String gnameStr = gradeIds.stream().map(gradeNameMap::get).filter(Objects::nonNull).collect(Collectors.joining(","));
-
         // 科目
         List<JobPostSubject> jss = jobPostSubjectMapper.selectList(new QueryWrapper<JobPostSubject>().eq("job_post_id", jobId));
         List<Long> subjectIds = jss.stream().map(JobPostSubject::getSubjectId).sorted().toList();
@@ -380,8 +327,6 @@ public class JobPostServiceImpl implements JobPostService {
 
         JobPost entity = new JobPost();
         entity.setId(jobId);
-        entity.setGradeIds(gidStr);
-        entity.setGradeNames(gnameStr);
         entity.setSubjectIds(sidStr);
         entity.setSubjectNames(snameStr);
         jobPostMapper.updateById(entity);
@@ -393,7 +338,6 @@ public class JobPostServiceImpl implements JobPostService {
                 .title(e.getTitle())
                 .introduction(e.getIntroduction())
                 .positionTags(e.getPositionTags())
-                .gradeNames(e.getGradeNames())
                 .subjectNames(e.getSubjectNames())
                 .status(e.getStatus())
                 .priority(e.getPriority())
@@ -414,7 +358,6 @@ public class JobPostServiceImpl implements JobPostService {
         if (vo.getTitle()!=null) sb.append(",\"title\":\"").append(vo.getTitle().replace("\"","\\\"")).append('\"');
         if (vo.getIntroduction()!=null) sb.append(",\"introduction\":\"").append(vo.getIntroduction().replace("\"","\\\"")).append('\"');
         if (vo.getPositionTags()!=null) sb.append(",\"positionTags\":").append(vo.getPositionTags());
-        if (vo.getGradeNames()!=null) sb.append(",\"gradeNames\":\"").append(vo.getGradeNames().replace("\"","\\\"")).append('\"');
         if (vo.getSubjectNames()!=null) sb.append(",\"subjectNames\":\"").append(vo.getSubjectNames().replace("\"","\\\"")).append('\"');
         if (vo.getStatus()!=null) sb.append(",\"status\":\"").append(vo.getStatus().replace("\"","\\\"")).append('\"');
         if (vo.getPriority()!=null) sb.append(",\"priority\":").append(vo.getPriority());

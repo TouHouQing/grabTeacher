@@ -26,8 +26,6 @@ public class Student {
     @TableField("real_name")
     private String realName;
 
-    @TableField("grade_level")
-    private String gradeLevel;
     
     @TableField("subjects_interested")
     private String subjectsInterested;

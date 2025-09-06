@@ -8,7 +8,6 @@ import java.util.List;
 public class JobPostDTO {
     private String title;
     private String introduction;
-    private List<Long> gradeIds;
     private List<Long> subjectIds;
     private List<String> tags; // 职位标签
     private String status; // active/expired

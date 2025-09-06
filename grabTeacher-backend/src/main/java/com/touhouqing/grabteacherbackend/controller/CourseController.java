@@ -166,12 +166,12 @@ public class CourseController {
             @Parameter(description = "科目ID") @RequestParam(required = false) Long subjectId,
             @Parameter(description = "教师ID") @RequestParam(required = false) Long teacherId,
             @Parameter(description = "课程状态") @RequestParam(required = false) String status,
-            @Parameter(description = "课程类型") @RequestParam(required = false) String courseType,
-            @Parameter(description = "适用年级") @RequestParam(required = false) String grade) {
+            @Parameter(description = "课程类型") @RequestParam(required = false) String courseType
+) {
         try {
             // 管理端：直查 DB，不走缓存
             Page<CourseVO> coursePage = courseService.getCourseListNoCache(page, size, keyword,
-                    subjectId, teacherId, status, courseType, grade);
+                    subjectId, teacherId, status, courseType);
             
             Map<String, Object> response = new HashMap<>();
             response.put("courses", coursePage.getRecords());

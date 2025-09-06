@@ -28,7 +28,6 @@ public class SubjectServiceImpl implements SubjectService {
 
     private final SubjectMapper subjectMapper;
     private final CourseMapper courseMapper;
-    private final CourseGradeMapper courseGradeMapper;
     private final StudentSubjectMapper studentSubjectMapper;
     private final TeacherSubjectMapper teacherSubjectMapper;
     private final BookingRequestMapper bookingRequestMapper;
@@ -157,8 +156,6 @@ public class SubjectServiceImpl implements SubjectService {
                 }
                 log.info("删除课程 {} 的 {} 个课程安排", course.getTitle(), scheduleDeleteCount);
 
-                // 2.3 删除课程年级关联
-                courseGradeMapper.deleteByCourseId(course.getId());
 
                 // 2.4 最后删除课程本身（软删除）
                 course.setDeleted(true);

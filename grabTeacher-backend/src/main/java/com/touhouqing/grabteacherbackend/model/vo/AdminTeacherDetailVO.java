@@ -61,6 +61,9 @@ public class AdminTeacherDetailVO {
     @Schema(description = "小时收费", example = "100.00")
     private BigDecimal hourlyRate;
     
+    @Schema(description = "教师评分", example = "4.5")
+    private BigDecimal rating;
+    
     @Schema(description = "个人介绍", example = "专业数学教师，擅长高考辅导")
     private String introduction;
     

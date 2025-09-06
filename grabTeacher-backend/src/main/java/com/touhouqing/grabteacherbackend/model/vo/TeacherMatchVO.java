@@ -33,10 +33,6 @@ public class TeacherMatchVO {
      */
     private String subject;
     
-    /**
-     * 年级
-     */
-    private String grade;
     
     /**
      * 教学经验年数

@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue'
-import { jobPostAPI, gradeApi, subjectAPI } from '../../../utils/api'
+import { jobPostAPI, subjectAPI } from '../../../utils/api'
 
 // 列表与加载状态
 const list = ref<any[]>([])
@@ -12,13 +12,11 @@ const loading = ref(false)
 const searchForm = reactive({
   keyword: '',
   status: '',
-  gradeId: undefined as number | undefined,
   subjectId: undefined as number | undefined,
 })
 const pagination = reactive({ currentPage: 1, pageSize: 10, total: 0 })
 
 // 选项数据
-const gradeOptions = ref<any[]>([])
 const subjectOptions = ref<any[]>([])
 
 // 对话框与表单
@@ -28,7 +26,6 @@ const form = reactive({
   id: 0 as number,
   title: '',
   introduction: '',
-  gradeIds: [] as number[],
   subjectIds: [] as number[],
   tags: [] as string[],
   status: 'active',
@@ -37,17 +34,12 @@ const form = reactive({
 
 const rules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
-  gradeIds: [{ required: true, message: '请选择年级', trigger: 'change' }],
   subjectIds: [{ required: true, message: '请选择科目', trigger: 'change' }],
 }
 
 // 加载选项
 const loadOptions = async () => {
-  const [gradesRes, subjectsRes] = await Promise.all([
-    gradeApi.getAllPublic(),
-    subjectAPI.getActiveSubjects(),
-  ])
-  gradeOptions.value = (gradesRes?.data || []).map((g: any) => ({ label: g.gradeName, value: g.id }))
+  const subjectsRes = await subjectAPI.getActiveSubjects()
   subjectOptions.value = (subjectsRes?.data || []).map((s: any) => ({ label: s.name, value: s.id }))
 }
 
@@ -58,7 +50,6 @@ const loadList = async () => {
     const res = await jobPostAPI.adminList({
       page: pagination.currentPage,
       size: pagination.pageSize,
-      gradeId: searchForm.gradeId,
       subjectId: searchForm.subjectId,
       status: searchForm.status || undefined,
       keyword: searchForm.keyword || undefined,
@@ -78,12 +69,12 @@ const loadList = async () => {
 
 // 搜索与重置
 const onSearch = () => { pagination.currentPage = 1; loadList() }
-const onReset = () => { searchForm.keyword=''; searchForm.status=''; searchForm.gradeId=undefined; searchForm.subjectId=undefined; pagination.currentPage=1; loadList() }
+const onReset = () => { searchForm.keyword=''; searchForm.status=''; searchForm.subjectId=undefined; pagination.currentPage=1; loadList() }
 
 // 新建与编辑
 const onAdd = () => {
   dialogTitle.value = '新增招聘'
-  Object.assign(form, { id: 0, title: '', introduction: '', gradeIds: [], subjectIds: [], tags: [], status: 'active', priority: 0 })
+  Object.assign(form, { id: 0, title: '', introduction: '', subjectIds: [], tags: [], status: 'active', priority: 0 })
   dialogVisible.value = true
 }
 const onEdit = async (row: any) => {
@@ -94,8 +85,7 @@ const onEdit = async (row: any) => {
     id: jp.id,
     title: jp.title,
     introduction: jp.introduction,
-    // 冗余字段 grade_ids/subject_ids 为逗号字符串，优先解析；否则从名称推断为空
-    gradeIds: (jp.gradeIds ? String(jp.gradeIds).split(',').filter(Boolean).map((x: string)=>+x) : []),
+    // 冗余字段 subject_ids 为逗号字符串，优先解析；否则从名称推断为空
     subjectIds: (jp.subjectIds ? String(jp.subjectIds).split(',').filter(Boolean).map((x: string)=>+x) : []),
     tags: (()=>{ try{ return (jp.positionTags? JSON.parse(jp.positionTags): [])?.slice(0, TAG_MAX_COUNT) }catch{ return [] } })(),
     status: jp.status || 'active',
@@ -107,10 +97,9 @@ const onEdit = async (row: any) => {
 // 保存
 const onSave = async () => {
   if (!form.title?.trim()) { ElMessage.warning('请输入标题'); return }
-  if (!form.gradeIds?.length) { ElMessage.warning('请选择年级'); return }
   if (!form.subjectIds?.length) { ElMessage.warning('请选择科目'); return }
   try {
-    const payload = { title: form.title, introduction: form.introduction, gradeIds: form.gradeIds, subjectIds: form.subjectIds, tags: form.tags.slice(0, TAG_MAX_COUNT), status: form.status, priority: form.priority }
+    const payload = { title: form.title, introduction: form.introduction, subjectIds: form.subjectIds, tags: form.tags.slice(0, TAG_MAX_COUNT), status: form.status, priority: form.priority }
     const res = form.id === 0
       ? await jobPostAPI.create(payload)
       : await jobPostAPI.update(form.id, payload)
@@ -219,11 +208,6 @@ onMounted(async () => { await loadOptions(); await loadList() })
               <el-option label="已暂停" value="expired" />
             </el-select>
           </el-form-item>
-          <el-form-item label="年级">
-            <el-select v-model="searchForm.gradeId" placeholder="全部年级" clearable filterable style="width: 160px">
-              <el-option v-for="g in gradeOptions" :key="g.value" :label="g.label" :value="g.value" />
-            </el-select>
-          </el-form-item>
           <el-form-item label="科目">
             <el-select v-model="searchForm.subjectId" placeholder="全部科目" clearable filterable style="width: 160px">
               <el-option v-for="s in subjectOptions" :key="s.value" :label="s.label" :value="s.value" />
@@ -242,7 +226,6 @@ onMounted(async () => { await loadOptions(); await loadList() })
     <el-table :data="list" v-loading="loading" stripe style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" align="center" />
       <el-table-column prop="title" label="标题" min-width="280" />
-      <el-table-column prop="gradeNames" label="年级" min-width="200" />
       <el-table-column prop="subjectNames" label="科目" min-width="200" />
       <el-table-column label="标签" min-width="220">
         <template #default="{ row }">
@@ -297,11 +280,6 @@ onMounted(async () => { await loadOptions(); await loadList() })
         </el-form-item>
         <el-form-item label="介绍">
           <el-input type="textarea" v-model="form.introduction" :rows="4" placeholder="岗位介绍" />
-        </el-form-item>
-        <el-form-item label="年级" prop="gradeIds">
-          <el-select v-model="form.gradeIds" multiple filterable placeholder="请选择年级" style="width: 520px">
-            <el-option v-for="g in gradeOptions" :key="g.value" :label="g.label" :value="g.value" />
-          </el-select>
         </el-form-item>
         <el-form-item label="科目" prop="subjectIds">
           <el-select v-model="form.subjectIds" multiple filterable placeholder="请选择科目" style="width: 520px">

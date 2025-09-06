@@ -1,6 +1,5 @@
 package com.touhouqing.grabteacherbackend.listener;
 
-import com.touhouqing.grabteacherbackend.event.GradeChangedEvent;
 import com.touhouqing.grabteacherbackend.event.SubjectChangedEvent;
 import com.touhouqing.grabteacherbackend.service.CacheWarmupService;
 import lombok.RequiredArgsConstructor;
@@ -15,17 +14,6 @@ import org.springframework.stereotype.Component;
 public class PublicJsonCacheInvalidationListener {
 
     private final CacheWarmupService cacheWarmupService;
-
-    @Async
-    @EventListener
-    public void onGradeChanged(GradeChangedEvent event) {
-        try {
-            cacheWarmupService.invalidatePublicGradeNamesJson();
-            log.info("GradeChangedEvent handled: {}", event.getChangeType());
-        } catch (Exception e) {
-            log.warn("Failed to invalidate grade names json cache", e);
-        }
-    }
 
     @Async
     @EventListener

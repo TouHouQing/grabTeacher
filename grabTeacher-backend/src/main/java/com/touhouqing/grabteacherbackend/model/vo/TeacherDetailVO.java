@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * 教师详情响应DTO（用于学生查看教师详情）
- * 包含教师基本信息、用户信息、科目信息和年级信息
+ * 包含教师基本信息、用户信息、科目信息
  */
 @Data
 @NoArgsConstructor
@@ -55,8 +55,6 @@ public class TeacherDetailVO {
     @Schema(description = "教授科目名称列表", example = "[\"数学\", \"物理\"]")
     private List<String> subjects;
     
-    @Schema(description = "教授年级列表", example = "[\"初一\", \"初二\", \"初三\"]")
-    private List<String> grades;
     
     @Schema(description = "小时收费", example = "100.00")
     private BigDecimal hourlyRate;

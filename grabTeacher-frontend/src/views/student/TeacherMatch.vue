@@ -3,7 +3,7 @@ import { ref, reactive, onMounted, nextTick, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock, Close, Warning, SuccessFilled, ArrowDown, Document } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
-import { teacherAPI, subjectAPI, bookingAPI, gradeApi } from '../../utils/api'
+import { teacherAPI, subjectAPI, bookingAPI } from '../../utils/api'
 const route = useRoute()
 const isTrialMode = computed(() => route.path.includes('/student-center/trial'))
 const isRecurringMode = computed(() => route.path.includes('/student-center/match'))
@@ -21,7 +21,6 @@ interface Teacher {
   id: number
   name: string
   subject: string
-  grade: string
   experience: number
   description: string
   avatar: string
@@ -81,7 +80,6 @@ interface AvailableTimeSlot {
 
 const matchForm = reactive({
   subject: '',
-  grade: '',
   preferredWeekdays: [] as number[], // 偏好的星期几
   preferredTimeSlots: [] as string[], // 偏好的时间段（由 selectedPeriods 自动映射）
   gender: '' // 使用空字符串作为默认值
@@ -108,7 +106,6 @@ const loading = ref(false)
 const showResults = ref(false)
 const matchedTeachers = ref<Teacher[]>([])
 const subjects = ref<any[]>([])
-const grades = ref<string[]>([])
 const loadingOptions = ref(false)
 
 // 添加性别选择组件的引用和重置键
@@ -202,8 +199,8 @@ const router = useRouter()
 
 const handleMatch = async () => {
   // 验证必填项
-  if (!matchForm.subject || !matchForm.grade) {
-    ElMessage.warning('请选择科目和年级')
+  if (!matchForm.subject) {
+    ElMessage.warning('请选择科目')
     return
   }
 
@@ -214,7 +211,6 @@ const handleMatch = async () => {
     // 构建匹配请求参数
     const matchRequest = {
       subject: matchForm.subject,
-      grade: matchForm.grade,
       preferredWeekdays: matchForm.preferredWeekdays.length > 0 ? matchForm.preferredWeekdays : undefined,
       preferredTimeSlots: matchForm.preferredTimeSlots.length > 0 ? matchForm.preferredTimeSlots : undefined,
       preferredGender: matchForm.gender || undefined,
@@ -260,7 +256,6 @@ const handleMatch = async () => {
           id: teacher.id,
           name: teacher.name,
           subject: teacher.subject,
-          grade: teacher.grade,
           experience: teacher.experience,
           description: teacher.description,
           avatar: teacher.avatar || teacherImages.teacherBoy1, // 使用默认头像如果没有
@@ -310,7 +305,6 @@ const resetForm = () => {
 
   // 重置表单字段
   matchForm.subject = ''
-  matchForm.grade = ''
   matchForm.preferredWeekdays = []
   matchForm.preferredTimeSlots = []
   selectedPeriods.value = []
@@ -342,23 +336,12 @@ const loadSubjects = async () => {
   }
 }
 
-// 获取年级选项
-const loadGrades = async () => {
-  try {
-    const result = await gradeApi.getGradeNames()
-    if (result.success && result.data) {
-      grades.value = result.data
-    }
-  } catch (error) {
-    console.error('获取年级列表失败:', error)
-  }
-}
 
 // 初始化选项数据
 const initOptions = async () => {
   loadingOptions.value = true
   try {
-    await Promise.all([loadSubjects(), loadGrades()])
+    await loadSubjects()
   } finally {
     loadingOptions.value = false
   }
@@ -2346,16 +2329,6 @@ watch(selectedCourse, (newCourse) => {
             </el-select>
           </el-form-item>
 
-          <el-form-item label="年级 Grades" required>
-            <el-select v-model="matchForm.grade" placeholder="请选择年级" :loading="loadingOptions">
-              <el-option
-                v-for="grade in grades"
-                :key="grade"
-                :label="grade"
-                :value="grade">
-              </el-option>
-            </el-select>
-          </el-form-item>
 
 
 
@@ -2425,7 +2398,6 @@ watch(selectedCourse, (newCourse) => {
               </div>
               <div class="teacher-subject">
                 <el-tag type="success" effect="dark" class="subject-tag">{{ teacher.subject }}</el-tag>
-                <el-tag type="info" effect="plain" class="grade-tag">{{ teacher.grade }}</el-tag>
                 <el-tag type="warning" effect="plain" class="experience-tag">{{ teacher.experience }}年教龄</el-tag>
                 <el-tag type="info" effect="plain" class="gender-tag">
                   <el-icon v-if="isMaleTeacher(teacher.gender)"><Male /></el-icon>
@@ -2521,7 +2493,6 @@ watch(selectedCourse, (newCourse) => {
                     <div class="course-title">{{ course.title }}</div>
                     <div class="course-details">
                       <el-tag size="small" type="primary">{{ course.subjectName }}</el-tag>
-                      <el-tag size="small" type="success" v-if="course.grade">{{ course.grade }}</el-tag>
                       <el-tag size="small" type="warning" v-if="course.price">
                         {{ course.price }}M豆/小时
                       </el-tag>

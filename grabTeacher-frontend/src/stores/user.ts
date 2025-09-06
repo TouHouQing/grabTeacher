@@ -38,7 +38,6 @@ export interface StudentInfo {
   userId?: number
   realName?: string
   birthDate?: string
-  gradeLevel?: string
   subjectsInterested?: string
   subjectIds?: number[]  // 感兴趣的科目ID列表
   learningGoals?: string

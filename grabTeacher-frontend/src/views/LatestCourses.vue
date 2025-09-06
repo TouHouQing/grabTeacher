@@ -13,7 +13,7 @@ import {
   Reading,
   School
 } from '@element-plus/icons-vue'
-import { courseAPI, subjectAPI, gradeApi } from '@/utils/api'
+import { courseAPI, subjectAPI } from '@/utils/api'
 
 // 课程接口定义
 interface Course {
@@ -29,7 +29,6 @@ interface Course {
   durationMinutes: number
   status: string
   statusDisplay: string
-  grade?: string
   createdAt: string
   price?: number
   startDate?: string
@@ -46,17 +45,10 @@ interface Subject {
   isActive: boolean
 }
 
-// 年级接口定义
-interface Grade {
-  id: number
-  gradeName: string
-  description?: string
-}
 
 // 搜索过滤条件
 const filter = reactive({
   subject: '',
-  grade: ''
 })
 
 // 分页参数
@@ -68,7 +60,6 @@ const total = ref(0)
 const loading = ref(false)
 const courses = ref<Course[]>([])
 const subjects = ref<Subject[]>([])
-const grades = ref<Grade[]>([])
 
 // 获取课程列表
 const fetchCourses = async () => {
@@ -87,9 +78,6 @@ const fetchCourses = async () => {
       }
     }
 
-    if (filter.grade) {
-      params.grade = filter.grade
-    }
 
     const response = await courseAPI.getPublicCourses(params)
     if (response.success && response.data) {
@@ -118,17 +106,6 @@ const fetchSubjects = async () => {
   }
 }
 
-// 获取年级列表
-const fetchGrades = async () => {
-  try {
-    const response = await gradeApi.getAllPublic()
-    if (response.success) {
-      grades.value = response.data || []
-    }
-  } catch (error) {
-    console.error('获取年级列表失败:', error)
-  }
-}
 
 // 筛选方法
 const handleFilter = () => {
@@ -139,7 +116,6 @@ const handleFilter = () => {
 // 重置筛选
 const resetFilter = () => {
   filter.subject = ''
-  filter.grade = ''
   currentPage.value = 1
   fetchCourses()
 }
@@ -233,7 +209,6 @@ const formatPrice = (course: Course) => {
 // 组件挂载时获取数据
 onMounted(() => {
   fetchSubjects()
-  fetchGrades()
   fetchCourses()
 })
 </script>
@@ -258,16 +233,6 @@ onMounted(() => {
                 :key="subject.id"
                 :label="subject.name"
                 :value="subject.name"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="年级">
-            <el-select v-model="filter.grade" placeholder="选择年级" clearable>
-              <el-option
-                v-for="grade in grades"
-                :key="grade.id"
-                :label="grade.gradeName"
-                :value="grade.gradeName"
               />
             </el-select>
           </el-form-item>
@@ -312,8 +277,7 @@ onMounted(() => {
                   <span>{{ formatDate(course.createdAt) }}</span>
                 </div>
               </div>
-              <div class="course-tags" v-if="course.grade">
-                <el-tag size="small" class="course-tag">{{ course.grade }}</el-tag>
+              <div class="course-tags">
                 <el-tag size="small" class="course-tag" type="success">{{ course.subjectName }}</el-tag>
               </div>
               <div class="course-price-section">

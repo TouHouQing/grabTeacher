@@ -198,18 +198,13 @@ public class RedisConfiguration {
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .computePrefixWith(cacheName -> "grabTeacher:featuredCourseIds:"));
 
-        // 科目和年级缓存 - 1小时过期（变化较少）
+        // 科目缓存 - 1小时过期（变化较少）
         configs.put("subjects", RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofHours(1))
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .computePrefixWith(cacheName -> "grabTeacher:subjects:"));
 
-        configs.put("grades", RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofHours(1))
-                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
-                .computePrefixWith(cacheName -> "grabTeacher:grades:"));
 
         // 教师相关缓存 - 25分钟过期
         configs.put("teachers", RedisCacheConfiguration.defaultCacheConfig()

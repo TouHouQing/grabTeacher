@@ -92,7 +92,6 @@ public class AuthServiceImpl implements AuthService {
                 Student student = Student.builder()
                         .userId(user.getId())
                         .realName(registerDTO.getRealName())
-                        .gradeLevel(StringUtils.hasText(registerDTO.getGradeLevel()) ? registerDTO.getGradeLevel() : null)
                         .subjectsInterested(StringUtils.hasText(registerDTO.getSubjectsInterested()) ? registerDTO.getSubjectsInterested() : null)
                         .learningGoals(StringUtils.hasText(registerDTO.getLearningGoals()) ? registerDTO.getLearningGoals() : null)
                         .preferredTeachingStyle(StringUtils.hasText(registerDTO.getPreferredTeachingStyle()) ? registerDTO.getPreferredTeachingStyle() : null)

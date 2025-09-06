@@ -59,8 +59,6 @@ public class CourseVO {
     @Schema(description = "课程创建时间")
     private LocalDateTime createdAt;
 
-    @Schema(description = "课程适用年级", example = "小学一年级,小学二年级")
-    private String grade;
 
     @Schema(description = "课程价格（大班课专用）", example = "299.00")
     private BigDecimal price;

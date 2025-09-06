@@ -158,16 +158,14 @@ public class TeacherController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String subject,
-            @RequestParam(required = false) String grade,
             @RequestParam(required = false) String keyword) {
         try {
             // 查询归一化：去除首尾空白；空字符串统一为 null，减少缓存键碎片
             String normSubject = normalizeParam(subject);
-            String normGrade = normalizeParam(grade);
             String normKeyword = normalizeKeyword(keyword);
 
-            List<TeacherListVO> teachers = teacherService.getTeacherListWithSubjects(page, size, normSubject, normGrade, normKeyword);
-            long total = teacherService.countTeachers(normSubject, normGrade, normKeyword);
+            List<TeacherListVO> teachers = teacherService.getTeacherListWithSubjects(page, size, normSubject, normKeyword);
+            long total = teacherService.countTeachers(normSubject, normKeyword);
 
             Map<String, Object> data = new HashMap<>();
             data.put("records", teachers);
@@ -191,18 +189,15 @@ public class TeacherController {
     @GetMapping("/featured")
     public ResponseEntity<?> getFeaturedTeachers(
             @RequestParam(required = false) String subject,
-            @RequestParam(required = false) String grade,
             @RequestParam(required = false) String keyword) {
         try {
             String normSubject = normalizeParam(subject);
-            String normGrade = normalizeParam(grade);
             String normKeyword = normalizeKeyword(keyword);
 
             // 统一缓存键（不分页）
             String kSubject = normSubject != null ? normSubject : "all";
-            String kGrade = normGrade != null ? normGrade : "all";
             String kKeyword = normKeyword != null ? normKeyword : "all";
-            String cacheKey = String.format("featuredTeachers:json:all:subject:%s:grade:%s:keyword:%s", kSubject, kGrade, kKeyword);
+            String cacheKey = String.format("featuredTeachers:json:all:subject:%s:keyword:%s", kSubject, kKeyword);
 
             // 1) 先查本地 L1 缓存
             String json = featuredTeachersLocalCache.get(cacheKey);
@@ -231,11 +226,11 @@ public class TeacherController {
                 }
 
                 // 3) 回源：获取全量精选教师（先查总数，再一次性拉取避免 LIMIT 溢出）
-                long total = teacherService.countFeaturedTeachers(normSubject, normGrade, normKeyword);
+                long total = teacherService.countFeaturedTeachers(normSubject, normKeyword);
                 List<TeacherListVO> teachers;
                 if (total > 0) {
                     int fetchSize = total > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) total;
-                    teachers = teacherService.getFeaturedTeachers(1, fetchSize, normSubject, normGrade, normKeyword);
+                    teachers = teacherService.getFeaturedTeachers(1, fetchSize, normSubject, normKeyword);
                 } else {
                     teachers = new java.util.ArrayList<>();
                 }
@@ -294,20 +289,6 @@ public class TeacherController {
         }
     }
 
-    /**
-     * 获取所有可用的年级选项（公开接口）
-     */
-    @GetMapping("/grades")
-    public ResponseEntity<CommonResult<List<String>>> getAvailableGrades() {
-        try {
-            List<String> grades = teacherService.getAvailableGrades();
-            return ResponseEntity.ok(CommonResult.success("获取年级选项成功", grades));
-        } catch (Exception e) {
-            logger.error("获取年级选项异常: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResult.error("获取失败"));
-        }
-    }
 
     /**
      * 获取教师的公开课表（供学生查看）

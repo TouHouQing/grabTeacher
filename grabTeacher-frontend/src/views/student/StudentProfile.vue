@@ -60,18 +60,11 @@ interface Subject {
   name: string
 }
 
-// 年级接口
-interface Grade {
-  id: number
-  gradeName: string
-  description?: string
-}
 
 // 学生信息表单
 const studentForm = reactive<StudentInfo>({
   realName: '',
   birthDate: '',
-  gradeLevel: '',
   subjectsInterested: '',
   learningGoals: '',
   preferredTeachingStyle: '',
@@ -83,8 +76,6 @@ const studentForm = reactive<StudentInfo>({
 const subjects = ref<Subject[]>([])
 const selectedSubjectIds = ref<number[]>([])
 
-// 年级相关数据
-const grades = ref<Grade[]>([])
 
 // 计算属性：将选中的科目转换为字符串
 const subjectsString = computed(() => {
@@ -166,30 +157,6 @@ const fetchSubjects = async () => {
   }
 }
 
-// 获取年级列表
-const fetchGrades = async () => {
-  try {
-    const response = await fetch(`${getApiBaseUrl()}/api/public/grades`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
-
-    if (response.ok) {
-      const result = await response.json()
-      if (result.success && result.data) {
-        grades.value = result.data.map((grade: any) => ({
-          id: grade.id,
-          gradeName: grade.gradeName,
-          description: grade.description
-        }))
-      }
-    }
-  } catch (error) {
-    console.error('获取年级列表失败:', error)
-  }
-}
 
 // 获取学生感兴趣的科目（从profile数据中获取，不需要单独请求）
 const fetchStudentSubjects = async () => {
@@ -346,7 +313,6 @@ const changeEmail = async () => {
 // 页面加载时获取数据
 onMounted(async () => {
   await fetchSubjects()
-  await fetchGrades()
   await fetchStudentProfile() // 这里会自动从profile中获取科目信息
 })
 
@@ -403,16 +369,6 @@ onMounted(async () => {
                     {{ option.label }}
                   </el-radio>
                 </el-radio-group>
-              </el-form-item>
-              <el-form-item label="年级">
-                <el-select v-model="studentForm.gradeLevel" placeholder="请选择年级" style="width: 100%">
-                  <el-option
-                    v-for="grade in grades"
-                    :key="grade.id"
-                    :label="grade.gradeName"
-                    :value="grade.gradeName"
-                  ></el-option>
-                </el-select>
               </el-form-item>
               <el-form-item label="感兴趣的科目">
                 <el-select

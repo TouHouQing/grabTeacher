@@ -65,57 +65,6 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
                                              @Param("offset") int offset,
                                              @Param("size") int size);
 
-    /**
-     * 根据年级查找教师 - 优化查询
-     */
-    @Select("SELECT DISTINCT t.* FROM teachers t " +
-            "INNER JOIN courses c ON t.id = c.teacher_id " +
-            "INNER JOIN course_grades cg ON c.id = cg.course_id " +
-            "WHERE t.is_deleted = 0 AND t.is_verified = 1 " +
-            "AND cg.grade = #{grade} AND c.is_deleted = 0 " +
-            "ORDER BY t.teaching_experience DESC")
-    List<Teacher> findTeachersByGrade(@Param("grade") String grade);
-
-    /**
-     * 根据年级查找提供1对1课程的教师 - 智能匹配专用
-     */
-    @Select("SELECT DISTINCT t.* FROM teachers t " +
-            "INNER JOIN courses c ON t.id = c.teacher_id " +
-            "INNER JOIN course_grades cg ON c.id = cg.course_id " +
-            "WHERE t.is_deleted = 0 AND t.is_verified = 1 " +
-            "AND cg.grade = #{grade} AND c.is_deleted = 0 " +
-            "AND c.status = 'active' AND c.course_type = 'one_on_one' " +
-            "ORDER BY t.teaching_experience DESC")
-    List<Teacher> findOneOnOneTeachersByGrade(@Param("grade") String grade);
-
-    /**
-     * 根据科目和年级查找教师 - 优化查询
-     */
-    @Select("SELECT DISTINCT t.* FROM teachers t " +
-            "INNER JOIN teacher_subjects ts ON t.id = ts.teacher_id " +
-            "INNER JOIN subjects s ON ts.subject_id = s.id " +
-            "INNER JOIN courses c ON t.id = c.teacher_id " +
-            "INNER JOIN course_grades cg ON c.id = cg.course_id " +
-            "WHERE t.is_deleted = 0 AND t.is_verified = 1 " +
-            "AND s.name = #{subject} AND s.is_deleted = 0 " +
-            "AND cg.grade = #{grade} AND c.is_deleted = 0 " +
-            "ORDER BY t.teaching_experience DESC")
-    List<Teacher> findTeachersBySubjectAndGrade(@Param("subject") String subject, @Param("grade") String grade);
-
-    /**
-     * 根据科目和年级查找提供1对1课程的教师 - 智能匹配专用
-     */
-    @Select("SELECT DISTINCT t.* FROM teachers t " +
-            "INNER JOIN teacher_subjects ts ON t.id = ts.teacher_id " +
-            "INNER JOIN subjects s ON ts.subject_id = s.id " +
-            "INNER JOIN courses c ON t.id = c.teacher_id " +
-            "INNER JOIN course_grades cg ON c.id = cg.course_id " +
-            "WHERE t.is_deleted = 0 AND t.is_verified = 1 " +
-            "AND s.name = #{subject} AND s.is_deleted = 0 " +
-            "AND cg.grade = #{grade} AND c.is_deleted = 0 " +
-            "AND c.status = 'active' AND c.course_type = 'one_on_one' " +
-            "ORDER BY t.teaching_experience DESC")
-    List<Teacher> findOneOnOneTeachersBySubjectAndGrade(@Param("subject") String subject, @Param("grade") String grade);
 
     /**
      * 查询活跃教师ID列表（按教学经验排序）
@@ -125,7 +74,7 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
     List<Long> findActiveTeacherIds();
 
     /**
-     * 查找所有提供1对1课程的教师 - 智能匹配专用（没有指定科目和年级时）
+     * 查找所有提供1对1课程的教师 - 智能匹配专用（没有指定科目时）
      */
     @Select("SELECT DISTINCT t.* FROM teachers t " +
             "INNER JOIN courses c ON t.id = c.teacher_id " +

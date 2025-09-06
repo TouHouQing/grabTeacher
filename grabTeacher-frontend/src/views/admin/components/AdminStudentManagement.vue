@@ -2,22 +2,19 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue'
-import { studentAPI, gradeApi, subjectAPI, fileAPI } from '../../../utils/api'
+import { studentAPI, subjectAPI, fileAPI } from '../../../utils/api'
 import { getApiBaseUrl } from '../../../utils/env'
 import AvatarUploader from '../../../components/AvatarUploader.vue'
 
 // 学生列表
 const studentList = ref([])
 const loading = ref(false)
-const availableGrades = ref([])
-const loadingGrades = ref(false)
 const subjects = ref([])
 const loadingSubjects = ref(false)
 
 // 搜索表单
 const studentSearchForm = reactive({
   keyword: '',
-  gradeLevel: '',
   gender: ''
 })
 
@@ -37,7 +34,6 @@ const studentForm = reactive({
   username: '',
   email: '',
   phone: '',
-  gradeLevel: '',
   subjectsInterested: '',
   subjectIds: [] as number[],
   learningGoals: '',
@@ -161,7 +157,6 @@ const loadStudentList = async () => {
       page: studentPagination.currentPage,
       size: studentPagination.pageSize,
       keyword: studentSearchForm.keyword || undefined,
-      gradeLevel: studentSearchForm.gradeLevel || undefined
     }
 
     const result = await studentAPI.getList(params)
@@ -192,7 +187,6 @@ const searchStudents = () => {
 // 重置搜索
 const resetStudentSearch = () => {
   studentSearchForm.keyword = ''
-  studentSearchForm.gradeLevel = ''
   studentSearchForm.gender = ''
   studentPagination.currentPage = 1
   loadStudentList()
@@ -207,7 +201,6 @@ const handleAddStudent = () => {
     username: '',
     email: '',
     phone: '',
-    gradeLevel: '',
     subjectsInterested: '',
     subjectIds: [],
     learningGoals: '',
@@ -252,7 +245,6 @@ const saveStudent = async () => {
       username: studentForm.username,
       email: studentForm.email,
       phone: studentForm.phone,
-      gradeLevel: studentForm.gradeLevel,
       subjectsInterested: studentForm.subjectsInterested,
       subjectIds: studentForm.subjectIds,
       learningGoals: studentForm.learningGoals,
@@ -345,20 +337,6 @@ const handleStudentSizeChange = (size: number) => {
   loadStudentList()
 }
 
-// 获取年级列表
-const loadGrades = async () => {
-  try {
-    loadingGrades.value = true
-    const response = await gradeApi.getAll()
-    if (response.success && response.data) {
-      availableGrades.value = response.data
-    }
-  } catch (error) {
-    console.error('获取年级列表失败:', error)
-  } finally {
-    loadingGrades.value = false
-  }
-}
 
 // 获取科目列表
 const loadSubjects = async () => {
@@ -377,7 +355,6 @@ const loadSubjects = async () => {
 
 onMounted(() => {
   loadStudentList()
-  loadGrades()
   loadSubjects()
 })
 </script>
@@ -399,16 +376,6 @@ onMounted(() => {
             clearable
             style="width: 200px"
           />
-        </el-form-item>
-        <el-form-item label="年级">
-          <el-select v-model="studentSearchForm.gradeLevel" placeholder="选择年级" clearable style="width: 200px" :loading="loadingGrades">
-            <el-option
-              v-for="grade in availableGrades"
-              :key="grade.id"
-              :label="grade.gradeName"
-              :value="grade.gradeName"
-            />
-          </el-select>
         </el-form-item>
         <el-form-item label="性别">
           <el-select v-model="studentSearchForm.gender" placeholder="选择性别" clearable style="width: 120px">
@@ -434,7 +401,6 @@ onMounted(() => {
     <el-table :data="studentList" v-loading="loading" stripe style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" align="center" />
       <el-table-column prop="realName" label="姓名" width="120" />
-      <el-table-column prop="gradeLevel" label="年级" width="100" />
       <el-table-column prop="gender" label="性别" width="80" />
       <el-table-column prop="subjectsInterested" label="感兴趣科目" min-width="150" show-overflow-tooltip />
       <el-table-column prop="learningGoals" label="学习目标" min-width="200" show-overflow-tooltip />
@@ -549,16 +515,6 @@ onMounted(() => {
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="年级">
-          <el-select v-model="studentForm.gradeLevel" placeholder="请选择年级" style="width: 100%" :loading="loadingGrades">
-            <el-option
-              v-for="grade in availableGrades"
-              :key="grade.id"
-              :label="grade.gradeName"
-              :value="grade.gradeName"
-            />
-          </el-select>
-        </el-form-item>
         <el-form-item label="感兴趣科目">
           <el-select
             v-model="studentForm.subjectIds"

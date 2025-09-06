@@ -6,6 +6,18 @@ import WideTimeSlotSelector from '../../components/WideTimeSlotSelector.vue'
 import { fileAPI } from '../../utils/api'
 import defaultAvatar from '../../assets/pictures/teacherBoy2.jpeg'
 
+// 学历枚举与归一化（与后端保持一致）
+const EDUCATION_ALLOWED = ['专科及以下', '本科', '硕士', '博士'] as const
+const normalizeEducation = (value: string): string => {
+  if (!value) return ''
+  if (EDUCATION_ALLOWED.includes(value as any)) return value
+  if (value.includes('硕士')) return '硕士'
+  if (value.includes('博士')) return '博士'
+  if (value.includes('本科')) return '本科'
+  if (value.includes('专科')) return '专科及以下'
+  return ''
+}
+
 const userStore = useUserStore()
 const _localAvatarFile = ref<File | null>(null)
 const _localAvatarPreview = ref<string | null>(null)
@@ -130,6 +142,7 @@ const fetchTeacherProfile = async () => {
     const response = await userStore.getTeacherProfile()
     if (response.success && response.data) {
       Object.assign(teacherForm, response.data)
+      teacherForm.educationBackground = normalizeEducation(teacherForm.educationBackground || '')
       // 设置选中的科目ID
       if (response.data.subjectIds) {
         selectedSubjectIds.value = [...response.data.subjectIds]
@@ -167,7 +180,7 @@ const saveProfile = async () => {
     const formData = {
       realName: teacherForm.realName,
       birthDate: teacherForm.birthDate,
-      educationBackground: teacherForm.educationBackground,
+      educationBackground: normalizeEducation(teacherForm.educationBackground || ''),
       teachingExperience: teacherForm.teachingExperience,
       specialties: teacherForm.specialties,
       introduction: teacherForm.introduction,
@@ -375,10 +388,10 @@ onMounted(() => {
               </el-form-item>
               <el-form-item label="学历">
                 <el-select v-model="teacherForm.educationBackground" placeholder="请选择学历" style="width: 100%">
-                  <el-option label="专科" value="专科"></el-option>
+                  <el-option label="专科及以下" value="专科及以下"></el-option>
                   <el-option label="本科" value="本科"></el-option>
-                  <el-option label="硕士研究生" value="硕士研究生"></el-option>
-                  <el-option label="博士研究生" value="博士研究生"></el-option>
+                  <el-option label="硕士" value="硕士"></el-option>
+                  <el-option label="博士" value="博士"></el-option>
                 </el-select>
               </el-form-item>
               <el-form-item label="教学经验(年)">

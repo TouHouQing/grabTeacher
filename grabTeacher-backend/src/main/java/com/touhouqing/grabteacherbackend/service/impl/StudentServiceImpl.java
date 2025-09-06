@@ -90,7 +90,6 @@ public class StudentServiceImpl implements StudentService {
                 .userId(student.getUserId())
                 .realName(student.getRealName())
                 .birthDate(birthDate)
-                .gradeLevel(student.getGradeLevel())
                 .subjectsInterested(student.getSubjectsInterested())
                 .subjectIds(subjectIds)
                 .learningGoals(student.getLearningGoals())
@@ -140,9 +139,6 @@ public class StudentServiceImpl implements StudentService {
             }
         }
 
-        if (request.getGradeLevel() != null) {
-            student.setGradeLevel(request.getGradeLevel());
-        }
         if (request.getSubjectsInterested() != null) {
             student.setSubjectsInterested(request.getSubjectsInterested());
         }
@@ -262,9 +258,6 @@ public class StudentServiceImpl implements StudentService {
             }
         }
 
-        if (request.getGradeLevel() != null) {
-            student.setGradeLevel(request.getGradeLevel());
-        }
         if (request.getSubjectsInterested() != null) {
             student.setSubjectsInterested(request.getSubjectsInterested());
         }

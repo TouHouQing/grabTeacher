@@ -36,7 +36,7 @@ public interface AdminService {
     /**
      * 分页获取学生列表
      */
-    Page<Student> getStudentList(int page, int size, String keyword, String gradeLevel);
+    Page<Student> getStudentList(int page, int size, String keyword);
 
     /**
      * 根据ID获取学生信息

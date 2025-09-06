@@ -31,9 +31,8 @@ public class JobPostController {
     public ResponseEntity<CommonResult<Page<JobPostVO>>> list(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) Long gradeId,
             @RequestParam(required = false) Long subjectId) {
-        Page<JobPostVO> result = jobPostService.pageActive(page, size, gradeId, subjectId);
+        Page<JobPostVO> result = jobPostService.pageActive(page, size, subjectId);
         return ResponseEntity.ok(CommonResult.success("获取成功", result));
     }
 
@@ -60,7 +59,6 @@ public class JobPostController {
     public ResponseEntity<CommonResult<Map<String, Object>>> adminList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) Long gradeId,
             @RequestParam(required = false) Long subjectId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
@@ -69,7 +67,7 @@ public class JobPostController {
             @RequestParam(required = false) Boolean includeDeleted) {
         java.time.LocalDateTime cs = (createdStart==null||createdStart.isEmpty())?null:java.time.LocalDateTime.parse(createdStart.replace(" ","T"));
         java.time.LocalDateTime ce = (createdEnd==null||createdEnd.isEmpty())?null:java.time.LocalDateTime.parse(createdEnd.replace(" ","T"));
-        Page<JobPostVO> voPage = jobPostService.pageAdmin(page, size, gradeId, subjectId, status, keyword, cs, ce, includeDeleted);
+        Page<JobPostVO> voPage = jobPostService.pageAdmin(page, size, subjectId, status, keyword, cs, ce, includeDeleted);
         Map<String, Object> resp = new HashMap<>();
         resp.put("records", voPage.getRecords());
         resp.put("total", voPage.getTotal());
@@ -79,7 +77,7 @@ public class JobPostController {
         return ResponseEntity.ok(CommonResult.success("获取成功", resp));
     }
 
-    // 管理端：获取原始实体（包含冗余的 gradeIds/subjectIds 字符串）
+    // 管理端：获取原始实体（包含冗余的 subjectIds 字符串）
     @Operation(summary = "招聘详情-管理端", security = @SecurityRequirement(name = "Bearer Authentication"))
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/admin/{id}")
