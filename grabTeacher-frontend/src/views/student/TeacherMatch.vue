@@ -26,7 +26,8 @@ interface Teacher {
   avatar: string
   tags: string[]
   schedule: string[]
-  matchScore: number
+  recommendationScore?: number // 推荐度（新）
+  matchScore?: number // 兼容旧字段
   gender: string
   hourlyRate?: number
   educationBackground?: string
@@ -214,7 +215,7 @@ const handleMatch = async () => {
       preferredWeekdays: matchForm.preferredWeekdays.length > 0 ? matchForm.preferredWeekdays : undefined,
       preferredTimeSlots: matchForm.preferredTimeSlots.length > 0 ? matchForm.preferredTimeSlots : undefined,
       preferredGender: matchForm.gender || undefined,
-      limit: 3
+      limit: 5
     }
 
     // 调用后端API
@@ -261,7 +262,8 @@ const handleMatch = async () => {
           avatar: teacher.avatar || teacherImages.teacherBoy1, // 使用默认头像如果没有
           tags: Array.isArray(teacher.tags) ? teacher.tags : [], // 确保 tags 是数组
           schedule: Array.isArray(teacher.schedule) ? teacher.schedule : ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'],
-          matchScore: teacher.matchScore,
+          recommendationScore: teacher.recommendationScore ?? teacher.matchScore,
+          matchScore: teacher.matchScore, // 兼容展示
           timeMatchScore: teacher.timeMatchScore, // 时间匹配度
           hourlyRate: teacher.hourlyRate,
           educationBackground: teacher.educationBackground,
@@ -2385,8 +2387,8 @@ watch(selectedCourse, (newCourse) => {
             <div class="teacher-avatar">
               <img :src="$getImageUrl(teacher.avatar)" :alt="teacher.name">
               <div class="match-score">
-                <div class="score">{{ teacher.matchScore }}%</div>
-                <div class="match-text">匹配度</div>
+                <div class="score">{{ teacher.recommendationScore }}%</div>
+                <div class="match-text">推荐度</div>
               </div>
             </div>
             <div class="teacher-info">

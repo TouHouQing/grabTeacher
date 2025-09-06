@@ -1,5 +1,6 @@
 package com.touhouqing.grabteacherbackend.model.vo;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,68 +18,75 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class TeacherMatchVO {
-    
+
     /**
      * 教师ID
      */
     private Long id;
-    
+
     /**
      * 教师姓名
      */
     private String name;
-    
+
     /**
      * 科目
      */
     private String subject;
-    
-    
+
+
     /**
      * 教学经验年数
      */
     private Integer experience;
-    
+
     /**
      * 描述/介绍
      */
     private String description;
-    
+
     /**
      * 头像URL
      */
     private String avatar;
-    
+
     /**
      * 标签列表
      */
     private List<String> tags;
-    
+
     /**
      * 课程安排
      */
     private List<String> schedule;
-    
+
     /**
-     * 匹配分数 (0-100)
+     * 推荐度 (0-100)
      */
-    private Integer matchScore;
-    
+    @JsonProperty("recommendationScore")
+    private Integer recommendationScore;
+
+    /**
+     * 兼容字段：匹配分数 (0-100) - 将逐步下线
+     */
+    @JsonProperty("matchScore")
+    private Integer legacyMatchScore;
+
     /**
      * 每小时收费
      */
     private BigDecimal hourlyRate;
-    
+
     /**
      * 教育背景
      */
     private String educationBackground;
-    
+
     /**
      * 专业领域
      */
     private String specialties;
-    
+
     /**
      * 是否已认证
      */

@@ -53,8 +53,8 @@ public class TeacherMatchDTO {
     private String preferredGender;
 
     /**
-     * 返回结果数量限制
+     * 返回结果数量限制（至少5）
      */
     @Builder.Default
-    private Integer limit = 3;
+    private Integer limit = 5;
 }

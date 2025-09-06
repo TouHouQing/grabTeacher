@@ -549,8 +549,8 @@ public class TeacherServiceImpl implements TeacherService {
         List<TeacherMatchVO> responses = teachers.stream()
                 .filter(teacher -> matchesGenderPreference(teacher, request)) // 添加性别过滤
                 .map(teacher -> convertToMatchResponse(teacher, request))
-                .sorted(Comparator.comparing(TeacherMatchVO::getMatchScore).reversed())
-                .limit(request.getLimit() != null ? request.getLimit() : 3)
+                .sorted(Comparator.comparing(TeacherMatchVO::getRecommendationScore).reversed())
+                .limit(request.getLimit() != null ? Math.max(request.getLimit(), 5) : 5)
                 .collect(Collectors.toList());
 
         log.info("匹配到 {} 位教师", responses.size());
@@ -563,7 +563,7 @@ public class TeacherServiceImpl implements TeacherService {
      */
     private List<Teacher> matchTeachersOptimized(TeacherMatchDTO request) {
         // 智能匹配功能只匹配提供1对1课程的教师
-        
+
         // 如果指定了科目，使用联合查询
         if (StringUtils.hasText(request.getSubject())) {
             return teacherMapper.findOneOnOneTeachersBySubject(request.getSubject());
@@ -607,13 +607,15 @@ public class TeacherServiceImpl implements TeacherService {
                 .availableTimeSlots(availableTimeSlots)
                 .build();
 
-        // 计算匹配分数和时间匹配度
-        log.info("正在计算教师 {} (ID: {}) 的匹配分数", teacher.getRealName(), teacher.getId());
-        int matchScore = calculateMatchScore(teacher, request);
+        // 计算推荐度和时间匹配度
+        log.info("正在计算教师 {} (ID: {}) 的推荐度", teacher.getRealName(), teacher.getId());
+        int recommendationScore = calculateRecommendationScore(teacher);
         int timeMatchScore = calculateTimeMatchScore(availableTimeSlots, request);
-        log.info("教师 {} 的匹配分数: 总分={}, 时间匹配度={}", teacher.getRealName(), matchScore, timeMatchScore);
+        log.info("教师 {} 的推荐度: 总分={}, 时间匹配度={}", teacher.getRealName(), recommendationScore, timeMatchScore);
 
-        response.setMatchScore(matchScore);
+        response.setRecommendationScore(recommendationScore);
+        // 兼容老前端：同步填充 legacy matchScore 字段
+        response.setLegacyMatchScore(recommendationScore);
         response.setTimeMatchScore(timeMatchScore);
 
         return response;
@@ -640,6 +642,60 @@ public class TeacherServiceImpl implements TeacherService {
 
         // 确保分数在合理范围内 (40-95)，提供更好的区分度
         return Math.max(40, Math.min(totalScore, 95));
+    }
+
+
+    /**
+     * 计算推荐度 (0-100) = 教师评价(50%) + 学历(30%) + 教龄(20%)
+     * 教师评价按0-5分换算到百分制；
+     * 学历按映射赋分：博士>硕士>本科>大专>其他；
+     * 教龄按年限线性归一到上限（默认15年达满分）。
+     */
+    private int calculateRecommendationScore(Teacher teacher) {
+        // 评分（0-5）-> 百分制
+        double rating = teacher.getRating() != null ? teacher.getRating().doubleValue() : 0.0;
+        rating = Math.max(0.0, Math.min(5.0, rating));
+        int ratingScore = (int) Math.round((rating / 5.0) * 100);
+
+        // 学历评分（百分制）
+        int educationScore = getEducationScore(teacher.getEducationBackground());
+
+        // 教龄评分（百分制），15年及以上视为满分
+        int expYears = teacher.getTeachingExperience() != null ? teacher.getTeachingExperience() : 0;
+        int expCapYears = 15;
+        int experienceScore = (int) Math.round(Math.min(expYears, expCapYears) * 100.0 / expCapYears);
+
+        // 加权汇总
+        double weighted = ratingScore * 0.5 + educationScore * 0.3 + experienceScore * 0.2;
+        int total = (int) Math.round(weighted);
+        return Math.max(0, Math.min(100, total));
+    }
+
+    /**
+     * 学历转百分制评分
+     */
+    private int getEducationScore(String educationBackground) {
+        if (educationBackground == null || educationBackground.trim().isEmpty()) {
+            return 60; // 未填写给及格分
+        }
+        String edu = educationBackground.trim().toLowerCase();
+        // 常见中英文映射
+        if (edu.contains("博士") || edu.contains("phd") || edu.contains("doctor")) {
+            return 100;
+        }
+        if (edu.contains("硕士") || edu.contains("master") || edu.contains("msc")) {
+            return 85;
+        }
+        if (edu.contains("本科") || edu.contains("学士") || edu.contains("bachelor") || edu.contains("bsc")) {
+            return 75;
+        }
+        if (edu.contains("大专") || edu.contains("专科") || edu.contains("associate")) {
+            return 65;
+        }
+        if (edu.contains("高中") || edu.contains("中专")) {
+            return 55;
+        }
+        return 60; // 其他/无法识别，给中间分
     }
 
     /**
