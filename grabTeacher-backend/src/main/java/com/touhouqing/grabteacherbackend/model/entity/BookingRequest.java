@@ -116,7 +116,7 @@ public class BookingRequest {
     @TableField("is_trial")
     @Builder.Default
     @Schema(description = "是否为免费试听课（试听课次数有限）", example = "false")
-    private Boolean trial = false;
+    private Boolean isTrial = false;
 
     // 新增字段：试听课时长（分钟）
     @TableField("trial_duration_minutes")
@@ -130,6 +130,6 @@ public class BookingRequest {
         this.bookingType = bookingType;
         this.status = "pending";
         this.deleted = false;
-        this.trial = false;
+        this.isTrial = false;
     }
 }

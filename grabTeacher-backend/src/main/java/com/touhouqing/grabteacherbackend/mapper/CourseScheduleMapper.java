@@ -75,6 +75,38 @@ public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
     @Select("SELECT cs.*, ce.teacher_id AS teacherId, ce.student_id AS studentId, ce.course_id AS courseId, ce.booking_request_id AS bookingRequestId, cs.enrollment_id AS enrollmentId FROM course_schedules cs JOIN course_enrollments ce ON cs.enrollment_id = ce.id \n" +
             "WHERE ce.booking_request_id = #{bookingRequestId} AND cs.is_deleted = 0 ORDER BY cs.scheduled_date ASC, cs.start_time ASC")
     java.util.List<CourseSchedule> findByBookingRequestId(@Param("bookingRequestId") Long bookingRequestId);
+
+    /**
+     * 检查试听课预约是否会影响基础2小时区间的可用性
+     * 如果某个基础2小时区间内有试听课预约，则该区间不能用于正式课预约
+     */
+    @Select("SELECT COUNT(*) FROM course_schedules cs \n" +
+            "JOIN course_enrollments ce ON cs.enrollment_id = ce.id \n" +
+            "JOIN booking_requests br ON ce.booking_request_id = br.id \n" +
+            "WHERE ce.teacher_id = #{teacherId} AND cs.scheduled_date = #{date} AND ce.is_deleted = 0 AND cs.is_deleted = 0 AND br.is_deleted = 0 \n" +
+            "AND br.is_trial = 1 AND cs.schedule_status != 'cancelled' \n" +
+            "AND ((cs.start_time >= #{baseStartTime} AND cs.start_time < #{baseEndTime}) OR \n" +
+            "     (cs.end_time > #{baseStartTime} AND cs.end_time <= #{baseEndTime}) OR \n" +
+            "     (cs.start_time <= #{baseStartTime} AND cs.end_time >= #{baseEndTime}))")
+    int countTrialConflictsInBaseSlot(@Param("teacherId") Long teacherId,
+                                      @Param("date") LocalDate date,
+                                      @Param("baseStartTime") LocalTime baseStartTime,
+                                      @Param("baseEndTime") LocalTime baseEndTime);
+
+    /**
+     * 检查试听课时间段是否可用（不检查试听课之间的冲突）
+     * 试听课之间可以共存，但试听课会影响正式课的预约
+     */
+    @Select("SELECT COUNT(*) FROM course_schedules cs \n" +
+            "JOIN course_enrollments ce ON cs.enrollment_id = ce.id \n" +
+            "WHERE ce.teacher_id = #{teacherId} AND cs.scheduled_date = #{date} AND ce.is_deleted = 0 AND cs.is_deleted = 0 AND \n" +
+            "((cs.start_time <= #{startTime} AND cs.end_time > #{startTime}) OR \n" +
+            " (cs.start_time < #{endTime} AND cs.end_time >= #{endTime}) OR \n" +
+            " (cs.start_time >= #{startTime} AND cs.end_time <= #{endTime})) AND cs.schedule_status != 'cancelled'")
+    int countTrialTimeConflicts(@Param("teacherId") Long teacherId,
+                                @Param("date") LocalDate date,
+                                @Param("startTime") LocalTime startTime,
+                                @Param("endTime") LocalTime endTime);
 }
 
 

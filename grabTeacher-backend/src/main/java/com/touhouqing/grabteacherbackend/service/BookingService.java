@@ -145,5 +145,24 @@ public interface BookingService {
      */
     Page<BookingVO> getAdminBookingRequests(int page, int size, String status, String keyword);
     
+    /**
+     * 检查试听课预约是否会影响基础2小时区间的可用性
+     * @param teacherId 教师ID
+     * @param date 日期
+     * @param baseStartTime 基础时间段开始时间
+     * @param baseEndTime 基础时间段结束时间
+     * @return 是否有试听课冲突
+     */
+    boolean hasTrialConflictInBaseSlot(Long teacherId, LocalDate date, String baseStartTime, String baseEndTime);
+    
+    /**
+     * 检查试听课时间段是否可用（不检查试听课之间的冲突）
+     * @param teacherId 教师ID
+     * @param date 日期
+     * @param startTime 开始时间
+     * @param endTime 结束时间
+     * @return 是否有冲突
+     */
+    boolean hasTrialTimeConflict(Long teacherId, LocalDate date, String startTime, String endTime);
 
 }

@@ -345,5 +345,59 @@ public class BookingController {
         }
     }
 
+    /**
+     * 检查试听课预约冲突
+     */
+    @GetMapping("/trial/conflict-check")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "检查试听课预约冲突", description = "检查试听课预约是否会影响基础2小时区间的可用性")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "检查成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "请求参数错误"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
+    })
+    public ResponseEntity<CommonResult<Boolean>> checkTrialBookingConflict(
+            @Parameter(description = "教师ID", required = true) @RequestParam Long teacherId,
+            @Parameter(description = "日期", example = "2024-01-01") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @Parameter(description = "基础时间段开始时间", example = "08:00") @RequestParam String baseStartTime,
+            @Parameter(description = "基础时间段结束时间", example = "10:00") @RequestParam String baseEndTime) {
+        try {
+            boolean hasConflict = bookingService.hasTrialConflictInBaseSlot(teacherId, date, baseStartTime, baseEndTime);
+            return ResponseEntity.ok(CommonResult.success("检查成功", hasConflict));
+        } catch (Exception e) {
+            logger.error("检查试听课预约冲突异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("检查失败"));
+        }
+    }
+
+    /**
+     * 检查试听课时间段可用性
+     */
+    @GetMapping("/trial/time-availability")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "检查试听课时间段可用性", description = "检查试听课时间段是否可用（不检查试听课之间的冲突）")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "检查成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "请求参数错误"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
+    })
+    public ResponseEntity<CommonResult<Boolean>> checkTrialTimeAvailability(
+            @Parameter(description = "教师ID", required = true) @RequestParam Long teacherId,
+            @Parameter(description = "日期", example = "2024-01-01") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @Parameter(description = "开始时间", example = "08:00") @RequestParam String startTime,
+            @Parameter(description = "结束时间", example = "08:30") @RequestParam String endTime) {
+        try {
+            boolean hasConflict = bookingService.hasTrialTimeConflict(teacherId, date, startTime, endTime);
+            return ResponseEntity.ok(CommonResult.success("检查成功", !hasConflict)); // 返回可用性，所以取反
+        } catch (Exception e) {
+            logger.error("检查试听课时间段可用性异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("检查失败"));
+        }
+    }
+
 
 }

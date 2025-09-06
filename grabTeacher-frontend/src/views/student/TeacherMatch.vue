@@ -3,7 +3,7 @@ import { ref, reactive, onMounted, nextTick, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock, Close, Warning, SuccessFilled, ArrowDown, Document } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
-import { teacherAPI, subjectAPI, bookingAPI, gradeApi } from '@/utils/api'
+import { teacherAPI, subjectAPI, bookingAPI, gradeApi } from '../../utils/api'
 const route = useRoute()
 const isTrialMode = computed(() => route.path.includes('/student-center/trial'))
 const isRecurringMode = computed(() => route.path.includes('/student-center/match'))
@@ -517,8 +517,8 @@ const showTeacherSchedule = async (teacher: Teacher) => {
   showScheduleModal.value = true
 }
 
-// 生成可用的周期性时间段
-const generateAvailableTimeSlots = async () => {
+// 生成可用的周期性时间段（支持根据学生选择的开始/结束日期动态计算）
+const generateAvailableTimeSlots = async (rangeStart?: string, rangeEnd?: string) => {
   if (!currentTeacher.value) return
 
   try {
@@ -533,9 +533,11 @@ const generateAvailableTimeSlots = async () => {
       console.log('教师未设置可预约时间，默认所有时间可用')
     }
 
-    // 计算查询时间范围（未来3个月）
-    const startDate = new Date().toISOString().split('T')[0]
-    const endDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    // 计算查询时间范围：以学生选择的开始日期为基准，若未选择则从今天起，默认90天
+    const baseStart = rangeStart || scheduleForm.startDate || new Date().toISOString().split('T')[0]
+    const baseStartDate = new Date(baseStart)
+    const startDate = baseStart
+    const endDate = rangeEnd || scheduleForm.endDate || new Date(baseStartDate.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
     // 调用后端API获取时间段冲突情况
     const result = await teacherAPI.checkAvailability(currentTeacher.value.id, {
@@ -775,16 +777,33 @@ const getTimePeriodIcon = (period: string) => {
   return icons[period] || 'Clock'
 }
 
+// 试听课可用性数据
+const trialAvailabilityData = ref<any>(null)
+
+// 加载试听课可用性数据
+const loadTrialAvailability = async (date: string, segment?: string) => {
+  if (!currentTeacher.value) return
+
+  try {
+    const result = await bookingAPI.getDayAvailability(currentTeacher.value.id, date, segment)
+    if (result.success && result.data) {
+      trialAvailabilityData.value = result.data
+    }
+  } catch (error) {
+    console.error('加载试听课可用性失败:', error)
+    trialAvailabilityData.value = null
+  }
+}
+
 // 检查试听课时间段是否可用（30分钟）
 const isTrialTimeSlotAvailable = (timeSlot: string): boolean => {
-  if (!scheduleForm.trialDate) return false
-  const trialDate = new Date(scheduleForm.trialDate)
-  const weekday = trialDate.getDay() === 0 ? 7 : trialDate.getDay()
-  const start = timeSlot.split('-')[0]
-  const baseSlot = getBaseSlotForStart(start)
-  if (!baseSlot) return false
-  // 基础2小时区间必须可用
-  return isTimeSlotAvailable(weekday, baseSlot)
+  if (!scheduleForm.trialDate || !trialAvailabilityData.value) return false
+
+  // 从新的可用性数据中查找对应的试听课时间段
+  const trialSlot = trialAvailabilityData.value.trialSlots?.find((slot: any) => slot.slot === timeSlot)
+  if (!trialSlot) return false
+
+  return trialSlot.trialAvailable === true
 }
 
 // 下拉选择：上午/下午/晚上三个下拉，各自列出30分钟起始时间
@@ -793,14 +812,22 @@ const trialSelectAfternoon = ref<string | null>(null)
 const trialSelectEvening = ref<string | null>(null)
 
 const getTrialOptionsByPeriod = (period: 'morning' | 'afternoon' | 'evening'): string[] => {
-  const all = getAvailableTrialTimeSlots()
+  if (!trialAvailabilityData.value?.trialSlots) return []
+
+  // 从可用性数据中获取对应时间段的可选项
+  const trialSlots = trialAvailabilityData.value.trialSlots
   const inRange = (t: string, startHour: number, endHour: number) => {
     const sh = parseInt(t.split('-')[0].split(':')[0])
     return sh >= startHour && sh < endHour
   }
-  if (period === 'morning') return all.filter(t => inRange(t, 8, 12))
-  if (period === 'afternoon') return all.filter(t => inRange(t, 13, 17))
-  return all.filter(t => inRange(t, 17, 21))
+
+  const availableSlots = trialSlots
+    .filter((slot: any) => slot.trialAvailable === true)
+    .map((slot: any) => slot.slot)
+
+  if (period === 'morning') return availableSlots.filter(t => inRange(t, 8, 12))
+  if (period === 'afternoon') return availableSlots.filter(t => inRange(t, 13, 17))
+  return availableSlots.filter(t => inRange(t, 17, 21))
 }
 
 const onTrialSelectChange = (period: 'morning' | 'afternoon' | 'evening', value: string | null) => {
@@ -820,7 +847,7 @@ const onTrialSelectChange = (period: 'morning' | 'afternoon' | 'evening', value:
 }
 
 // 切换日期时清空下拉与已选试听时间
-watch(() => scheduleForm.trialDate, () => {
+watch(() => scheduleForm.trialDate, async (newDate) => {
   trialSelectMorning.value = null
   trialSelectAfternoon.value = null
   trialSelectEvening.value = null
@@ -829,13 +856,20 @@ watch(() => scheduleForm.trialDate, () => {
   // 清空时间段类型选择
   selectedTimePeriod.value = ''
   availableTrialSlotsByPeriod.value = []
+
+  // 加载新日期的可用性数据
+  if (newDate) {
+    await loadTrialAvailability(newDate)
+  }
 })
 
 
 // 选择试听课时间段
 const selectTrialTimeSlot = (timeSlot: string) => {
   if (!isTrialTimeSlotAvailable(timeSlot)) {
-    ElMessage.warning('该时间段教师不可预约，请选择其他时间段')
+    // 获取不可用的原因
+    const reason = getTrialTimeSlotUnavailableReason(timeSlot)
+    ElMessage.warning(reason)
     return
   }
 
@@ -851,6 +885,28 @@ const selectTrialTimeSlot = (timeSlot: string) => {
   const endHours = end.getHours().toString().padStart(2, '0')
   const endMinutes = end.getMinutes().toString().padStart(2, '0')
   scheduleForm.trialEndTime = `${endHours}:${endMinutes}`
+}
+
+// 获取试听课时间段不可用的原因
+const getTrialTimeSlotUnavailableReason = (timeSlot: string): string => {
+  if (!scheduleForm.trialDate) return '请先选择日期'
+  if (!trialAvailabilityData.value) return '正在加载可用性数据...'
+
+  // 从新的可用性数据中查找对应的试听课时间段
+  const trialSlot = trialAvailabilityData.value.trialSlots?.find((slot: any) => slot.slot === timeSlot)
+  if (!trialSlot) return '该时间段不在可预约范围内'
+
+  if (trialSlot.trialAvailable === true) return ''
+
+  // 根据冲突原因返回相应的提示信息
+  const reasons = trialSlot.reasons || []
+  if (reasons.includes('teacherUnavailable')) return '该时间段教师不可预约'
+  if (reasons.includes('busyScheduled')) return '该时间段已被占用'
+  if (reasons.includes('duplicateTrialSlot')) return '该时间段已有试听课预约'
+  if (reasons.includes('pendingBooking')) return '该时间段已有待处理预约，暂不可选择'
+  if (reasons.includes('baseSlotOccupiedByTrial')) return '该时间段与试听课冲突，暂不可选择'
+
+  return '该时间段暂不可选择'
 }
 
 // 获取当前选择的试听课时间段
@@ -893,6 +949,31 @@ const hasAvailableTrialSlots = (date: Date): boolean => {
         return true
       }
     }
+  }
+
+  return false
+}
+
+// 检查试听课预约是否会影响基础2小时区间的可用性
+const hasTrialBookingConflict = (weekday: number, timeSlot: string): boolean => {
+  // 检查该基础2小时区间是否已经有试听课预约
+  // 逻辑说明：
+  // 1. 如果8:00-8:30有试听课预约，那么8:00-10:00的基础区间应该被标记为不可用（用于正式课）
+  // 2. 但是8:30-10:00之间还可以预约试听课
+  // 3. 通过检查availableTimeSlots中的reasons字段来判断是否有试听课冲突
+
+  const slot = availableTimeSlots.value.find(s => s.weekday === weekday && (s.time || s.timeSlot) === timeSlot)
+  if (!slot) {
+    return false
+  }
+
+  // 检查是否有试听课相关的冲突原因
+  // 注意：这里需要根据实际的数据结构来调整
+  // 如果slot对象没有reasons属性，则通过其他方式判断
+  if (slot.conflictReason) {
+    return slot.conflictReason.includes('试听') ||
+           slot.conflictReason.includes('trial') ||
+           slot.conflictReason.includes('基础区间')
   }
 
   return false
@@ -1159,8 +1240,83 @@ const isTimeSlotConflictWithSelected = (timeSlot: string): boolean => {
   })
 }
 
+// 检查时间段是否可用于选择（正式课）
+
+const isTimeSlotAvailableForSelection = (timeSlot: string): boolean => {
+  // 检查是否有任何星期几可用
+  const hasAvailableWeekday = [1, 2, 3, 4, 5, 6, 7].some(weekday =>
+    isTimeSlotAvailable(weekday, timeSlot)
+  )
+
+  // 如果没有任何星期几可用，则时间段不可选择
+  if (!hasAvailableWeekday) {
+    return false
+  }
+
+  // 额外检查：确保时间段在所有星期几上都没有冲突
+  // 如果某个星期几有冲突，但其他星期几可用，仍然允许选择
+  // 但需要在UI上显示冲突信息
+
+  return true
+}
+
+// 获取正式课时间段不可用的原因
+const getTimeSlotUnavailableReason = (timeSlot: string): string => {
+  // 检查是否有任何星期几可用
+  const availableWeekdays = [1, 2, 3, 4, 5, 6, 7].filter(weekday =>
+    isTimeSlotAvailable(weekday, timeSlot)
+  )
+
+  if (availableWeekdays.length === 0) {
+    // 检查第一个星期几的不可用原因
+    const firstWeekday = 1
+    const currentDuration = selectedCourse.value?.durationMinutes || scheduleForm.selectedDurationMinutes
+
+    if (currentDuration === 90) {
+      const baseTimeSlot = findBaseTimeSlotFor90Min(timeSlot)
+      if (!baseTimeSlot) return '该时间段不在可预约范围内'
+
+      const slot = availableTimeSlots.value.find(s => s.weekday === firstWeekday && (s.time || s.timeSlot) === baseTimeSlot)
+      if (!slot) return '该时间段教师不可预约'
+
+      if (slot.isTeacherAvailable === false) return '该时间段教师不可预约'
+      if (!slot.available) return '该时间段已被占用'
+
+      if (slot.conflictReason && (slot.conflictReason.includes('待处理') || slot.conflictReason.includes('pending'))) {
+        return '该时间段已有待处理预约，暂不可选择'
+      }
+    } else {
+      const slot = availableTimeSlots.value.find(s => s.weekday === firstWeekday && (s.time || s.timeSlot) === timeSlot)
+      if (!slot) return '该时间段教师不可预约'
+
+      if (slot.isTeacherAvailable === false) return '该时间段教师不可预约'
+      if (!slot.available) return '该时间段已被占用'
+
+      if (slot.conflictReason && (slot.conflictReason.includes('待处理') || slot.conflictReason.includes('pending'))) {
+        return '该时间段已有待处理预约，暂不可选择'
+      }
+    }
+
+    return '该时间段教师不可预约'
+  }
+
+  if (availableWeekdays.length < 7) {
+    const unavailableCount = 7 - availableWeekdays.length
+    return `该时间段在${unavailableCount}个星期几不可用`
+  }
+
+  return ''
+}
+
 // 选择时间段
 const selectTimeSlot = (time: string) => {
+  // 如果时间段不可用，不允许选择
+  if (!isTimeSlotAvailableForSelection(time)) {
+    const reason = getTimeSlotUnavailableReason(time)
+    ElMessage.warning(reason)
+    return
+  }
+
   // 如果时间段已经被选中，允许取消选择
   if (scheduleForm.selectedTimeSlots.includes(time)) {
     scheduleForm.selectedTimeSlots = scheduleForm.selectedTimeSlots.filter(t => t !== time)
@@ -1168,16 +1324,6 @@ const selectTimeSlot = (time: string) => {
     scheduleForm.selectedWeekdays = []
     // 更新准确的匹配度信息
     updateAccurateMatchScore()
-    return
-  }
-
-  // 检查该时间段是否有任何星期几可用
-  const hasAvailableWeekday = [1, 2, 3, 4, 5, 6, 7].some(weekday =>
-    isTimeSlotAvailable(weekday, time)
-  )
-
-  if (!hasAvailableWeekday) {
-    ElMessage.warning('该时间段教师不可预约，请选择其他时间段')
     return
   }
 
@@ -1217,6 +1363,17 @@ const isTimeSlotAvailable = (weekday: number, time: string): boolean => {
     if (!slot) {
       return false
     }
+
+    // 检查基础时间段是否被试听课预约影响
+    if (hasTrialBookingConflict(weekday, baseTimeSlot)) {
+      return false
+    }
+
+    // 检查是否有待处理预约冲突
+    if (slot.conflictReason && (slot.conflictReason.includes('待处理') || slot.conflictReason.includes('pending'))) {
+      return false
+    }
+
     return slot.isTeacherAvailable !== false && slot.available
   }
 
@@ -1225,6 +1382,17 @@ const isTimeSlotAvailable = (weekday: number, time: string): boolean => {
   if (!slot) {
     return false
   }
+
+  // 检查2小时时间段是否被试听课预约影响
+  if (hasTrialBookingConflict(weekday, time)) {
+    return false
+  }
+
+  // 检查是否有待处理预约冲突
+  if (slot.conflictReason && (slot.conflictReason.includes('待处理') || slot.conflictReason.includes('pending'))) {
+    return false
+  }
+
   return slot.isTeacherAvailable !== false && slot.available
 }
 
@@ -2071,6 +2239,19 @@ watch(
   { deep: true }
 )
 
+// 当开始日期变更时，重新获取该区间的可用时间与冲突数据（减少误导性的冲突数量）
+watch(
+  () => scheduleForm.startDate,
+  async (newStart) => {
+    if (!newStart || !currentTeacher.value) return
+    try {
+      await generateAvailableTimeSlots(newStart, scheduleForm.endDate)
+    } catch (err) {
+      console.error('根据开始日期刷新可用时间段失败:', err)
+    }
+  }
+)
+
 // 组件挂载时初始化数据
 onMounted(() => {
   initOptions()
@@ -2500,7 +2681,7 @@ watch(selectedCourse, (newCourse) => {
                         'disabled': !isTrialTimeSlotAvailable(time)
                       }
                     ]"
-                    @click="selectTrialTimeSlot(time)"
+                    @click="isTrialTimeSlotAvailable(time) ? selectTrialTimeSlot(time) : null"
                   >
                     <div class="time-display">{{ time }}</div>
                     <div class="time-duration">30分钟</div>
@@ -2508,6 +2689,9 @@ watch(selectedCourse, (newCourse) => {
                       <el-icon v-if="!isTrialTimeSlotAvailable(time)" class="status-icon disabled"><Lock /></el-icon>
                       <el-icon v-else-if="getTrialTimeSlot() === time" class="status-icon selected"><Check /></el-icon>
                       <span v-else class="status-text">可选</span>
+                    </div>
+                    <div v-if="!isTrialTimeSlotAvailable(time)" class="unavailable-reason">
+                      {{ getTrialTimeSlotUnavailableReason(time) }}
                     </div>
                   </div>
                 </div>
@@ -2567,10 +2751,11 @@ watch(selectedCourse, (newCourse) => {
                   {
                     'selected': scheduleForm.selectedTimeSlots.includes(time),
                     'has-conflicts': hasTimeSlotConflicts(time),
-                    'conflicted': isTimeSlotConflictWithSelected(time)
+                    'conflicted': isTimeSlotConflictWithSelected(time),
+                    'disabled': !isTimeSlotAvailableForSelection(time)
                   }
                 ]"
-                @click="selectTimeSlot(time)"
+                @click="isTimeSlotAvailableForSelection(time) ? selectTimeSlot(time) : null"
               >
                 <div class="slot-time">{{ time }}</div>
                 <div class="slot-duration-info" v-if="!selectedCourse?.durationMinutes">
@@ -2595,9 +2780,12 @@ watch(selectedCourse, (newCourse) => {
                     {{ getWeekdayShort(weekday) }}
                   </span>
                 </div>
-                <div class="slot-availability-info" v-if="hasTimeSlotConflicts(time)">
-                  <div class="conflict-summary">
+                <div class="slot-availability-info" v-if="hasTimeSlotConflicts(time) || !isTimeSlotAvailableForSelection(time)">
+                  <div class="conflict-summary" v-if="hasTimeSlotConflicts(time)">
                     {{ getTimeSlotConflictSummary(time) }}
+                  </div>
+                  <div class="unavailable-summary" v-if="!isTimeSlotAvailableForSelection(time)">
+                    {{ getTimeSlotUnavailableReason(time) }}
                   </div>
                 </div>
               </div>
@@ -3430,10 +3618,56 @@ h2 {
   opacity: 0.6;
 }
 
+.time-slot-card.disabled {
+  border-color: #dcdfe6;
+  background-color: #f5f7fa;
+  color: #c0c4cc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .time-slot-card.conflicted:hover {
   transform: none;
   box-shadow: none;
   background-color: #fff2f0;
+}
+
+.time-slot-card.disabled {
+  background-color: #f5f5f5;
+  border-color: #d9d9d9;
+  cursor: not-allowed;
+  opacity: 0.5;
+  color: #999;
+}
+
+.time-slot-card.disabled:hover {
+  transform: none;
+  box-shadow: none;
+  background-color: #f5f5f5;
+  border-color: #d9d9d9;
+}
+
+.time-slot-card.disabled .slot-time {
+  color: #999;
+}
+
+.time-slot-card.disabled .weekday-indicator {
+  color: #ccc;
+}
+
+.unavailable-reason {
+  font-size: 11px;
+  color: #f56c6c;
+  margin-top: 4px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.unavailable-summary {
+  font-size: 11px;
+  color: #f56c6c;
+  text-align: center;
+  margin-top: 4px;
 }
 
 .slot-time {

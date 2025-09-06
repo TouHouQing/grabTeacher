@@ -64,7 +64,7 @@ public class BookingApplyDTO {
 
     @Builder.Default
     @Schema(description = "是否为免费试听课（试听课次数有限，固定30分钟）", example = "false")
-    private Boolean trial = false;
+    private Boolean isTrial = false;
 
     @Schema(description = "试听课时长（分钟，固定为30）", example = "30")
     private Integer trialDurationMinutes;

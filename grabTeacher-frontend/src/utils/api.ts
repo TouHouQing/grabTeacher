@@ -408,6 +408,13 @@ export const teacherAPI = {
   // 获取教师的可预约时间设置（供学生查看）
   getAvailableTime: (teacherId: number) => apiRequest(`/api/available-time/teacher/${teacherId}`),
 
+  // 获取某日的可用性信息（包括试听课和正式课）
+  getDayAvailability: (teacherId: number, date: string, segment?: string) => {
+    const params = new URLSearchParams({ teacherId: teacherId.toString(), date })
+    if (segment) params.append('segment', segment)
+    return apiRequest(`/api/booking/availability/day?${params}`)
+  },
+
   // 获取公开教师列表（无需认证，供主页使用）
   getPublicList: (params: {
     page?: number
@@ -592,7 +599,12 @@ export const bookingAPI = {
     return apiRequest(`/api/booking/admin/list?${searchParams}`)
   },
 
-
+  // 获取某日的可用性信息（包括试听课和正式课）
+  getDayAvailability: (teacherId: number, date: string, segment?: string) => {
+    const params = new URLSearchParams({ teacherId: teacherId.toString(), date })
+    if (segment) params.append('segment', segment)
+    return apiRequest(`/api/booking/availability/day?${params}`)
+  }
 }
 
 // 课程管理 API

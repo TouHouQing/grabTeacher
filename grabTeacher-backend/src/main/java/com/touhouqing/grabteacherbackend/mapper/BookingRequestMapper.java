@@ -114,4 +114,60 @@ public interface BookingRequestMapper extends BaseMapper<BookingRequest> {
     List<BookingRequest> findPendingByTeacherAndDateRange(@Param("teacherId") Long teacherId,
                                                           @Param("startDate") java.time.LocalDate startDate,
                                                           @Param("endDate") java.time.LocalDate endDate);
+
+    /**
+     * 统计指定教师在某日期的基础2小时时段内，是否存在“待处理的试听课”申请
+     * 用于在学生提交试听申请后立即对对应基础2小时区间做占用标记（管理员拒绝后自动释放）
+     */
+    @Select("SELECT COUNT(*) FROM booking_requests \n" +
+            "WHERE teacher_id = #{teacherId} AND status = 'pending' AND is_deleted = 0 AND is_trial = 1 \n" +
+            "AND requested_date = #{date} AND ((requested_start_time >= #{baseStartTime} AND requested_start_time < #{baseEndTime}) OR \n" +
+            "     (requested_end_time > #{baseStartTime} AND requested_end_time <= #{baseEndTime}) OR \n" +
+            "     (requested_start_time <= #{baseStartTime} AND requested_end_time >= #{baseEndTime}))")
+    int countPendingTrialConflictsInBaseSlot(@Param("teacherId") Long teacherId,
+                                             @Param("date") java.time.LocalDate date,
+                                             @Param("baseStartTime") java.time.LocalTime baseStartTime,
+                                             @Param("baseEndTime") java.time.LocalTime baseEndTime);
+
+    /**
+     * 指定教师某日，是否存在"完全相同30分钟"的待处理试听申请
+     */
+    @Select("SELECT COUNT(*) FROM booking_requests \n" +
+            "WHERE teacher_id = #{teacherId} AND status = 'pending' AND is_deleted = 0 AND is_trial = 1 \n" +
+            "AND requested_date = #{date} AND requested_start_time = #{startTime} AND requested_end_time = #{endTime}")
+    int countPendingExactTrialSlot(@Param("teacherId") Long teacherId,
+                                   @Param("date") java.time.LocalDate date,
+                                   @Param("startTime") java.time.LocalTime startTime,
+                                   @Param("endTime") java.time.LocalTime endTime);
+
+    /**
+     * 统计指定教师在某时间段内是否有待处理的预约申请（包括试听课和正式课）
+     */
+    @Select("SELECT COUNT(*) FROM booking_requests \n" +
+            "WHERE teacher_id = #{teacherId} AND status = 'pending' AND is_deleted = 0 \n" +
+            "AND ((booking_type = 'single' AND requested_date = #{date} AND \n" +
+            "     (requested_start_time < #{endTime} AND requested_end_time > #{startTime})) OR \n" +
+            "     (booking_type = 'recurring' AND start_date <= #{date} AND end_date >= #{date} AND \n" +
+            "      JSON_CONTAINS(recurring_weekdays, CAST(#{weekday} AS JSON)) AND \n" +
+            "      JSON_CONTAINS(recurring_time_slots, JSON_QUOTE(CONCAT(#{startTime}, '-', #{endTime})))))")
+    int countPendingConflictsInTimeSlot(@Param("teacherId") Long teacherId,
+                                        @Param("date") java.time.LocalDate date,
+                                        @Param("startTime") java.time.LocalTime startTime,
+                                        @Param("endTime") java.time.LocalTime endTime,
+                                        @Param("weekday") Integer weekday);
+
+    /**
+     * 统计指定教师在某日期的基础2小时时段内，是否存在"待处理的正式课"申请
+     */
+    @Select("SELECT COUNT(*) FROM booking_requests \n" +
+            "WHERE teacher_id = #{teacherId} AND status = 'pending' AND is_deleted = 0 AND is_trial = 0 \n" +
+            "AND booking_type = 'recurring' AND start_date <= #{date} AND end_date >= #{date} \n" +
+            "AND JSON_CONTAINS(recurring_weekdays, CAST(#{weekday} AS JSON)) \n" +
+            "AND EXISTS (SELECT 1 FROM JSON_TABLE(recurring_time_slots, '$[*]' COLUMNS (time_slot VARCHAR(50) PATH '$')) jt \n" +
+            "WHERE jt.time_slot = CONCAT(#{baseStartTime}, '-', #{baseEndTime}))")
+    int countPendingFormalConflictsInBaseSlot(@Param("teacherId") Long teacherId,
+                                              @Param("date") java.time.LocalDate date,
+                                              @Param("baseStartTime") java.time.LocalTime baseStartTime,
+                                              @Param("baseEndTime") java.time.LocalTime baseEndTime,
+                                              @Param("weekday") Integer weekday);
 }

@@ -94,7 +94,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // 检查是否为试听课申请
-        boolean isTrial = request.getTrial() != null && request.getTrial();
+        boolean isTrial = request.getIsTrial() != null && request.getIsTrial();
         if (isTrial) {
             // 检查用户是否可以使用免费试听
             if (!canUseFreeTrial(studentUserId)) {
@@ -137,11 +137,11 @@ public class BookingServiceImpl implements BookingService {
                 .endDate(request.getEndDate())
                 .totalTimes(request.getTotalTimes())
                 .studentRequirements(request.getStudentRequirements())
-                .trial(isTrial)
+                .isTrial(isTrial)
                 .trialDurationMinutes(request.getTrialDurationMinutes())
                 .status("pending")
                 .build();
-        
+
         bookingRequestMapper.insert(bookingRequest);
         log.info("预约申请创建成功，预约ID: {}", bookingRequest.getId());
 
@@ -150,25 +150,25 @@ public class BookingServiceImpl implements BookingService {
         boolean isResume = request.getResume() != null && request.getResume();
         if (!isTrial && !isResume) {
             totalCost = calculateBookingCost(request);
-            
+
             // 检查余额是否足够
             if (!studentService.checkBalance(studentUserId, totalCost)) {
                 throw new RuntimeException("余额不足，需要 " + totalCost + "M豆，请联系管理员充值");
             }
-            
+
             // 扣除余额，关联预约ID
             boolean deductSuccess = studentService.updateStudentBalance(
-                    studentUserId, 
+                    studentUserId,
                     totalCost.negate(), // 负数表示扣费
                     "预约课程费用",
                     bookingRequest.getId(), // 关联预约ID
                     null // 学生自主预约，无操作员
             );
-            
+
             if (!deductSuccess) {
                 throw new RuntimeException("余额扣除失败，请稍后重试");
             }
-            
+
             log.info("已扣除学生余额，用户ID: {}, 扣除金额: {}M豆, 预约ID: {}", studentUserId, totalCost, bookingRequest.getId());
         } else if (isResume) {
             log.info("恢复课程预约，跳过费用计算与扣费，用户ID: {}, 预约ID: {}", studentUserId, bookingRequest.getId());
@@ -197,7 +197,7 @@ public class BookingServiceImpl implements BookingService {
             bookingRequest.setApprovedAt(LocalDateTime.now());
 
             // 审核通过时，试听课使用记录保持不变（申请时已标记）
-            if (bookingRequest.getTrial() != null && bookingRequest.getTrial()) {
+            if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
                 log.info("试听课审核通过，保持已使用状态，预约ID: {}", bookingId);
             }
 
@@ -266,23 +266,23 @@ public class BookingServiceImpl implements BookingService {
             }
         } else if ("rejected".equals(approval.getStatus())) {
             // 如果是试听课且审核被拒绝，恢复试听课使用记录
-            if (bookingRequest.getTrial() != null && bookingRequest.getTrial()) {
+            if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
                 Student student = studentMapper.selectById(bookingRequest.getStudentId());
                 if (student != null) {
                     resetTrialUsage(student.getUserId());
                     log.info("试听课审核拒绝，恢复试听课使用记录，用户ID: {}", student.getUserId());
                 }
             }
-            
+
             // 退回预约费用（试听课免费不需要退费）
-            if (bookingRequest.getTrial() == null || !bookingRequest.getTrial()) {
+            if (bookingRequest.getIsTrial() == null || !bookingRequest.getIsTrial()) {
                 Student student = studentMapper.selectById(bookingRequest.getStudentId());
                 if (student != null) {
                     try {
                         // 重新计算费用并退回
                         BookingApplyDTO refundRequest = createRefundRequest(bookingRequest);
                         BigDecimal refundAmount = calculateBookingCost(refundRequest);
-                        
+
                         if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
                             boolean refundSuccess = studentService.updateStudentBalance(
                                     student.getUserId(),
@@ -291,12 +291,12 @@ public class BookingServiceImpl implements BookingService {
                                     bookingId, // 关联预约ID
                                     null // 系统自动退费，无特定操作员
                             );
-                            
+
                             if (refundSuccess) {
-                                log.info("预约被拒绝，已退回学生余额，用户ID: {}, 退回金额: {}M豆", 
+                                log.info("预约被拒绝，已退回学生余额，用户ID: {}, 退回金额: {}M豆",
                                         student.getUserId(), refundAmount);
                             } else {
-                                log.error("预约被拒绝，退费失败，用户ID: {}, 应退金额: {}M豆", 
+                                log.error("预约被拒绝，退费失败，用户ID: {}, 应退金额: {}M豆",
                                         student.getUserId(), refundAmount);
                             }
                         }
@@ -333,19 +333,19 @@ public class BookingServiceImpl implements BookingService {
             throw new RuntimeException("只有待处理状态的申请可以取消");
         }
 
-        // 如果是试听课申请被取消，恢复试听课使用记录
-        if (bookingRequest.getTrial() != null && bookingRequest.getTrial()) {
-            resetTrialUsage(studentUserId);
-            log.info("试听课申请取消，恢复试听课使用记录，用户ID: {}", studentUserId);
+        // 学生取消试听课申请时，不恢复试听课使用记录
+        // 只有管理员拒绝时才恢复试听课次数
+        if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
+            log.info("学生取消试听课申请，试听课次数已消耗，不恢复，用户ID: {}", studentUserId);
         }
 
         // 退回预约费用（试听课免费不需要退费）
-        if (bookingRequest.getTrial() == null || !bookingRequest.getTrial()) {
+        if (bookingRequest.getIsTrial() == null || !bookingRequest.getIsTrial()) {
             try {
                 // 重新计算费用并退回
                 BookingApplyDTO refundRequest = createRefundRequest(bookingRequest);
                 BigDecimal refundAmount = calculateBookingCost(refundRequest);
-                
+
                 if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
                     boolean refundSuccess = studentService.updateStudentBalance(
                             studentUserId,
@@ -354,12 +354,12 @@ public class BookingServiceImpl implements BookingService {
                             bookingId, // 关联预约ID
                             null // 学生自主取消，无操作员
                     );
-                    
+
                     if (refundSuccess) {
-                        log.info("学生取消预约，已退回余额，用户ID: {}, 退回金额: {}M豆", 
+                        log.info("学生取消预约，已退回余额，用户ID: {}, 退回金额: {}M豆",
                                 studentUserId, refundAmount);
                     } else {
-                        log.error("学生取消预约，退费失败，用户ID: {}, 应退金额: {}M豆", 
+                        log.error("学生取消预约，退费失败，用户ID: {}, 应退金额: {}M豆",
                                 studentUserId, refundAmount);
                     }
                 }
@@ -395,11 +395,11 @@ public class BookingServiceImpl implements BookingService {
         QueryWrapper<BookingRequest> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("student_id", student.getId())
                 .eq("is_deleted", false);
-        
+
         if (StringUtils.hasText(status)) {
             queryWrapper.eq("status", status);
         }
-        
+
         queryWrapper.orderByDesc("created_at");
 
         Page<BookingRequest> bookingPage = bookingRequestMapper.selectPage(new Page<>(page, size), queryWrapper);
@@ -471,11 +471,11 @@ public class BookingServiceImpl implements BookingService {
         QueryWrapper<BookingRequest> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("teacher_id", teacher.getId())
                 .eq("is_deleted", false);
-        
+
         if (StringUtils.hasText(status)) {
             queryWrapper.eq("status", status);
         }
-        
+
         queryWrapper.orderByDesc("created_at");
 
         Page<BookingRequest> bookingPage = bookingRequestMapper.selectPage(new Page<>(page, size), queryWrapper);
@@ -580,24 +580,24 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public List<ScheduleVO> getAllStudentSchedules(Long studentUserId) {
         log.info("获取学生所有课程安排，用户ID: {}", studentUserId);
-        
+
         Student student = studentMapper.findByUserId(studentUserId);
         if (student == null) {
             log.warn("学生信息不存在，用户ID: {}", studentUserId);
             throw new RuntimeException("学生信息不存在，请先完善学生资料");
         }
-        
+
         log.info("找到学生信息，学生ID: {}, 学生姓名: {}", student.getId(), student.getRealName());
 
         List<CourseSchedule> schedules =
                 courseScheduleMapper.findByStudentId(student.getId());
-        
+
         log.info("查询到课程安排数量: {}", schedules.size());
-        
+
         List<ScheduleVO> result = schedules.stream()
                 .map(cs -> convertToScheduleVO(cs))
                 .collect(Collectors.toList());
-                
+
         log.info("转换后的课程安排数量: {}", result.size());
         return result;
     }
@@ -621,13 +621,13 @@ public class BookingServiceImpl implements BookingService {
         vo.setBookingRequestId(cs.getBookingRequestId());
         vo.setEnrollmentId(cs.getEnrollmentId());
         vo.setSessionNumber(cs.getSessionNumber());
-        
+
         // 计算课程时长
         if (cs.getStartTime() != null && cs.getEndTime() != null) {
             long durationMinutes = java.time.Duration.between(cs.getStartTime(), cs.getEndTime()).toMinutes();
             vo.setDurationMinutes((int) durationMinutes);
         }
-        
+
         // 获取教师信息
         if (cs.getTeacherId() != null) {
             Teacher teacher = teacherMapper.selectById(cs.getTeacherId());
@@ -635,7 +635,7 @@ public class BookingServiceImpl implements BookingService {
                 vo.setTeacherName(teacher.getRealName());
             }
         }
-        
+
         // 获取学生信息
         if (cs.getStudentId() != null) {
             Student student = studentMapper.selectById(cs.getStudentId());
@@ -643,14 +643,14 @@ public class BookingServiceImpl implements BookingService {
                 vo.setStudentName(student.getRealName());
             }
         }
-        
+
         // 获取课程信息
         if (cs.getCourseId() != null) {
             Course course = courseMapper.selectById(cs.getCourseId());
             if (course != null) {
                 vo.setCourseTitle(course.getTitle());
                 vo.setCourseType(course.getCourseType());
-                
+
                 // 获取科目名称
                 if (course.getSubjectId() != null) {
                     Subject subject = subjectMapper.selectById(course.getSubjectId());
@@ -660,7 +660,7 @@ public class BookingServiceImpl implements BookingService {
                 }
             }
         }
-        
+
         // 获取报名信息
         if (cs.getEnrollmentId() != null) {
             CourseEnrollment enrollment =
@@ -676,7 +676,7 @@ public class BookingServiceImpl implements BookingService {
                 }
             }
         }
-        
+
         return vo;
     }
 
@@ -723,9 +723,65 @@ public class BookingServiceImpl implements BookingService {
     public boolean hasTeacherTimeConflict(Long teacherId, LocalDate date, String startTime, String endTime) {
         LocalTime start = LocalTime.parse(startTime);
         LocalTime end = LocalTime.parse(endTime);
-        // 改为查询新表
+
+        // 检查常规课程冲突
         int conflictCount = courseScheduleMapper.countTeacherConflicts(teacherId, date, start, end);
-        return conflictCount > 0;
+        if (conflictCount > 0) {
+            return true;
+        }
+
+        // 检查试听课预约是否会影响基础2小时区间的可用性
+        // 如果预约的是2小时课程，需要检查是否与试听课冲突
+        if (isTwoHourCourse(start, end)) {
+            // 将时间段映射到基础2小时区间
+            String baseSlot = mapToBaseTimeSlot(startTime, endTime);
+            if (baseSlot != null) {
+                String[] baseTimes = baseSlot.split("-");
+                if (baseTimes.length == 2) {
+                    // 已排程试听与待处理试听都将占用基础2小时段
+                    boolean scheduledTrialConflict = hasTrialConflictInBaseSlot(teacherId, date, baseTimes[0], baseTimes[1]);
+                    boolean pendingTrialConflict = hasPendingTrialConflictInBaseSlot(teacherId, date, baseTimes[0], baseTimes[1]);
+                    return scheduledTrialConflict || pendingTrialConflict;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 判断是否为2小时课程
+     */
+    private boolean isTwoHourCourse(LocalTime start, LocalTime end) {
+        return java.time.Duration.between(start, end).toMinutes() == 120;
+    }
+
+    /**
+     * 将时间段映射到基础2小时区间
+     */
+    private String mapToBaseTimeSlot(String startTime, String endTime) {
+        // 基础2小时时间段：08:00-10:00, 10:00-12:00, 13:00-15:00, 15:00-17:00, 17:00-19:00, 19:00-21:00
+        String[] baseSlots = {
+            "08:00-10:00", "10:00-12:00", "13:00-15:00",
+            "15:00-17:00", "17:00-19:00", "19:00-21:00"
+        };
+
+        LocalTime start = LocalTime.parse(startTime);
+        LocalTime end = LocalTime.parse(endTime);
+
+        for (String baseSlot : baseSlots) {
+            String[] times = baseSlot.split("-");
+            LocalTime baseStart = LocalTime.parse(times[0]);
+            LocalTime baseEnd = LocalTime.parse(times[1]);
+
+            // 检查时间段是否在基础区间内
+            if ((start.isAfter(baseStart) || start.equals(baseStart)) &&
+                (end.isBefore(baseEnd) || end.equals(baseEnd))) {
+                return baseSlot;
+            }
+        }
+
+        return null;
     }
 
     @Override
@@ -735,6 +791,78 @@ public class BookingServiceImpl implements BookingService {
         // 改为查询新表
         int conflictCount = courseScheduleMapper.countStudentConflicts(studentId, date, start, end);
         return conflictCount > 0;
+    }
+
+    @Override
+    public boolean hasTrialConflictInBaseSlot(Long teacherId, LocalDate date, String baseStartTime, String baseEndTime) {
+        LocalTime baseStart = LocalTime.parse(baseStartTime);
+        LocalTime baseEnd = LocalTime.parse(baseEndTime);
+        int conflictCount = courseScheduleMapper.countTrialConflictsInBaseSlot(teacherId, date, baseStart, baseEnd);
+        return conflictCount > 0;
+    }
+
+
+    @Override
+    public boolean hasTrialTimeConflict(Long teacherId, LocalDate date, String startTime, String endTime) {
+        LocalTime start = LocalTime.parse(startTime);
+        LocalTime end = LocalTime.parse(endTime);
+        
+        // 试听课之间可以共存，但需要检查是否会影响基础2小时区间的可用性
+        // 如果8:00-8:30有试听课，那么8:00-10:00的基础区间应该被标记为不可用（用于正式课）
+        // 但是8:30-10:00之间还可以预约试听课
+        
+        // 检查是否有完全相同的30分钟试听课时间段
+        int exactConflictCount = courseScheduleMapper.countTrialTimeConflicts(teacherId, date, start, end);
+        if (exactConflictCount > 0) {
+            return true; // 完全相同的时间段不能重复预约
+        }
+        
+        // 检查是否会影响基础2小时区间的可用性
+        String baseSlot = mapToBaseTimeSlot(startTime, endTime);
+        if (baseSlot != null) {
+            String[] baseTimes = baseSlot.split("-");
+            if (baseTimes.length == 2) {
+                // 检查该基础区间是否已经被试听课占用
+                boolean hasTrialInBase = hasTrialConflictInBaseSlot(teacherId, date, baseTimes[0], baseTimes[1]);
+                if (hasTrialInBase) {
+                    // 如果基础区间已被试听课占用，检查当前30分钟段是否在占用范围内
+                    if (isTrialSlotInOccupiedBase(startTime, endTime, baseSlot)) {
+                        return true; // 该时间段会影响基础区间的可用性
+                    }
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * 检查30分钟试听课时间段是否在已被占用的基础区间内
+     */
+    private boolean isTrialSlotInOccupiedBase(String startTime, String endTime, String baseSlot) {
+        String[] baseTimes = baseSlot.split("-");
+        
+        LocalTime trialStart = LocalTime.parse(startTime);
+        LocalTime baseStart = LocalTime.parse(baseTimes[0]);
+        
+        // 如果试听课的开始时间等于基础区间的开始时间，则认为该基础区间被占用
+        // 例如：8:00-8:30的试听课会占用8:00-10:00的基础区间
+        if (trialStart.equals(baseStart)) {
+            return true;
+        }
+        
+        return false;
+    }
+
+
+    /**
+     * 检查“待处理的试听申请”是否占用基础2小时区间（提交即占位，管理员拒绝/学生取消才释放）
+     */
+    private boolean hasPendingTrialConflictInBaseSlot(Long teacherId, LocalDate date, String baseStartTime, String baseEndTime) {
+        LocalTime baseStart = LocalTime.parse(baseStartTime);
+        LocalTime baseEnd = LocalTime.parse(baseEndTime);
+        int cnt = bookingRequestMapper.countPendingTrialConflictsInBaseSlot(teacherId, date, baseStart, baseEnd);
+        return cnt > 0;
     }
 
     @Override
@@ -783,7 +911,7 @@ public class BookingServiceImpl implements BookingService {
                         .enrollmentDate(java.time.LocalDate.now())
                         .startDate(bookingRequest.getStartDate())
                         .endDate(bookingRequest.getEndDate())
-                        .trial(Boolean.TRUE.equals(bookingRequest.getTrial()))
+                        .trial(Boolean.TRUE.equals(bookingRequest.getIsTrial()))
                         .recurringSchedule(buildRecurringScheduleJson(weekdays, timeSlots))
                         .durationMinutes(courseDurationMinutes)
                         .bookingRequestId(bookingRequest.getId())
@@ -911,7 +1039,7 @@ public class BookingServiceImpl implements BookingService {
                         .enrollmentDate(java.time.LocalDate.now())
                         .startDate(bookingRequest.getStartDate())
                         .endDate(bookingRequest.getEndDate())
-                        .trial(Boolean.TRUE.equals(bookingRequest.getTrial()))
+                        .trial(Boolean.TRUE.equals(bookingRequest.getIsTrial()))
                         .recurringSchedule(buildRecurringScheduleJson(weekdays, timeSlots))
                         .durationMinutes(courseDurationMinutes)
                         .bookingRequestId(bookingRequest.getId())
@@ -1061,8 +1189,15 @@ public class BookingServiceImpl implements BookingService {
             String startTime = request.getRequestedStartTime().toString();
             String endTime = request.getRequestedEndTime().toString();
 
-            if (hasTeacherTimeConflict(teacherId, request.getRequestedDate(), startTime, endTime)) {
-                throw new RuntimeException("教师在该时间段已有其他安排");
+            // 如果是试听课，使用特殊的冲突检查逻辑
+            if (request.getIsTrial() != null && request.getIsTrial()) {
+                if (hasTrialTimeConflict(teacherId, request.getRequestedDate(), startTime, endTime)) {
+                    throw new RuntimeException("该试听课时间段不可用，可能与其他试听课冲突或影响基础时间段");
+                }
+            } else {
+                if (hasTeacherTimeConflict(teacherId, request.getRequestedDate(), startTime, endTime)) {
+                    throw new RuntimeException("教师在该时间段已有其他安排");
+                }
             }
 
             if (hasStudentTimeConflict(studentId, request.getRequestedDate(), startTime, endTime)) {
@@ -1106,7 +1241,7 @@ public class BookingServiceImpl implements BookingService {
         log.info("生成单次课程安排，预约申请ID: {}", bookingRequest.getId());
 
         // 记录试听课信息
-        if (bookingRequest.getTrial() != null && bookingRequest.getTrial()) {
+        if (bookingRequest.getIsTrial() != null && bookingRequest.getIsTrial()) {
             log.info("生成试听课安排，固定30分钟时长");
         }
 
@@ -1148,7 +1283,7 @@ public class BookingServiceImpl implements BookingService {
                         .enrollmentDate(java.time.LocalDate.now())
                         .startDate(bookingRequest.getRequestedDate())
                         .endDate(bookingRequest.getRequestedDate())
-                        .trial(Boolean.TRUE.equals(bookingRequest.getTrial()))
+                        .trial(Boolean.TRUE.equals(bookingRequest.getIsTrial()))
                         .durationMinutes(courseDurationMinutes)
                         .bookingRequestId(bookingRequest.getId())
                         .deleted(false)
@@ -1275,7 +1410,7 @@ public class BookingServiceImpl implements BookingService {
                 .createdAt(bookingRequest.getCreatedAt())
                 .updatedAt(bookingRequest.getUpdatedAt())
                 .approvedAt(bookingRequest.getApprovedAt())
-                .trial(bookingRequest.getTrial())
+                .trial(bookingRequest.getIsTrial())
                 .trialDurationMinutes(bookingRequest.getTrialDurationMinutes())
                 .build();
     }
@@ -1384,13 +1519,13 @@ public class BookingServiceImpl implements BookingService {
         for (Integer weekday : request.getRecurringWeekdays()) {
             for (String timeSlot : request.getRecurringTimeSlots()) {
                 boolean isAvailable = false;
-                
+
                 // 如果学生选择了1.5小时课程，需要检查时间段是否在教师可预约的2小时时间段内
                 if (request.getSelectedDurationMinutes() != null && request.getSelectedDurationMinutes() == 90) {
                     isAvailable = teacherAvailableSlots.stream()
                             .anyMatch(slot -> weekday.equals(slot.getWeekday()) &&
                                      slot.getTimeSlots() != null &&
-                                     slot.getTimeSlots().stream().anyMatch(availableSlot -> 
+                                     slot.getTimeSlots().stream().anyMatch(availableSlot ->
                                          isTimeSlotContained(timeSlot, availableSlot)));
                 } else {
                     // 直接匹配时间段
@@ -1501,10 +1636,10 @@ public class BookingServiceImpl implements BookingService {
             // 检查请求的时间段是否完全在可预约时间段内
             // 例如：08:00-09:30 应该在 08:00-10:00 内
             boolean isContained = !requestedStart.isBefore(availableStart) && !requestedEnd.isAfter(availableEnd);
-            
-            log.debug("时间段包含检查: requested={}, available={}, isContained={}", 
+
+            log.debug("时间段包含检查: requested={}, available={}, isContained={}",
                      requestedTimeSlot, availableTimeSlot, isContained);
-            
+
             return isContained;
         } catch (Exception e) {
             log.error("时间段比较失败: requested={}, available={}", requestedTimeSlot, availableTimeSlot, e);
@@ -1541,7 +1676,7 @@ public class BookingServiceImpl implements BookingService {
 
             BigDecimal pricePerHour = course.getPrice(); // 每小时价格
             Integer durationMinutes = course.getDurationMinutes(); // 每次课时长（分钟）
-            
+
             // 如果课程没有设置时长，使用学生选择的时长
             if (durationMinutes == null || durationMinutes <= 0) {
                 durationMinutes = request.getSelectedDurationMinutes();
@@ -1570,9 +1705,9 @@ public class BookingServiceImpl implements BookingService {
                 throw new RuntimeException("不支持的预约类型：" + request.getBookingType());
             }
 
-            log.info("计算预约费用: 课程ID={}, 每小时价格={}M豆, 每次课时长={}分钟, 预约次数={}, 总费用={}M豆", 
-                    request.getCourseId(), pricePerHour, durationMinutes, 
-                    "single".equals(request.getBookingType()) ? 1 : request.getTotalTimes(), 
+            log.info("计算预约费用: 课程ID={}, 每小时价格={}M豆, 每次课时长={}分钟, 预约次数={}, 总费用={}M豆",
+                    request.getCourseId(), pricePerHour, durationMinutes,
+                    "single".equals(request.getBookingType()) ? 1 : request.getTotalTimes(),
                     totalCost);
 
             return totalCost;
