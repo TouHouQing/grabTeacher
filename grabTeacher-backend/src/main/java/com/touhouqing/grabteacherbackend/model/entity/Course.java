@@ -43,9 +43,6 @@ public class Course {
     @Schema(description = "课程详细描述", example = "本课程深入讲解高中数学中的函数与导数知识点，适合高二、高三学生")
     private String description;
 
-    @Schema(description = "课程基础评分", example = "4.5")
-    @TableField("base_rating")
-    private BigDecimal baseRating;
 
     @Schema(description = "课程评分等级", example = "0")
     @TableField("rating")

@@ -1,6 +1,9 @@
 package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.touhouqing.grabteacherbackend.mapper.CourseEvaluationMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseEnrollmentMapper;
+import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
+import com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment;
 import com.touhouqing.grabteacherbackend.model.entity.CourseEvaluation;
 import com.touhouqing.grabteacherbackend.service.CourseEvaluationService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -13,17 +16,55 @@ import com.touhouqing.grabteacherbackend.model.vo.CourseEvaluationVO;
 import com.touhouqing.grabteacherbackend.model.dto.CourseEvaluationCreateDTO;
 import com.touhouqing.grabteacherbackend.model.dto.CourseEvaluationUpdateDTO;
 import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * <p>
  * 课程评价表 服务实现类
  * </p>
- *
- * @author TouHouQing
- * @since 2025-08-26
  */
 @Service
+@RequiredArgsConstructor
 public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMapper, CourseEvaluation> implements CourseEvaluationService {
+
+    private final CourseEnrollmentMapper courseEnrollmentMapper;
+    private final TeacherMapper teacherMapper;
+
+    /**
+     * 校验学生是否已完成该课程的全部课次：
+     * 条件：存在报名记录且 enrollment_status = 'completed' 或 completed_sessions >= total_sessions（当 total_sessions 非空）
+     * 若没有 total_sessions（null），则无法强校验，放行基于 enrollment_status = 'completed'。
+     */
+    private void validateCourseCompletion(Long studentId, Long courseId) {
+        if (studentId == null || courseId == null) {
+            throw new IllegalArgumentException("参数缺失：学生或课程ID为空");
+        }
+        com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<CourseEnrollment> qw = new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<>();
+        qw.eq("student_id", studentId)
+          .eq("course_id", courseId)
+          .eq("is_deleted", false)
+          .last("LIMIT 1");
+        CourseEnrollment ce = courseEnrollmentMapper.selectOne(qw);
+        if (ce == null) {
+            throw new IllegalArgumentException("未找到该课程的报名记录，无法评价");
+        }
+        boolean completedByStatus = "completed".equalsIgnoreCase(ce.getEnrollmentStatus());
+        boolean completedByCount = ce.getTotalSessions() != null && ce.getCompletedSessions() != null && ce.getCompletedSessions() >= ce.getTotalSessions();
+        if (!(completedByStatus || completedByCount)) {
+            throw new IllegalArgumentException("请在完成课程全部课次后再进行评价");
+        }
+    }
+
+    /**
+     * 将学生评分按0.001权重累加到教师评分。
+     */
+    private void applyTeacherRatingIncrement(Long teacherId, java.math.BigDecimal rating) {
+        if (teacherId == null || rating == null) return;
+        BigDecimal delta = rating.multiply(new BigDecimal("0.001"));
+        teacherMapper.incrementRating(teacherId, delta);
+    }
 
     @Override
     @Cacheable(value = "courseEvaluations", key = "#page + '_' + #size + '_' + (#teacherId ?: 'null') + '_' + (#courseId ?: 'null') + '_' + (#minRating ?: 'null') + '_' + (#teacherName ?: 'null') + '_' + (#courseName ?: 'null')")
@@ -185,7 +226,9 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
         if (hasStudentEvaluatedCourse(dto.getStudentId(), dto.getCourseId())) {
             throw new IllegalArgumentException("您已经评价过这门课程，不能重复评价");
         }
-        
+        // 校验该学生是否已完成该课程的全部课次（仅允许完成后评价）
+        validateCourseCompletion(dto.getStudentId(), dto.getCourseId());
+
         CourseEvaluation entity = new CourseEvaluation();
         entity.setTeacherId(dto.getTeacherId());
         entity.setStudentId(dto.getStudentId());
@@ -198,6 +241,10 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
         entity.setIsFeatured(false); // 学生评价默认不精选
         entity.setIsDeleted(false);
         this.save(entity);
+
+        // 学生评分加权计入教师评分：教师评分 = 教师现有评分 + 学生打分 * 0.001
+        applyTeacherRatingIncrement(dto.getTeacherId(), dto.getRating());
+
         return entity;
     }
 
@@ -207,7 +254,7 @@ public class CourseEvaluationServiceImpl extends ServiceImpl<CourseEvaluationMap
         wrapper.eq(CourseEvaluation::getStudentId, studentId)
                .eq(CourseEvaluation::getCourseId, courseId)
                .eq(CourseEvaluation::getIsDeleted, false);
-        
+
         return this.count(wrapper) > 0;
     }
 }

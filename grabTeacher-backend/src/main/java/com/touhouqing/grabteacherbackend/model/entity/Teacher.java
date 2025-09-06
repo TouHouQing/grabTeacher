@@ -27,9 +27,6 @@ public class Teacher {
     @TableField("real_name")
     private String realName;
 
-    @Schema(description = "教师基础评分", example = "4.5")
-    @TableField("base_rating")
-    private BigDecimal baseRating;
 
     @Schema(description = "教师评分", example = "4.5")
     @TableField("rating")

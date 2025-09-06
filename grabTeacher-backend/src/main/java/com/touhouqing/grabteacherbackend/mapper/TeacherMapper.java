@@ -100,4 +100,11 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
      */
     @Update("UPDATE teachers SET current_hours = CASE WHEN current_hours IS NULL THEN 0 WHEN current_hours - #{hours} < 0 THEN 0 ELSE current_hours - #{hours} END WHERE id = #{teacherId} AND is_deleted = 0")
     int decrementCurrentHours(@Param("teacherId") Long teacherId, @Param("hours") java.math.BigDecimal hours);
+
+    /**
+     * 教师评分增量累加：rating = COALESCE(rating, 0) + delta
+     */
+    @Update("UPDATE teachers SET rating = COALESCE(rating, 0) + #{delta} WHERE id = #{teacherId} AND is_deleted = 0")
+    int incrementRating(@Param("teacherId") Long teacherId, @Param("delta") java.math.BigDecimal delta);
+
 }
