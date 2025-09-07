@@ -176,13 +176,14 @@ const saveProfile = async () => {
     // 1) 若选择了新头像，先上传至OSS，拿到最终URL
     const uploadedAvatarUrl = await uploadAvatarIfNeeded()
 
-    // 只提交教师可以修改的字段，不包括科目和收费
+    // 提交教师可以修改的字段，包括科目设置
     const formData = {
       realName: teacherForm.realName,
       birthDate: teacherForm.birthDate,
       educationBackground: normalizeEducation(teacherForm.educationBackground || ''),
       teachingExperience: teacherForm.teachingExperience,
       specialties: teacherForm.specialties,
+      subjectIds: selectedSubjectIds.value, // 添加科目设置
       introduction: teacherForm.introduction,
       videoIntroUrl: teacherForm.videoIntroUrl,
       gender: teacherForm.gender,
@@ -402,14 +403,24 @@ onMounted(() => {
                   style="width: 100%"
                 ></el-input-number>
               </el-form-item>
-              <el-form-item label="教授科目">
-                <el-input
-                  :value="getSelectedSubjectNames()"
-                  readonly
-                  placeholder="暂未设置教授科目（请联系管理员设置）"
+              <el-form-item label="教授科目" required>
+                <el-select
+                  v-model="selectedSubjectIds"
+                  multiple
+                  placeholder="请选择您教授的科目"
                   style="width: 100%"
-                ></el-input>
-                <small style="color: #999; font-size: 12px;">注：教授科目只能由管理员设置</small>
+                  collapse-tags
+                  collapse-tags-tooltip
+                  :max-collapse-tags="4"
+                >
+                  <el-option
+                    v-for="subject in subjects"
+                    :key="subject.id"
+                    :label="subject.name"
+                    :value="subject.id"
+                  />
+                </el-select>
+                <small style="color: #999; font-size: 12px;">注：您可以选择多个科目</small>
               </el-form-item>
               <el-form-item label="专业特长">
                 <el-input

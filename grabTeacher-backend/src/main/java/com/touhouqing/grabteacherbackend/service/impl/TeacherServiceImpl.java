@@ -480,9 +480,29 @@ public class TeacherServiceImpl implements TeacherService {
         if (request.getSpecialties() != null) {
             teacher.setSpecialties(request.getSpecialties());
         }
-        // 注意：教师不能修改 hourlyRate 和 subjectIds
+        // 注意：教师不能修改 hourlyRate，但可以修改 subjectIds
         if (request.getIntroduction() != null) {
             teacher.setIntroduction(request.getIntroduction());
+        }
+        
+        // 处理科目设置
+        if (request.getSubjectIds() != null) {
+            // 先删除现有的科目关联
+            teacherSubjectMapper.deleteByTeacherId(teacher.getId());
+            
+            // 添加新的科目关联
+            if (!request.getSubjectIds().isEmpty()) {
+                List<TeacherSubject> teacherSubjects = request.getSubjectIds().stream()
+                    .map(subjectId -> new TeacherSubject(teacher.getId(), subjectId))
+                    .collect(Collectors.toList());
+                
+                for (TeacherSubject teacherSubject : teacherSubjects) {
+                    teacherSubjectMapper.insert(teacherSubject);
+                }
+                log.info("教师更新科目设置成功: userId={}, subjectIds={}", userId, request.getSubjectIds());
+            } else {
+                log.info("教师清空科目设置: userId={}", userId);
+            }
         }
         if (request.getVideoIntroUrl() != null) {
             teacher.setVideoIntroUrl(request.getVideoIntroUrl());

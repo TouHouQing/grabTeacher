@@ -10,6 +10,7 @@ import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -79,6 +80,10 @@ public class Teacher {
     // 非持久化字段：用户头像URL，用于回显
     @TableField(exist = false)
     private String avatarUrl;
+
+    // 非持久化字段：教师教授的科目ID列表，用于回显
+    @TableField(exist = false)
+    private List<Long> subjectIds;
 
     @Schema(description = "本月课时（小时）", example = "12.5")
     @TableField("current_hours")
