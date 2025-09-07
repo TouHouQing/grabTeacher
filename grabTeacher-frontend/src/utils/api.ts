@@ -642,6 +642,7 @@ export const courseAPI = {
     endDate?: string
     personLimit?: number | null
     imageUrl?: string
+    courseLocation?: '线上' | '线下'
   }) => apiRequest('/api/courses', {
     method: 'POST',
     body: JSON.stringify(data)
@@ -662,6 +663,7 @@ export const courseAPI = {
     endDate?: string
     personLimit?: number | null
     imageUrl?: string
+    courseLocation?: '线上' | '线下'
   }) => apiRequest(`/api/courses/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)

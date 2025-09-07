@@ -87,6 +87,10 @@ public class Course {
     @Schema(description = "课程封面图URL")
     private String imageUrl;
 
+    @TableField("course_location")
+    @Schema(description = "课程地点", example = "线上", allowableValues = {"线上", "线下"})
+    private String courseLocation;
+
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     @Schema(description = "课程创建时间")
     private LocalDateTime createdAt;

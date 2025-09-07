@@ -135,6 +135,14 @@ public class CourseServiceImpl implements CourseService {
             courseStatus = "pending";
         }
 
+        // 课程地点（仅支持 线上/线下），默认线上
+        String courseLocation = request.getCourseLocation();
+        if (!StringUtils.hasText(courseLocation)) {
+            courseLocation = "线上";
+        } else if (!isValidCourseLocation(courseLocation)) {
+            throw new RuntimeException("无效的课程地点");
+        }
+
         Course course = Course.builder()
                 .teacherId(teacherId)
                 .subjectId(request.getSubjectId())
@@ -143,6 +151,7 @@ public class CourseServiceImpl implements CourseService {
                 .courseType(request.getCourseType())
                 .durationMinutes(request.getDurationMinutes())
                 .status(courseStatus)
+                .courseLocation(courseLocation)
                 .deleted(false)
                 .imageUrl(request.getImageUrl())
                 .price(request.getPrice()) // 所有课程类型都可以设置价格
@@ -229,6 +238,15 @@ public class CourseServiceImpl implements CourseService {
         course.setDescription(request.getDescription());
         course.setCourseType(request.getCourseType());
         course.setDurationMinutes(request.getDurationMinutes());
+
+        // 课程地点：仅当提供时更新；值必须为 线上/线下
+        if (request.getCourseLocation() != null) {
+            if (!isValidCourseLocation(request.getCourseLocation())) {
+                throw new RuntimeException("无效的课程地点");
+            }
+            course.setCourseLocation(request.getCourseLocation());
+        }
+
         // 记录旧封面，若请求带新图则覆盖
         String oldImageUrl = course.getImageUrl();
         if (request.getImageUrl() != null && !request.getImageUrl().isEmpty()) {
@@ -237,7 +255,7 @@ public class CourseServiceImpl implements CourseService {
 
         // 设置价格（所有课程类型都可以有价格）
         course.setPrice(request.getPrice());
-        
+
         // 更新大班课专用字段
         if ("large_class".equals(request.getCourseType())) {
             course.setStartDate(request.getStartDate());
@@ -317,6 +335,11 @@ public class CourseServiceImpl implements CourseService {
     /**
      * 根据ID查询课程详情
      */
+    // 辅助方法：验证课程地点
+    private boolean isValidCourseLocation(String location) {
+        return "线上".equals(location) || "线下".equals(location);
+    }
+
     @Override
     @Cacheable(cacheNames = "course", key = "#id", unless = "#result == null")
     public CourseVO getCourseById(Long id) {
@@ -591,6 +614,7 @@ public class CourseServiceImpl implements CourseService {
                 .status(course.getStatus())
                 .featured(course.getFeatured())
                 .createdAt(course.getCreatedAt())
+                .courseLocation(course.getCourseLocation())
                 .price(course.getPrice())
                 .startDate(course.getStartDate())
                 .endDate(course.getEndDate())
@@ -669,7 +693,7 @@ public class CourseServiceImpl implements CourseService {
         // 1) 收集ID集合
         List<Long> teacherIds = courses.stream().map(Course::getTeacherId).collect(Collectors.toList());
         List<Long> subjectIds = courses.stream().map(Course::getSubjectId).collect(Collectors.toList());
-        List<Long> courseIds = courses.stream().map(Course::getId).collect(Collectors.toList());
+        // 注意：如需扩展按课程ID批量加载关联数据，可在此使用课程ID集合
 
         // 2) 批量查询教师
         Map<Long, String> teacherNameMap = new HashMap<>();
@@ -713,6 +737,7 @@ public class CourseServiceImpl implements CourseService {
                     .status(c.getStatus())
                     .featured(c.getFeatured())
                     .createdAt(c.getCreatedAt())
+                    .courseLocation(c.getCourseLocation())
                     .price(c.getPrice())
                     .startDate(c.getStartDate())
                     .endDate(c.getEndDate())

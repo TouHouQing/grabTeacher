@@ -43,6 +43,8 @@ public class CourseDTO {
     @Schema(description = "课程状态", example = "active", allowableValues = {"active", "inactive", "full"})
     private String status = "active";
 
+    @Schema(description = "课程地点", example = "线上", allowableValues = {"线上", "线下"})
+    private String courseLocation;
 
     @Schema(description = "课程价格（大班课专用，为空表示可定制价格）", example = "299.00")
     private BigDecimal price;

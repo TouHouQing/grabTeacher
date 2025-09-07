@@ -25,6 +25,7 @@ interface Course {
   endDate?: string
   personLimit?: number
   imageUrl?: string
+  courseLocation?: '线上' | '线下'
   _localImageFile?: File | null
   _localPreviewUrl?: string
 }
@@ -84,6 +85,7 @@ const courseForm = reactive({
   endDate: '',
   personLimit: null as number | null,
   imageUrl: '' as string,
+  courseLocation: '线上' as '线上' | '线下',
   // 临时选择的本地文件与预览
   _localImageFile: null as File | null,
   _localPreviewUrl: '' as string
@@ -294,6 +296,7 @@ const resetForm = () => {
   courseForm.startDate = ''
   courseForm.endDate = ''
   courseForm.personLimit = null
+  courseForm.courseLocation = '线上'
 
 }
 
@@ -319,7 +322,7 @@ const openEditDialog = (course: Course) => {
   courseForm.startDate = course.startDate || ''
   courseForm.endDate = course.endDate || ''
   courseForm.personLimit = course.personLimit || null
-
+  courseForm.courseLocation = (course.courseLocation as any) || '线上'
 
   // 封面回显与清理本地预览
   courseForm.imageUrl = course.imageUrl || ''
@@ -361,6 +364,7 @@ const saveCourse = async () => {
         endDate: courseForm.endDate,
         personLimit: courseForm.personLimit
       }),
+      courseLocation: courseForm.courseLocation,
       ...(coverUrl ? { imageUrl: coverUrl } : {})
     }
 
@@ -935,6 +939,13 @@ onMounted(() => {
             >
               {{ option.label }}
             </el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <el-form-item label="课程地点">
+          <el-radio-group v-model="courseForm.courseLocation">
+            <el-radio label="线上">线上</el-radio>
+            <el-radio label="线下">线下</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>

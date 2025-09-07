@@ -59,6 +59,8 @@ public class CourseVO {
     @Schema(description = "课程创建时间")
     private LocalDateTime createdAt;
 
+    @Schema(description = "课程地点", example = "线上", allowableValues = {"线上", "线下"})
+    private String courseLocation;
 
     @Schema(description = "课程价格（大班课专用）", example = "299.00")
     private BigDecimal price;
