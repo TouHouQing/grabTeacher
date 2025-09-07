@@ -282,6 +282,7 @@ CREATE TABLE `courses` (
                            `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '课程创建时间',
                            `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
                            `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
+                           `course_location` varchar(255) DEFAULT '线上' COMMENT '课程地点',
                            PRIMARY KEY (`id`),
                            KEY `idx_courses_status_deleted_created` (`status`,`is_deleted`,`created_at`),
                            KEY `idx_courses_teacher_deleted_status` (`teacher_id`,`is_deleted`,`status`),
@@ -868,6 +869,7 @@ CREATE TABLE `teachers` (
                             `current_hours` decimal(10,2) DEFAULT '0.00' COMMENT '本月课时数',
                             `last_hours` decimal(10,2) DEFAULT '0.00' COMMENT '上个月课时数',
                             `available_time_slots` text COMMENT '可上课时间安排，JSON格式存储：[{"weekday":1,"timeSlots":["08:00-10:00","17:00-19:00"]},{"weekday":6,"timeSlots":["13:00-15:00","15:00-17:00"]}]，weekday: 1=周一,2=周二...7=周日',
+                            `level` enum('王牌','金牌','银牌','铜牌') DEFAULT '王牌' COMMENT '教育级别：王牌、金牌、银牌、铜牌',
                             PRIMARY KEY (`id`),
                             UNIQUE KEY `user_id` (`user_id`),
                             KEY `idx_is_featured` (`is_featured`)

@@ -31,6 +31,10 @@ public class TeacherInfoDTO {
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     private String gender;
 
+    @Schema(description = "教师级别", allowableValues = {"王牌", "金牌", "银牌", "铜牌"})
+    @Pattern(regexp = "^(王牌|金牌|银牌|铜牌)$", message = "教师级别仅限：王牌、金牌、银牌、铜牌")
+    private String level;
+
     @Schema(description = "可上课时间安排")
     private List<TimeSlotDTO> availableTimeSlots;
 

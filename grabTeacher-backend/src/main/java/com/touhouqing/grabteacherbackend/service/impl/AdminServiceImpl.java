@@ -529,6 +529,7 @@ public class AdminServiceImpl implements AdminService {
                 .introduction(teacher.getIntroduction())
                 .videoIntroUrl(teacher.getVideoIntroUrl())
                 .gender(teacher.getGender())
+                .level(teacher.getLevel())
                 .availableTimeSlots(availableTimeSlots)
                 .verified(teacher.getVerified())
                 .featured(teacher.getFeatured())
@@ -620,6 +621,7 @@ public class AdminServiceImpl implements AdminService {
                 .introduction(request.getIntroduction())
                 .videoIntroUrl(request.getVideoIntroUrl())
                 .gender(request.getGender() != null ? request.getGender() : "不愿透露")
+                .level(request.getLevel() != null ? request.getLevel() : "王牌")
                 .availableTimeSlots(availableTimeSlotsJson)
                 .rating(request.getRating() != null ? request.getRating() : BigDecimal.valueOf(5.0)) // 默认评分5.0
                 .verified(true) // 管理员添加的教师默认已审核
@@ -708,7 +710,11 @@ public class AdminServiceImpl implements AdminService {
         teacher.setIntroduction(request.getIntroduction());
         teacher.setVideoIntroUrl(request.getVideoIntroUrl());
         teacher.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
-        
+        // 更新教师级别
+        if (request.getLevel() != null) {
+            teacher.setLevel(request.getLevel());
+        }
+
         // 更新教师评分
         if (request.getRating() != null) {
             teacher.setRating(request.getRating());

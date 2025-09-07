@@ -275,6 +275,7 @@ export const teacherAPI = {
     introduction?: string
     videoIntroUrl?: string
     gender?: string
+    level?: string
     availableTimeSlots?: any[]
     avatarUrl?: string
   }) => apiRequest('/api/admin/teachers', {
@@ -296,6 +297,7 @@ export const teacherAPI = {
     introduction?: string
     videoIntroUrl?: string
     gender?: string
+    level?: string
     availableTimeSlots?: any[]
   }) => apiRequest(`/api/admin/teachers/${id}`, {
     method: 'PUT',

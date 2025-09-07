@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Phone, Message, Location, School, Trophy, VideoCamera, ArrowLeft, Loading } from '@element-plus/icons-vue'
 import { teacherAPI } from '@/utils/api'
 import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
@@ -392,9 +392,17 @@ onMounted(() => {
   fetchTeacherDetail()
 })
 
-// 预约课程 - 跳转到联系我们页面
-const bookLesson = () => {
-  router.push({ path: '/about', hash: '#contact-us' })
+// 点击咨询 - 弹窗提示后跳转到联系我们页面
+const bookLesson = async () => {
+  try {
+    await ElMessageBox.alert('请联系管理员进行详细咨询', '提示', {
+      confirmButtonText: '确定',
+      type: 'info',
+      center: true
+    })
+  } finally {
+    router.push({ path: '/about', hash: '#contact-us' })
+  }
 }
 
 

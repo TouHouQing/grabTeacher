@@ -50,6 +50,13 @@ const teacherPagination = reactive({
 // 对话框
 const teacherDialogVisible = ref(false)
 const teacherDialogTitle = ref('')
+const LEVEL_OPTIONS = [
+  { label: '王牌', value: '王牌' },
+  { label: '金牌', value: '金牌' },
+  { label: '银牌', value: '银牌' },
+  { label: '铜牌', value: '铜牌' }
+]
+
 const teacherForm = reactive({
   id: 0,
   realName: '',
@@ -66,6 +73,7 @@ const teacherForm = reactive({
   introduction: '',
   videoIntroUrl: '',
   gender: '不愿透露',
+  level: '王牌',
   isVerified: false, // 表单内部仍使用 isVerified，编辑时从 row.verified 映射
   avatarUrl: '',
   adjustmentTimes: 3,
@@ -303,6 +311,7 @@ const handleAddTeacher = () => {
     introduction: '',
     videoIntroUrl: '',
     gender: '不愿透露',
+    level: '王牌',
     isVerified: false
   })
   // 重置头像与本地文件
@@ -322,9 +331,11 @@ const handleEditTeacher = async (teacher: any) => {
       Object.assign(teacherForm, detail.data)
       // 统一旧值到新枚举：如“硕士研究生”=>“硕士”，“博士研究生”=>“博士”，“专科”=>“专科及以下”
       teacherForm.educationBackground = normalizeEducation(teacherForm.educationBackground || '')
+      teacherForm.level = detail.data.level || '王牌'
       teacherForm.isVerified = !!detail.data.verified
     } else {
       Object.assign(teacherForm, teacher)
+      teacherForm.level = teacher.level || '王牌'
       teacherForm.isVerified = !!teacher.verified
     }
   } catch (e) {
@@ -395,6 +406,7 @@ const saveTeacher = async () => {
       introduction: teacherForm.introduction,
       videoIntroUrl: teacherForm.videoIntroUrl,
       gender: teacherForm.gender,
+      level: teacherForm.level,
       isVerified: teacherForm.isVerified,
       availableTimeSlots: availableTimeSlots.value,
       adjustmentTimes: teacherForm.adjustmentTimes,
@@ -409,6 +421,7 @@ const saveTeacher = async () => {
     } else if (teacherForm.password && teacherForm.password.trim()) {
       baseData.password = teacherForm.password // 编辑时如果填写了密码则更新
     }
+      // 审核状态：后端 DTO 无此字段，这里不直接提交 isVerified，由单独接口控制
 
     let result: any
     let currentId = teacherForm.id
@@ -731,6 +744,16 @@ onMounted(async () => {
               </el-radio-group>
             </el-form-item>
           </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="教师级别">
+              <el-select v-model="teacherForm.level" placeholder="请选择教师级别" style="width: 100%">
+                <el-option v-for="opt in LEVEL_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12" />
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12">

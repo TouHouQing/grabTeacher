@@ -58,6 +58,11 @@ public class Teacher {
     @TableField("gender")
     private String gender;
 
+
+    @Schema(description = "教师级别", allowableValues = {"王牌", "金牌", "银牌", "铜牌"})
+    @TableField("level")
+    private String level;
+
     @TableField("available_time_slots")
     @Schema(description = "可上课时间安排", example = "[{\"weekday\":1,\"timeSlots\":[\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":6,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\"]}]")
     private String availableTimeSlots;
