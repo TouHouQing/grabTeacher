@@ -392,20 +392,20 @@ public class CourseServiceImpl implements CourseService {
                keyGenerator = "courseCacheKeyGenerator",
                unless = "#result == null || #result.records.isEmpty()")
     public Page<CourseVO> getCourseList(int page, int size, String keyword, Long subjectId,
-                                        Long teacherId, String status, String courseType) {
-        return doGetCourseList(page, size, keyword, subjectId, teacherId, status, courseType);
+                                        Long teacherId, String status, String courseType, String courseLocation, String teacherLevel) {
+        return doGetCourseList(page, size, keyword, subjectId, teacherId, status, courseType, courseLocation, teacherLevel);
     }
 
     // 管理端直查 DB
     @Override
     public Page<CourseVO> getCourseListNoCache(int page, int size, String keyword, Long subjectId,
                                                Long teacherId, String status, String courseType) {
-        return doGetCourseList(page, size, keyword, subjectId, teacherId, status, courseType);
+        return doGetCourseList(page, size, keyword, subjectId, teacherId, status, courseType, null, null);
     }
 
     // 共享查询实现
     private Page<CourseVO> doGetCourseList(int page, int size, String keyword, Long subjectId,
-                                           Long teacherId, String status, String courseType) {
+                                           Long teacherId, String status, String courseType, String courseLocation, String teacherLevel) {
         Page<Course> pageParam = new Page<>(page, size);
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
 
@@ -431,6 +431,36 @@ public class CourseServiceImpl implements CourseService {
             queryWrapper.eq("course_type", courseType);
         }
 
+        if (StringUtils.hasText(courseLocation)) {
+            String loc = courseLocation.trim();
+            if (StringUtils.hasText(loc)) {
+                queryWrapper.eq("course_location", loc);
+            }
+        }
+
+        // 教师级别筛选：需关联教师表过滤
+        if (StringUtils.hasText(teacherLevel)) {
+            String lvl = teacherLevel.trim();
+            if (StringUtils.hasText(lvl)) {
+                QueryWrapper<Teacher> tq = new QueryWrapper<>();
+                tq.eq("is_deleted", false);
+                tq.eq("level", lvl);
+                List<Teacher> ts = teacherMapper.selectList(tq);
+                if (ts == null || ts.isEmpty()) {
+                    // 无匹配教师，直接返回空的分页结果（类型为 CourseVO）
+                    Page<CourseVO> empty = new Page<>(page, size, 0);
+                    empty.setRecords(new ArrayList<>());
+                    return empty;
+                }
+                List<Long> teacherIdsForLevel = ts.stream().map(Teacher::getId).collect(Collectors.toList());
+                if (teacherIdsForLevel.isEmpty()) {
+                    Page<CourseVO> empty = new Page<>(page, size, 0);
+                    empty.setRecords(new ArrayList<>());
+                    return empty;
+                }
+                queryWrapper.in("teacher_id", teacherIdsForLevel);
+            }
+        }
 
         queryWrapper.orderByDesc("created_at");
 
@@ -697,12 +727,14 @@ public class CourseServiceImpl implements CourseService {
 
         // 2) 批量查询教师
         Map<Long, String> teacherNameMap = new HashMap<>();
+        Map<Long, Teacher> teacherMap = new HashMap<>();
         if (!teacherIds.isEmpty()) {
             QueryWrapper<Teacher> tq = new QueryWrapper<>();
             tq.in("id", teacherIds);
             tq.eq("is_deleted", false);
             for (Teacher t : teacherMapper.selectList(tq)) {
                 teacherNameMap.put(t.getId(), t.getRealName());
+                teacherMap.put(t.getId(), t);
             }
         }
 
@@ -744,6 +776,16 @@ public class CourseServiceImpl implements CourseService {
                     .personLimit(c.getPersonLimit())
                     .imageUrl(c.getImageUrl())
                     .build();
+
+            // teacher level & schedule display（使用已批量查询的 teacherMap，避免N+1）
+            Teacher teacher = teacherMap.get(c.getTeacherId());
+            if (teacher != null) {
+                resp.setTeacherLevel(teacher.getLevel());
+                resp.setScheduleDisplay(buildScheduleDisplay(c, teacher));
+            } else {
+                resp.setScheduleDisplay(buildScheduleDisplay(c, null));
+            }
+
             resp.setCourseTypeDisplay(resp.getCourseTypeDisplay());
             resp.setStatusDisplay(resp.getStatusDisplay());
             list.add(resp);
@@ -823,4 +865,72 @@ public class CourseServiceImpl implements CourseService {
         public List<Long> getFeaturedCourseIdsNoCache() {
             return courseMapper.findFeaturedCourseIds();
         }
+
+        // ===== 辅助方法：方案A 时间展示拼接（不改库表）=====
+    private String buildScheduleDisplay(Course c, Teacher teacher) {
+        StringBuilder sb = new StringBuilder();
+        if (c.getStartDate() != null && c.getEndDate() != null) {
+            sb.append(String.format("%04d.%02d.%02d-%04d.%02d.%02d",
+                    c.getStartDate().getYear(), c.getStartDate().getMonthValue(), c.getStartDate().getDayOfMonth(),
+                    c.getEndDate().getYear(), c.getEndDate().getMonthValue(), c.getEndDate().getDayOfMonth()));
+        }
+        boolean isLarge = "large_class".equalsIgnoreCase(c.getCourseType());
+        if (isLarge) {
+            String weekly = extractWeeklyFromTeacher(teacher);
+            if (!weekly.isEmpty()) {
+                if (sb.length() > 0) sb.append("，");
+                sb.append(weekly);
+            }
+        } else {
+            if (sb.length() > 0) sb.append("，");
+            sb.append("时间可协商");
+        }
+        return sb.toString();
+    }
+
+    private String extractWeeklyFromTeacher(Teacher teacher) {
+        if (teacher == null) return "";
+        String json = teacher.getAvailableTimeSlots();
+        if (json == null || json.isEmpty()) return "";
+        try {
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile("\\\"weekday\\\":(\\d).*?\\\"timeSlots\\\":\\\\[(\\\"[0-9:]{4,}-[0-9:]{4,}\\\")");
+            java.util.regex.Matcher m = p.matcher(json);
+            java.util.Map<Integer, Integer> count = new java.util.HashMap<>();
+            java.util.Map<Integer, String> firstSlot = new java.util.HashMap<>();
+            while (m.find()) {
+                String wStr = m.group(1).replaceAll("[^0-9]", "");
+                if (wStr.isEmpty()) continue;
+                int w = Integer.parseInt(wStr);
+                String slotQuoted = m.group(2);
+                String slot = slotQuoted != null && slotQuoted.length() >= 2 ? slotQuoted.substring(1, slotQuoted.length() - 1) : slotQuoted;
+                count.put(w, count.getOrDefault(w, 0) + 1);
+                if (!firstSlot.containsKey(w) && slot != null) firstSlot.put(w, slot);
+            }
+            int bestW = -1, bestC = -1;
+            for (java.util.Map.Entry<Integer, Integer> e : count.entrySet()) {
+                if (e.getValue() > bestC) { bestC = e.getValue(); bestW = e.getKey(); }
+            }
+            if (bestW == -1) return "";
+            String weekdayZh;
+            switch (bestW) {
+                case 1: weekdayZh = "周一"; break;
+                case 2: weekdayZh = "周二"; break;
+                case 3: weekdayZh = "周三"; break;
+                case 4: weekdayZh = "周四"; break;
+                case 5: weekdayZh = "周五"; break;
+                case 6: weekdayZh = "周六"; break;
+                case 0:
+                case 7: weekdayZh = "周日"; break;
+                default: weekdayZh = ""; break;
+            }
+            if (weekdayZh.isEmpty()) return "";
+            String slot = firstSlot.get(bestW);
+            if (slot != null && !slot.isEmpty()) {
+                return "每周" + weekdayZh.substring(1) + "，" + slot;
+            }
+            return "每周" + weekdayZh.substring(1);
+        } catch (Exception ignore) {
+            return "";
+        }
+    }
 }

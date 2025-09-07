@@ -128,11 +128,11 @@ public class CacheWarmupService implements ApplicationRunner {
             log.info("预热热门课程列表缓存...");
 
             // 预热第一页课程列表（最常访问）
-            courseService.getCourseList(1, 10, null, null, null, "active", null);
+            courseService.getCourseList(1, 10, null, null, null, "active", null, null, null);
 
             // 预热不同课程类型的列表
-            courseService.getCourseList(1, 10, null, null, null, "active", "one_on_one");
-            courseService.getCourseList(1, 10, null, null, null, "active", "large_class");
+            courseService.getCourseList(1, 10, null, null, null, "active", "one_on_one", null, null);
+            courseService.getCourseList(1, 10, null, null, null, "active", "large_class", null, null);
 
             log.info("预热热门课程列表缓存完成");
         } catch (Exception e) {

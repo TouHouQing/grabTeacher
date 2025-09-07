@@ -20,6 +20,7 @@ interface Course {
   id: number
   teacherId: number
   teacherName: string
+  teacherLevel?: string
   subjectId: number
   subjectName: string
   title: string
@@ -35,6 +36,8 @@ interface Course {
   endDate?: string
   personLimit?: number
   imageUrl?: string
+  courseLocation?: string
+  scheduleDisplay?: string
 }
 
 // 科目接口定义
@@ -49,6 +52,9 @@ interface Subject {
 // 搜索过滤条件
 const filter = reactive({
   subject: '',
+  courseType: '',
+  courseLocation: '',
+  teacherLevel: ''
 })
 
 // 分页参数
@@ -78,6 +84,15 @@ const fetchCourses = async () => {
       }
     }
 
+    if (filter.courseType) {
+      params.courseType = filter.courseType
+    }
+    if (filter.courseLocation) {
+      params.courseLocation = filter.courseLocation
+    }
+    if (filter.teacherLevel) {
+      params.teacherLevel = filter.teacherLevel
+    }
 
     const response = await courseAPI.getPublicCourses(params)
     if (response.success && response.data) {
@@ -116,6 +131,9 @@ const handleFilter = () => {
 // 重置筛选
 const resetFilter = () => {
   filter.subject = ''
+  filter.courseType = ''
+  filter.courseLocation = ''
+  filter.teacherLevel = ''
   currentPage.value = 1
   fetchCourses()
 }
@@ -236,6 +254,26 @@ onMounted(() => {
               />
             </el-select>
           </el-form-item>
+          <el-form-item label="教师级别">
+            <el-select v-model="filter.teacherLevel" placeholder="选择级别" clearable>
+              <el-option label="王牌" value="王牌" />
+              <el-option label="金牌" value="金牌" />
+              <el-option label="银牌" value="银牌" />
+              <el-option label="铜牌" value="铜牌" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="授课方式">
+            <el-select v-model="filter.courseLocation" placeholder="线上/线下" clearable>
+              <el-option label="线上" value="线上" />
+              <el-option label="线下" value="线下" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="课程类型">
+            <el-select v-model="filter.courseType" placeholder="类型" clearable>
+              <el-option label="一对一" value="one_on_one" />
+              <el-option label="大班课" value="large_class" />
+            </el-select>
+          </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="handleFilter" :loading="loading">筛选</el-button>
             <el-button @click="resetFilter">重置</el-button>
@@ -261,6 +299,10 @@ onMounted(() => {
               <p class="course-description">{{ course.description || '暂无课程描述' }}</p>
               <div class="course-meta">
                 <div class="meta-item">
+                  <el-icon><Calendar /></el-icon>
+                  <span>{{ course.scheduleDisplay || (course.startDate && course.endDate ? (new Date(course.startDate).toLocaleDateString('zh-CN') + '-' + new Date(course.endDate).toLocaleDateString('zh-CN')) : '时间可协商') }}</span>
+                </div>
+                <div class="meta-item">
                   <el-icon><Timer /></el-icon>
                   <span>{{ formatDuration(course.durationMinutes) }}</span>
                 </div>
@@ -272,9 +314,9 @@ onMounted(() => {
                   <el-icon><School /></el-icon>
                   <span>{{ course.courseTypeDisplay }}</span>
                 </div>
-                <div class="meta-item">
-                  <el-icon><Calendar /></el-icon>
-                  <span>{{ formatDate(course.createdAt) }}</span>
+                <div class="meta-item" v-if="course.teacherLevel">
+                  <el-icon><Star /></el-icon>
+                  <span>{{ course.teacherLevel }}</span>
                 </div>
               </div>
               <div class="course-tags">

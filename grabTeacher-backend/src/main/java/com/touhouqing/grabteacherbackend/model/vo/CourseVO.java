@@ -16,7 +16,7 @@ import java.math.BigDecimal;
 @Builder
 @Schema(description = "课程响应数据")
 public class CourseVO {
-    
+
     @Schema(description = "课程ID", example = "1")
     private Long id;
 
@@ -25,6 +25,9 @@ public class CourseVO {
 
     @Schema(description = "教师姓名", example = "张老师")
     private String teacherName;
+
+    @Schema(description = "教师级别", example = "金牌", allowableValues = {"王牌", "金牌", "银牌", "铜牌"})
+    private String teacherLevel;
 
     @Schema(description = "课程科目ID", example = "1")
     private Long subjectId;
@@ -76,6 +79,9 @@ public class CourseVO {
 
     @Schema(description = "课程封面图URL")
     private String imageUrl;
+
+    @Schema(description = "课程时间显示（组合：日期区间 + 每周 + 时间段）", example = "2025.10.01-2025.12.31，每周一三五，7pm-9pm")
+    private String scheduleDisplay;
 
     // 辅助方法：获取课程类型显示名称
     public String getCourseTypeDisplay() {

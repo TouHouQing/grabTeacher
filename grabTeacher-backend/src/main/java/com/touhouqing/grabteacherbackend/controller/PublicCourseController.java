@@ -57,12 +57,14 @@ public class PublicCourseController {
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "科目ID") @RequestParam(required = false) Long subjectId,
             @Parameter(description = "教师ID") @RequestParam(required = false) Long teacherId,
-            @Parameter(description = "课程类型") @RequestParam(required = false) String courseType) {
+            @Parameter(description = "课程类型") @RequestParam(required = false) String courseType,
+            @Parameter(description = "授课方式") @RequestParam(required = false) String courseLocation,
+            @Parameter(description = "教师级别") @RequestParam(required = false) String teacherLevel) {
         try {
             // 只返回活跃状态的课程
             Page<CourseVO> coursePage = courseService.getCourseList(page, size, keyword,
-                    subjectId, teacherId, "active", courseType);
-            
+                    subjectId, teacherId, "active", courseType, courseLocation, teacherLevel);
+
             Map<String, Object> response = new HashMap<>();
             response.put("courses", coursePage.getRecords());
             response.put("total", coursePage.getTotal());

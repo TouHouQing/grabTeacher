@@ -711,6 +711,8 @@ export const courseAPI = {
     subjectId?: number
     teacherId?: number
     courseType?: string
+    courseLocation?: string
+    teacherLevel?: string
   }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params).forEach(key => {

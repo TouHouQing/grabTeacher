@@ -39,13 +39,13 @@ class CourseCacheKeyGenerator implements KeyGenerator {
             return "courseList:default";
         }
 
-        StringBuilder key = new StringBuilder("courseList:");
+        StringBuilder key = new StringBuilder("courseList:v2:");
 
-        // page, size, keyword, subjectId, teacherId, status, courseType, grade
+        // page, size, keyword, subjectId, teacherId, status, courseType, courseLocation, teacherLevel
         key.append("page_").append(params[0] != null ? params[0] : "1");
         key.append(":size_").append(params[1] != null ? params[1] : "10");
 
-        if (params.length > 2 && StringUtils.hasText((String) params[2])) {
+        if (params.length > 2 && params[2] instanceof String && StringUtils.hasText((String) params[2])) {
             key.append(":keyword_").append(params[2]);
         }
         if (params.length > 3 && params[3] != null) {
@@ -54,14 +54,17 @@ class CourseCacheKeyGenerator implements KeyGenerator {
         if (params.length > 4 && params[4] != null) {
             key.append(":teacher_").append(params[4]);
         }
-        if (params.length > 5 && StringUtils.hasText((String) params[5])) {
+        if (params.length > 5 && params[5] instanceof String && StringUtils.hasText((String) params[5])) {
             key.append(":status_").append(params[5]);
         }
-        if (params.length > 6 && StringUtils.hasText((String) params[6])) {
+        if (params.length > 6 && params[6] instanceof String && StringUtils.hasText((String) params[6])) {
             key.append(":type_").append(params[6]);
         }
-        if (params.length > 7 && StringUtils.hasText((String) params[7])) {
-            key.append(":grade_").append(params[7]);
+        if (params.length > 7 && params[7] instanceof String && StringUtils.hasText((String) params[7])) {
+            key.append(":location_").append(params[7]);
+        }
+        if (params.length > 8 && params[8] instanceof String && StringUtils.hasText((String) params[8])) {
+            key.append(":tLevel_").append(params[8]);
         }
 
         return key.toString();

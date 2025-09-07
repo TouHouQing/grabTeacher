@@ -47,7 +47,7 @@ public interface CourseService {
      * 获取课程列表（分页） - 公开端建议使用（带缓存）
      */
     Page<CourseVO> getCourseList(int page, int size, String keyword, Long subjectId,
-                                 Long teacherId, String status, String courseType);
+                                 Long teacherId, String status, String courseType, String courseLocation, String teacherLevel);
 
     /**
      * 获取课程列表（分页） - 管理端使用（直查DB，不缓存）
