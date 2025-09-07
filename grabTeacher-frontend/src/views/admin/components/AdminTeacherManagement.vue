@@ -56,6 +56,7 @@ const teacherForm = reactive({
   username: '',
   email: '',
   phone: '',
+  password: '', // 添加密码字段
   educationBackground: '',
   teachingExperience: 0,
   specialties: '',
@@ -369,6 +370,8 @@ const handleEditTeacher = async (teacher: any) => {
     availableTimeSlots.value = []
   }
 
+  // 编辑时清空密码字段，避免显示敏感信息
+  teacherForm.password = ''
   teacherDialogVisible.value = true
 }
 
@@ -378,7 +381,7 @@ const saveTeacher = async () => {
     loading.value = true
 
     // 组装基础数据（不带头像）
-    const baseData = {
+    const baseData: any = {
       realName: teacherForm.realName,
       username: teacherForm.username,
       email: teacherForm.email,
@@ -397,6 +400,14 @@ const saveTeacher = async () => {
       adjustmentTimes: teacherForm.adjustmentTimes,
       currentHours: teacherForm.currentHours,
       lastHours: teacherForm.lastHours
+    }
+
+    // 处理密码：新建时使用默认密码，编辑时如果填写了密码则更新
+    const wasNew = teacherForm.id === 0
+    if (wasNew) {
+      baseData.password = '123456' // 新建教师默认密码
+    } else if (teacherForm.password && teacherForm.password.trim()) {
+      baseData.password = teacherForm.password // 编辑时如果填写了密码则更新
     }
 
     let result: any
@@ -658,7 +669,7 @@ onMounted(async () => {
     >
       <el-form :model="teacherForm" :rules="teacherRules" label-width="120px">
         <!-- 账号信息 -->
-        <el-row :gutter="20" v-if="teacherForm.id === 0">
+        <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item prop="username">
               <template #label>
@@ -676,15 +687,23 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="20" v-if="teacherForm.id === 0">
+        <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="手机号">
               <el-input v-model="teacherForm.phone" placeholder="请输入手机号" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="默认密码">
-              <el-input value="123456" disabled placeholder="默认密码为123456" />
+            <el-form-item label="密码">
+              <el-input
+                v-model="teacherForm.password"
+                type="password"
+                :placeholder="teacherForm.id === 0 ? '默认密码为123456' : '留空则不修改密码'"
+                show-password
+              />
+              <small style="color: #999; font-size: 12px;">
+                {{ teacherForm.id === 0 ? '新建教师默认密码为123456' : '留空则不修改密码' }}
+              </small>
             </el-form-item>
           </el-col>
         </el-row>

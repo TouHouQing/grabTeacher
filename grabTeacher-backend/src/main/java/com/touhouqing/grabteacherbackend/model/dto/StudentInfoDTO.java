@@ -38,6 +38,9 @@ public class    StudentInfoDTO {
     @Schema(description = "手机号")
     private String phone;
 
+    @Schema(description = "密码（管理员可编辑，留空则不修改）")
+    private String password;
+
     @Schema(description = "试听课次数（管理员可编辑）")
     private Integer trialTimes;
 

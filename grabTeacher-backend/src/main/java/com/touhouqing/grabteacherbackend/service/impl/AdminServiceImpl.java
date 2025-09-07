@@ -50,11 +50,9 @@ public class AdminServiceImpl implements AdminService {
     private final AliyunOssUtil ossUtil;
     private final StringRedisTemplate stringRedisTemplate;
     private final FeaturedTeachersLocalCache featuredTeachersLocalCache;
+    private final PasswordEncoder passwordEncoder;
     @Autowired
     private org.springframework.cache.CacheManager cacheManager;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
 
     /**
      * 获取系统统计信息
@@ -354,6 +352,10 @@ public class AdminServiceImpl implements AdminService {
                 }
                 if (request.getAvatarUrl() != null && !request.getAvatarUrl().isEmpty()) {
                     currentUser.setAvatarUrl(request.getAvatarUrl());
+                }
+                // 更新密码（如果提供了新密码）
+                if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
+                    currentUser.setPassword(passwordEncoder.encode(request.getPassword()));
                 }
                 // 更新试听课次数
                 if (request.getTrialTimes() != null) {
@@ -684,6 +686,10 @@ public class AdminServiceImpl implements AdminService {
                 }
                 if (request.getAvatarUrl() != null && !request.getAvatarUrl().isEmpty()) {
                     currentUser.setAvatarUrl(request.getAvatarUrl());
+                }
+                // 更新密码（如果提供了新密码）
+                if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
+                    currentUser.setPassword(passwordEncoder.encode(request.getPassword()));
                 }
                 currentUser.setUpdatedAt(LocalDateTime.now());
                 userMapper.updateById(currentUser);
