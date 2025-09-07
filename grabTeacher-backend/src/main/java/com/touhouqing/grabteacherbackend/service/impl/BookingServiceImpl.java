@@ -230,6 +230,20 @@ public class BookingServiceImpl implements BookingService {
                 } else if ("recurring".equals(bookingRequest.getBookingType())) {
                     generateRecurringSchedules(bookingRequest);
                 }
+                // 审批通过后：若绑定了课程ID且为一对一课程，则报名人数+1并视人数限制置满
+                if (bookingRequest.getCourseId() != null) {
+                    try {
+                        Course c = courseMapper.selectById(bookingRequest.getCourseId());
+                        if (c != null && "one_on_one".equalsIgnoreCase(c.getCourseType())) {
+                            int affected = courseMapper.incrementEnrollmentAndSetFullIfNeeded(bookingRequest.getCourseId());
+                            if (affected <= 0) {
+                                log.warn("课程报名人数未更新，可能已满或不可报名，courseId={}", bookingRequest.getCourseId());
+                            }
+                        }
+                    } catch (Exception ex) {
+                        log.error("更新课程报名人数失败，courseId={}", bookingRequest.getCourseId(), ex);
+                    }
+                }
             } finally {
                 distributedLockService.unlock(lockKey, token);
             }

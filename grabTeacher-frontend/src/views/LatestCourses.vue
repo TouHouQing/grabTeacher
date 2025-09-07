@@ -1,19 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import ContactUs from '../components/ContactUs.vue'
-import { ElMessage } from 'element-plus'
-import {
-  Timer,
-  User,
-  Star,
-  Calendar,
-  Refresh,
-  GoodsFilled,
-  Present,
-  Reading,
-  School
-} from '@element-plus/icons-vue'
-import { courseAPI, subjectAPI } from '@/utils/api'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Timer, Star, Calendar, Reading, School } from '@element-plus/icons-vue'
+import { courseAPI, subjectAPI, enrollmentAPI } from '@/utils/api'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
 
 // 课程接口定义
 interface Course {
@@ -38,6 +31,7 @@ interface Course {
   imageUrl?: string
   courseLocation?: string
   scheduleDisplay?: string
+  enrolled?: boolean
 }
 
 // 科目接口定义
@@ -66,6 +60,8 @@ const total = ref(0)
 const loading = ref(false)
 const courses = ref<Course[]>([])
 const subjects = ref<Subject[]>([])
+// 报名加载状态（用于禁用/加载按钮）
+const enrollingCourseId = ref<number | null>(null)
 
 // 获取课程列表
 const fetchCourses = async () => {
@@ -229,8 +225,64 @@ onMounted(() => {
   fetchSubjects()
   fetchCourses()
 })
-</script>
 
+// 点击立即报名
+const handleEnroll = async (course: Course) => {
+  try {
+    // 未登录提示
+    if (!userStore.isLoggedIn) {
+      await ElMessageBox.alert('请登录或联系客服预约课程', '提示', { confirmButtonText: '确定' })
+      return
+    }
+    // 非学生角色提示
+    if (!userStore.isStudent) {
+      ElMessage.warning('请使用学生账号登录后报名')
+      return
+    }
+    // 已报名直接提示
+    if (course.enrolled) {
+      ElMessage.info('您已报名该课程')
+      return
+    }
+    // 仅支持大班课报名
+    if (course.courseType !== 'large_class') {
+      ElMessage.info('该课程请先进入详情或联系客服预约')
+      return
+    }
+
+    // 二次确认
+    await ElMessageBox.confirm(`确认报名该课程：${course.title}？`, '确认报名', {
+      type: 'warning',
+      confirmButtonText: '确认报名',
+      cancelButtonText: '取消'
+    })
+
+    enrollingCourseId.value = course.id
+    const res = await enrollmentAPI.enrollCourse(course.id)
+    const msg: string = res.message || ''
+    if (msg.includes('已报名')) {
+      ElMessage.info('您已报名该课程')
+    } else if (res.success) {
+      ElMessage.success('报名成功')
+      fetchCourses()
+    } else if (msg.includes('余额不足')) {
+      ElMessage.warning('您的M豆余额不足，请联系客服预约课程')
+    } else {
+      ElMessage.error(msg || '报名失败，请稍后重试')
+    }
+  } catch (e: any) {
+    if (e === 'cancel') {
+      ElMessage.info('已取消报名')
+    } else {
+      console.error('报名失败:', e)
+      ElMessage.error('报名失败，请稍后重试')
+    }
+  } finally {
+    enrollingCourseId.value = null
+  }
+}
+
+</script>
 <template>
   <div class="latest-courses">
     <div class="banner">
@@ -284,8 +336,8 @@ onMounted(() => {
       <!-- 课程列表 -->
       <div class="courses-section" v-loading="loading">
         <div class="courses-grid" v-if="courses.length > 0">
-          <div class="course-card" v-for="course in courses" :key="course.id" role="button" tabindex="0" @click="$router.push(`/course/${course.id}`)" @keyup.enter="$router.push(`/course/${course.id}`)">
-            <div class="course-image">
+          <div class="course-card" v-for="course in courses" :key="course.id">
+            <div class="course-image" @click="$router.push(`/course/${course.id}`)" @keyup.enter="$router.push(`/course/${course.id}`)" role="button" tabindex="0">
               <img :src="course.imageUrl ? course.imageUrl : $getImageUrl(getDefaultCourseImage(course.subjectName))" :alt="course.title">
               <div class="course-badge new" v-if="isNewCourse(course.createdAt)">最新</div>
               <div class="course-badge status" :class="course.status">{{ course.statusDisplay }}</div>
@@ -329,6 +381,20 @@ onMounted(() => {
                 <div class="course-status-text">{{ course.statusDisplay }}</div>
               </div>
 
+              <div class="course-actions">
+                <template v-if="course.courseType === 'large_class'">
+                  <el-button type="primary"
+                             :loading="enrollingCourseId === course.id"
+                             :disabled="enrollingCourseId === course.id || !!course.enrolled"
+                             @click.stop="handleEnroll(course)">
+                    {{ course.enrolled ? '已报名' : '立即报名' }}
+                  </el-button>
+                  <el-button type="default" @click.stop="$router.push(`/course/${course.id}`)">查看详情</el-button>
+                </template>
+                <template v-else>
+                  <el-button type="default" @click.stop="$router.push(`/course/${course.id}`)">查看详情</el-button>
+                </template>
+              </div>
             </div>
           </div>
         </div>

@@ -1,7 +1,16 @@
 package com.touhouqing.grabteacherbackend.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.touhouqing.grabteacherbackend.cache.ActiveCoursesLocalCache;
 import com.touhouqing.grabteacherbackend.common.result.CommonResult;
+import com.touhouqing.grabteacherbackend.mapper.CourseEnrollmentMapper;
+import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
+import com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment;
+import com.touhouqing.grabteacherbackend.model.entity.Student;
 import com.touhouqing.grabteacherbackend.model.vo.CourseVO;
+import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.CourseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -9,20 +18,18 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import com.touhouqing.grabteacherbackend.cache.ActiveCoursesLocalCache;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import java.time.Duration;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.Duration;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/public/courses")
@@ -43,6 +50,12 @@ public class PublicCourseController {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private StudentMapper studentMapper;
+
+    @Autowired
+    private CourseEnrollmentMapper courseEnrollmentMapper;
+
     /**
      * 获取公开课程列表（分页）
      */
@@ -59,19 +72,46 @@ public class PublicCourseController {
             @Parameter(description = "教师ID") @RequestParam(required = false) Long teacherId,
             @Parameter(description = "课程类型") @RequestParam(required = false) String courseType,
             @Parameter(description = "授课方式") @RequestParam(required = false) String courseLocation,
-            @Parameter(description = "教师级别") @RequestParam(required = false) String teacherLevel) {
+            @Parameter(description = "教师级别") @RequestParam(required = false) String teacherLevel,
+            Authentication authentication) {
         try {
             // 只返回活跃状态的课程
             Page<CourseVO> coursePage = courseService.getCourseList(page, size, keyword,
                     subjectId, teacherId, "active", courseType, courseLocation, teacherLevel);
 
+            // 基于当前登录学生，批量标记是否已报名（不修改缓存对象）
+            Long studentId = getCurrentStudentId(authentication);
+            List<CourseVO> records = coursePage.getRecords();
+            List<CourseVO> copied = new ArrayList<>(records.size());
+            Set<Long> enrolledIds = Collections.emptySet();
+            if (studentId != null && !records.isEmpty()) {
+                List<Long> ids = records.stream().map(CourseVO::getId).collect(Collectors.toList());
+                QueryWrapper<CourseEnrollment> qw = new QueryWrapper<>();
+                qw.eq("student_id", studentId)
+                  .in("course_id", ids)
+                  .eq("is_deleted", false)
+                  .in("enrollment_status", "active", "suspended");
+                List<CourseEnrollment> list = courseEnrollmentMapper.selectList(qw);
+                enrolledIds = list.stream().map(CourseEnrollment::getCourseId).collect(Collectors.toSet());
+            }
+            for (CourseVO c : records) {
+                CourseVO copy = new CourseVO();
+                BeanUtils.copyProperties(c, copy);
+                if (studentId != null) {
+                    copy.setEnrolled(enrolledIds.contains(c.getId()));
+                } else {
+                    copy.setEnrolled(null);
+                }
+                copied.add(copy);
+            }
+
             Map<String, Object> response = new HashMap<>();
-            response.put("courses", coursePage.getRecords());
+            response.put("courses", copied);
             response.put("total", coursePage.getTotal());
             response.put("current", coursePage.getCurrent());
             response.put("size", coursePage.getSize());
             response.put("pages", coursePage.getPages());
-            
+
             return ResponseEntity.ok(CommonResult.success("获取课程列表成功", response));
         } catch (Exception e) {
             logger.error("获取公开课程列表异常: ", e);
@@ -139,7 +179,8 @@ public class PublicCourseController {
     })
     @GetMapping("/{id}")
     public ResponseEntity<CommonResult<CourseVO>> getCourseById(
-            @Parameter(description = "课程ID", required = true) @PathVariable Long id) {
+            @Parameter(description = "课程ID", required = true) @PathVariable Long id,
+            Authentication authentication) {
         try {
             CourseVO course = courseService.getCourseById(id);
             if (course == null) {
@@ -151,7 +192,16 @@ public class PublicCourseController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(CommonResult.error("课程不存在或已下架"));
             }
-            return ResponseEntity.ok(CommonResult.success("获取课程成功", course));
+            // 复制并填充 enrolled
+            CourseVO copy = new CourseVO();
+            BeanUtils.copyProperties(course, copy);
+            Long studentId = getCurrentStudentId(authentication);
+            if (studentId != null) {
+                copy.setEnrolled(Boolean.TRUE.equals(hasEnrolled(studentId, id)));
+            } else {
+                copy.setEnrolled(null);
+            }
+            return ResponseEntity.ok(CommonResult.success("获取课程成功", copy));
         } catch (Exception e) {
             logger.error("获取课程异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -170,13 +220,40 @@ public class PublicCourseController {
     public ResponseEntity<CommonResult<Map<String, Object>>> getLatestCourses(
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "6") int size,
-            @Parameter(description = "科目ID") @RequestParam(required = false) Long subjectId) {
+            @Parameter(description = "科目ID") @RequestParam(required = false) Long subjectId,
+            Authentication authentication) {
         try {
             // 获取精选课程列表
             Page<CourseVO> coursePage = courseService.getFeaturedCourses(page, size, subjectId);
 
+            // 批量标记已报名
+            Long studentId = getCurrentStudentId(authentication);
+            List<CourseVO> records = coursePage.getRecords();
+            List<CourseVO> copied = new ArrayList<>(records.size());
+            Set<Long> enrolledIds = Collections.emptySet();
+            if (studentId != null && !records.isEmpty()) {
+                List<Long> ids = records.stream().map(CourseVO::getId).collect(Collectors.toList());
+                QueryWrapper<CourseEnrollment> qw = new QueryWrapper<>();
+                qw.eq("student_id", studentId)
+                  .in("course_id", ids)
+                  .eq("is_deleted", false)
+                  .in("enrollment_status", "active", "suspended");
+                List<CourseEnrollment> list = courseEnrollmentMapper.selectList(qw);
+                enrolledIds = list.stream().map(CourseEnrollment::getCourseId).collect(Collectors.toSet());
+            }
+            for (CourseVO c : records) {
+                CourseVO copy = new CourseVO();
+                BeanUtils.copyProperties(c, copy);
+                if (studentId != null) {
+                    copy.setEnrolled(enrolledIds.contains(c.getId()));
+                } else {
+                    copy.setEnrolled(null);
+                }
+                copied.add(copy);
+            }
+
             Map<String, Object> response = new HashMap<>();
-            response.put("courses", coursePage.getRecords());
+            response.put("courses", copied);
             response.put("total", coursePage.getTotal());
             response.put("current", coursePage.getCurrent());
             response.put("size", coursePage.getSize());
@@ -207,5 +284,30 @@ public class PublicCourseController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResult.error("获取失败，请稍后重试"));
         }
+    }
+
+    private Long getCurrentStudentId(Authentication authentication) {
+        try {
+            if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal)) {
+                return null;
+            }
+            UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+            // 仅学生用户才查询 studentId
+            Student student = studentMapper.findByUserId(principal.getId());
+            return student == null ? null : student.getId();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Boolean hasEnrolled(Long studentId, Long courseId) {
+        QueryWrapper<CourseEnrollment> qw = new QueryWrapper<>();
+        qw.eq("student_id", studentId)
+          .eq("course_id", courseId)
+          .eq("is_deleted", false)
+          .in("enrollment_status", "active", "suspended")
+          .last("LIMIT 1");
+        CourseEnrollment existed = courseEnrollmentMapper.selectOne(qw);
+        return existed != null;
     }
 }

@@ -135,16 +135,39 @@ const totalSelectedSlots = computed(() =>
   weekdays.value.reduce((total, w) => total + w.selectedSlots.length, 0)
 )
 
-// 初始化数据
+// 重置内部状态
+const resetWeekdays = () => {
+  weekdays.value.forEach(w => {
+    w.selected = false
+    w.selectedSlots = []
+  })
+  selectedWeekday.value = null
+}
+
+// 初始化/回显数据（确保不残留上一次编辑痕迹）
 const initializeData = () => {
-  if (props.modelValue && props.modelValue.length > 0) {
-    weekdays.value.forEach(weekday => {
-      const found = props.modelValue.find(item => item.weekday === weekday.value)
-      if (found) {
+  const prevSelected = selectedWeekday.value?.value ?? null
+  resetWeekdays()
+
+  const mv = Array.isArray(props.modelValue) ? props.modelValue : []
+  if (mv.length > 0) {
+    mv.forEach(item => {
+      const weekday = weekdays.value.find(w => w.value === item.weekday)
+      if (weekday) {
         weekday.selected = true
-        weekday.selectedSlots = [...found.timeSlots]
+        const slots = Array.isArray(item.timeSlots) ? item.timeSlots.filter(s => typeof s === 'string') : []
+        // 去重，避免出现重复时段
+        weekday.selectedSlots = Array.from(new Set(slots))
       }
     })
+  }
+
+  // 恢复先前选中的星期几，尽量保持用户操作上下文
+  if (prevSelected) {
+    const found = weekdays.value.find(w => w.value === prevSelected && w.selected)
+    selectedWeekday.value = found || (selectedWeekdays.value[0] || null)
+  } else {
+    selectedWeekday.value = selectedWeekdays.value[0] || null
   }
 }
 

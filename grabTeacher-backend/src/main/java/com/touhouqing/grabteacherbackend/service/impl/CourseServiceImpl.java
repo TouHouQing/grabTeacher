@@ -162,6 +162,17 @@ public class CourseServiceImpl implements CourseService {
             course.setStartDate(request.getStartDate());
             course.setEndDate(request.getEndDate());
             course.setPersonLimit(request.getPersonLimit());
+            // 处理课时周期 JSON
+            if (request.getCourseTimeSlots() != null && !request.getCourseTimeSlots().isEmpty()) {
+                if (com.touhouqing.grabteacherbackend.util.TimeSlotUtil.isValidTimeSlots(request.getCourseTimeSlots())) {
+                    course.setCourseTimeSlots(com.touhouqing.grabteacherbackend.util.TimeSlotUtil.toJsonString(request.getCourseTimeSlots()));
+                } else {
+                    throw new RuntimeException("上课时间安排格式不正确");
+                }
+            } else {
+                // 允许为空：表示未设置固定每周时间
+                course.setCourseTimeSlots(null);
+            }
         }
 
         courseMapper.insert(course);
@@ -257,6 +268,27 @@ public class CourseServiceImpl implements CourseService {
         course.setPrice(request.getPrice());
 
         // 更新大班课专用字段
+        if ("large_class".equals(request.getCourseType())) {
+            course.setStartDate(request.getStartDate());
+            course.setEndDate(request.getEndDate());
+            course.setPersonLimit(request.getPersonLimit());
+            if (request.getCourseTimeSlots() != null) {
+                if (com.touhouqing.grabteacherbackend.util.TimeSlotUtil.isValidTimeSlots(request.getCourseTimeSlots())) {
+                    course.setCourseTimeSlots(com.touhouqing.grabteacherbackend.util.TimeSlotUtil.toJsonString(request.getCourseTimeSlots()));
+                } else {
+                    throw new RuntimeException("上课时间安排格式不正确");
+                }
+            } else {
+                course.setCourseTimeSlots(null);
+            }
+        } else {
+            // 非大班课不保留周期设置
+            course.setStartDate(null);
+            course.setEndDate(null);
+            course.setPersonLimit(null);
+            course.setCourseTimeSlots(null);
+        }
+
         if ("large_class".equals(request.getCourseType())) {
             course.setStartDate(request.getStartDate());
             course.setEndDate(request.getEndDate());
@@ -380,6 +412,13 @@ public class CourseServiceImpl implements CourseService {
             }
             if (request.getPersonLimit() != null && request.getPersonLimit() <= 0) {
                 throw new RuntimeException("人数限制必须大于0");
+            }
+            // 验证每周时间周期（必填）
+            if (request.getCourseTimeSlots() == null || request.getCourseTimeSlots().isEmpty()) {
+                throw new RuntimeException("大班课必须设置每周上课时间周期");
+            }
+            if (!com.touhouqing.grabteacherbackend.util.TimeSlotUtil.isValidTimeSlots(request.getCourseTimeSlots())) {
+                throw new RuntimeException("上课时间安排格式不正确");
             }
         }
     }
@@ -631,7 +670,7 @@ public class CourseServiceImpl implements CourseService {
         String subjectName = subject != null ? subject.getName() : "未知科目";
 
 
-        CourseVO response = CourseVO.builder()
+        CourseVO.CourseVOBuilder builder = CourseVO.builder()
                 .id(course.getId())
                 .teacherId(course.getTeacherId())
                 .teacherName(teacherName)
@@ -649,8 +688,21 @@ public class CourseServiceImpl implements CourseService {
                 .startDate(course.getStartDate())
                 .endDate(course.getEndDate())
                 .personLimit(course.getPersonLimit())
-                .imageUrl(course.getImageUrl())
-                .build();
+                .enrollmentCount(course.getEnrollmentCount())
+                .imageUrl(course.getImageUrl());
+
+        CourseVO response = builder.build();
+
+        // 回显大班课每周时间周期
+        if (course.getCourseTimeSlots() != null && !course.getCourseTimeSlots().isEmpty()) {
+            try {
+                java.util.List<com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO> slots =
+                        com.touhouqing.grabteacherbackend.util.TimeSlotUtil.fromJsonString(course.getCourseTimeSlots());
+                response.setCourseTimeSlots(slots);
+            } catch (Exception ignored) {
+                // 忽略解析异常，保持为空
+            }
+        }
 
         // 设置显示名称
         response.setCourseTypeDisplay(response.getCourseTypeDisplay());
@@ -774,8 +826,19 @@ public class CourseServiceImpl implements CourseService {
                     .startDate(c.getStartDate())
                     .endDate(c.getEndDate())
                     .personLimit(c.getPersonLimit())
+                    .enrollmentCount(c.getEnrollmentCount())
                     .imageUrl(c.getImageUrl())
                     .build();
+
+            // 回显批量列表的周期时间（管理端可能需要）
+            if (c.getCourseTimeSlots() != null && !c.getCourseTimeSlots().isEmpty()) {
+                try {
+                    java.util.List<com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO> slots =
+                            com.touhouqing.grabteacherbackend.util.TimeSlotUtil.fromJsonString(c.getCourseTimeSlots());
+                    resp.setCourseTimeSlots(slots);
+                } catch (Exception ignored) {}
+            }
+
 
             // teacher level & schedule display（使用已批量查询的 teacherMap，避免N+1）
             Teacher teacher = teacherMap.get(c.getTeacherId());

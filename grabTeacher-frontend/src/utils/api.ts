@@ -641,6 +641,7 @@ export const courseAPI = {
     startDate?: string
     endDate?: string
     personLimit?: number | null
+    courseTimeSlots?: { weekday: number; timeSlots: string[] }[]
     imageUrl?: string
     courseLocation?: '线上' | '线下'
   }) => apiRequest('/api/courses', {
@@ -662,6 +663,7 @@ export const courseAPI = {
     startDate?: string
     endDate?: string
     personLimit?: number | null
+    courseTimeSlots?: Array<{ weekday: number; timeSlots: string[] }>
     imageUrl?: string
     courseLocation?: '线上' | '线下'
   }) => apiRequest(`/api/courses/${id}`, {
@@ -937,7 +939,8 @@ export const suspensionAPI = {
 
 // 报名查询 API（用于展示已停课课程）
 export const enrollmentAPI = {
-  getStudentSuspended: () => apiRequest('/api/enrollments/student/suspended')
+  getStudentSuspended: () => apiRequest('/api/enrollments/student/suspended'),
+  enrollCourse: (courseId: number) => apiRequest(`/api/enrollments/course/${courseId}/enroll`, { method: 'POST' })
 }
 
 

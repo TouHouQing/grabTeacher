@@ -16,7 +16,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Schema(description = "课程请求参数")
 public class CourseDTO {
-    
+
     @Schema(description = "授课教师ID（管理员创建课程时需要，教师创建时自动使用当前用户）", example = "1")
     private Long teacherId;
 
@@ -57,6 +57,10 @@ public class CourseDTO {
 
     @Schema(description = "人数限制（大班课专用，为空表示不限制）", example = "30")
     private Integer personLimit;
+
+
+    @Schema(description = "课程每周的上课时间周期（仅大班课需要），JSON数组：[{weekday:1,timeSlots:[\"08:00-10:00\"]}]，weekday:1=周一...7=周日")
+    private java.util.List<com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO> courseTimeSlots;
 
     @Schema(description = "课程封面图URL（保存课程时确定，预览阶段不上传）")
     private String imageUrl;

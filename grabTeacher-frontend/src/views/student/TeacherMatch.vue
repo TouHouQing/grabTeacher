@@ -349,6 +349,62 @@ const initOptions = async () => {
   }
 }
 
+// 根据路由参数预加载指定教师并直接展示
+const splitToTags = (val?: string) => {
+  if (!val) return []
+  return val.split(/[，,\s]+/).filter(Boolean).slice(0, 10)
+}
+
+const preloadFromQuery = async () => {
+  const teacherIdParam = route.query.teacherId as string | undefined
+  const courseIdParam = route.query.courseId as string | undefined
+  if (!teacherIdParam) return
+
+  const teacherId = Number(teacherIdParam)
+  if (!Number.isFinite(teacherId)) return
+
+  try {
+    const res = await teacherAPI.getDetail(teacherId)
+    if (res.success && res.data) {
+      const t = res.data
+      const teacher: Teacher = {
+        id: t.id,
+        name: t.realName || t.username || '教师',
+        subject: (t.subjects && t.subjects.length > 0 ? t.subjects[0] : ''),
+        experience: t.teachingExperience || 0,
+        description: t.introduction || '',
+        avatar: t.avatarUrl || '@/assets/pictures/teacherBoy1.jpeg',
+        tags: splitToTags(t.specialties) || (t.subjects || []),
+        schedule: [],
+        recommendationScore: 100,
+        matchScore: 100,
+        gender: t.gender || '不愿透露'
+      }
+
+      matchedTeachers.value = [teacher]
+      showResults.value = true
+
+      // 预选教师并加载课程
+      currentTeacher.value = teacher
+      await loadTeacherCourses(teacherId)
+
+      if (courseIdParam) {
+        const cid = Number(courseIdParam)
+        if (Number.isFinite(cid)) {
+          const found = teacherCourses.value.find((c: any) => c.id === cid)
+          if (found) {
+            selectedCourse.value = found
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error('预加载教师失败:', e)
+    ElMessage.error('无法加载指定教师，请稍后重试')
+  }
+}
+
+
 // 生成未来一年的课表数据
 const generateYearSchedule = (teacherName: string): TeacherSchedule => {
   const yearSchedule: WeekSchedule[] = []
@@ -2240,6 +2296,8 @@ watch(
 // 组件挂载时初始化数据
 onMounted(() => {
   initOptions()
+  // 如果从课程详情页带来了 teacherId/courseId，预加载并直接展示该老师
+  preloadFromQuery()
 })
 
 // 处理课程时长变化

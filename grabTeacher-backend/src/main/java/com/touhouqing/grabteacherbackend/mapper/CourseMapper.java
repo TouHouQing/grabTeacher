@@ -5,6 +5,7 @@ import com.touhouqing.grabteacherbackend.model.entity.Course;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -75,4 +76,12 @@ public interface CourseMapper extends BaseMapper<Course> {
      */
     @Select("SELECT id FROM courses WHERE is_featured = 1 AND is_deleted = 0 ORDER BY created_at DESC")
     List<Long> findFeaturedCourseIds();
+
+    /**
+     * 报名人数 +1（带状态置满判断）
+     * 当 person_limit 不为空且 enrollment_count+1 >= person_limit 时，将 status 置为 'full'
+     * 仅对 is_deleted = 0 的记录生效
+     */
+    @Update("UPDATE courses SET enrollment_count = enrollment_count + 1, status = CASE WHEN person_limit IS NOT NULL AND enrollment_count + 1 >= person_limit THEN 'full' ELSE status END WHERE id = #{courseId} AND is_deleted = 0 AND (person_limit IS NULL OR enrollment_count < person_limit)")
+    int incrementEnrollmentAndSetFullIfNeeded(@Param("courseId") Long courseId);
 }

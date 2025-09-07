@@ -77,11 +77,22 @@ public class CourseVO {
     @Schema(description = "人数限制（大班课专用）", example = "30")
     private Integer personLimit;
 
+    @Schema(description = "当前报名人数", example = "0")
+    private Integer enrollmentCount;
+
+
     @Schema(description = "课程封面图URL")
     private String imageUrl;
 
+
+    @Schema(description = "每周上课时间安排（仅大班课），用于管理端编辑回显")
+    private java.util.List<com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO> courseTimeSlots;
+
     @Schema(description = "课程时间显示（组合：日期区间 + 每周 + 时间段）", example = "2025.10.01-2025.12.31，每周一三五，7pm-9pm")
     private String scheduleDisplay;
+
+    @Schema(description = "当前登录学生是否已报名该课程，未登录或非学生时为空/false")
+    private Boolean enrolled;
 
     // 辅助方法：获取课程类型显示名称
     public String getCourseTypeDisplay() {

@@ -3,17 +3,21 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, School, Trophy, ArrowLeft, Loading, Clock, User, Document, Timer } from '@element-plus/icons-vue'
-import { courseAPI, teacherAPI } from '../../utils/api'
+import { courseAPI, teacherAPI, enrollmentAPI } from '../../utils/api'
+import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 // 获取路由传递的课程ID并转换为数字
 const courseId = parseInt(route.params.id as string)
 
 // 课程信息状态
-const course = ref(null)
+const course = ref<any>(null)
 const loading = ref(true)
+const enrolling = ref(false)
+const enrolled = ref(false)
 // 额外教师信息
 const teacher = ref<{ avatarUrl?: string; teachingExperience?: number; educationBackground?: string; specialties?: string } | null>(null)
 
@@ -31,6 +35,13 @@ const fetchCourseDetail = async () => {
 
     if (result.success && result.data) {
       course.value = result.data
+      // 从课程详情接口推断“已报名”状态（若后端返回该字段）
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const anyData: any = result.data as any
+      if (typeof anyData.enrolled !== 'undefined') {
+        enrolled.value = Boolean(anyData.enrolled)
+      }
+
       // 额外拉取教师信息（头像、年限、教育背景、特长）
       try {
         const tRes = await teacherAPI.getDetail(result.data.teacherId)
@@ -79,16 +90,76 @@ onMounted(() => {
   fetchCourseDetail()
 })
 
-// 预约课程 - 弹窗提示后跳转到联系我们页面
-const bookCourse = async () => {
+// 立即报名：一对一课程跳转到智能匹配页；大班课按原流程报名
+const enrollCourse = async () => {
   try {
-    await ElMessageBox.alert('请联系管理员进行详细咨询', '提示', {
-      confirmButtonText: '确定',
-      type: 'info',
-      center: true
+    if (!userStore.isLoggedIn) {
+      await ElMessageBox.alert('请登录或联系客服预约课程', '提示', { confirmButtonText: '确定' })
+      return
+    }
+    if (!userStore.isStudent) {
+      ElMessage.warning('请使用学生账号登录后报名')
+      return
+    }
+    if (!course.value) return
+
+    // 一对一课程：跳转到 1v1 教师智能匹配页面并直达该老师
+    if (course.value.courseType === 'one_on_one') {
+      const teacherId = course.value.teacherId
+      if (!teacherId) {
+        ElMessage.warning('未找到授课教师，暂无法预约')
+        return
+      }
+      // 跳转并携带 teacherId 和 courseId，便于目标页预选老师与课程
+      router.push({
+        path: '/student-center/match',
+        query: { teacherId: String(teacherId), courseId: String(courseId) }
+      })
+      return
+    }
+
+    // 已报名则提示并返回（仅针对大班课）
+    if (enrolled.value) {
+      ElMessage.info('您已报名该课程')
+      return
+    }
+
+    if (course.value.courseType !== 'large_class') {
+      ElMessage.info('该课程请联系客服预约或选择合适时间')
+      return
+    }
+
+    await ElMessageBox.confirm(`确认报名该课程：${course.value.title}？`, '确认报名', {
+      type: 'warning',
+      confirmButtonText: '确认报名',
+      cancelButtonText: '取消'
     })
+
+    enrolling.value = true
+    const res = await enrollmentAPI.enrollCourse(courseId)
+    if (res.success) {
+      ElMessage.success('报名成功')
+      enrolled.value = true
+    } else {
+      const msg = res.message || '报名失败，请稍后重试'
+      if (msg.includes('已报名')) {
+        ElMessage.info('您已报名该课程')
+        enrolled.value = true
+      } else if (msg.includes('余额不足')) {
+        ElMessage.warning('您的M豆余额不足，请联系客服预约课程')
+      } else {
+        ElMessage.error(msg)
+      }
+    }
+  } catch (err: unknown) {
+    if (err === 'cancel') {
+      ElMessage.info('已取消报名')
+    } else {
+      console.error('报名失败:', err)
+      ElMessage.error('报名失败，请稍后重试')
+    }
   } finally {
-    router.push({ path: '/about', hash: '#contact-us' })
+    enrolling.value = false
   }
 }
 
@@ -188,10 +259,14 @@ const getStatusText = (status: string) => {
             <span class="price-value">{{ course.price }} M豆</span>
           </div>
           <div class="course-actions">
-            <el-button type="primary" size="large" @click="bookCourse">
+            <el-button type="primary" size="large"
+                       :loading="enrolling"
+                       :disabled="enrolling || enrolled"
+                       @click="enrollCourse">
               <el-icon><Calendar /></el-icon>
-              立即预约
+              {{ enrolled ? '已报名' : '立即报名' }}
             </el-button>
+            <el-button size="large" @click="goBack">返回</el-button>
           </div>
         </div>
       </div>

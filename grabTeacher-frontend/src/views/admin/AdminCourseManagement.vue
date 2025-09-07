@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
 import { courseAPI, subjectAPI, teacherAPI, fileAPI } from '../../utils/api'
+import CompactTimeSlotSelector from '../../components/CompactTimeSlotSelector.vue'
 
 // 课程接口定义
 interface Course {
@@ -24,6 +25,8 @@ interface Course {
   startDate?: string
   endDate?: string
   personLimit?: number
+  enrollmentCount?: number
+
   imageUrl?: string
   courseLocation?: '线上' | '线下'
   _localImageFile?: File | null
@@ -52,6 +55,8 @@ const teachers = ref<Teacher[]>([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const isEditing = ref(false)
+// 表单引用用于触发校验
+const formRef = ref()
 
 // 分页数据
 const pagination = reactive({
@@ -88,6 +93,8 @@ const courseForm = reactive({
   courseLocation: '线上' as '线上' | '线下',
   // 临时选择的本地文件与预览
   _localImageFile: null as File | null,
+  courseTimeSlots: [] as Array<{ weekday: number; timeSlots: string[] }>,
+
   _localPreviewUrl: '' as string
 })
 
@@ -209,6 +216,21 @@ const formRules = {
           callback()
         }
       },
+  courseTimeSlots: [
+    {
+      validator: (_rule: any, _value: any, callback: any) => {
+        if (courseForm.courseType === 'large_class') {
+          if (!courseForm.courseTimeSlots || courseForm.courseTimeSlots.length === 0) {
+            callback(new Error('请设置大班课每周的上课时间周期'))
+            return
+          }
+        }
+        callback()
+      },
+      trigger: 'change'
+    }
+  ],
+
       trigger: 'blur'
     }
   ]
@@ -295,6 +317,8 @@ const resetForm = () => {
   courseForm.price = null
   courseForm.startDate = ''
   courseForm.endDate = ''
+  courseForm.courseTimeSlots = []
+
   courseForm.personLimit = null
   courseForm.courseLocation = '线上'
 
@@ -308,8 +332,9 @@ const openAddDialog = () => {
   dialogVisible.value = true
 }
 
-// 打开编辑对话框
-const openEditDialog = (course: Course) => {
+// 打开编辑对话框（确保从详情接口获取最新的每周时间周期用于回显）
+const openEditDialog = async (course: Course) => {
+  // 先用列表数据快速填充，提升响应速度
   courseForm.id = course.id
   courseForm.teacherId = course.teacherId
   courseForm.subjectId = course.subjectId
@@ -323,6 +348,8 @@ const openEditDialog = (course: Course) => {
   courseForm.endDate = course.endDate || ''
   courseForm.personLimit = course.personLimit || null
   courseForm.courseLocation = (course.courseLocation as any) || '线上'
+  const listSlots = (course as unknown as { courseTimeSlots?: Array<{ weekday: number; timeSlots: string[] }> }).courseTimeSlots || []
+  courseForm.courseTimeSlots = listSlots
 
   // 封面回显与清理本地预览
   courseForm.imageUrl = course.imageUrl || ''
@@ -332,12 +359,53 @@ const openEditDialog = (course: Course) => {
   dialogTitle.value = '编辑课程'
   isEditing.value = true
   dialogVisible.value = true
+
+  // 仅当为大班课且列表数据缺少周期信息时，再拉取详情，避免不必要请求
+  const needFetchDetail = course.courseType === 'large_class' && (!listSlots || listSlots.length === 0)
+  if (!needFetchDetail) return
+
+  try {
+    const resp = await courseAPI.getById(course.id)
+    if (resp?.success && resp.data) {
+      const detail = resp.data as any
+      if (detail.courseType) courseForm.courseType = detail.courseType
+      if (detail.durationMinutes) courseForm.durationMinutes = detail.durationMinutes
+      if (detail.status) courseForm.status = detail.status
+      if (detail.price !== undefined) courseForm.price = detail.price ?? null
+      if (detail.startDate) courseForm.startDate = detail.startDate || ''
+      if (detail.endDate) courseForm.endDate = detail.endDate || ''
+      if (detail.personLimit !== undefined) courseForm.personLimit = detail.personLimit ?? null
+      if (detail.courseLocation) courseForm.courseLocation = detail.courseLocation
+      // 关键：使用详情返回的每周上课时间进行回显
+      courseForm.courseTimeSlots = (detail.courseTimeSlots as Array<{ weekday: number; timeSlots: string[] }>) || []
+    }
+  } catch (e) {
+    console.warn('获取课程详情失败，使用列表数据回显:', e)
+  }
 }
 
 // 保存课程
 const saveCourse = async () => {
   try {
     loading.value = true
+
+    // 触发表单基础校验
+    if (formRef.value && typeof formRef.value.validate === 'function') {
+      const valid = await formRef.value.validate().catch(() => false)
+      if (!valid) {
+        loading.value = false
+        return
+      }
+    }
+
+    // 业务前置校验：大班课必须设置每周上课时间周期
+    if (courseForm.courseType === 'large_class') {
+      if (!courseForm.courseTimeSlots || courseForm.courseTimeSlots.length === 0) {
+        ElMessage.error('大班课必须设置每周上课时间周期')
+        loading.value = false
+        return
+      }
+    }
 
     // 若选择了新封面，先上传获取 URL
     let coverUrl: string | null = null
@@ -350,7 +418,7 @@ const saveCourse = async () => {
       return
     }
 
-    const courseData = {
+    const courseData: any = {
       teacherId: courseForm.teacherId!,
       subjectId: courseForm.subjectId!,
       title: courseForm.title,
@@ -359,13 +427,14 @@ const saveCourse = async () => {
       durationMinutes: courseForm.durationMinutes,
       status: courseForm.status,
       price: courseForm.price, // 所有课程类型都可以设置价格
-      ...(courseForm.courseType === 'large_class' && {
-        startDate: courseForm.startDate,
-        endDate: courseForm.endDate,
-        personLimit: courseForm.personLimit
-      }),
       courseLocation: courseForm.courseLocation,
       ...(coverUrl ? { imageUrl: coverUrl } : {})
+    }
+    if (courseForm.courseType === 'large_class') {
+      courseData.startDate = courseForm.startDate
+      courseData.endDate = courseForm.endDate
+      courseData.personLimit = courseForm.personLimit
+      courseData.courseTimeSlots = courseForm.courseTimeSlots
     }
 
     let response: any
@@ -390,7 +459,8 @@ const saveCourse = async () => {
     }
   } catch (error) {
     console.error('保存课程失败:', error)
-    ElMessage.error('保存课程失败')
+    const msg = (error as any)?.response?.message || (error as any)?.message || '保存课程失败'
+    ElMessage.error(msg)
   } finally {
     loading.value = false
   }
@@ -674,6 +744,15 @@ onMounted(() => {
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
+        <el-table-column label="报名人数" width="80">
+          <template #default="{ row }">
+            <span v-if="row.courseType === 'large_class'">
+              {{ typeof row.enrollmentCount === 'number' ? row.enrollmentCount + '人' : '-' }}
+            </span>
+            <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
+
         <el-table-column label="人数限制" width="80">
           <template #default="{ row }">
             <span v-if="row.courseType === 'large_class'">
@@ -927,6 +1006,13 @@ onMounted(() => {
               clearable
             />
             <span style="margin-left: 10px; color: #909399;">人（不填表示不限制人数）</span>
+          </el-form-item>
+
+          <el-form-item label="每周上课时间" prop="courseTimeSlots" required v-if="courseForm.courseType === 'large_class'">
+            <CompactTimeSlotSelector
+              v-model="courseForm.courseTimeSlots"
+              title="设置每周上课时间周期"
+            />
           </el-form-item>
         </template>
 

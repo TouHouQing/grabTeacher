@@ -83,6 +83,17 @@ public class Course {
     @Schema(description = "人数限制（大班课专用，为空表示不限制）", example = "30")
     private Integer personLimit;
 
+
+
+    @TableField("enrollment_count")
+    @Schema(description = "当前报名人数", example = "0")
+    @Builder.Default
+    private Integer enrollmentCount = 0;
+
+    @TableField("course_time_slots")
+    @Schema(description = "上课时间安排（仅大班课需要），JSON字符串，示例：[{\"weekday\":1,\"timeSlots\":[\"08:00-10:00\",\"17:00-19:00\"]},{\"weekday\":6,\"timeSlots\":[\"13:00-15:00\",\"15:00-17:00\"]}]，weekday: 1=周一...7=周日")
+    private String courseTimeSlots;
+
     @TableField("image_url")
     @Schema(description = "课程封面图URL")
     private String imageUrl;
