@@ -164,13 +164,7 @@ const navItems = computed(() => [
             >
               用户登录
             </el-button>
-            <el-button
-              size="large"
-              @click="navigateTo('/register')"
-              class="auth-btn"
-            >
-              注册账号
-            </el-button>
+
           </template>
           <template v-else>
             <el-button

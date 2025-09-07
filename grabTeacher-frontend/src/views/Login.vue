@@ -129,9 +129,8 @@ const handleLogin = async () => {
         </button>
       </form>
 
-      <div class="login-links">
-        <router-link to="/register">还没有账号？立即注册</router-link>
-        <router-link to="/">返回首页</router-link>
+      <div class="register-tip">
+        <router-link to="/about#contact-us">如需注册请联系管理员</router-link>
       </div>
     </div>
   </div>
