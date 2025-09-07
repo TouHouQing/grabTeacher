@@ -16,8 +16,7 @@ const router = createRouter({
     },
     {
       path: '/register',
-      name: 'Register',
-      component: () => import('../views/Register.vue')
+      redirect: '/login'
     },
     // 向后兼容的重定向路由
     {
@@ -34,8 +33,7 @@ const router = createRouter({
     },
     {
       path: '/teacher-register',
-      name: 'TeacherRegister',
-      component: () => import('../views/TeacherRegister.vue')
+      redirect: '/login'
     },
     // 学生中心及其子路由
     {

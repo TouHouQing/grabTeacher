@@ -34,29 +34,17 @@ public class AuthController {
     private AuthService authService;
 
     /**
-     * 用户注册
+     * 用户注册（已禁用）
      */
-    @Operation(summary = "用户注册", description = "注册新用户（学生或教师）")
+    @Operation(summary = "用户注册", description = "外部注册已关闭，接口保留仅用于兼容，始终返回403")
     @PostMapping("/register")
     public ResponseEntity<CommonResult<AuthVO>> registerUser(@Valid @RequestBody RegisterDTO registerDTO) {
-        try {
-            logger.info("收到注册请求: 用户名={}, 邮箱={}, 类型={}", 
-                       registerDTO.getUsername(),
-                       registerDTO.getEmail(),
-                       registerDTO.getUserType());
-            
-            AuthVO authResponse = authService.registerUser(registerDTO);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(CommonResult.success("注册成功", authResponse));
-        } catch (RuntimeException e) {
-            logger.warn("注册失败: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(CommonResult.error(e.getMessage()));
-        } catch (Exception e) {
-            logger.error("注册异常: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResult.error("注册失败，请稍后重试"));
-        }
+        logger.info("收到注册请求但已被禁止: 用户名={}, 邮箱={}, 类型={}",
+                registerDTO.getUsername(),
+                registerDTO.getEmail(),
+                registerDTO.getUserType());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(CommonResult.error(403, "当前不开放外部注册，请联系管理员创建账号"));
     }
 
     /**
