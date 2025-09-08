@@ -208,6 +208,15 @@ const formatCourseTimeSlotsTooltip = (slots?: TimeSlotDTO[]) => {
   return sorted.map(s => `${getWeekdayName(s.weekday)}：${s.timeSlots.join('、')}`).join('\n')
 }
 
+// 过滤后的 tooltip 数据（避免 v-for + v-if 混用）
+const filterTimeSlotsForTooltip = (slots?: TimeSlotDTO[]) => {
+  if (!slots) return [] as TimeSlotDTO[]
+  return [...slots]
+    .filter(s => s && Array.isArray(s.timeSlots) && s.timeSlots.length > 0)
+    .sort((a, b) => (a.weekday || 0) - (b.weekday || 0))
+}
+
+
 
 // 判断是否为最新课程（7天内创建的）
 const isNewCourse = (createdAt: string) => {
@@ -399,7 +408,14 @@ const handleEnroll = async (course: Course) => {
                 <!-- 每周上课时间段（卡片精简展示，提供 tooltip 查看完整） -->
                 <div class="meta-item" v-if="course.courseTimeSlots && course.courseTimeSlots.length">
                   <el-icon><Timer /></el-icon>
-                  <el-tooltip :content="formatCourseTimeSlotsTooltip(course.courseTimeSlots)" effect="light" placement="top">
+                  <el-tooltip effect="light" placement="top">
+                    <template #content>
+                      <div class="schedule-tooltip">
+                        <div v-for="(s, i) in filterTimeSlotsForTooltip(course.courseTimeSlots)" :key="i">
+                          <strong>{{ getWeekdayName(s.weekday) }}：</strong>{{ s.timeSlots.join('、') }}
+                        </div>
+                      </div>
+                    </template>
                     <span class="schedule-inline">{{ formatCourseTimeSlotsForList(course.courseTimeSlots) }}</span>
                   </el-tooltip>
                 </div>
@@ -685,6 +701,7 @@ export default {
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
 }
 
@@ -715,6 +732,13 @@ export default {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+/* Tooltip 内容布局 */
+.schedule-tooltip {
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: normal;
+  max-width: 360px;
 }
 
 .course-tags {
