@@ -98,7 +98,7 @@ const handleMenuSelect = (key: string) => {
             </el-menu-item>
             <el-menu-item index="level-prices">
               <el-icon><Coin /></el-icon>
-              <span>级别价格</span>
+              <span>教师级别</span>
             </el-menu-item>
           </el-sub-menu>
 

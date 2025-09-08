@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, Check, Close } from '@element-plus/icons-vue'
-import { teacherAPI, fileAPI } from '../../../utils/api'
+import { teacherAPI, fileAPI, teacherLevelAPI } from '../../../utils/api'
 import { getApiBaseUrl } from '../../../utils/env'
 import AvatarUploader from '../../../components/AvatarUploader.vue'
 import WideTimeSlotSelector from '../../../components/WideTimeSlotSelector.vue'
@@ -50,12 +50,18 @@ const teacherPagination = reactive({
 // 对话框
 const teacherDialogVisible = ref(false)
 const teacherDialogTitle = ref('')
-const LEVEL_OPTIONS = [
-  { label: '王牌', value: '王牌' },
-  { label: '金牌', value: '金牌' },
-  { label: '银牌', value: '银牌' },
-  { label: '铜牌', value: '铜牌' }
-]
+const LEVEL_OPTIONS = ref<{ label: string; value: string }[]>([])
+
+const fetchTeacherLevels = async () => {
+  try {
+    const res = await teacherLevelAPI.list()
+    if (res.success && Array.isArray(res.data)) {
+      LEVEL_OPTIONS.value = res.data.map((it: any) => ({ label: it.name, value: it.name }))
+    }
+  } catch (e) {
+    // ignore
+  }
+}
 
 const teacherForm = reactive({
   id: 0,
@@ -538,6 +544,7 @@ const handleTeacherSizeChange = (size: number) => {
 
 onMounted(async () => {
   await fetchSubjects()
+  await fetchTeacherLevels()
   loadTeacherList()
 })
 </script>
@@ -608,7 +615,7 @@ onMounted(async () => {
       <el-table-column prop="subjects" label="教学科目" min-width="150" show-overflow-tooltip />
       <el-table-column prop="hourlyRate" label="时薪" width="100">
         <template #default="{ row }">
-          ¥{{ row.hourlyRate }}
+          {{ row.hourlyRate }}$
         </template>
       </el-table-column>
       <el-table-column prop="rating" label="评分" width="100">

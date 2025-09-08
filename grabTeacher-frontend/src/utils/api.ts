@@ -1180,11 +1180,9 @@ export const teacherHourDetailsAPI = {
 }
 
 // 级别价格 API（仅管理员）
-export const levelPriceAPI = {
-  list: () => apiRequest('/api/admin/level-prices'),
-  updatePrice: (id: number, price: number) =>
-    apiRequest(`/api/admin/level-prices/${id}/price`, {
-      method: 'PUT',
-      body: JSON.stringify({ price })
-    })
+export const teacherLevelAPI = {
+  list: () => apiRequest('/api/admin/teacher-levels'),
+  create: (name: string) => apiRequest('/api/admin/teacher-levels', { method: 'POST', body: JSON.stringify({ name }) }),
+  update: (id: number, name: string) => apiRequest(`/api/admin/teacher-levels/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+  remove: (id: number) => apiRequest(`/api/admin/teacher-levels/${id}`, { method: 'DELETE' })
 }

@@ -9,27 +9,27 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("level_price")
-public class LevelPrice {
+@TableName("teacher_level")
+public class TeacherLevel {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Schema(description = "级别名称", example = "王牌")
+    @Schema(description = "教师级别名称", example = "王牌")
     @TableField("name")
     private String name;
 
-    @Schema(description = "该级别价格（每小时多少钱）")
-    @TableField("price")
-    private BigDecimal price;
+    @Schema(description = "创建时间")
+    @TableField("create_time")
+    private LocalDateTime createTime;
 
     @Schema(description = "更新时间")
     @TableField("update_time")
     private LocalDateTime updateTime;
 }
+
 

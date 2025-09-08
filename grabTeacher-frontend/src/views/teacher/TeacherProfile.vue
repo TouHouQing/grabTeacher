@@ -430,7 +430,7 @@ onMounted(() => {
               </el-form-item>
               <el-form-item label="小时收费(元)">
                 <el-input
-                  :value="teacherForm.hourlyRate ? `¥${teacherForm.hourlyRate}` : '暂未设置收费标准'"
+                  :value="teacherForm.hourlyRate ? `$${teacherForm.hourlyRate}` : '暂未设置收费标准'"
                   readonly
                   placeholder="暂未设置收费标准（请联系管理员设置）"
                   style="width: 100%"

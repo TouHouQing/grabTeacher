@@ -139,11 +139,59 @@ public class BookingServiceImpl implements BookingService {
                 .studentRequirements(request.getStudentRequirements())
                 .isTrial(isTrial)
                 .trialDurationMinutes(request.getTrialDurationMinutes())
-                .status("pending")
+                .status(isTrial ? "approved" : "pending")
                 .build();
 
         bookingRequestMapper.insert(bookingRequest);
         log.info("预约申请创建成功，预约ID: {}", bookingRequest.getId());
+
+        // 若为试听课：直接审批并生成课表（无需管理员确认）
+        if (isTrial) {
+            // 设置审批时间
+            bookingRequest.setApprovedAt(LocalDateTime.now());
+            bookingRequestMapper.updateById(bookingRequest);
+
+            // 使用与管理员审批相同的分布式锁粒度，避免并发冲突
+            String dateStr = bookingRequest.getRequestedDate() != null ? bookingRequest.getRequestedDate().toString() : "any";
+            String startStr = bookingRequest.getRequestedStartTime() != null ? bookingRequest.getRequestedStartTime().toString() : "any";
+            String endStr = bookingRequest.getRequestedEndTime() != null ? bookingRequest.getRequestedEndTime().toString() : "any";
+            String lockKey = String.format("grabTeacher:lock:booking:teacher:%d:%s:%s-%s", bookingRequest.getTeacherId(), dateStr, startStr, endStr);
+            String token = java.util.UUID.randomUUID().toString();
+            boolean locked = distributedLockService.tryLock(lockKey, token, java.time.Duration.ofSeconds(10), 50, java.time.Duration.ofMillis(100));
+            if (!locked) {
+                throw new RuntimeException("系统繁忙，请稍后再试");
+            }
+            try {
+                // 审批即时生成单次课程安排
+                generateSingleSchedule(bookingRequest);
+            } finally {
+                distributedLockService.unlock(lockKey, token);
+            }
+
+            // 精准清理并回填缓存，确保前端可用性即时更新
+            try {
+                java.util.Set<LocalDate> affectedDates = new java.util.HashSet<>();
+                if (bookingRequest.getRequestedDate() != null) {
+                    affectedDates.add(bookingRequest.getRequestedDate());
+                }
+                cacheKeyEvictor.evictTeacherScheduleAndAvailability(bookingRequest.getTeacherId(), affectedDates);
+                if (!affectedDates.isEmpty()) {
+                    for (LocalDate d : affectedDates) {
+                        java.util.List<CourseSchedule> dayAll =
+                                courseScheduleMapper.findByTeacherIdAndDateRange(bookingRequest.getTeacherId(), d, d);
+                        java.util.List<String> slots = new java.util.ArrayList<>();
+                        for (CourseSchedule s : dayAll) {
+                            String slot = s.getStartTime().toString() + "-" + s.getEndTime().toString();
+                            slots.add(slot);
+                        }
+                        teacherScheduleCacheService.putBusySlots(bookingRequest.getTeacherId(), d,
+                                slots.isEmpty() ? java.util.Collections.emptyList() : slots);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("试听课审批后的缓存同步失败，但不影响主流程", e);
+            }
+        }
 
         // 计算预约费用并扣除余额（试听课和恢复预约免费）
         BigDecimal totalCost = BigDecimal.ZERO;

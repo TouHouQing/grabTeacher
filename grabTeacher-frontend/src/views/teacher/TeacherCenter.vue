@@ -243,7 +243,7 @@ onMounted(async () => {
                 <el-icon><Money /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : `¥${salary.currentSalary}` }}</div>
+                <div class="stat-value">{{ statsLoading ? '-' : `$${salary.currentSalary}` }}</div>
                 <div class="stat-label">本月工资</div>
               </div>
             </div>
@@ -252,7 +252,7 @@ onMounted(async () => {
                 <el-icon><Money /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : `¥${salary.lastSalary}` }}</div>
+                <div class="stat-value">{{ statsLoading ? '-' : `$${salary.lastSalary}` }}</div>
                 <div class="stat-label">上月工资</div>
               </div>
             </div>

@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, watch, computed, defineAsyncComponent } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
-import { courseAPI, subjectAPI, teacherAPI, fileAPI, levelPriceAPI } from '../../utils/api'
+import { courseAPI, subjectAPI, teacherAPI, fileAPI } from '../../utils/api'
 const CompactTimeSlotSelector = defineAsyncComponent(() => import('../../components/CompactTimeSlotSelector.vue'))
 
 // 课程接口定义
@@ -58,8 +58,7 @@ const isEditing = ref(false)
 // 表单引用用于触发校验
 const formRef = ref()
 
-// 级别价格表与建议价格
-const levelPriceMap = ref<Record<string, number>>({})
+// 建议价格
 const suggestedPrice = ref<number | null>(null)
 const suggestedUnit = ref<'per_hour' | 'total' | null>(null)
 
@@ -309,30 +308,7 @@ const fetchTeachers = async () => {
   }
 }
 
-// 获取级别价格表
-const fetchLevelPrices = async () => {
-  try {
-    const resp = await levelPriceAPI.list()
-    if (resp?.success && Array.isArray(resp.data)) {
-      const map: Record<string, number> = {}
-      for (const item of resp.data) {
-        // 期待形如 { level: '金牌', price: 300 }
-        const lvl = item.level || item.name || item.levelName
-        const price = item.price
-        if (lvl && typeof price === 'number') map[lvl] = price
-      }
-      levelPriceMap.value = map
-    }
-  } catch (e) {
-    console.warn('获取级别价格失败', e)
-  }
-}
-
-const getTeacherLevel = (teacherId: number | null): string | null => {
-  if (!teacherId) return null
-  const t = teachers.value.find(t => t.id === teacherId) as any
-  return (t && (t.level || t.teacherLevel)) || null
-}
+const getSelectedTeacher = (teacherId: number | null) => teachers.value.find(t => t.id === teacherId) as any
 
 const calcWeeksBetween = (start: string, end: string): number => {
   if (!start || !end) return 0
@@ -354,9 +330,8 @@ const calcWeeklySessions = (): number => {
 const recomputeSuggestedPrice = () => {
   suggestedPrice.value = null
   suggestedUnit.value = null
-  const teacherLevel = getTeacherLevel(courseForm.teacherId)
-  if (!teacherLevel) return
-  const hourly = levelPriceMap.value[teacherLevel]
+  const t = getSelectedTeacher(courseForm.teacherId)
+  const hourly = (t as any)?.hourlyRate
   if (!hourly || hourly <= 0) return
 
   const hoursPerSession = (courseForm.durationMinutes || 0) / 60
@@ -367,12 +342,15 @@ const recomputeSuggestedPrice = () => {
     return
   }
   if (courseForm.courseType === 'large_class') {
-    // 大班课：半价 × 总课时（周数 × 每周节数 × 每节时长）
+    // 大班课：当最大报名人数>1时，每多1人，"半价时薪"在基础上+5
+    // 计算公式： (0.5 * 时薪 + 5 * max(0, personLimit - 1)) × 总课时
     const weeks = calcWeeksBetween(courseForm.startDate, courseForm.endDate)
     const weeklySessions = calcWeeklySessions()
     if (!weeks || !weeklySessions || !hoursPerSession) return
     const totalHours = weeks * weeklySessions * hoursPerSession
-    const total = 0.5 * hourly * totalHours
+    const extraStudents = Math.max(0, (courseForm.personLimit || 1) - 1)
+    const effectiveHalfHourly = 0.5 * hourly + 5 * extraStudents
+    const total = effectiveHalfHourly * totalHours
     suggestedPrice.value = Number(total.toFixed(2))
     suggestedUnit.value = 'total'
     return
@@ -703,11 +681,10 @@ onMounted(() => {
   fetchCourses()
   fetchSubjects()
   fetchTeachers()
-  fetchLevelPrices()
 })
 
 // 相关字段变化时重算建议价格
-watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMinutes, courseForm.startDate, courseForm.endDate, JSON.stringify(courseForm.courseTimeSlots), levelPriceMap.value], () => {
+watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMinutes, courseForm.startDate, courseForm.endDate, courseForm.personLimit, JSON.stringify(courseForm.courseTimeSlots)], () => {
   recomputeSuggestedPrice()
 })
 </script>
@@ -1026,36 +1003,6 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
           </el-select>
         </el-form-item>
 
-        <el-form-item label="课程价格" prop="price">
-          <el-input-number
-            v-model="courseForm.price"
-            :min="0"
-            :precision="2"
-            :step="10"
-            style="width: 200px"
-            placeholder="不填表示可定制价格"
-            clearable
-          />
-          <span style="margin-left: 10px; color: #909399;" v-if="courseForm.courseType === 'one_on_one'">
-            M豆/小时（不填表示价格面议）
-          </span>
-          <span style="margin-left: 10px; color: #909399;" v-else>
-            M豆/总课程（不填表示价格面议）
-          </span>
-          <template v-if="suggestedPrice !== null">
-            <el-divider direction="vertical" />
-            <span style="color:#67C23A;">
-              建议：
-              <template v-if="suggestedUnit === 'per_hour'">
-                {{ suggestedPrice }} M豆/小时
-              </template>
-              <template v-else-if="suggestedUnit === 'total'">
-                {{ suggestedPrice }} M豆（总价）
-              </template>
-            </span>
-          </template>
-        </el-form-item>
-
         <!-- 大班课专用字段 -->
         <template v-if="courseForm.courseType === 'large_class'">
           <el-divider content-position="left">
@@ -1123,6 +1070,36 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
               {{ option.label }}
             </el-radio>
           </el-radio-group>
+        </el-form-item>
+
+        <el-form-item label="课程价格" prop="price">
+          <el-input-number
+            v-model="courseForm.price"
+            :min="0"
+            :precision="2"
+            :step="10"
+            style="width: 200px"
+            placeholder="不填表示可定制价格"
+            clearable
+          />
+          <span style="margin-left: 10px; color: #909399;" v-if="courseForm.courseType === 'one_on_one'">
+            M豆/小时（不填表示价格面议）
+          </span>
+          <span style="margin-left: 10px; color: #909399;" v-else>
+            M豆/总课程（不填表示价格面议）
+          </span>
+          <template v-if="suggestedPrice !== null">
+            <el-divider direction="vertical" />
+            <span style="color:#67C23A;">
+              建议：
+              <template v-if="suggestedUnit === 'per_hour'">
+                {{ suggestedPrice }} M豆/小时
+              </template>
+              <template v-else-if="suggestedUnit === 'total'">
+                {{ suggestedPrice }} M豆（总价）
+              </template>
+            </span>
+          </template>
         </el-form-item>
 
         <el-form-item label="课程地点">
