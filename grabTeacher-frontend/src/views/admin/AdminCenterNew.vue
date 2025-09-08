@@ -22,6 +22,7 @@ const AdminTeacherHourDetails = defineAsyncComponent(() => import('./components/
 const AdminCourseEvaluationManagement = defineAsyncComponent(() => import('./components/AdminCourseEvaluationManagement.vue'))
 const AdminRescheduleManagement = defineAsyncComponent(() => import('./components/AdminRescheduleManagement.vue'))
 const AdminSuspensionManagement = defineAsyncComponent(() => import('./components/AdminSuspensionManagement.vue'))
+const AdminLevelPriceManagement = defineAsyncComponent(() => import('./components/AdminLevelPriceManagement.vue'))
 
 // 获取用户信息
 const userStore = useUserStore()
@@ -95,6 +96,10 @@ const handleMenuSelect = (key: string) => {
               <el-icon><Reading /></el-icon>
               <span>招聘管理</span>
             </el-menu-item>
+            <el-menu-item index="level-prices">
+              <el-icon><Coin /></el-icon>
+              <span>级别价格</span>
+            </el-menu-item>
           </el-sub-menu>
 
           <el-sub-menu index="abroad-mgmt">
@@ -162,6 +167,7 @@ const handleMenuSelect = (key: string) => {
         <div v-if="activeMenu === 'transactions-students'" class="content-panel"><AdminBalanceTransactionManagement /></div>
         <div v-if="activeMenu === 'transactions-teachers'" class="content-panel"><AdminTeacherHourDetails /></div>
         <div v-if="activeMenu === 'messages'" class="content-panel"><AdminMessageManagement /></div>
+        <div v-if="activeMenu === 'level-prices'" class="content-panel"><AdminLevelPriceManagement /></div>
         <div v-if="activeMenu === 'profile'" class="content-panel"><AdminProfileSettings /></div>
         <div v-if="activeMenu === 'password'" class="content-panel"><AdminPasswordChange /></div>
       </div>

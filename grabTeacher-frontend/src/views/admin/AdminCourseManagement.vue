@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch, computed, defineAsyncComponent } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
-import { courseAPI, subjectAPI, teacherAPI, fileAPI } from '../../utils/api'
-import CompactTimeSlotSelector from '../../components/CompactTimeSlotSelector.vue'
+import { courseAPI, subjectAPI, teacherAPI, fileAPI, levelPriceAPI } from '../../utils/api'
+const CompactTimeSlotSelector = defineAsyncComponent(() => import('../../components/CompactTimeSlotSelector.vue'))
 
 // 课程接口定义
 interface Course {
@@ -57,6 +57,11 @@ const dialogTitle = ref('')
 const isEditing = ref(false)
 // 表单引用用于触发校验
 const formRef = ref()
+
+// 级别价格表与建议价格
+const levelPriceMap = ref<Record<string, number>>({})
+const suggestedPrice = ref<number | null>(null)
+const suggestedUnit = ref<'per_hour' | 'total' | null>(null)
 
 // 分页数据
 const pagination = reactive({
@@ -220,8 +225,10 @@ const formRules = {
     {
       validator: (_rule: any, _value: any, callback: any) => {
         if (courseForm.courseType === 'large_class') {
-          if (!courseForm.courseTimeSlots || courseForm.courseTimeSlots.length === 0) {
-            callback(new Error('请设置大班课每周的上课时间周期'))
+          const slots = Array.isArray(courseForm.courseTimeSlots) ? courseForm.courseTimeSlots : []
+          const hasAnySlot = slots.some(d => Array.isArray(d?.timeSlots) && d.timeSlots.length > 0)
+          if (!hasAnySlot) {
+            callback(new Error('请至少为某一天选择一个具体时间段'))
             return
           }
         }
@@ -302,6 +309,76 @@ const fetchTeachers = async () => {
   }
 }
 
+// 获取级别价格表
+const fetchLevelPrices = async () => {
+  try {
+    const resp = await levelPriceAPI.list()
+    if (resp?.success && Array.isArray(resp.data)) {
+      const map: Record<string, number> = {}
+      for (const item of resp.data) {
+        // 期待形如 { level: '金牌', price: 300 }
+        const lvl = item.level || item.name || item.levelName
+        const price = item.price
+        if (lvl && typeof price === 'number') map[lvl] = price
+      }
+      levelPriceMap.value = map
+    }
+  } catch (e) {
+    console.warn('获取级别价格失败', e)
+  }
+}
+
+const getTeacherLevel = (teacherId: number | null): string | null => {
+  if (!teacherId) return null
+  const t = teachers.value.find(t => t.id === teacherId) as any
+  return (t && (t.level || t.teacherLevel)) || null
+}
+
+const calcWeeksBetween = (start: string, end: string): number => {
+  if (!start || !end) return 0
+  const s = new Date(start + 'T00:00:00')
+  const e = new Date(end + 'T00:00:00')
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0
+  if (e < s) return 0
+  const diffMs = e.getTime() - s.getTime()
+  return Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1
+}
+
+const calcWeeklySessions = (): number => {
+  const slots = courseForm.courseTimeSlots || []
+  let count = 0
+  for (const day of slots) count += (day?.timeSlots?.length || 0)
+  return count
+}
+
+const recomputeSuggestedPrice = () => {
+  suggestedPrice.value = null
+  suggestedUnit.value = null
+  const teacherLevel = getTeacherLevel(courseForm.teacherId)
+  if (!teacherLevel) return
+  const hourly = levelPriceMap.value[teacherLevel]
+  if (!hourly || hourly <= 0) return
+
+  const hoursPerSession = (courseForm.durationMinutes || 0) / 60
+  if (courseForm.courseType === 'one_on_one') {
+    // 一对一：建议为按级别每小时价格
+    suggestedPrice.value = Number(hourly.toFixed(2))
+    suggestedUnit.value = 'per_hour'
+    return
+  }
+  if (courseForm.courseType === 'large_class') {
+    // 大班课：半价 × 总课时（周数 × 每周节数 × 每节时长）
+    const weeks = calcWeeksBetween(courseForm.startDate, courseForm.endDate)
+    const weeklySessions = calcWeeklySessions()
+    if (!weeks || !weeklySessions || !hoursPerSession) return
+    const totalHours = weeks * weeklySessions * hoursPerSession
+    const total = 0.5 * hourly * totalHours
+    suggestedPrice.value = Number(total.toFixed(2))
+    suggestedUnit.value = 'total'
+    return
+  }
+}
+
 
 
 // 重置表单
@@ -330,6 +407,8 @@ const openAddDialog = () => {
   dialogTitle.value = '新增课程'
   isEditing.value = false
   dialogVisible.value = true
+  // 打开时计算一次
+  recomputeSuggestedPrice()
 }
 
 // 打开编辑对话框（确保从详情接口获取最新的每周时间周期用于回显）
@@ -624,6 +703,12 @@ onMounted(() => {
   fetchCourses()
   fetchSubjects()
   fetchTeachers()
+  fetchLevelPrices()
+})
+
+// 相关字段变化时重算建议价格
+watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMinutes, courseForm.startDate, courseForm.endDate, JSON.stringify(courseForm.courseTimeSlots), levelPriceMap.value], () => {
+  recomputeSuggestedPrice()
 })
 </script>
 
@@ -957,6 +1042,18 @@ onMounted(() => {
           <span style="margin-left: 10px; color: #909399;" v-else>
             M豆/总课程（不填表示价格面议）
           </span>
+          <template v-if="suggestedPrice !== null">
+            <el-divider direction="vertical" />
+            <span style="color:#67C23A;">
+              建议：
+              <template v-if="suggestedUnit === 'per_hour'">
+                {{ suggestedPrice }} M豆/小时
+              </template>
+              <template v-else-if="suggestedUnit === 'total'">
+                {{ suggestedPrice }} M豆（总价）
+              </template>
+            </span>
+          </template>
         </el-form-item>
 
         <!-- 大班课专用字段 -->

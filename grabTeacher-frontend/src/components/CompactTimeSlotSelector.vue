@@ -241,7 +241,7 @@ const clearAll = () => {
 // 发出变化事件
 const emitChange = () => {
   const result: TimeSlot[] = weekdays.value
-    .filter(weekday => weekday.selected && weekday.selectedSlots.length > 0)
+    .filter(weekday => weekday.selected)
     .map(weekday => ({
       weekday: weekday.value,
       timeSlots: [...weekday.selectedSlots]

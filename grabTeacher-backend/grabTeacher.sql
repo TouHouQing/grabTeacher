@@ -924,6 +924,33 @@ INSERT INTO `users` VALUES (10,'student','qinghaoyang@foxmail.com','$2a$10$pd68P
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
+DROP TABLE IF EXISTS `level_price`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `level_price` (
+                            `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '数据ID，主键自增',
+                            `name` varchar(50) NOT NULL COMMENT '级别名称',
+                            `price` decimal(10,2) DEFAULT 0.00 COMMENT '该级别价格（每小时多少钱）',
+                            `update_time` datetime COMMENT '更新时间',
+                            PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COMMENT='教师级别价格表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+-- 插入初级教师级别数据
+INSERT INTO `level_price` (`name`, `price`, `update_time`)
+VALUES ('铜牌', 50.00, '2025-01-10 10:00:00');
+
+-- 插入中级教师级别数据
+INSERT INTO `level_price` (`name`, `price`, `update_time`)
+VALUES ('银牌', 80.50, '2025-03-15 14:30:00');
+
+-- 插入高级教师级别数据
+INSERT INTO `level_price` (`name`, `price`, `update_time`)
+VALUES ('金牌', 120.00, '2025-05-20 09:15:00');
+
+-- 插入资深教师级别数据
+INSERT INTO `level_price` (`name`, `price`, `update_time`)
+VALUES ('王牌', 180.80, '2025-08-28 16:45:00');
+
 --
 -- Dumping events for database 'grabteacher'
 --

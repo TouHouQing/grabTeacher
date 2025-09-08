@@ -1178,3 +1178,13 @@ export const teacherHourDetailsAPI = {
     return apiRequest(`/api/admin/teacher-hour-details?${searchParams}`)
   }
 }
+
+// 级别价格 API（仅管理员）
+export const levelPriceAPI = {
+  list: () => apiRequest('/api/admin/level-prices'),
+  updatePrice: (id: number, price: number) =>
+    apiRequest(`/api/admin/level-prices/${id}/price`, {
+      method: 'PUT',
+      body: JSON.stringify({ price })
+    })
+}
