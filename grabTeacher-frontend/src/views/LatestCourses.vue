@@ -30,7 +30,10 @@ interface Course {
   personLimit?: number
   imageUrl?: string
   courseLocation?: string
+  // 课程时间显示（后端组合好的显示文案）
   scheduleDisplay?: string
+  // 每周上课时间安排（仅大班课），用于渲染“周几 + 时间段”
+  courseTimeSlots?: TimeSlotDTO[]
   enrolled?: boolean
 }
 
@@ -41,6 +44,13 @@ interface Subject {
   iconUrl?: string
   isActive: boolean
 }
+
+// 每周上课时间段类型（与后端 TimeSlotDTO 对齐）
+interface TimeSlotDTO {
+  weekday: number // 1=周一 ... 7=周日
+  timeSlots: string[]
+}
+
 
 
 // 搜索过滤条件
@@ -166,6 +176,38 @@ const formatDate = (dateString: string) => {
   const date = new Date(dateString)
   return date.toLocaleDateString('zh-CN')
 }
+
+// 周几中文名
+const getWeekdayName = (n: number) => {
+  const map = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  return map[n] || '未知'
+}
+
+// 渲染卡片用：将 courseTimeSlots 压缩为单行短文案
+const formatCourseTimeSlotsForList = (slots?: TimeSlotDTO[]) => {
+  if (!slots || slots.length === 0) return '时间段待定'
+  const parts: string[] = []
+  // 过滤空并按 weekday 升序
+  const sorted = [...slots]
+    .filter(s => s && Array.isArray(s.timeSlots) && s.timeSlots.length > 0)
+    .sort((a, b) => (a.weekday || 0) - (b.weekday || 0))
+  for (const s of sorted) {
+    const day = getWeekdayName(s.weekday)
+    const times = s.timeSlots.join('、')
+    parts.push(`${day} ${times}`)
+  }
+  return parts.join(' | ')
+}
+
+// Tooltip 使用：完整展开（含换行）
+const formatCourseTimeSlotsTooltip = (slots?: TimeSlotDTO[]) => {
+  if (!slots || slots.length === 0) return '时间段待定'
+  const sorted = [...slots]
+    .filter(s => s && Array.isArray(s.timeSlots) && s.timeSlots.length > 0)
+    .sort((a, b) => (a.weekday || 0) - (b.weekday || 0))
+  return sorted.map(s => `${getWeekdayName(s.weekday)}：${s.timeSlots.join('、')}`).join('\n')
+}
+
 
 // 判断是否为最新课程（7天内创建的）
 const isNewCourse = (createdAt: string) => {
@@ -354,6 +396,14 @@ const handleEnroll = async (course: Course) => {
                   <el-icon><Calendar /></el-icon>
                   <span>{{ course.scheduleDisplay || (course.startDate && course.endDate ? (new Date(course.startDate).toLocaleDateString('zh-CN') + '-' + new Date(course.endDate).toLocaleDateString('zh-CN')) : '时间可协商') }}</span>
                 </div>
+                <!-- 每周上课时间段（卡片精简展示，提供 tooltip 查看完整） -->
+                <div class="meta-item" v-if="course.courseTimeSlots && course.courseTimeSlots.length">
+                  <el-icon><Timer /></el-icon>
+                  <el-tooltip :content="formatCourseTimeSlotsTooltip(course.courseTimeSlots)" effect="light" placement="top">
+                    <span class="schedule-inline">{{ formatCourseTimeSlotsForList(course.courseTimeSlots) }}</span>
+                  </el-tooltip>
+                </div>
+
                 <div class="meta-item">
                   <el-icon><Timer /></el-icon>
                   <span>{{ formatDuration(course.durationMinutes) }}</span>
@@ -658,6 +708,15 @@ export default {
   font-size: 16px;
 }
 
+/* 单行省略的时间段展示，避免卡片被挤爆 */
+.schedule-inline {
+  display: inline-block;
+  max-width: 260px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .course-tags {
   margin-bottom: 15px;
 }
@@ -814,6 +873,8 @@ export default {
     align-items: flex-start;
     margin-bottom: 16px;
   }
+
+  .schedule-inline { max-width: 70vw; }
 
   .meta-item {
     font-size: 12px;

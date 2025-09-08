@@ -21,6 +21,25 @@ const enrolled = ref(false)
 // 额外教师信息
 const teacher = ref<{ avatarUrl?: string; teachingExperience?: number; educationBackground?: string; specialties?: string } | null>(null)
 
+// 每周上课时间段类型（与后端 TimeSlotDTO 对齐）
+interface TimeSlotDTO {
+  weekday: number // 1=周一 ... 7=周日
+  timeSlots: string[]
+}
+
+const getWeekdayName = (n: number) => {
+  const map = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  return map[n] || '未知'
+}
+
+const sortedCourseTimeSlots = computed(() => {
+  const slots = (course.value?.courseTimeSlots || []) as TimeSlotDTO[]
+  return [...slots]
+    .filter(s => s && Array.isArray(s.timeSlots) && s.timeSlots.length > 0)
+    .sort((a, b) => (a.weekday || 0) - (b.weekday || 0))
+})
+
+
 
 // 返回上一页
 const goBack = () => {
@@ -310,6 +329,23 @@ const getStatusText = (status: string) => {
         </div>
       </div>
 
+      <!-- 每周上课时间安排 -->
+      <div class="weekly-schedule" v-if="course.courseTimeSlots && course.courseTimeSlots.length">
+        <h2>上课时间安排</h2>
+        <div class="weekday-grid">
+          <div class="weekday-item" v-for="(s, idx) in sortedCourseTimeSlots" :key="idx">
+            <div class="weekday-title">
+              <el-icon><Calendar /></el-icon>
+              <span>{{ getWeekdayName(s.weekday) }}</span>
+            </div>
+            <div class="time-chips">
+              <el-tag v-for="(t, i) in s.timeSlots" :key="i" size="small" effect="light" type="info">{{ t }}</el-tag>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
       <!-- 教师信息 -->
       <div class="teacher-info" v-if="course.teacherName">
         <h2>授课教师</h2>
@@ -590,6 +626,20 @@ const getStatusText = (status: string) => {
 .ellipsis-1 { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { --el-tag-font-size: 12px; }
+
+
+/* 每周上课时间安排布局 */
+.weekly-schedule { padding: 30px; border-top: 1px solid #eee; }
+.weekly-schedule h2 { font-size: 20px; color: #333; margin-bottom: 16px; }
+.weekday-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.weekday-item { background: #f8f9fa; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.weekday-title { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #333; }
+.time-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@media (max-width: 768px) {
+  .weekly-schedule { padding: 20px; }
+  .weekday-grid { grid-template-columns: 1fr; }
+}
 
 
 
