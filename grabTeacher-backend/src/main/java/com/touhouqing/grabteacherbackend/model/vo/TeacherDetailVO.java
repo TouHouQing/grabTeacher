@@ -62,9 +62,7 @@ public class TeacherDetailVO {
     @Schema(description = "个人介绍", example = "专业数学教师，擅长高考辅导")
     private String introduction;
     
-    @Schema(description = "视频介绍URL", example = "https://example.com/video.mp4")
-    private String videoIntroUrl;
-    
+
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     private String gender;
 

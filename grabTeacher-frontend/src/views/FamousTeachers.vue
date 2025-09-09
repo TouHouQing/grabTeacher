@@ -4,7 +4,7 @@ import ContactUs from '../components/ContactUs.vue'
 import { useRouter } from 'vue-router'
 import { subjectAPI, teacherAPI } from '../utils/api'
 import { ElMessage } from 'element-plus'
-import { Loading } from '@element-plus/icons-vue'
+import { Loading, View } from '@element-plus/icons-vue'
 
 // 定义组件名称
 defineOptions({
@@ -309,7 +309,7 @@ onMounted(() => {
           <p>暂无符合条件的教师</p>
         </div>
         <div v-else class="teachers-grid">
-          <div class="teacher-card" v-for="teacher in displayTeachers" :key="teacher.id" role="button" tabindex="0" @click="viewTeacherDetail(teacher.id)" @keyup.enter="viewTeacherDetail(teacher.id)">
+          <div class="teacher-card" v-for="teacher in displayTeachers" :key="teacher.id">
             <div class="teacher-avatar">
               <img :src="teacher.avatar" :alt="teacher.name">
               <div class="teacher-rating">
@@ -329,7 +329,11 @@ onMounted(() => {
                   <span v-for="(time, i) in teacher.schedule" :key="i" class="schedule-tag">{{ time }}</span>
                 </div>
               </div>
-
+              <div class="teacher-actions">
+                <el-button type="primary" @click="viewTeacherDetail(teacher.id)" size="large">
+                  <el-icon><View /></el-icon> 查看详情
+                </el-button>
+              </div>
             </div>
           </div>
         </div>
@@ -470,6 +474,7 @@ onMounted(() => {
   padding: 20px;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
 }
 
 .teacher-info h3 {
@@ -488,6 +493,7 @@ onMounted(() => {
   line-height: 1.6;
   margin-bottom: 15px;
   flex: 1;
+  min-height: 60px;
 }
 
 .teacher-tags {
@@ -528,6 +534,14 @@ onMounted(() => {
 .teacher-actions {
   display: flex;
   gap: 10px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.teacher-actions .el-button {
+  flex: 1;
+  font-weight: 600;
 }
 
 .pagination {
@@ -695,10 +709,13 @@ onMounted(() => {
   .teacher-actions {
     flex-direction: column;
     gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
   }
 
   .teacher-actions .el-button {
     width: 100%;
+    font-size: 14px;
   }
 
   .pagination {

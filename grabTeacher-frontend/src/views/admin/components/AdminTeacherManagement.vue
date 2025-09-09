@@ -77,7 +77,6 @@ const teacherForm = reactive({
   hourlyRate: 0,
   rating: 5.0, // 添加评分字段，默认5.0分
   introduction: '',
-  videoIntroUrl: '',
   gender: '不愿透露',
   level: '王牌',
   isVerified: false, // 表单内部仍使用 isVerified，编辑时从 row.verified 映射
@@ -315,7 +314,6 @@ const handleAddTeacher = () => {
     hourlyRate: 0,
     rating: 5.0, // 默认评分5.0分
     introduction: '',
-    videoIntroUrl: '',
     gender: '不愿透露',
     level: '王牌',
     isVerified: false
@@ -410,7 +408,6 @@ const saveTeacher = async () => {
       hourlyRate: teacherForm.hourlyRate,
       rating: teacherForm.rating, // 包含评分字段
       introduction: teacherForm.introduction,
-      videoIntroUrl: teacherForm.videoIntroUrl,
       gender: teacherForm.gender,
       level: teacherForm.level,
       isVerified: teacherForm.isVerified,
@@ -835,9 +832,6 @@ onMounted(async () => {
             placeholder="请输入个人介绍"
             :rows="4"
           />
-        </el-form-item>
-        <el-form-item label="视频介绍URL">
-          <el-input v-model="teacherForm.videoIntroUrl" placeholder="请输入视频介绍链接" />
         </el-form-item>
         <el-form-item label="认证状态">
           <el-switch v-model="teacherForm.isVerified" active-text="已认证" inactive-text="未认证" />

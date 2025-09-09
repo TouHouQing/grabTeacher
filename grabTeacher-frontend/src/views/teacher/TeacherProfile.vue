@@ -166,27 +166,17 @@ const fetchTeacherProfile = async () => {
 
 // 保存教师信息
 const saveProfile = async () => {
-  if (!teacherForm.realName) {
-    ElMessage.warning('请输入真实姓名')
-    return
-  }
 
   formLoading.value = true
   try {
     // 1) 若选择了新头像，先上传至OSS，拿到最终URL
     const uploadedAvatarUrl = await uploadAvatarIfNeeded()
 
-    // 提交教师可以修改的字段，包括科目设置
+    // 提交教师可修改的字段（不包含：姓名/性别/级别/经验/时薪/评分/学历/科目）
     const formData = {
-      realName: teacherForm.realName,
       birthDate: teacherForm.birthDate,
-      educationBackground: normalizeEducation(teacherForm.educationBackground || ''),
-      teachingExperience: teacherForm.teachingExperience,
       specialties: teacherForm.specialties,
-      subjectIds: selectedSubjectIds.value, // 添加科目设置
       introduction: teacherForm.introduction,
-      videoIntroUrl: teacherForm.videoIntroUrl,
-      gender: teacherForm.gender,
       availableTimeSlots: availableTimeSlots.value,
       // 2) 如果上传了新头像，使用新URL；否则保持原有值
       ...(uploadedAvatarUrl && { avatarUrl: uploadedAvatarUrl })
@@ -367,7 +357,8 @@ onMounted(() => {
                 </div>
               </el-form-item>
               <el-form-item label="真实姓名" required>
-                <el-input v-model="teacherForm.realName" placeholder="请输入真实姓名"></el-input>
+                <el-input :value="teacherForm.realName" readonly placeholder="仅管理员可修改"></el-input>
+                <small style="color: #999; font-size: 12px;">注：姓名仅能由管理员修改</small>
               </el-form-item>
               <el-form-item label="出生年月" required>
                 <el-input
@@ -377,7 +368,7 @@ onMounted(() => {
                 ></el-input>
               </el-form-item>
               <el-form-item label="性别">
-                <el-radio-group v-model="teacherForm.gender">
+                <el-radio-group v-model="teacherForm.gender" disabled>
                   <el-radio
                     v-for="option in genderOptions"
                     :key="option.value"
@@ -386,14 +377,16 @@ onMounted(() => {
                     {{ option.label }}
                   </el-radio>
                 </el-radio-group>
+                <small style="color: #999; font-size: 12px;">注：性别仅能由管理员修改</small>
               </el-form-item>
               <el-form-item label="学历">
-                <el-select v-model="teacherForm.educationBackground" placeholder="请选择学历" style="width: 100%">
+                <el-select v-model="teacherForm.educationBackground" placeholder="请选择学历" style="width: 100%" disabled>
                   <el-option label="专科及以下" value="专科及以下"></el-option>
                   <el-option label="本科" value="本科"></el-option>
                   <el-option label="硕士" value="硕士"></el-option>
                   <el-option label="博士" value="博士"></el-option>
                 </el-select>
+                <small style="color: #999; font-size: 12px;">注：学历仅能由管理员修改</small>
               </el-form-item>
               <el-form-item label="教学经验(年)">
                 <el-input-number
@@ -401,9 +394,11 @@ onMounted(() => {
                   :min="0"
                   :max="50"
                   style="width: 100%"
+                  disabled
                 ></el-input-number>
+                <small style="color: #999; font-size: 12px;">注：教学经验仅能由管理员修改</small>
               </el-form-item>
-              <el-form-item label="教授科目" required>
+              <el-form-item label="教授科目">
                 <el-select
                   v-model="selectedSubjectIds"
                   multiple
@@ -412,6 +407,7 @@ onMounted(() => {
                   collapse-tags
                   collapse-tags-tooltip
                   :max-collapse-tags="4"
+                  disabled
                 >
                   <el-option
                     v-for="subject in subjects"
@@ -420,7 +416,7 @@ onMounted(() => {
                     :value="subject.id"
                   />
                 </el-select>
-                <small style="color: #999; font-size: 12px;">注：您可以选择多个科目</small>
+                <small style="color: #999; font-size: 12px;">注：科目仅能由管理员修改</small>
               </el-form-item>
               <el-form-item label="专业特长">
                 <el-input
@@ -443,12 +439,6 @@ onMounted(() => {
                   type="textarea"
                   :rows="4"
                   placeholder="请简要介绍您的教学风格、经验和专长"
-                ></el-input>
-              </el-form-item>
-              <el-form-item label="介绍视频链接">
-                <el-input
-                  v-model="teacherForm.videoIntroUrl"
-                  placeholder="请输入视频链接(可选)"
                 ></el-input>
               </el-form-item>
               <el-form-item label="可上课时间">

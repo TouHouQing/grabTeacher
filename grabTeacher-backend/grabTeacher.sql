@@ -860,7 +860,6 @@ CREATE TABLE `teachers` (
                             `specialties` varchar(50) DEFAULT NULL COMMENT '专业领域如：[高考数学,竞赛辅导,基础提升]',
                             `hourly_rate` decimal(10,2) DEFAULT NULL COMMENT '每小时收费标准，单位：元',
                             `introduction` text COMMENT '个人介绍和教学理念',
-                            `video_intro_url` varchar(255) DEFAULT NULL COMMENT '个人介绍视频URL地址',
                             `photo_url` varchar(255) DEFAULT NULL COMMENT '个人照片',
                             `gender` enum('男','女','不愿透露') DEFAULT '不愿透露' COMMENT '性别：男、女、不愿透露',
                             `is_verified` tinyint(1) DEFAULT '0' COMMENT '是否已认证：true-已认证，false-未认证',

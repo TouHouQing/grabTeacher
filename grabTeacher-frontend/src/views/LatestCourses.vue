@@ -295,6 +295,11 @@ const handleEnroll = async (course: Course) => {
       ElMessage.info('您已报名该课程')
       return
     }
+    // 课程已满员提示
+    if (course.status === 'full') {
+      ElMessage.warning('该课程已满员，无法报名')
+      return
+    }
     // 仅支持大班课报名
     if (course.courseType !== 'large_class') {
       ElMessage.info('该课程请先进入详情或联系客服预约')
@@ -444,16 +449,31 @@ const handleEnroll = async (course: Course) => {
                 <div class="course-price" :class="{ 'customizable': course.courseType === 'one_on_one' }">
                   {{ formatPrice(course) }}
                 </div>
-                <div class="course-status-text">{{ course.statusDisplay }}</div>
+                <div class="course-status-text" :class="{
+                  'status-active': course.status === 'active',
+                  'status-full': course.status === 'full',
+                  'status-pending': course.status === 'pending'
+                }">{{ course.statusDisplay }}</div>
               </div>
 
               <div class="course-actions">
                 <template v-if="course.courseType === 'large_class'">
-                  <el-button type="primary"
+                  <el-button v-if="course.status === 'full'"
+                             type="info"
+                             disabled>
+                    已满员
+                  </el-button>
+                  <el-button v-else-if="course.enrolled"
+                             type="success"
+                             disabled>
+                    已报名
+                  </el-button>
+                  <el-button v-else
+                             type="primary"
                              :loading="enrollingCourseId === course.id"
-                             :disabled="enrollingCourseId === course.id || !!course.enrolled"
+                             :disabled="enrollingCourseId === course.id"
                              @click.stop="handleEnroll(course)">
-                    {{ course.enrolled ? '已报名' : '立即报名' }}
+                    立即报名
                   </el-button>
                   <el-button type="default" @click.stop="$router.push(`/course/${course.id}`)">查看详情</el-button>
                 </template>
@@ -772,8 +792,19 @@ export default {
 
 .course-status-text {
   font-size: 14px;
-  color: #67c23a;
   font-weight: 500;
+}
+
+.course-status-text.status-active {
+  color: #67c23a;
+}
+
+.course-status-text.status-full {
+  color: #f56c6c;
+}
+
+.course-status-text.status-pending {
+  color: #e6a23c;
 }
 
 .course-actions {

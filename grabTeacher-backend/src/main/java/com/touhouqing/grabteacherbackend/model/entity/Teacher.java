@@ -50,10 +50,6 @@ public class Teacher {
     @TableField("introduction")
     private String introduction;
 
-    @Schema(description = "教师视频介绍URL", example = "https://example.com/teacher-video.mp4")
-    @TableField("video_intro_url")
-    private String videoIntroUrl;
-
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     @TableField("gender")
     private String gender;

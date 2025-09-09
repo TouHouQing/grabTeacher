@@ -487,8 +487,10 @@ export const bookingAPI = {
     endDate?: string
     totalTimes?: number
     studentRequirements?: string
-    trial?: boolean
+    trial?: boolean // 兼容旧字段
+    isTrial?: boolean // 后端DTO字段名
     trialDurationMinutes?: number
+    selectedDurationMinutes?: number
   }) => apiRequest('/api/booking/request', {
     method: 'POST',
     body: JSON.stringify(data)

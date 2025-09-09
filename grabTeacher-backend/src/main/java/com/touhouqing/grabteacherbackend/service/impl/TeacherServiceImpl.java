@@ -146,7 +146,6 @@ public class TeacherServiceImpl implements TeacherService {
                 .subjects(subjects)
                 .hourlyRate(teacher.getHourlyRate())
                 .introduction(teacher.getIntroduction())
-                .videoIntroUrl(teacher.getVideoIntroUrl())
                 .gender(teacher.getGender())
                 .availableTimeSlots(availableTimeSlots)
                 .verified(teacher.getVerified())
@@ -189,7 +188,6 @@ public class TeacherServiceImpl implements TeacherService {
                 .subjectIds(subjectIds)
                 .hourlyRate(teacher.getHourlyRate())
                 .introduction(teacher.getIntroduction())
-                .videoIntroUrl(teacher.getVideoIntroUrl())
                 .gender(teacher.getGender())
                 .avatarUrl(avatarUrl)
                 .availableTimeSlots(availableTimeSlots)
@@ -447,9 +445,9 @@ public class TeacherServiceImpl implements TeacherService {
         }
         String oldAvailableTimeSlots = teacher.getAvailableTimeSlots();
 
-        // 教师只能更新基本信息，不能修改科目和收费
+        // 教师不可修改真实姓名（仅管理员可改）
         if (request.getRealName() != null) {
-            teacher.setRealName(request.getRealName());
+            log.warn("教师尝试修改真实姓名被忽略, userId={}", userId);
         }
 
         // 更新用户表中的出生年月/头像
@@ -471,11 +469,13 @@ public class TeacherServiceImpl implements TeacherService {
             }
         }
 
+        // 教师不可修改学历（仅管理员可改）
         if (request.getEducationBackground() != null) {
-            teacher.setEducationBackground(request.getEducationBackground());
+            log.warn("教师尝试修改学历被忽略, userId={}", userId);
         }
+        // 教师不可修改教学经验（仅管理员可改）
         if (request.getTeachingExperience() != null) {
-            teacher.setTeachingExperience(request.getTeachingExperience());
+            log.warn("教师尝试修改教学经验被忽略, userId={}", userId);
         }
         if (request.getSpecialties() != null) {
             teacher.setSpecialties(request.getSpecialties());
@@ -485,30 +485,16 @@ public class TeacherServiceImpl implements TeacherService {
             teacher.setIntroduction(request.getIntroduction());
         }
         
-        // 处理科目设置
+        // 教师不可修改科目（仅管理员可改）
         if (request.getSubjectIds() != null) {
-            // 先删除现有的科目关联
-            teacherSubjectMapper.deleteByTeacherId(teacher.getId());
-            
-            // 添加新的科目关联
-            if (!request.getSubjectIds().isEmpty()) {
-                List<TeacherSubject> teacherSubjects = request.getSubjectIds().stream()
-                    .map(subjectId -> new TeacherSubject(teacher.getId(), subjectId))
-                    .collect(Collectors.toList());
-                
-                for (TeacherSubject teacherSubject : teacherSubjects) {
-                    teacherSubjectMapper.insert(teacherSubject);
-                }
-                log.info("教师更新科目设置成功: userId={}, subjectIds={}", userId, request.getSubjectIds());
-            } else {
-                log.info("教师清空科目设置: userId={}", userId);
-            }
+            log.warn("教师尝试修改科目被忽略, userId={}, subjectIds={}", userId, request.getSubjectIds());
         }
         if (request.getVideoIntroUrl() != null) {
-            teacher.setVideoIntroUrl(request.getVideoIntroUrl());
+            log.warn("教师尝试修改视频链接被忽略, userId={}", userId);
         }
+        // 教师不可修改性别（仅管理员可改）
         if (request.getGender() != null) {
-            teacher.setGender(request.getGender());
+            log.warn("教师尝试修改性别被忽略, userId={}", userId);
         }
 
         // 处理可上课时间更新

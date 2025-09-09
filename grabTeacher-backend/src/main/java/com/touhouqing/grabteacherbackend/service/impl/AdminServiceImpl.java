@@ -527,7 +527,6 @@ public class AdminServiceImpl implements AdminService {
                 .hourlyRate(teacher.getHourlyRate())
                 .rating(teacher.getRating())
                 .introduction(teacher.getIntroduction())
-                .videoIntroUrl(teacher.getVideoIntroUrl())
                 .gender(teacher.getGender())
                 .level(teacher.getLevel())
                 .availableTimeSlots(availableTimeSlots)
@@ -619,7 +618,6 @@ public class AdminServiceImpl implements AdminService {
                 .specialties(request.getSpecialties())
                 .hourlyRate(request.getHourlyRate())
                 .introduction(request.getIntroduction())
-                .videoIntroUrl(request.getVideoIntroUrl())
                 .gender(request.getGender() != null ? request.getGender() : "不愿透露")
                 .level(request.getLevel() != null ? request.getLevel() : "王牌")
                 .availableTimeSlots(availableTimeSlotsJson)
@@ -708,7 +706,6 @@ public class AdminServiceImpl implements AdminService {
         teacher.setSpecialties(request.getSpecialties());
         teacher.setHourlyRate(request.getHourlyRate());
         teacher.setIntroduction(request.getIntroduction());
-        teacher.setVideoIntroUrl(request.getVideoIntroUrl());
         teacher.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
         // 更新教师级别
         if (request.getLevel() != null) {

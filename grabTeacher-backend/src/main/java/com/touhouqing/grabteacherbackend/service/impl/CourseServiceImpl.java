@@ -735,7 +735,7 @@ public class CourseServiceImpl implements CourseService {
     public List<CourseVO> getAllFeaturedCourses() {
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("is_featured", true)
-                   .eq("status", "active")
+                   .in("status", "active", "full")
                    .eq("is_deleted", false)
                    .orderByDesc("created_at");
 
@@ -748,7 +748,7 @@ public class CourseServiceImpl implements CourseService {
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
 
         queryWrapper.eq("is_featured", true)
-                   .eq("status", "active")
+                   .in("status", "active", "full")
                    .eq("is_deleted", false);
 
         if (subjectId != null) {
