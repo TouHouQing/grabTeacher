@@ -269,7 +269,7 @@ onMounted(async () => {
                 <el-icon><Calendar /></el-icon>
                 查看课表
               </el-button>
-              <el-button type="warning">
+              <el-button type="warning" @click="$router.push({ path: '/about', hash: '#contact-us' })">
                 <el-icon><ChatLineRound /></el-icon>
                 联系客服
               </el-button>

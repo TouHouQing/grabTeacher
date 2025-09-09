@@ -92,7 +92,7 @@ const selectedPeriods = ref<string[]>([])
 watch(selectedPeriods, (periods) => {
   const slots: string[] = []
   if (periods.includes('morning')) {
-    slots.push('08:00-10:00', '10:00-12:00')
+    slots.push('08:00-10:00')
   }
   if (periods.includes('afternoon')) {
     slots.push('13:00-15:00', '15:00-17:00')
@@ -321,7 +321,7 @@ const handleMatch = async () => {
     if (isTrialMode.value) {
       const seg = trialSearchSegment.value
       const segSlots: string[] = []
-      if (seg === 'morning') segSlots.push('08:00-10:00', '10:00-12:00')
+      if (seg === 'morning') segSlots.push('08:00-10:00')
       if (seg === 'afternoon') segSlots.push('13:00-15:00', '15:00-17:00')
       if (seg === 'evening') segSlots.push('17:00-19:00', '19:00-21:00')
       preferredTimeSlots = segSlots
@@ -915,7 +915,7 @@ const getTrialTimeSlotsByPeriod = (period: string): string[] => {
     case 'morning':
       return allSlots.filter(slot => {
         const startHour = parseInt(slot.split('-')[0].split(':')[0])
-        return startHour >= 8 && startHour < 12
+        return startHour >= 8 && startHour < 10
       })
     case 'afternoon':
       return allSlots.filter(slot => {
@@ -945,9 +945,9 @@ const selectTimePeriod = (period: string) => {
 // 获取时间段类型的显示名称
 const getTimePeriodName = (period: string): string => {
   const names = {
-    morning: '上午时段',
-    afternoon: '下午时段',
-    evening: '晚上时段'
+    morning: '上午（8-10点）',
+    afternoon: '下午（13-17点）',
+    evening: '晚上（17-21点）'
   }
   return names[period] || ''
 }
@@ -1013,7 +1013,7 @@ const getTrialOptionsByPeriod = (period: 'morning' | 'afternoon' | 'evening'): s
     .filter((slot: any) => slot.trialAvailable === true)
     .map((slot: any) => slot.slot)
 
-  if (period === 'morning') return availableSlots.filter((t: string) => inRange(t, 8, 12))
+  if (period === 'morning') return availableSlots.filter((t: string) => inRange(t, 8, 10))
   if (period === 'afternoon') return availableSlots.filter((t: string) => inRange(t, 13, 17))
   return availableSlots.filter((t: string) => inRange(t, 17, 21))
 }
@@ -1118,9 +1118,9 @@ const getTrialTimeSlot = (): string => {
 const hasAvailableTrialSlots = (date: Date): boolean => {
   const weekday = date.getDay() === 0 ? 7 : date.getDay()
 
-  // 检查三个时间段：上午(8-12)、下午(13-17)、晚上(17-21)
+  // 检查三个时间段：上午(8-10)、下午(13-17)、晚上(17-21)
   const timeRanges = [
-    { start: 8, end: 12, name: 'morning' },
+    { start: 8, end: 10, name: 'morning' },
     { start: 13, end: 17, name: 'afternoon' },
     { start: 17, end: 21, name: 'evening' }
   ]
@@ -1180,11 +1180,11 @@ const hasTrialBookingConflict = (weekday: number, timeSlot: string): boolean => 
 const getTimePeriodClass = (timeSlot: string): string => {
   const startHour = parseInt(timeSlot.split('-')[0].split(':')[0])
 
-  if (startHour >= 9 && startHour < 12) {
+  if (startHour >= 8 && startHour < 10) {
     return 'morning-slot'
-  } else if (startHour >= 12 && startHour < 18) {
+  } else if (startHour >= 13 && startHour < 17) {
     return 'afternoon-slot'
-  } else if (startHour >= 18 && startHour <= 21) {
+  } else if (startHour >= 17 && startHour <= 21) {
     return 'evening-slot'
   }
 
@@ -1358,10 +1358,10 @@ const getWeekdayName = (weekday: number): string => {
   return names[weekday] || '未知'
 }
 
-// 获取完整的时间段列表 - 固定为6个系统上课时间
+// 获取完整的时间段列表 - 固定为5个系统上课时间
 const getCompleteTimeSlots = (): string[] => {
   return [
-    '08:00-10:00', '10:00-12:00', '13:00-15:00',
+    '08:00-10:00', '13:00-15:00',
     '15:00-17:00', '17:00-19:00', '19:00-21:00'
   ]
 }
@@ -2581,20 +2581,32 @@ watch(selectedCourse, (newCourse) => {
           <el-form-item v-if="isTrialMode" label="上课日期">
             <el-date-picker v-model="trialSearchDate" type="date" placeholder="请选择上课日期" :disabled-date="(date) => date < new Date()" format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
           </el-form-item>
-          <el-form-item v-if="isTrialMode" label="上下午/晚上">
-            <el-radio-group v-model="trialSearchSegment">
-              <el-radio-button label="morning">上午</el-radio-button>
-              <el-radio-button label="afternoon">下午</el-radio-button>
-              <el-radio-button label="evening">晚上</el-radio-button>
-            </el-radio-group>
+          <el-form-item v-if="isTrialMode" label="偏好上课时间 Preferred Schedule">
+            <div class="trial-time-preference-container">
+              <el-radio-group v-model="trialSearchSegment" class="trial-time-radio-group">
+                <div class="time-preference-row">
+                  <el-radio-button label="morning">上午（8-10点）</el-radio-button>
+                  <el-radio-button label="afternoon">下午（13-17点）</el-radio-button>
+                </div>
+                <div class="time-preference-row">
+                  <el-radio-button label="evening">晚上（17-21点）</el-radio-button>
+                </div>
+              </el-radio-group>
+            </div>
           </el-form-item>
 
           <el-form-item v-if="!isTrialMode" label="偏好上课时间 Preferred Schedule">
-            <el-checkbox-group v-model="selectedPeriods">
-              <el-checkbox label="morning">上午</el-checkbox>
-              <el-checkbox label="afternoon">下午</el-checkbox>
-              <el-checkbox label="evening">晚上</el-checkbox>
-            </el-checkbox-group>
+            <div class="time-preference-container">
+              <el-checkbox-group v-model="selectedPeriods" class="time-preference-checkbox-group">
+                <div class="time-preference-row">
+                  <el-checkbox label="morning">上午（8-10点）</el-checkbox>
+                  <el-checkbox label="afternoon">下午（13-17点）</el-checkbox>
+                </div>
+                <div class="time-preference-row">
+                  <el-checkbox label="evening">晚上（17-21点）</el-checkbox>
+                </div>
+              </el-checkbox-group>
+            </div>
           </el-form-item>
 
           <el-form-item>
@@ -3233,7 +3245,9 @@ watch(selectedCourse, (newCourse) => {
                 ? (!scheduleForm.trialDate || !scheduleForm.trialStartTime || !scheduleForm.trialEndTime)
                 : (!selectedCourse || scheduleForm.selectedTimeSlots.length === 0 || scheduleForm.selectedWeekdays.length === 0)
             "
+            size="large"
           >
+            <el-icon><Calendar /></el-icon>
             {{ scheduleForm.bookingType === 'trial' ? '申请试听' : '确认预约' }}
           </el-button>
         </span>
@@ -5650,6 +5664,83 @@ h2 {
   }
 }
 
+/* 时间偏好选择容器样式 */
+.time-preference-container,
+.trial-time-preference-container {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.time-preference-checkbox-group,
+.trial-time-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.time-preference-row {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.time-preference-row:last-child {
+  justify-content: flex-start;
+}
+
+/* 时间偏好按钮样式 */
+.time-preference-checkbox-group .el-checkbox,
+.trial-time-radio-group .el-radio-button {
+  flex: 0 0 auto;
+  min-width: 120px;
+  max-width: 200px;
+  margin: 0;
+}
+
+.time-preference-checkbox-group .el-checkbox {
+  padding: 12px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background-color: #fff;
+  transition: all 0.3s;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.time-preference-checkbox-group .el-checkbox:hover {
+  border-color: #409eff;
+  background-color: #f0f9ff;
+}
+
+.time-preference-checkbox-group .el-checkbox.is-checked {
+  border-color: #52c41a;
+  background-color: #f6ffed;
+}
+
+.trial-time-radio-group .el-radio-button {
+  flex: 0 0 auto;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.trial-time-radio-group .el-radio-button__inner {
+  padding: 12px 16px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* 试听课时间选择样式 - 统一网格布局 */
 .trial-time-container {
   margin: 20px 0;
@@ -6035,6 +6126,39 @@ h2 {
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   max-width: 100%;
+}
+
+/* 时间偏好选择响应式样式 */
+@media (max-width: 768px) {
+  .time-preference-checkbox-group .el-checkbox,
+  .trial-time-radio-group .el-radio-button {
+    min-width: 100px;
+    max-width: 140px;
+    padding: 10px 12px;
+  }
+
+  .trial-time-radio-group .el-radio-button__inner {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .time-preference-checkbox-group .el-checkbox,
+  .trial-time-radio-group .el-radio-button {
+    min-width: 80px;
+    max-width: 120px;
+    padding: 8px 10px;
+  }
+
+  .trial-time-radio-group .el-radio-button__inner {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .time-preference-row {
+    gap: 8px;
+  }
 }
 
 .trial-time-slot-card {

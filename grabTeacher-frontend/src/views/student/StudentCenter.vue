@@ -290,7 +290,7 @@ onMounted(async () => {
                 智能匹配教师
               </el-button>
 
-              <el-button type="warning" @click="$router.push('/student-center/match')">
+              <el-button type="warning" @click="$router.push({ path: '/about', hash: '#contact-us' })">
                 <el-icon><Connection /></el-icon>
                 联系客服
               </el-button>
