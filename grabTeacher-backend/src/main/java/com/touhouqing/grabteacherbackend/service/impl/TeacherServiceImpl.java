@@ -309,7 +309,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     @Cacheable(cacheNames = "teacherList",
                keyGenerator = "teacherCacheKeyGenerator",
-               sync = true)
+               unless = "#result == null || #result.isEmpty()")
     public List<TeacherListVO> getTeacherListWithSubjects(int page, int size, String subject, String keyword) {
         // 获取教师列表（分页+筛选）
         List<Teacher> teachers = getFilteredTeacherList(page, size, subject, keyword);
@@ -323,7 +323,7 @@ public class TeacherServiceImpl implements TeacherService {
     @Override
     @Cacheable(cacheNames = "featuredTeachers",
                keyGenerator = "teacherCacheKeyGenerator",
-               sync = true)
+               unless = "#result == null || #result.isEmpty()")
     public List<TeacherListVO> getFeaturedTeachers(int page, int size, String subject, String keyword) {
         // 获取精选教师列表（分页+筛选）
         List<Teacher> teachers = getFeaturedTeacherList(page, size, subject, keyword);

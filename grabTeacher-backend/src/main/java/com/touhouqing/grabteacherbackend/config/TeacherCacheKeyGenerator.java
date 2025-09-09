@@ -57,20 +57,17 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
             return "teacherList:default";
         }
 
-        StringBuilder key = new StringBuilder("teacherList:");
+        StringBuilder key = new StringBuilder("teacherList:v2:");
 
-        // page, size, subject, grade, keyword
+        // page, size, subject, keyword
         key.append("page_").append(params[0] != null ? params[0] : "1");
         key.append(":size_").append(params[1] != null ? params[1] : "10");
 
-        if (params.length > 2 && StringUtils.hasText((String) params[2])) {
+        if (params.length > 2 && params[2] instanceof String && StringUtils.hasText((String) params[2])) {
             key.append(":subject_").append(params[2]);
         }
-        if (params.length > 3 && StringUtils.hasText((String) params[3])) {
-            key.append(":grade_").append(params[3]);
-        }
-        if (params.length > 4 && StringUtils.hasText((String) params[4])) {
-            key.append(":keyword_").append(params[4]);
+        if (params.length > 3 && params[3] instanceof String && StringUtils.hasText((String) params[3])) {
+            key.append(":keyword_").append(((String) params[3]).trim().replaceAll("\\s+", " "));
         }
 
         String finalKey = key.toString();
