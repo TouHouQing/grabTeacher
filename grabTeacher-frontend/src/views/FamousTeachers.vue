@@ -136,6 +136,7 @@ const transformTeacherData = (teacherList: any[]) => {
       id: teacher.id,
       name: teacher.realName,
       subject: primarySubject,
+      subjects: subjects,
       experience: teacher.teachingExperience || 0,
       rating: Math.round(rating * 10) / 10, // 保留一位小数
       description: teacher.introduction || `${teacher.realName}是一位优秀的${primarySubject}教师，教学经验丰富，深受学生喜爱。`,
@@ -145,7 +146,8 @@ const transformTeacherData = (teacherList: any[]) => {
       hourlyRate: teacher.hourlyRate || 0,
       education: teacher.educationBackground || '暂无信息',
       specialties: teacher.specialties || '',
-      isVerified: teacher.isVerified || false
+      isVerified: teacher.isVerified || false,
+      level: teacher.level || '未设置'
     }
   })
 }
@@ -318,7 +320,11 @@ onMounted(() => {
             </div>
             <div class="teacher-info">
               <h3>{{ teacher.name }}</h3>
-              <p>{{ teacher.subject }} | {{ teacher.experience }}年教龄</p>
+              <div class="teacher-tags">
+                <el-tag v-for="(s, i) in teacher.subjects.slice(0, 3)" :key="i" size="small" class="subject-tag">{{ s }}</el-tag>
+                <el-tag v-if="teacher.subjects.length > 3" size="small" class="subject-tag" type="info">+{{ teacher.subjects.length - 3 }}</el-tag>
+              </div>
+              <p>{{ teacher.experience }}年教龄 · {{ teacher.level || '未设置' }}</p>
               <p class="teacher-description">{{ teacher.description }}</p>
               <div class="teacher-tags">
                 <el-tag v-for="(tag, i) in teacher.tags" :key="i" size="small" class="teacher-tag">{{ tag }}</el-tag>

@@ -147,6 +147,7 @@ public class TeacherServiceImpl implements TeacherService {
                 .hourlyRate(teacher.getHourlyRate())
                 .introduction(teacher.getIntroduction())
                 .gender(teacher.getGender())
+                .level(teacher.getLevel())
                 .availableTimeSlots(availableTimeSlots)
                 .verified(teacher.getVerified())
                 .deleted(teacher.getDeleted())
@@ -263,36 +264,7 @@ public class TeacherServiceImpl implements TeacherService {
      * 根据科目统计教师数量
      */
     private long countTeachersBySubject(String subject, String keyword) {
-        QueryWrapper<TeacherSubject> tsWrapper = new QueryWrapper<>();
-        tsWrapper.eq("subject_name", subject);
-
-
-        List<TeacherSubject> teacherSubjects = teacherSubjectMapper.selectList(tsWrapper);
-        if (teacherSubjects.isEmpty()) {
-            return 0L;
-        }
-
-        List<Long> teacherIds = teacherSubjects.stream()
-                .map(TeacherSubject::getTeacherId)
-                .distinct()
-                .collect(Collectors.toList());
-
-        QueryWrapper<Teacher> teacherWrapper = new QueryWrapper<>();
-        teacherWrapper.in("id", teacherIds);
-        teacherWrapper.eq("is_deleted", false);
-        teacherWrapper.eq("is_verified", true);
-
-        if (StringUtils.hasText(keyword)) {
-            teacherWrapper.and(wrapper -> wrapper
-                    .like("real_name", keyword)
-                    .or()
-                    .like("specialties", keyword)
-                    .or()
-                    .like("introduction", keyword)
-            );
-        }
-
-        return teacherMapper.selectCount(teacherWrapper);
+        return teacherMapper.countTeachersBySubject(subject, keyword);
     }
 
     /**
@@ -420,6 +392,7 @@ public class TeacherServiceImpl implements TeacherService {
                     .hourlyRate(t.getHourlyRate())
                     .introduction(shortIntro)
                     .gender(t.getGender())
+                    .level(t.getLevel())
                     .verified(t.getVerified())
                     .build();
             list.add(dto);

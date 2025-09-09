@@ -64,6 +64,25 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
                                              @Param("keyword") String keyword,
                                              @Param("offset") int offset,
                                              @Param("size") int size);
+    /**
+     * 按科目统计教师数量（支持关键字）
+     */
+    @Select({
+        "<script>",
+        "SELECT COUNT(DISTINCT t.id) FROM teachers t",
+        "INNER JOIN teacher_subjects ts ON t.id = ts.teacher_id",
+        "INNER JOIN subjects s ON ts.subject_id = s.id",
+        "WHERE t.is_deleted = 0 AND t.is_verified = 1",
+        "AND s.name = #{subject} AND s.is_deleted = 0",
+        "<if test='keyword != null and keyword != \"\"'>",
+        "  AND (t.real_name LIKE CONCAT('%', #{keyword}, '%')",
+        "       OR t.specialties LIKE CONCAT('%', #{keyword}, '%')",
+        "       OR t.introduction LIKE CONCAT('%', #{keyword}, '%'))",
+        "</if>",
+        "</script>"
+    })
+    long countTeachersBySubject(@Param("subject") String subject, @Param("keyword") String keyword);
+
 
 
     /**
