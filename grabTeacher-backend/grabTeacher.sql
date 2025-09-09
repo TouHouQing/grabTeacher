@@ -990,3 +990,24 @@ SET `course_time_slots`='[{"weekday":1,"timeSlots":["08:00-10:00","10:00-12:00",
 WHERE `course_type`='large_class';
 
 -- Dump completed on 2025-09-05 22:11:10
+
+
+
+--
+-- Table structure for table `teaching_locations`
+--
+
+DROP TABLE IF EXISTS `teaching_locations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `teaching_locations` (
+                         `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '授课地址ID，主键自增',
+                         `name` varchar(50) NOT NULL COMMENT '授课地点名称',
+                         `address` varchar(255) NOT NULL COMMENT '授课地点详细地址',
+                         `is_active` tinyint NOT NULL COMMENT '是否激活：1-是，0-否',
+                         `sort_order` int NOT NULL COMMENT '排序顺序',
+                         `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                         `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+                         PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=184 DEFAULT CHARSET=utf8mb4 COMMENT='授课地址表，存储所有授课地点的信息';
+/*!40101 SET character_set_client = @saved_cs_client */;

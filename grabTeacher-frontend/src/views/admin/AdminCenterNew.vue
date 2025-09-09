@@ -8,6 +8,8 @@ const AdminDashboard = defineAsyncComponent(() => import('./components/AdminDash
 const AdminStudentManagement = defineAsyncComponent(() => import('./components/AdminStudentManagement.vue'))
 const AdminTeacherManagement = defineAsyncComponent(() => import('./components/AdminTeacherManagement.vue'))
 const AdminSubjectManagement = defineAsyncComponent(() => import('./components/AdminSubjectManagement.vue'))
+const AdminTeachingLocationManagement = defineAsyncComponent(() => import('./components/AdminTeachingLocationManagement.vue'))
+
 const AdminCourseManagement = defineAsyncComponent(() => import('./AdminCourseManagement.vue'))
 const AdminJobPostManagement = defineAsyncComponent(() => import('./components/AdminJobPostManagement.vue'))
 const AdminPasswordChange = defineAsyncComponent(() => import('./components/AdminPasswordChange.vue'))
@@ -84,6 +86,10 @@ const handleMenuSelect = (key: string) => {
               <el-icon><Document /></el-icon>
               <span>科目管理</span>
             </el-menu-item>
+            <el-menu-item index="locations">
+              <el-icon><Document /></el-icon>
+              <span>授课地点</span>
+            </el-menu-item>
             <el-menu-item index="courses">
               <el-icon><Reading /></el-icon>
               <span>课程管理</span>
@@ -155,6 +161,8 @@ const handleMenuSelect = (key: string) => {
         <div v-if="activeMenu === 'students'" class="content-panel"><AdminStudentManagement /></div>
         <div v-if="activeMenu === 'teachers'" class="content-panel"><AdminTeacherManagement /></div>
         <div v-if="activeMenu === 'subjects'" class="content-panel"><AdminSubjectManagement /></div>
+        <div v-if="activeMenu === 'locations'" class="content-panel"><AdminTeachingLocationManagement /></div>
+
         <div v-if="activeMenu === 'courses'" class="content-panel"><AdminCourseManagement /></div>
         <div v-if="activeMenu === 'course-evaluations'" class="content-panel"><AdminCourseEvaluationManagement /></div>
         <div v-if="activeMenu === 'jobposts'" class="content-panel"><AdminJobPostManagement /></div>

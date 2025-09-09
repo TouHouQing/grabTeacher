@@ -145,6 +145,31 @@ export const subjectAPI = {
   }
 }
 
+// 授课地点管理 API（仅管理员）
+export const teachingLocationAPI = {
+  // 获取授课地点列表
+  getList: (params: any) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null && v !== '') searchParams.append(key, v.toString())
+    })
+    return apiRequest(`/api/admin/teaching-locations?${searchParams}`)
+  },
+  // 创建授课地点
+  create: (data: { name: string; address: string; isActive?: boolean; sortOrder?: number }) =>
+    apiRequest('/api/admin/teaching-locations', { method: 'POST', body: JSON.stringify(data) }),
+  // 更新授课地点
+  update: (id: number, data: { name: string; address: string; isActive?: boolean; sortOrder?: number }) =>
+    apiRequest(`/api/admin/teaching-locations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  // 删除授课地点
+  delete: (id: number) => apiRequest(`/api/admin/teaching-locations/${id}`, { method: 'DELETE' }),
+  // 更新启用状态
+  updateStatus: (id: number, isActive: boolean) =>
+    apiRequest(`/api/admin/teaching-locations/${id}/status?isActive=${isActive}`, { method: 'PATCH' })
+}
+
+
 // 学生管理 API
 export const studentAPI = {
   // 获取学生列表
