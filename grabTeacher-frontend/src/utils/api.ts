@@ -404,6 +404,12 @@ export const teacherAPI = {
   // 获取教师的可预约时间设置（供学生查看）
   getAvailableTime: (teacherId: number) => apiRequest(`/api/available-time/teacher/${teacherId}`),
 
+  // 批量获取教师的可预约时间设置（供学生查看）
+  getAvailableTimeBatch: (teacherIds: number[]) => apiRequest(`/api/available-time/teacher/batch`, {
+    method: 'POST',
+    body: JSON.stringify(teacherIds)
+  }),
+
   // 获取某日的可用性信息（包括试听课和正式课）
   getDayAvailability: (teacherId: number, date: string, segment?: string) => {
     const params = new URLSearchParams({ teacherId: teacherId.toString(), date })

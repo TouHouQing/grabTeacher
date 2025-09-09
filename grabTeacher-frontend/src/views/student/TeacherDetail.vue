@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Phone, Message, Location, School, Trophy, ArrowLeft, Loading, Star, Clock, Document, InfoFilled } from '@element-plus/icons-vue'
@@ -24,6 +24,28 @@ const teacherId = parseInt(route.params.id as string)
 // 教师信息状态
 const teacher = ref(null)
 const loading = ref(true)
+
+
+// 教师可授课时间（精简展示相关）
+const teacherAvailableSlots = ref<any[]>([])
+const showAllAvailability = ref(false)
+const weekdayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
+const flattenedAvailability = computed(() => {
+  const arr: string[] = []
+  try {
+    for (const slot of teacherAvailableSlots.value || []) {
+      const day = weekdayNames[Number(slot?.weekday) || 0] || '未知'
+      const times: string[] = Array.isArray(slot?.timeSlots) ? slot.timeSlots : []
+      for (const t of times) arr.push(`${day} ${t}`)
+    }
+  } catch (e) { /* 静默失败 */ }
+  return arr
+})
+const visibleAvailability = computed(() => {
+  const all = flattenedAvailability.value
+  return showAllAvailability.value ? all : all.slice(0, 12)
+})
+const totalAvailabilityCount = computed(() => flattenedAvailability.value.length)
 
 // 学生评价状态
 const reviews = ref([])
@@ -399,6 +421,10 @@ const fetchTeacherDetail = async () => {
         achievements: ['优秀教师奖'],
         level: teacherData.level || '未设置'
       }
+
+      // 赋值可授课时间（后端字段：availableTimeSlots -> [{ weekday: 1-7, timeSlots: ["HH:mm-HH:mm"] }])
+      teacherAvailableSlots.value = Array.isArray(teacherData.availableTimeSlots) ? teacherData.availableTimeSlots : []
+
     } else {
       // 如果API失败，使用默认数据
       if (teachersData[teacherId]) {
@@ -1058,6 +1084,35 @@ watch(() => scheduleForm.value.sessionCount, () => {
           </div>
         </div>
 
+
+        <!-- 可授课时间（精简展示，支持展开/收起） -->
+        <div class="profile-section availability-section" v-if="totalAvailabilityCount > 0">
+          <h4 class="section-title">
+            <el-icon><Clock /></el-icon>
+            可授课时间
+            <span class="availability-summary">（共 {{ totalAvailabilityCount }} 段）</span>
+          </h4>
+          <div class="section-content">
+            <div :class="['chips-container', { collapsed: !showAllAvailability && totalAvailabilityCount > 12 }]">
+              <el-tag
+                v-for="(chip, idx) in visibleAvailability"
+                :key="idx"
+                size="small"
+                type="info"
+                class="time-chip"
+                effect="plain"
+              >
+                {{ chip }}
+              </el-tag>
+            </div>
+            <div v-if="totalAvailabilityCount > 12" class="toggle-more">
+              <el-button text type="primary" size="small" @click="showAllAvailability = !showAllAvailability">
+                {{ showAllAvailability ? '收起' : '展开全部' }}
+              </el-button>
+            </div>
+          </div>
+        </div>
+
         <div class="profile-section">
           <h4 class="section-title"><el-icon><Document /></el-icon> 教师介绍</h4>
           <div class="section-content">
@@ -1672,6 +1727,42 @@ h2 {
 
 .schedule-tag {
   padding: 8px 15px;
+}
+
+
+/* 可授课时间（精简展示） */
+.availability-section .availability-summary {
+  margin-left: 6px;
+  font-weight: 400;
+  color: #666;
+  font-size: 13px;
+}
+.availability-section .chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  position: relative;
+}
+.availability-section .chips-container.collapsed {
+  max-height: 84px; /* 控制折叠高度，约两行标签 */
+  overflow: hidden;
+}
+.availability-section .chips-container.collapsed::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), #fff);
+  pointer-events: none;
+}
+.availability-section .time-chip {
+  border-radius: 14px;
+}
+.availability-section .toggle-more {
+  text-align: right;
+  margin-top: 6px;
 }
 
 

@@ -115,4 +115,29 @@ public class AvailableTimeServiceImpl implements AvailableTimeService {
         Teacher teacher = teacherMapper.findByUserId(userId);
         return teacher != null ? teacher.getId() : null;
     }
+
+    @Override
+    public java.util.List<AvailableTimeVO> getTeachersAvailableTime(java.util.List<Long> teacherIds) {
+        java.util.List<AvailableTimeVO> result = new java.util.ArrayList<>();
+        if (teacherIds == null || teacherIds.isEmpty()) {
+            return result;
+        }
+        // 批量查询，避免 N 次 DB 请求
+        java.util.List<Teacher> teachers = teacherMapper.selectBatchIds(teacherIds);
+        for (Teacher t : teachers) {
+            java.util.List<TimeSlotDTO> timeSlots = TimeSlotUtil.fromJsonString(t.getAvailableTimeSlots());
+            AvailableTimeVO vo = AvailableTimeVO.builder()
+                    .teacherId(t.getId())
+                    .teacherName(t.getRealName())
+                    .availableTimeSlots(timeSlots)
+                    .lastUpdated(java.time.LocalDateTime.now().format(FORMATTER))
+                    .build();
+            vo.calculateStats();
+            result.add(vo);
+        }
+        return result;
+    }
+
 }
+
+

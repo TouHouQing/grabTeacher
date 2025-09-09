@@ -45,6 +45,23 @@ public class AvailableTimeController {
     }
 
     /**
+     * 批量获取教师的可上课时间
+     */
+    @Operation(summary = "批量获取教师可上课时间", description = "传入teacherIds列表，返回各教师的可上课时间")
+    @PostMapping("/teacher/batch")
+    public ResponseEntity<CommonResult<java.util.List<AvailableTimeVO>>> getTeachersAvailableTime(
+            @RequestBody java.util.List<Long> teacherIds) {
+        try {
+            java.util.List<AvailableTimeVO> list = availableTimeService.getTeachersAvailableTime(teacherIds);
+            return ResponseEntity.ok(CommonResult.success("获取成功", list));
+        } catch (Exception e) {
+            log.error("批量获取教师可上课时间失败: teacherIds={}", teacherIds, e);
+            return ResponseEntity.badRequest().body(CommonResult.error("获取失败: " + e.getMessage()));
+        }
+    }
+
+
+    /**
      * 教师设置自己的可上课时间
      */
     @Operation(summary = "教师设置可上课时间", description = "教师设置自己的可上课时间安排")
@@ -60,7 +77,7 @@ public class AvailableTimeController {
                 return ResponseEntity.badRequest()
                         .body(CommonResult.error("教师信息不存在"));
             }
-            
+
             request.setTeacherId(teacherId);
             AvailableTimeVO response = availableTimeService.setTeacherAvailableTime(request);
             return ResponseEntity.ok(CommonResult.success("设置成功", response));

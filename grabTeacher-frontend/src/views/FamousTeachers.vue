@@ -46,6 +46,88 @@ const loadingTeachers = ref(false)
 const teachers = ref([])
 const total = ref(0)
 
+// 每位教师的可授课时间（从后端实时获取），按教师ID缓存，避免重复请求
+const availabilityByTeacher = ref<Record<number, string[]>>({})
+const availabilityLoading = ref<Record<number, boolean>>({})
+
+// 展示条数上限（保持整洁）
+const MAX_PREVIEW_SLOTS = 6
+
+// 周几中文名映射（后端通常用1-7，周一-周日）
+const weekdayName = (weekday: number) => {
+  const names = ['周一','周二','周三','周四','周五','周六','周日']
+  // 兼容0=周日或7=周日两种后端习惯
+  if (weekday === 0) return '周日'
+  if (weekday === 7) return '周日'
+  return names[(weekday - 1 + 7) % 7] || '周?'
+}
+
+// 将后端的 availableTimeSlots 扁平化为 ['周一 08:00-10:00', ...] 列表
+const flattenAvailableSlots = (availableTimeSlots: any[]): string[] => {
+  if (!Array.isArray(availableTimeSlots)) return []
+  const slots: string[] = []
+  for (const item of availableTimeSlots) {
+    const w = Number(item.weekday)
+    const times: string[] = Array.isArray(item.timeSlots) ? item.timeSlots : []
+    for (const t of times) {
+      slots.push(`${weekdayName(w)} ${t}`)
+    }
+  }
+  // 排序：先按周几再按起始时间
+  const keyOf = (s: string) => {
+    const [day, time] = s.split(' ')
+    const map: Record<string, number> = { '周一':1,'周二':2,'周三':3,'周四':4,'周五':5,'周六':6,'周日':7 }
+    const w = map[day] || 8
+    const start = (time || '99:99').split('-')[0]
+    return `${w}-${start}`
+  }
+  return slots.sort((a, b) => keyOf(a) < keyOf(b) ? -1 : 1)
+}
+
+// 并发拉取本页教师的可授课时间（限制规模，提升首屏性能）
+const prefetchAvailability = async (list: any[]) => {
+  const ids = list.map((t: any) => Number(t.id)).filter((v: any) => !!v)
+  // 标记加载中
+  ids.forEach((id: number) => { availabilityLoading.value[id] = true })
+  try {
+    const res = await teacherAPI.getAvailableTimeBatch(ids)
+    if (res?.success && Array.isArray(res.data)) {
+      // 填充结果
+      for (const vo of res.data) {
+        const id = Number(vo.teacherId)
+        const slots = flattenAvailableSlots(vo.availableTimeSlots || [])
+        availabilityByTeacher.value[id] = slots
+        availabilityLoading.value[id] = false
+      }
+      // 对于返回中缺失的教师，标记为空
+      ids.forEach((id: number) => {
+        if (!availabilityByTeacher.value[id]) {
+          availabilityByTeacher.value[id] = []
+          availabilityLoading.value[id] = false
+        }
+      })
+    } else {
+      // 失败降级
+      ids.forEach((id: number) => { availabilityByTeacher.value[id] = []; availabilityLoading.value[id] = false })
+    }
+  } catch (e) {
+    console.warn('批量获取可授课时间失败', e)
+    ids.forEach((id: number) => { availabilityByTeacher.value[id] = []; availabilityLoading.value[id] = false })
+  }
+}
+
+// UI：获取展示列表（展开则全部，否则只取前6个），必要时回退到占位 schedule
+const getAllSlots = (teacher: any): string[] => {
+  const id = Number(teacher.id)
+  const slots = availabilityByTeacher.value[id]
+  return Array.isArray(slots) && slots.length > 0 ? slots : (teacher.schedule || [])
+}
+
+const getVisibleSlots = (teacher: any): string[] => {
+  const list = getAllSlots(teacher)
+  return list.slice(0, MAX_PREVIEW_SLOTS)
+}
+
 // 默认头像数组，用于随机分配给教师
 const defaultAvatars = [
   teacherBoy1, teacherBoy2, teacherBoy3,
@@ -170,6 +252,8 @@ const loadTeachersWithFilter = async () => {
       const records = Array.isArray(response.data.records) ? response.data.records : []
       teachers.value = transformTeacherData(records)
       total.value = Number(response.data.total || 0)
+      // 预取每位教师的可授课时间（并发，限制在函数内部）
+      prefetchAvailability(teachers.value)
     }
   } catch (error) {
     console.error('获取教师列表失败:', error)
@@ -232,6 +316,8 @@ const loadTeachers = async () => {
       const records = Array.isArray(response.data.records) ? response.data.records : []
       teachers.value = transformTeacherData(records)
       total.value = Number(response.data.total || 0)
+      // 预取每位教师的可授课时间（并发，限制在函数内部）
+      prefetchAvailability(teachers.value)
     }
   } catch (error) {
     console.error('获取教师列表失败:', error)
@@ -331,9 +417,23 @@ onMounted(() => {
               </div>
               <div class="teacher-schedule">
                 <div class="schedule-title">可授课时间：</div>
-                <div class="schedule-times">
-                  <span v-for="(time, i) in teacher.schedule" :key="i" class="schedule-tag">{{ time }}</span>
-                </div>
+                <template v-if="availabilityLoading[teacher.id]">
+                  <div class="schedule-times"><el-skeleton :rows="1" animated style="width: 100%; max-width: 300px;" /></div>
+                </template>
+                <template v-else>
+                  <component :is="(getAllSlots(teacher).length > MAX_PREVIEW_SLOTS) ? 'el-tooltip' : 'div'"
+                             v-bind="(getAllSlots(teacher).length > MAX_PREVIEW_SLOTS) ? { placement: 'top', effect: 'dark' } : {}">
+                    <template v-if="getAllSlots(teacher).length > MAX_PREVIEW_SLOTS" #content>
+                      <div class="all-times-tooltip">
+                        <span v-for="(t, j) in getAllSlots(teacher)" :key="j" class="tooltip-tag">{{ t }}</span>
+                      </div>
+                    </template>
+                    <div class="schedule-times">
+                      <span v-for="(time, i) in getVisibleSlots(teacher)" :key="i" class="schedule-tag">{{ time }}</span>
+                      <span v-if="getAllSlots(teacher).length > MAX_PREVIEW_SLOTS" class="schedule-tag more-tag">+{{ getAllSlots(teacher).length - MAX_PREVIEW_SLOTS }}</span>
+                    </div>
+                  </component>
+                </template>
               </div>
               <div class="teacher-actions">
                 <el-button type="primary" @click="viewTeacherDetail(teacher.id)" size="large">
@@ -529,6 +629,12 @@ onMounted(() => {
   gap: 8px;
 }
 
+.schedule-toggle {
+  align-self: center;
+  margin-left: 4px;
+  font-size: 12px;
+}
+
 .schedule-tag {
   font-size: 12px;
   color: #409EFF;
@@ -536,6 +642,30 @@ onMounted(() => {
   padding: 4px 8px;
   border-radius: 4px;
 }
+
+.all-times-tooltip {
+  max-width: 520px;
+  max-height: 260px;
+  overflow: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 2px;
+}
+
+.tooltip-tag {
+  font-size: 12px;
+  color: #409EFF;
+  background-color: #ecf5ff;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.more-tag {
+  background-color: #f4f4f5;
+  color: #909399;
+}
+
 
 .teacher-actions {
   display: flex;
