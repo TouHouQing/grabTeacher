@@ -34,6 +34,9 @@ interface Teacher {
   specialties?: string
   isVerified?: boolean
   timeMatchScore?: number // 时间匹配度
+  level?: string // 教师级别
+  subjects?: string[] // 教授的全部科目（卡片展示前若干个）
+  subjectsCount?: number // 科目总数（用于 +N 和按需加载）
 }
 
 // 新增课表相关接口
@@ -390,7 +393,10 @@ const handleMatch = async () => {
           educationBackground: teacher.educationBackground,
           specialties: teacher.specialties,
           isVerified: teacher.isVerified,
-          gender: teacher.gender || '不愿透露' // 提供默认性别
+          gender: teacher.gender || '不愿透露', // 提供默认性别
+          level: teacher.level,
+          subjects: Array.isArray(teacher.subjects) ? teacher.subjects : (teacher.subject ? [teacher.subject] : []),
+          subjectsCount: typeof teacher.subjectsCount === 'number' ? teacher.subjectsCount : (Array.isArray(teacher.subjects) ? teacher.subjects.length : (teacher.subject ? 1 : 0))
         }))
 
         console.log('转换后的教师数据:', teachers)
@@ -2423,6 +2429,49 @@ const getGenderText = (gender: string) => {
   return '不愿透露'
 }
 
+// 级别标签颜色映射（Element Plus 支持: success/warning/info/danger/''）
+const getLevelTagType = (level?: string): '' | 'success' | 'warning' | 'info' | 'danger' => {
+  if (!level) return ''
+  if (level.includes('王牌')) return 'success'
+  if (level.includes('金牌')) return 'warning'
+  if (level.includes('银牌')) return 'info'
+  if (level.includes('铜牌')) return ''
+  return 'info'
+}
+
+// 科目完整列表缓存与按需加载
+const fullSubjectsMap = reactive<{ [id: number]: string[] }>({})
+const fullSubjectsLoading = reactive<{ [id: number]: boolean }>({})
+
+const subjectsDisplayText = (t: Teacher) => {
+  const base = Array.isArray(t.subjects) ? t.subjects : []
+  const total = typeof t.subjectsCount === 'number' ? t.subjectsCount : base.length
+  const extra = Math.max(total - base.length, 0)
+  return base.join('、') + (extra > 0 ? ` +${extra}` : '')
+}
+
+const getSubjectsTooltip = (t: Teacher) => {
+  const full = fullSubjectsMap[t.id]
+  if (Array.isArray(full) && full.length) return full.join('、')
+  const base = Array.isArray(t.subjects) ? t.subjects : []
+  return base.join('、')
+}
+
+const onSubjectsTooltipShow = async (t: Teacher) => {
+  const baseLen = Array.isArray(t.subjects) ? t.subjects.length : 0
+  const total = typeof t.subjectsCount === 'number' ? t.subjectsCount : baseLen
+  if (total <= baseLen) return
+  if (fullSubjectsMap[t.id] || fullSubjectsLoading[t.id]) return
+  try {
+    fullSubjectsLoading[t.id] = true
+    const res = await teacherAPI.getDetail(t.id)
+    const full = Array.isArray(res?.data?.subjects) ? res.data.subjects : []
+    fullSubjectsMap[t.id] = full
+  } finally {
+    fullSubjectsLoading[t.id] = false
+  }
+}
+
 // 安全的时间选择更新处理
 const handleWeekdaysUpdate = (weekdays: number[]) => {
   nextTick(() => {
@@ -2667,20 +2716,27 @@ watch(selectedCourse, (newCourse) => {
               </div>
               <div class="teacher-subject">
                 <el-tag type="success" effect="dark" class="subject-tag">{{ teacher.subject }}</el-tag>
+                <el-tag v-if="teacher.level" :type="getLevelTagType(teacher.level)" effect="dark" class="level-tag">{{ teacher.level }}</el-tag>
                 <el-tag type="warning" effect="plain" class="experience-tag">{{ teacher.experience }}年教龄</el-tag>
                 <el-tag type="info" effect="plain" class="gender-tag">
                   <el-icon v-if="isMaleTeacher(teacher.gender)"><Male /></el-icon>
                   <el-icon v-else><Female /></el-icon>
                   {{ getGenderText(teacher.gender) }}
                 </el-tag>
-                <!-- 时间匹配度显示 -->
-                <el-tag v-if="teacher.timeMatchScore !== undefined"
+                <!-- 时间匹配度显示（仅在智能匹配页展示，试听预约页隐藏） -->
+                <el-tag v-if="!isTrialMode && teacher.timeMatchScore !== undefined"
                         :type="getTimeMatchScoreType(teacher.timeMatchScore)"
                         effect="plain"
                         class="time-match-tag">
                   <el-icon><Calendar /></el-icon>
                   时间匹配 {{ teacher.timeMatchScore }}%
                 </el-tag>
+              </div>
+              <div class="teacher-subjects-all" v-if="teacher.subjects && teacher.subjects.length">
+                <span class="label">教授科目：</span>
+                <el-tooltip :content="getSubjectsTooltip(teacher)" placement="top" @show="onSubjectsTooltipShow(teacher)">
+                  <span class="subjects-text">{{ subjectsDisplayText(teacher) }}</span>
+                </el-tooltip>
               </div>
               <p class="teacher-description">{{ teacher.description }}</p>
               <div class="teacher-tags">
@@ -3073,7 +3129,7 @@ watch(selectedCourse, (newCourse) => {
           </el-form-item>
 
           <!-- 时间匹配度分析 - 紧凑设计 -->
-          <el-form-item v-if="scheduleForm.selectedTimeSlots.length > 0 && scheduleForm.selectedWeekdays.length > 0" label="时间匹配度分析">
+          <el-form-item v-if="!isTrialMode && scheduleForm.selectedTimeSlots.length > 0 && scheduleForm.selectedWeekdays.length > 0" label="时间匹配度分析">
             <div class="compact-match-analysis">
               <!-- 紧凑的匹配度显示 -->
               <div class="compact-match-card" :class="(accurateMatchScoreInfo || getMatchScoreInfo()).type">
@@ -3546,6 +3602,29 @@ h2 {
 .experience-text {
   color: #666;
   font-size: 14px;
+}
+
+.level-tag {
+  margin-left: 8px;
+}
+
+.teacher-subjects-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.teacher-subjects-all .label {
+  color: #666;
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+.teacher-subjects-all .subjects-text {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #333;
 }
 
 .teacher-subject {

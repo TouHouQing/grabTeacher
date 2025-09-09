@@ -596,10 +596,34 @@ public class TeacherServiceImpl implements TeacherService {
         // 生成可读的时间安排描述
         List<String> scheduleDescriptions = generateScheduleDescriptions(availableTimeSlots);
 
+        // 构建科目名称列表（避免N+1：已在上层查询优化过，这里仅按ID映射名称）
+        java.util.List<Long> subjectIdsForMatch = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
+        java.util.List<String> subjectNamesForMatch = new java.util.ArrayList<>();
+        for (Long subjectId : subjectIdsForMatch) {
+            try {
+                Subject subject = subjectService.getSubjectById(subjectId);
+                if (subject != null) {
+                    subjectNamesForMatch.add(subject.getName());
+                }
+            } catch (Exception e) {
+                log.warn("获取科目信息失败，科目ID: {}", subjectId, e);
+            }
+        }
+
+        // 压缩响应体：仅返回前若干个科目用于卡片展示
+        int subjectsTotal = subjectNamesForMatch.size();
+        final int MAX_SUBJECTS = 4;
+        java.util.List<String> subjectsForCard = subjectsTotal > MAX_SUBJECTS
+                ? new java.util.ArrayList<>(subjectNamesForMatch.subList(0, MAX_SUBJECTS))
+                : subjectNamesForMatch;
+
         TeacherMatchVO response = TeacherMatchVO.builder()
                 .id(teacher.getId())
                 .name(teacher.getRealName())
                 .subject(getFirstSubject(teacher.getId()))
+                .subjects(subjectsForCard)
+                .subjectsCount(subjectsTotal)
+                .level(teacher.getLevel())
                 .experience(teacher.getTeachingExperience() != null ? teacher.getTeachingExperience() : 0)
                 .description(teacher.getIntroduction())
                 .avatar(null) // 当前Teacher实体没有avatar字段

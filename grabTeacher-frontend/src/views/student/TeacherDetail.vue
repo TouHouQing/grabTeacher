@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, Phone, Message, Location, School, Trophy, ArrowLeft, Loading, Star, Clock, Check, Close, Document, InfoFilled } from '@element-plus/icons-vue'
-import { teacherAPI, evaluationAPI, subjectAPI } from '@/utils/api'
+import { Calendar, Phone, Message, Location, School, Trophy, ArrowLeft, Loading, Star, Clock, Document, InfoFilled } from '@element-plus/icons-vue'
+import { teacherAPI, evaluationAPI, bookingAPI } from '@/utils/api'
 import { useUserStore } from '@/stores/user'
 import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
 import teacherBoy2 from '@/assets/pictures/teacherBoy2.jpeg'
@@ -41,7 +41,7 @@ const selectedDate = ref('')
 const selectedTimeSlot = ref('')
 const availableTimeSlots = ref([]) // 可用时间段
 const loadingSubjects = ref(false)
-const loadingTimeSlots = ref(false)
+// const loadingTimeSlots = ref(false) // 暂时注释，未使用
 
 // 试听课时间段选项
 const timePeriods = [
@@ -72,11 +72,11 @@ const scheduleForm = ref({
 const availableTimeSlotsForCourse = ref([]) // 课程可用时间段
 const loadingCourseTimeSlots = ref(false)
 
-// 时间匹配度相关状态
-const accurateMatchScoreInfo = ref(null)
-const matchScoreLoading = ref(false)
-const showMatchDetails = ref(false)
-const showConflictDetails = ref(false)
+// 时间匹配度相关状态（暂时注释，未使用）
+// const accurateMatchScoreInfo = ref(null)
+// const matchScoreLoading = ref(false)
+// const showMatchDetails = ref(false)
+// const showConflictDetails = ref(false)
 
 // 默认教师数据库（作为后备数据）
 const teachersData = {
@@ -608,13 +608,78 @@ const confirmTrialBooking = async () => {
   }
 
   try {
-    // 这里应该调用试听课预约API
-    ElMessage.success('试听课预约成功！我们会尽快联系您确认具体时间。')
-    showBookingModal.value = false
-    resetBookingForm()
+    // 构建试听课预约请求数据
+    const bookingData = {
+      teacherId: teacherId,
+      bookingType: 'single' as const,
+      studentRequirements: `申请与${teacher.value?.name}老师进行${selectedSubject.value}科目试听`,
+      isTrial: true,
+      trialDurationMinutes: 30,
+      requestedDate: selectedDate.value,
+      requestedStartTime: selectedTimeSlot.value.split('-')[0],
+      requestedEndTime: selectedTimeSlot.value.split('-')[1]
+    }
+
+    // 调用后端API创建试听课预约申请
+    const result = await bookingAPI.createRequest(bookingData)
+
+    if (result.success && result.data) {
+      const successMessage = `试听课申请提交成功！${teacher.value?.name} - ${selectedDate.value} ${selectedTimeSlot.value}（30分钟免费试听）`
+
+      ElMessage.success({
+        message: successMessage,
+        duration: 5000
+      })
+
+      showBookingModal.value = false
+      resetBookingForm()
+
+      // 跳转到学生预约管理页面
+      setTimeout(() => {
+        ElMessage.info('即将跳转到预约管理页面...')
+        // router.push('/student/bookings') // 暂时注释，因为这个页面可能还不存在
+      }, 2000)
+    } else {
+      // 显示后端返回的具体错误信息
+      const errorMessage = result.message || '试听课预约申请提交失败'
+      ElMessage.error({
+        message: errorMessage,
+        duration: 8000,
+        showClose: true
+      })
+
+      // 如果是余额不足或试听次数不足，显示特殊提示
+      if (errorMessage.includes('余额不足')) {
+        ElMessage.warning({
+          message: '您的账户余额不足，请联系管理员充值',
+          duration: 10000,
+          showClose: true
+        })
+      } else if (errorMessage.includes('试听次数')) {
+        ElMessage.warning({
+          message: '您的免费试听次数已用完，如需增加机会请联系管理员',
+          duration: 10000,
+          showClose: true
+        })
+      }
+    }
   } catch (error) {
     console.error('试听课预约失败:', error)
-    ElMessage.error('预约失败，请稍后重试')
+
+    // 尝试从错误对象中提取更详细的错误信息
+    let errorMessage = '试听课预约申请提交失败，请稍后重试'
+
+    if (error.response?.data?.message) {
+      errorMessage = error.response.data.message
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+
+    ElMessage.error({
+      message: errorMessage,
+      duration: 8000,
+      showClose: true
+    })
   }
 }
 
@@ -770,13 +835,78 @@ const confirmCourseBooking = async () => {
   }
 
   try {
-    // 这里应该调用课程预约API
-    ElMessage.success('课程预约成功！我们会尽快联系您确认具体时间。')
-    showCourseScheduleModal.value = false
-    resetCourseForm()
+    // 构建正式课预约请求数据
+    const bookingData = {
+      teacherId: teacherId,
+      courseId: selectedCourse.value.id,
+      bookingType: 'recurring' as const,
+      studentRequirements: `希望预约${teacher.value?.name}老师的《${selectedCourse.value.title}》课程`,
+      isTrial: false,
+      selectedDurationMinutes: selectedCourse.value.durationMinutes || scheduleForm.value.selectedDurationMinutes,
+      recurringWeekdays: scheduleForm.value.selectedWeekdays,
+      recurringTimeSlots: scheduleForm.value.selectedTimeSlots,
+      startDate: scheduleForm.value.startDate,
+      endDate: scheduleForm.value.endDate,
+      totalTimes: scheduleForm.value.sessionCount
+    }
+
+    // 调用后端API创建正式课预约申请
+    const result = await bookingAPI.createRequest(bookingData)
+
+    if (result.success && result.data) {
+      const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+      const selectedDays = scheduleForm.value.selectedWeekdays.map(day => weekdayNames[day]).join('、')
+      const selectedTimes = scheduleForm.value.selectedTimeSlots.join('、')
+      const successMessage = `预约申请提交成功！${teacher.value?.name} - 每周${selectedDays} ${selectedTimes}，共${scheduleForm.value.sessionCount}次课`
+
+      ElMessage.success({
+        message: successMessage,
+        duration: 5000
+      })
+
+      showCourseScheduleModal.value = false
+      resetCourseForm()
+
+      // 跳转到学生预约管理页面
+      setTimeout(() => {
+        ElMessage.info('即将跳转到预约管理页面...')
+        // router.push('/student/bookings') // 暂时注释，因为这个页面可能还不存在
+      }, 2000)
+    } else {
+      // 显示后端返回的具体错误信息
+      const errorMessage = result.message || '课程预约申请提交失败'
+      ElMessage.error({
+        message: errorMessage,
+        duration: 8000,
+        showClose: true
+      })
+
+      // 如果是余额不足，显示特殊提示
+      if (errorMessage.includes('余额不足')) {
+        ElMessage.warning({
+          message: '您的账户余额不足，请联系管理员充值或选择其他课程',
+          duration: 10000,
+          showClose: true
+        })
+      }
+    }
   } catch (error) {
     console.error('课程预约失败:', error)
-    ElMessage.error('预约失败，请稍后重试')
+
+    // 尝试从错误对象中提取更详细的错误信息
+    let errorMessage = '课程预约申请提交失败，请稍后重试'
+
+    if (error.response?.data?.message) {
+      errorMessage = error.response.data.message
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+
+    ElMessage.error({
+      message: errorMessage,
+      duration: 8000,
+      showClose: true
+    })
   }
 }
 
@@ -797,13 +927,17 @@ const closeCourseScheduleModal = () => {
 
 // 计算结束日期
 const calculateEndDate = () => {
-  if (scheduleForm.value.startDate && scheduleForm.value.sessionCount) {
-    const startDate = new Date(scheduleForm.value.startDate)
-    const weeks = Math.ceil(scheduleForm.value.sessionCount / (scheduleForm.value.selectedWeekdays.length * scheduleForm.value.selectedTimeSlots.length))
-    const endDate = new Date(startDate)
-    endDate.setDate(startDate.getDate() + weeks * 7)
-    scheduleForm.value.endDate = endDate.toISOString().split('T')[0]
-  }
+  if (!scheduleForm.value.startDate || scheduleForm.value.selectedWeekdays.length === 0 || scheduleForm.value.selectedTimeSlots.length === 0) return
+
+  const startDate = new Date(scheduleForm.value.startDate)
+  // 每周课程次数 = 星期几数量 × 每天时间段数量
+  const sessionsPerWeek = scheduleForm.value.selectedWeekdays.length * scheduleForm.value.selectedTimeSlots.length
+  const totalWeeks = Math.ceil(scheduleForm.value.sessionCount / sessionsPerWeek)
+
+  const endDate = new Date(startDate)
+  endDate.setDate(startDate.getDate() + (totalWeeks - 1) * 7)
+
+  scheduleForm.value.endDate = endDate.toISOString().split('T')[0]
 }
 
 // 获取可用时间段
@@ -833,6 +967,21 @@ watch(selectedCourse, (newCourse) => {
     }
     loadCourseTimeSlots()
   }
+})
+
+// 监听星期几选择变化，自动重新计算结束日期
+watch(() => scheduleForm.value.selectedWeekdays, () => {
+  calculateEndDate()
+}, { deep: true })
+
+// 监听时间段选择变化，自动重新计算结束日期
+watch(() => scheduleForm.value.selectedTimeSlots, () => {
+  calculateEndDate()
+}, { deep: true })
+
+// 监听课程次数变化，自动重新计算结束日期
+watch(() => scheduleForm.value.sessionCount, () => {
+  calculateEndDate()
 })
 
 
@@ -1268,7 +1417,7 @@ watch(selectedCourse, (newCourse) => {
           <el-form-item v-if="scheduleForm.selectedTimeSlots.length > 0" label="选择星期">
             <div class="form-item-tip">选择每周的哪几天上课 (可横向滑动查看所有选项)</div>
             <div class="weekday-selection">
-              <el-checkbox-group v-model="scheduleForm.selectedWeekdays">
+              <el-checkbox-group v-model="scheduleForm.selectedWeekdays" @change="calculateEndDate">
                 <el-checkbox
                   v-for="weekday in [1, 2, 3, 4, 5, 6, 7]"
                   :key="weekday"

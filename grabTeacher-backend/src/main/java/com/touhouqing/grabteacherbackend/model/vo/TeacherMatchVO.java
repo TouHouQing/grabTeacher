@@ -30,10 +30,24 @@ public class TeacherMatchVO {
     private String name;
 
     /**
-     * 科目
+     * 科目（首个科目，兼容旧字段）
      */
     private String subject;
 
+    /**
+     * 教授的全部科目名称列表（仅返回前若干个，用于卡片展示）
+     */
+    private java.util.List<String> subjects;
+
+    /**
+     * 教授科目总数（用于“+N”展示与按需加载完整列表）
+     */
+    private Integer subjectsCount;
+
+    /**
+     * 教师级别（王牌/金牌/银牌/铜牌）
+     */
+    private String level;
 
     /**
      * 教学经验年数
