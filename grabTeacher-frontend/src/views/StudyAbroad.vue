@@ -35,15 +35,13 @@ const resolveImage = (path?: string) => {
   return getImageUrl(path) || defaultStudyAbroadImage
 }
 
-// 过滤条件（后端筛选）
+// 过滤条件（后端筛选，仅国家）
 const filter = reactive({
-  countryId: route.query.countryId ? Number(route.query.countryId) : null as number | null,
-  stageId: route.query.stageId ? Number(route.query.stageId) : null as number | null
+  countryId: route.query.countryId ? Number(route.query.countryId) : null as number | null
 })
 
 // 数据源
 const countries = ref<any[]>([])
-const stages = ref<any[]>([])
 const programs = ref<any[]>([])
 
 const loading = ref(false)
@@ -52,18 +50,14 @@ const fetchCountries = async () => {
   const res = await studyAbroadAPI.getCountries()
   if (res?.success) countries.value = res.data || []
 }
-const fetchStages = async () => {
-  const res = await studyAbroadAPI.getStages()
-  if (res?.success) stages.value = res.data || []
-}
+
 const fetchPrograms = async () => {
   loading.value = true
   try {
     const res = await studyAbroadAPI.getPublicProgramsPaged({
       page: currentPage.value,
       size: pageSize.value,
-      countryId: filter.countryId || undefined,
-      stageId: filter.stageId || undefined
+      countryId: filter.countryId || undefined
     })
     if (res?.success && res?.data) {
       programs.value = res.data.records || []
@@ -77,9 +71,31 @@ const fetchPrograms = async () => {
   }
 }
 
+
+// 底部滚动条：获取全部留学咨询用于无缝滚动展示
+const allPrograms = ref<any[]>([])
+const fetchAllPrograms = async () => {
+  try {
+    const res = await studyAbroadAPI.getPrograms({})
+    allPrograms.value = (res?.success && Array.isArray(res?.data)) ? res.data : []
+  } catch (e) {
+    allPrograms.value = []
+  }
+}
+
+// 没有全部数据时回退到当前页数据，保证有内容可滚动
+const marqueeItems = computed(() => (allPrograms.value?.length ? allPrograms.value : programs.value))
+
+// 截断工具：中文友好前 len 个字符
+const truncate = (text?: string, len = 50) => {
+  if (!text) return ''
+  return text.length > len ? text.slice(0, len) + '...' : text
+}
+
 onMounted(async () => {
-  await Promise.all([fetchCountries(), fetchStages()])
+  await fetchCountries()
   await fetchPrograms()
+  await fetchAllPrograms()
 })
 
 // 留学项目数据（来自后端）
@@ -144,6 +160,14 @@ const studyPackages = ref([
 
 // 服务端分页：直接展示当前页
 const displayPrograms = computed(() => programs.value)
+  // 详情弹窗状态
+  const detailVisible = ref(false)
+  const selectedProgram = ref<any | null>(null)
+  const showDetail = (p: any) => {
+    selectedProgram.value = p
+    detailVisible.value = true
+  }
+
 
 // 同步路由 query
 const syncQuery = () => {
@@ -151,7 +175,6 @@ const syncQuery = () => {
   if (currentPage.value && currentPage.value !== 1) q.page = currentPage.value
   if (pageSize.value && pageSize.value !== 6) q.size = pageSize.value
   if (filter.countryId) q.countryId = filter.countryId
-  if (filter.stageId) q.stageId = filter.stageId
   router.replace({ query: q })
 }
 
@@ -165,14 +188,13 @@ const handleFilter = () => {
 // 重置筛选
 const resetFilter = () => {
   filter.countryId = null
-  filter.stageId = null
   currentPage.value = 1
   syncQuery()
   fetchPrograms()
 }
 
 // 监听分页与筛选，持久化到 query
-watch([currentPage, pageSize, () => filter.countryId, () => filter.stageId], () => {
+watch([currentPage, pageSize, () => filter.countryId], () => {
   syncQuery()
 })
 </script>
@@ -195,11 +217,7 @@ watch([currentPage, pageSize, () => filter.countryId, () => filter.stageId], () 
               <el-option v-for="c in countries" :key="c.id" :label="c.countryName" :value="c.id" />
             </el-select>
           </el-form-item>
-          <el-form-item label="留学阶段">
-            <el-select v-model="filter.stageId" placeholder="选择阶段" clearable filterable :loading="loading">
-              <el-option v-for="s in stages" :key="s.id" :label="s.stageName" :value="s.id" />
-            </el-select>
-          </el-form-item>
+
           <el-form-item>
             <el-button type="primary" @click="handleFilter">筛选</el-button>
             <el-button @click="resetFilter">重置</el-button>
@@ -220,10 +238,10 @@ watch([currentPage, pageSize, () => filter.countryId, () => filter.stageId], () 
               <p class="program-description">{{ program.description }}</p>
               <div class="program-tags" v-if="program.tags">
                 <el-tag v-for="(tag, i) in JSON.parse(program.tags || '[]')" :key="i" size="small" class="program-tag">{{ tag }}</el-tag>
+
               </div>
               <div class="program-actions">
-                <el-button type="primary" size="small">立即咨询</el-button>
-                <el-button type="info" size="small" plain>免费评估</el-button>
+                <el-button type="primary" size="small" @click="showDetail(program)">详细信息</el-button>
               </div>
             </div>
           </div>
@@ -242,10 +260,54 @@ watch([currentPage, pageSize, () => filter.countryId, () => filter.stageId], () 
           />
         </div>
       </div>
+      <!-- 底部滚动播放：所有留学相关咨询（含图片/标题/前50字） -->
+      <div class="marquee-section" v-if="marqueeItems && marqueeItems.length">
+        <div class="marquee-viewport">
+          <div class="marquee-track">
+            <div class="marquee-item" v-for="(item, idx) in marqueeItems" :key="'marq1-' + idx">
+              <img class="mi-image" :src="resolveImage(item.imageUrl || item.image)" :alt="item.title" @error="handleImageError" />
+              <div class="mi-text">
+                <div class="mi-title">{{ item.title }}</div>
+                <div class="mi-desc">{{ truncate(item.description, 50) }}</div>
+              </div>
+            </div>
+            <!-- 复制一份实现无缝滚动 -->
+            <div class="marquee-item" v-for="(item, idx) in marqueeItems" :key="'marq2-' + idx">
+              <img class="mi-image" :src="resolveImage(item.imageUrl || item.image)" :alt="item.title" @error="handleImageError" />
+              <div class="mi-text">
+                <div class="mi-title">{{ item.title }}</div>
+                <div class="mi-desc">{{ truncate(item.description, 50) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
       <!-- 联系我们 -->
       <ContactUs />
+      <!-- 项目详细信息弹窗（单实例） -->
+      <el-dialog v-model="detailVisible" title="项目详细信息" width="600px">
+<!--
+        <div v-if="selectedProgram">
+          <h3 style="margin:0 0 8px">{{ selectedProgram.title }}</h3>
+          <img :src="resolveImage(selectedProgram.imageUrl || selectedProgram.image)" alt="" style="width:100%;height:200px;object-fit:cover;border-radius:6px;margin-bottom:12px" @error="handleImageError" />
+          <p style="white-space:pre-wrap;line-height:1.6">{{ selectedProgram.description }}</p>
+          <div v-if="selectedProgram.tags" style="margin-top:8px">
+            <el-tag v-for="(tag, i) in JSON.parse(selectedProgram.tags || '[]')" :key="i" size="small" class="program-tag">{{ tag }}</el-tag>
+          </div>
+        </div>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button type="primary" @click="detailVisible = false"> </el-button>
+          </span>
+        </template>
+-->
+      </el-dialog>
+
+
   </div>
+
 </template>
 
 <style scoped>
@@ -580,6 +642,18 @@ watch([currentPage, pageSize, () => filter.countryId, () => filter.stageId], () 
 .package-btn {
   width: 100%;
 }
+
+/* 底部无缝横向滚动展示（高性能：仅 transform 动画） */
+.marquee-section { margin: 20px 0 10px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); padding: 10px 0; }
+.marquee-viewport { overflow: hidden; width: 100%; }
+.marquee-track { display: flex; gap: 16px; will-change: transform; animation: marquee-left 40s linear infinite; }
+.marquee-item { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid #f0f0f0; border-radius: 8px; background: #fafafa; min-width: clamp(260px, 28vw, 420px); }
+.mi-image { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; }
+.mi-text { display: flex; flex-direction: column; min-width: 0; }
+.mi-title { font-size: 14px; color: #333; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mi-desc { font-size: 12px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@keyframes marquee-left { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
 
 @media (max-width: 1200px) {
   .programs-grid,

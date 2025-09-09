@@ -201,6 +201,11 @@ public class FileController {
             case "admin/wechat":
                 return "admin/wechat/";
 
+            // 管理员留学项目图片：/uploads/study-abroad/program/{id}/image/
+            case "admin/study-abroad/program-image":
+                Long programId = targetUserId != null ? targetUserId : userId;
+                return "study-abroad/program/" + (programId != null ? programId : "unknown") + "/image/";
+
             // 默认保持原有逻辑
             default:
                 return module + "/";

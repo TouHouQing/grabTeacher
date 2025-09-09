@@ -2,7 +2,8 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue'
-import { studyAbroadAPI } from '../../../utils/api'
+import { studyAbroadAPI, fileAPI } from '../../../utils/api'
+import AvatarUploader from '../../../components/AvatarUploader.vue'
 
 const loading = ref(false)
 const list = ref<any[]>([])
@@ -18,6 +19,14 @@ const stageMap = computed<Record<number, string>>(() => Object.fromEntries(stage
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const form = reactive({ id: 0, title: '', countryId: null as number | null, stageId: null as number | null, description: '', imageUrl: '', tags: '[]', hot: false, sortOrder: 0, active: true })
+
+// 项目图片上传（与教师/学生头像一致的两步上传逻辑）
+const _programImageFile = ref<File | null>(null)
+const handleProgramImageFileSelected = (file: File | null) => { _programImageFile.value = file }
+const uploadProgramImageIfNeeded = async (currentId: number): Promise<string | null> => {
+  if (!_programImageFile.value) return null
+  return await fileAPI.presignAndPut(_programImageFile.value, 'admin/study-abroad/program-image', currentId)
+}
 
 const rules = {
   title: [{ required: true, message: '请输入项目标题', trigger: 'blur' }],
@@ -63,6 +72,7 @@ const onAdd = async () => {
   dialogTitle.value = '添加项目'
   await loadMeta()
   Object.assign(form, { id: 0, title: '', countryId: null, stageId: null, description: '', imageUrl: '', tags: '[]', hot: false, sortOrder: 0, active: true })
+  _programImageFile.value = null
   dialogVisible.value = true
 }
 
@@ -70,6 +80,7 @@ const onEdit = async (row: any) => {
   dialogTitle.value = '编辑项目'
   await loadMeta()
   Object.assign(form, { ...row, tags: row.tags || '[]' })
+  _programImageFile.value = null
   dialogVisible.value = true
 }
 
@@ -91,8 +102,33 @@ const onSave = async () => {
 
     loading.value = true
     const payload = { title: form.title, countryId: form.countryId!, stageId: form.stageId!, description: form.description, imageUrl: form.imageUrl, tags: form.tags, hot: form.hot, sortOrder: form.sortOrder, active: form.active }
+
+    // 第一步：创建或更新主体信息
     const res = form.id === 0 ? await studyAbroadAPI.adminCreateProgram(payload) : await studyAbroadAPI.adminUpdateProgram(form.id, payload)
-    if (res?.success) { ElMessage.success(form.id === 0 ? '添加成功' : '更新成功'); dialogVisible.value = false; await loadList() } else { ElMessage.error(res?.message || '操作失败') }
+    if (!res?.success) { ElMessage.error(res?.message || '操作失败'); return }
+
+    // 计算当前ID（新建时取后端返回ID）
+    const currentId: number = form.id === 0 ? (res.data?.id || 0) : form.id
+    if (form.id === 0 && currentId === 0) {
+      ElMessage.error('未获取到新建ID')
+      return
+    }
+
+    // 第二步：如选择了新图片，则按最终ID上传并二次更新imageUrl
+    if (_programImageFile.value) {
+      const uploadedUrl = await uploadProgramImageIfNeeded(currentId)
+      if (uploadedUrl) {
+        const payload2 = { ...payload, imageUrl: uploadedUrl }
+        const updateImgRes = await studyAbroadAPI.adminUpdateProgram(currentId, payload2 as any)
+        if (!updateImgRes?.success) { ElMessage.error(updateImgRes?.message || '图片更新失败'); return }
+        form.imageUrl = uploadedUrl
+      }
+    }
+
+    ElMessage.success(form.id === 0 ? '添加成功' : '更新成功')
+    _programImageFile.value = null
+    dialogVisible.value = false
+    await loadList()
   } catch (e: any) { ElMessage.error(e?.message || '操作失败') } finally { loading.value = false }
 }
 
@@ -224,8 +260,18 @@ onMounted(async () => { await loadMeta(); await loadList() })
             <el-option v-for="s in stages" :key="s.id" :label="s.stageName" :value="s.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="图片URL">
-          <el-input v-model="form.imageUrl" placeholder="https://..." />
+        <el-form-item label="项目图片">
+          <AvatarUploader
+            v-model="form.imageUrl"
+            :show-upload-button="false"
+            :immediate-upload="false"
+            :size="96"
+            alt-text="项目图片"
+            @file-selected="handleProgramImageFileSelected"
+          />
+          <div v-if="_programImageFile" class="avatar-tip">
+            <el-text type="info" size="small">选择新图片后，点击"保存"生效</el-text>
+          </div>
         </el-form-item>
         <el-form-item label="标签(JSON)">
           <el-input v-model="form.tags" type="textarea" autosize placeholder='请输入JSON数组，例如：["文书指导","面试培训"]'>

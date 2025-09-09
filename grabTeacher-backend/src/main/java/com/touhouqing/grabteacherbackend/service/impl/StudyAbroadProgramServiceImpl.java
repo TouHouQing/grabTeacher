@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import com.touhouqing.grabteacherbackend.util.AliyunOssUtil;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.context.ApplicationEventPublisher;
@@ -27,6 +28,7 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
 
     private final StudyAbroadProgramMapper programMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final AliyunOssUtil ossUtil;
 
     @Override
     @Transactional
@@ -84,6 +86,7 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
         entity.setCountryId(request.getCountryId());
         entity.setStageId(request.getStageId());
         entity.setDescription(request.getDescription());
+        String oldImageUrl = entity.getImageUrl();
         entity.setImageUrl(request.getImageUrl());
         entity.setTags(request.getTags());
         if (request.getHot() != null) entity.setHot(request.getHot());
@@ -91,6 +94,10 @@ public class StudyAbroadProgramServiceImpl implements StudyAbroadProgramService 
         if (request.getActive() != null) entity.setActive(request.getActive());
         entity.setUpdatedAt(LocalDateTime.now());
         programMapper.updateById(entity);
+        // 若更新了图片URL，删除旧图片
+        if (request.getImageUrl() != null && oldImageUrl != null && !oldImageUrl.isEmpty() && !oldImageUrl.equals(request.getImageUrl())) {
+            try { ossUtil.deleteByUrl(oldImageUrl); } catch (Exception e) { log.warn("删除旧项目图片失败: {}", oldImageUrl, e); }
+        }
         log.info("更新留学项目: {}", entity.getTitle());
         try { eventPublisher.publishEvent(new ProgramChangedEvent(this, ProgramChangedEvent.ChangeType.UPDATE, entity.getCountryId(), entity.getStageId())); } catch (Exception ignore) {}
         return entity;
