@@ -78,11 +78,11 @@ const availableTimeSlots = ref([]) // 可用时间段
 const loadingSubjects = ref(false)
 // const loadingTimeSlots = ref(false) // 暂时注释，未使用
 
-// 试听课时间段选项
+// 试听课时间段选项（选择大时间段后，具体时间按半小时切分）
 const timePeriods = [
-  { value: 'morning', label: '上午（8-10点）', slots: ['08:00-08:30', '08:30-09:00', '09:00-09:30', '09:30-10:00'] },
-  { value: 'afternoon', label: '下午（13-17点）', slots: ['13:00-13:30', '13:30-14:00', '14:00-14:30', '14:30-15:00', '15:00-15:30', '15:30-16:00', '16:00-16:30', '16:30-17:00'] },
-  { value: 'evening', label: '晚上（17-21点）', slots: ['17:00-17:30', '17:30-18:00', '18:00-18:30', '18:30-19:00', '19:00-19:30', '19:30-20:00', '20:00-20:30', '20:30-21:00'] }
+  { value: 'morning', label: '上午（08:00-12:00）', range: ['08:00', '12:00'] },
+  { value: 'afternoon', label: '下午（13:00-17:00）', range: ['13:00', '17:00'] },
+  { value: 'evening', label: '晚上（17:00-21:00）', range: ['17:00', '21:00'] }
 ]
 const selectedTimePeriod = ref('')
 
@@ -625,12 +625,35 @@ const loadSubjects = async () => {
   }
 }
 
+// 生成半小时切分的时间段
+const generateHalfHourSlots = (start: string, end: string) => {
+  const result: string[] = []
+  const [startH, startM] = start.split(':').map(n => parseInt(n))
+  const [endH, endM] = end.split(':').map(n => parseInt(n))
+
+  let startMinutes = startH * 60 + startM
+  const endMinutes = endH * 60 + endM
+
+  while (startMinutes + 30 <= endMinutes) {
+    const sH = Math.floor(startMinutes / 60).toString().padStart(2, '0')
+    const sM = (startMinutes % 60).toString().padStart(2, '0')
+    const eMinutes = startMinutes + 30
+    const eH = Math.floor(eMinutes / 60).toString().padStart(2, '0')
+    const eM = (eMinutes % 60).toString().padStart(2, '0')
+    result.push(`${sH}:${sM}-${eH}:${eM}`)
+    startMinutes += 30
+  }
+  return result
+}
+
 // 选择时间段类型
 const selectTimePeriod = (period: string) => {
   selectedTimePeriod.value = period
   const periodData = timePeriods.find(p => p.value === period)
   if (periodData) {
-    availableTimeSlots.value = periodData.slots
+    availableTimeSlots.value = generateHalfHourSlots(periodData.range[0], periodData.range[1])
+  } else {
+    availableTimeSlots.value = []
   }
   selectedTimeSlot.value = ''
 }
@@ -799,27 +822,23 @@ const loadCourseTimeSlots = async () => {
     if (selectedCourse.value.durationMinutes === 90) {
       // 90分钟课程的时间段
       timeSlots = [
-        '08:00-09:30', '08:15-09:45', '08:30-10:00',
-        '10:00-11:30', '10:15-11:45', '10:30-12:00',
-        '13:00-14:30', '13:15-14:45', '13:30-15:00',
-        '15:00-16:30', '15:15-16:45', '15:30-17:00',
-        '17:00-18:30', '17:15-18:45', '17:30-19:00',
-        '19:00-20:30', '19:15-20:45', '19:30-21:00'
+        '08:00-10:00', '10:00-12:00',
+        '13:00-15:00', '15:00-17:00',
+        '17:00-19:00', '19:00-21:00'
       ]
     } else if (selectedCourse.value.durationMinutes === 120) {
       // 120分钟课程的时间段
       timeSlots = [
-        '08:00-10:00', '10:00-12:00', '14:00-16:00', '16:00-18:00'
+        '08:00-10:00', '10:00-12:00',
+        '13:00-15:00', '15:00-17:00',
+        '17:00-19:00', '19:00-21:00'
       ]
     } else {
       // 默认90分钟时间段
       timeSlots = [
-        '08:00-09:30', '08:15-09:45', '08:30-10:00',
-        '10:00-11:30', '10:15-11:45', '10:30-12:00',
-        '13:00-14:30', '13:15-14:45', '13:30-15:00',
-        '15:00-16:30', '15:15-16:45', '15:30-17:00',
-        '17:00-18:30', '17:15-18:45', '17:30-19:00',
-        '19:00-20:30', '19:15-20:45', '19:30-21:00'
+        '08:00-10:00', '10:00-12:00',
+        '13:00-15:00', '15:00-17:00',
+        '17:00-19:00', '19:00-21:00'
       ]
     }
 
