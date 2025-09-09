@@ -122,21 +122,41 @@ public class TeacherCacheWarmupService {
 
     /**
      * 预热教师匹配缓存
+     * 根据当前匹配逻辑（科目 + 常见时间偏好）进行预热，提升首查命中
+     * 控制组合数量，避免对数据库造成压力
      */
     private void warmupTeacherMatches() {
         try {
             log.info("预热教师匹配缓存...");
-            
-            // 预热教师匹配请求（从数据库动态获取科目）
+
+            // 动态获取激活科目
             List<Subject> activeSubjects = subjectService.getAllActiveSubjects();
 
             for (Subject s : activeSubjects) {
                 try {
-                    TeacherMatchDTO request = new TeacherMatchDTO();
-                    request.setSubject(s.getName());
-                    request.setLimit(10);
+                    String subjectName = s.getName();
 
-                    teacherService.matchTeachers(request);
+                    // 1) 基线：仅按科目
+                    TeacherMatchDTO base = new TeacherMatchDTO();
+                    base.setSubject(subjectName);
+                    base.setLimit(10);
+                    teacherService.matchTeachers(base);
+
+                    // 2) 工作日晚高峰：19:00-21:00（周一~周五）
+                    TeacherMatchDTO weekdayEvening = new TeacherMatchDTO();
+                    weekdayEvening.setSubject(subjectName);
+                    weekdayEvening.setLimit(10);
+                    weekdayEvening.setPreferredWeekdays(java.util.Arrays.asList(1, 2, 3, 4, 5));
+                    weekdayEvening.setPreferredTimeSlots(java.util.Arrays.asList("19:00-21:00"));
+                    teacherService.matchTeachers(weekdayEvening);
+
+                    // 3) 周末上午：10:00-12:00（周六、周日）
+                    TeacherMatchDTO weekendMorning = new TeacherMatchDTO();
+                    weekendMorning.setSubject(subjectName);
+                    weekendMorning.setLimit(10);
+                    weekendMorning.setPreferredWeekdays(java.util.Arrays.asList(6, 7));
+                    weekendMorning.setPreferredTimeSlots(java.util.Arrays.asList("10:00-12:00"));
+                    teacherService.matchTeachers(weekendMorning);
                 } catch (Exception e) {
                     log.debug("预热教师匹配缓存失败: subject={}", s.getName(), e);
                 }
