@@ -31,15 +31,28 @@ const teacherAvailableSlots = ref<any[]>([])
 const showAllAvailability = ref(false)
 const weekdayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const flattenedAvailability = computed(() => {
-  const arr: string[] = []
+  // 将同一天的时间段合并为“一天一行”，形如：周一：08:00-10:00、10:00-12:00
   try {
+    const map = new Map<number, Set<string>>()
     for (const slot of teacherAvailableSlots.value || []) {
-      const day = weekdayNames[Number(slot?.weekday) || 0] || '未知'
+      const w = Number(slot?.weekday) || 0
+      if (!map.has(w)) map.set(w, new Set<string>())
+      const set = map.get(w)!
       const times: string[] = Array.isArray(slot?.timeSlots) ? slot.timeSlots : []
-      for (const t of times) arr.push(`${day} ${t}`)
+      for (const t of times) set.add(t)
     }
-  } catch (e) { /* 静默失败 */ }
-  return arr
+    const res: string[] = []
+    for (let w = 1; w <= 7; w++) {
+      const set = map.get(w)
+      if (set && set.size > 0) {
+        const times = Array.from(set).sort((a, b) => a.localeCompare(b))
+        res.push(`${weekdayNames[w]}：${times.join('、')}`)
+      }
+    }
+    return res
+  } catch (e) {
+    return []
+  }
 })
 const visibleAvailability = computed(() => {
   const all = flattenedAvailability.value

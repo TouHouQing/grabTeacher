@@ -128,6 +128,22 @@ const getVisibleSlots = (teacher: any): string[] => {
   return list.slice(0, MAX_PREVIEW_SLOTS)
 }
 
+// 将扁平的 ['周一 08:00-10:00', ...] 合并为按天一行：['周一：08:00-10:00、10:00-12:00', ...]
+const getGroupedLines = (teacher: any): string[] => {
+  const list = getAllSlots(teacher)
+  const order = ['周一','周二','周三','周四','周五','周六','周日']
+  const groups: Record<string, string[]> = {}
+  for (const s of list) {
+    const [day, time] = s.split(' ')
+    if (!day || !time) continue
+    if (!groups[day]) groups[day] = []
+    groups[day].push(time)
+  }
+  return order
+    .filter(d => groups[d] && groups[d].length > 0)
+    .map(d => `${d}：${groups[d].join('、')}`)
+}
+
 // 默认头像数组，用于随机分配给教师
 const defaultAvatars = [
   teacherBoy1, teacherBoy2, teacherBoy3,
@@ -425,7 +441,11 @@ onMounted(() => {
                              v-bind="(getAllSlots(teacher).length > MAX_PREVIEW_SLOTS) ? { placement: 'top', effect: 'dark' } : {}">
                     <template v-if="getAllSlots(teacher).length > MAX_PREVIEW_SLOTS" #content>
                       <div class="all-times-tooltip">
-                        <span v-for="(t, j) in getAllSlots(teacher)" :key="j" class="tooltip-tag">{{ t }}</span>
+                        <div>
+                          <template v-for="(line, j) in getGroupedLines(teacher)" :key="j">
+                            <span>{{ line }}</span><br v-if="j < getGroupedLines(teacher).length - 1" />
+                          </template>
+                        </div>
                       </div>
                     </template>
                     <div class="schedule-times">
