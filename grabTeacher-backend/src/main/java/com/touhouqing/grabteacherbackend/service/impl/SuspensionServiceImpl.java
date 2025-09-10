@@ -37,15 +37,50 @@ public class SuspensionServiceImpl implements SuspensionService {
 
     @Override
     @Transactional
-    public SuspensionVO createSuspensionRequest(SuspensionApplyDTO request, Long studentUserId) {
-        Student student = studentMapper.findByUserId(studentUserId);
-        if (student == null) throw new RuntimeException("学生信息不存在");
+    public SuspensionVO createSuspensionRequest(SuspensionApplyDTO request, Long currentUserId) {
+        if (request.getEnrollmentId() == null) throw new RuntimeException("缺少报名ID");
+
+        // 识别身份：优先学生，其次教师
+        Student student = studentMapper.findByUserId(currentUserId);
+        Teacher teacher = null;
+        if (student == null) {
+            teacher = teacherMapper.findByUserId(currentUserId);
+            if (teacher == null) throw new RuntimeException("用户身份不存在，请重新登录");
+        }
 
         CourseEnrollment enrollment = courseEnrollmentMapper.selectById(request.getEnrollmentId());
         if (enrollment == null || Boolean.TRUE.equals(enrollment.getDeleted())) throw new RuntimeException("报名关系不存在");
-        if (!Objects.equals(enrollment.getStudentId(), student.getId())) throw new RuntimeException("无权限操作该报名");
         if (!"active".equals(enrollment.getEnrollmentStatus())) throw new RuntimeException("仅进行中的课程可申请停课");
 
+        // 仅支持1v1课程
+        if (enrollment.getCourseId() != null) {
+            Course course = courseMapper.selectById(enrollment.getCourseId());
+            if (course != null && course.getCourseType() != null && !"one_on_one".equals(course.getCourseType())) {
+                throw new RuntimeException("班课不支持停课，请联系管理员");
+            }
+        }
+
+        // 权限校验
+        if (student != null) {
+            if (!Objects.equals(enrollment.getStudentId(), student.getId())) throw new RuntimeException("无权限操作该报名");
+        } else {
+            if (!Objects.equals(enrollment.getTeacherId(), teacher.getId())) throw new RuntimeException("无权限操作该报名");
+        }
+
+        // 校验区间：至少从一周后开始，且连续覆盖不少于两周（>= 开始+13天）
+        if (request.getStartDate() == null || request.getEndDate() == null) {
+            throw new RuntimeException("请提供停课起止日期");
+        }
+        LocalDate today = LocalDate.now();
+        LocalDate minStart = today.plusDays(7);
+        if (request.getStartDate().isBefore(minStart)) {
+            throw new RuntimeException("停课开始日期需从一周后开始");
+        }
+        if (request.getEndDate().isBefore(request.getStartDate().plusDays(13))) {
+            throw new RuntimeException("停课时长不得少于两周");
+        }
+
+        // 同一报名下是否已有待处理申请
         QueryWrapper<SuspensionRequest> qw = new QueryWrapper<>();
         qw.eq("enrollment_id", enrollment.getId()).eq("status", "pending").eq("is_deleted", false);
         SuspensionRequest existing = suspensionRequestMapper.selectOne(qw);
@@ -53,9 +88,11 @@ public class SuspensionServiceImpl implements SuspensionService {
 
         SuspensionRequest sr = SuspensionRequest.builder()
                 .enrollmentId(enrollment.getId())
-                .studentId(student.getId())
+                .studentId(enrollment.getStudentId())
                 .teacherId(enrollment.getTeacherId())
                 .reason(request.getReason())
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
                 .status("pending")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -88,12 +125,19 @@ public class SuspensionServiceImpl implements SuspensionService {
             uw.eq("id", enrollment.getId()).set("enrollment_status", "suspended");
             courseEnrollmentMapper.update(null, uw);
 
-            // 2) 软删该报名下未开始或未取消的课程安排
+            // 2) 软删区间内课节：从 startDate 到 endDate（含），仅删除未开始/未取消的课节
+
             List<CourseSchedule> all = courseScheduleMapper.findByBookingRequestId(enrollment.getBookingRequestId());
             LocalDate today = LocalDate.now();
+            LocalDate startSuspendDate = sr.getStartDate() != null ? sr.getStartDate() : today.plusDays(7);
+            LocalDate endSuspendDate = sr.getEndDate() != null ? sr.getEndDate() : startSuspendDate.plusDays(13);
             for (CourseSchedule cs : all) {
                 if (cs.getScheduledDate() == null) continue;
-                if (!Boolean.TRUE.equals(cs.getDeleted()) && (cs.getScheduledDate().isAfter(today) || "scheduled".equals(cs.getScheduleStatus()))) {
+                LocalDate d = cs.getScheduledDate();
+                if (!Boolean.TRUE.equals(cs.getDeleted())
+                        && ("scheduled".equals(cs.getScheduleStatus()) || d.isAfter(today))
+                        && ( (d.isEqual(startSuspendDate) || d.isAfter(startSuspendDate))
+                             && (d.isEqual(endSuspendDate) || d.isBefore(endSuspendDate)) )) {
                     UpdateWrapper<CourseSchedule> csUw = new UpdateWrapper<>();
                     csUw.eq("id", cs.getId()).set("is_deleted", true).set("deleted_at", LocalDateTime.now());
                     courseScheduleMapper.update(null, csUw);
@@ -123,6 +167,28 @@ public class SuspensionServiceImpl implements SuspensionService {
         return voPage;
     }
 
+
+    @Override
+    public Page<SuspensionVO> getTeacherSuspensionRequests(Long teacherUserId, int page, int size, String status) {
+        Teacher teacher = teacherMapper.findByUserId(teacherUserId);
+        if (teacher == null) throw new RuntimeException("教师信息不存在");
+        List<SuspensionRequest> list = suspensionRequestMapper.findByTeacherId(teacher.getId());
+        List<SuspensionRequest> filtered = new ArrayList<>();
+        for (SuspensionRequest s : list) {
+            if (status == null || status.equals(s.getStatus())) filtered.add(s);
+        }
+        Page<SuspensionVO> voPage = new Page<>(page, size);
+        voPage.setTotal(filtered.size());
+        int from = Math.max(0, (page - 1) * size);
+        int to = Math.min(filtered.size(), from + size);
+        List<SuspensionVO> records = new ArrayList<>();
+        for (int i = from; i < to; i++) {
+            records.add(toVO(filtered.get(i)));
+        }
+        voPage.setRecords(records);
+        return voPage;
+    }
+
     @Override
     public Page<SuspensionVO> getAllSuspensionRequests(int page, int size, String status) {
         Page<SuspensionVO> voPage = new Page<>(page, size);
@@ -149,6 +215,8 @@ public class SuspensionServiceImpl implements SuspensionService {
                 .studentId(s.getStudentId())
                 .teacherId(s.getTeacherId())
                 .reason(s.getReason())
+                .startDate(s.getStartDate())
+                .endDate(s.getEndDate())
                 .status(s.getStatus())
                 .statusDisplay(statusDisplay(s.getStatus()))
                 .adminId(s.getAdminId())

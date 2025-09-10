@@ -90,7 +90,12 @@ const router = createRouter({
           component: () => import('../views/teacher/BookingManagement.vue'),
           meta: { requiresAuth: true, role: 'teacher', title: '调课记录' }
         },
-
+        {
+          path: 'grade-entry',
+          name: 'TeacherGradeEntry',
+          component: () => import('../views/teacher/GradeEntry.vue'),
+          meta: { requiresAuth: true, role: 'teacher', title: '成绩录入' }
+        }
       ]
     },
     // 管理员中心

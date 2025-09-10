@@ -11,7 +11,7 @@
  Target Server Version : 80406 (8.4.6)
  File Encoding         : 65001
 
- Date: 10/09/2025 14:50:30
+ Date: 10/09/2025 23:27:17
 */
 
 SET NAMES utf8mb4;
@@ -24,17 +24,17 @@ DROP TABLE IF EXISTS `admins`;
 CREATE TABLE `admins` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '管理员ID，主键自增',
   `user_id` bigint NOT NULL COMMENT '关联用户表的用户ID',
-  `real_name` varchar(50) NOT NULL COMMENT '管理员真实姓名',
-  `wechat_qrcode_url` varchar(255) DEFAULT NULL COMMENT '微信二维码图片URL',
-  `whatsapp_number` varchar(30) DEFAULT NULL COMMENT 'WhatsApp号码',
-  `avatar_url` varchar(255) DEFAULT NULL COMMENT '头像URL',
-  `email` varchar(100) DEFAULT NULL COMMENT '邮箱',
-  `notes` text COMMENT '管理员备注信息',
+  `real_name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '管理员真实姓名',
+  `wechat_qrcode_url` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '微信二维码图片URL',
+  `whatsapp_number` varchar(30) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'WhatsApp号码',
+  `avatar_url` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '头像URL',
+  `email` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '邮箱',
+  `notes` text COLLATE utf8mb4_general_ci COMMENT '管理员备注信息',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='管理员详细信息表，存储管理员的职务信息和权限';
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='管理员详细信息表，存储管理员的职务信息和权限';
 
 -- ----------------------------
 -- Records of admins
@@ -50,24 +50,26 @@ DROP TABLE IF EXISTS `balance_transactions`;
 CREATE TABLE `balance_transactions` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '交易ID，主键自增',
   `user_id` bigint NOT NULL COMMENT '学生用户ID，关联users表',
-  `name` varchar(255) NOT NULL COMMENT '学生姓名',
+  `name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT '学生姓名',
   `amount` decimal(10,2) NOT NULL COMMENT '变动金额，正数表示增加，负数表示减少',
   `balance_before` decimal(10,2) NOT NULL COMMENT '变动前余额',
   `balance_after` decimal(10,2) NOT NULL COMMENT '变动后余额',
-  `transaction_type` enum('RECHARGE','DEDUCT','REFUND') NOT NULL COMMENT '交易类型：RECHARGE-充值, DEDUCT-扣费, REFUND-退费',
-  `reason` varchar(255) NOT NULL COMMENT '变动原因',
+  `transaction_type` enum('RECHARGE','DEDUCT','REFUND') COLLATE utf8mb4_general_ci NOT NULL COMMENT '交易类型：RECHARGE-充值, DEDUCT-扣费, REFUND-退费',
+  `reason` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT '变动原因',
   `booking_id` bigint DEFAULT NULL COMMENT '关联的预约ID，可为空',
   `operator_id` bigint DEFAULT NULL COMMENT '操作员ID（如管理员），可为空',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_booking_id` (`booking_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学生余额变动记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='学生余额变动记录表';
 
 -- ----------------------------
 -- Records of balance_transactions
 -- ----------------------------
 BEGIN;
+INSERT INTO `balance_transactions` (`id`, `user_id`, `name`, `amount`, `balance_before`, `balance_after`, `transaction_type`, `reason`, `booking_id`, `operator_id`, `created_at`) VALUES (1, 10, 'student23', 500.00, 0.00, 500.00, 'RECHARGE', '账户充值', NULL, 11, '2025-09-10 10:00:00');
+INSERT INTO `balance_transactions` (`id`, `user_id`, `name`, `amount`, `balance_before`, `balance_after`, `transaction_type`, `reason`, `booking_id`, `operator_id`, `created_at`) VALUES (2, 10, 'student23', -120.00, 500.00, 380.00, 'DEDUCT', '预约课程扣费', 13, 11, '2025-09-10 12:00:00');
 COMMIT;
 
 -- ----------------------------
@@ -79,19 +81,19 @@ CREATE TABLE `booking_requests` (
   `student_id` bigint NOT NULL COMMENT '学生ID',
   `teacher_id` bigint NOT NULL COMMENT '教师ID',
   `course_id` bigint DEFAULT NULL COMMENT '课程ID，可为空(自定义预约)',
-  `booking_type` enum('single','recurring') NOT NULL COMMENT '预约类型：single-单次，recurring-周期性',
+  `booking_type` enum('single','recurring') COLLATE utf8mb4_general_ci NOT NULL COMMENT '预约类型：single-单次，recurring-周期性',
   `requested_date` date DEFAULT NULL COMMENT '请求的上课日期(单次预约)',
   `requested_start_time` time DEFAULT NULL COMMENT '请求的开始时间(单次预约)',
   `requested_end_time` time DEFAULT NULL COMMENT '请求的结束时间(单次预约)',
-  `recurring_weekdays` varchar(50) DEFAULT NULL COMMENT '周期性预约的星期几，逗号分隔：1,3,5',
-  `recurring_time_slots` varchar(200) DEFAULT NULL COMMENT '周期性预约的时间段，逗号分隔：14:00-16:00,18:00-20:00',
+  `recurring_weekdays` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '周期性预约的星期几，逗号分隔：1,3,5',
+  `recurring_time_slots` varchar(200) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '周期性预约的时间段，逗号分隔：14:00-16:00,18:00-20:00',
   `start_date` date DEFAULT NULL COMMENT '周期性预约开始日期',
   `end_date` date DEFAULT NULL COMMENT '周期性预约结束日期',
   `total_times` int DEFAULT NULL COMMENT '总课程次数',
-  `student_requirements` text COMMENT '学生需求说明',
-  `status` enum('pending','approved','rejected','cancelled') DEFAULT 'pending' COMMENT '申请状态pending-待定中，approved-已批准，rejected-已拒绝，cancelled-已取消',
-  `teacher_reply` text COMMENT '教师回复内容',
-  `admin_notes` text COMMENT '管理员备注',
+  `student_requirements` text COLLATE utf8mb4_general_ci COMMENT '学生需求说明',
+  `status` enum('pending','approved','rejected','cancelled') COLLATE utf8mb4_general_ci DEFAULT 'pending' COMMENT '申请状态pending-待定中，approved-已批准，rejected-已拒绝，cancelled-已取消',
+  `teacher_reply` text COLLATE utf8mb4_general_ci COMMENT '教师回复内容',
+  `admin_notes` text COLLATE utf8mb4_general_ci COMMENT '管理员备注',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `approved_at` timestamp NULL DEFAULT NULL COMMENT '批准时间',
@@ -100,9 +102,9 @@ CREATE TABLE `booking_requests` (
   `is_trial` tinyint(1) DEFAULT '0' COMMENT '是否为免费试听课：true-是，false-否',
   `trial_duration_minutes` int DEFAULT NULL COMMENT '试听课时长（分钟）',
   `teaching_location_id` bigint DEFAULT NULL COMMENT '授课地点ID（线下）',
-  `teaching_location` varchar(255) DEFAULT '线上' COMMENT '授课地点名称',
+  `teaching_location` varchar(255) COLLATE utf8mb4_general_ci DEFAULT '线上' COMMENT '授课地点名称',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='预约申请表，记录学生的课程预约申请';
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='预约申请表，记录学生的课程预约申请';
 
 -- ----------------------------
 -- Records of booking_requests
@@ -112,10 +114,12 @@ INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `
 INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (4, 6, 7, 3, 'recurring', NULL, NULL, NULL, '2,5', '14:00-15:00', '2025-07-23', '2025-08-27', 12, '希望预约12355老师的《语文》课程', 'approved', '可以', NULL, '2025-07-21 13:47:39', '2025-07-21 13:47:58', '2025-07-21 13:47:58', 1, '2025-07-28 15:23:31', 0, NULL, NULL, '线上');
 INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (5, 6, 7, 3, 'single', '2025-08-16', '11:00:00', '11:30:00', NULL, NULL, NULL, NULL, NULL, '希望预约12355老师的《语文》课程', 'pending', NULL, NULL, '2025-07-21 22:03:14', '2025-07-21 22:03:14', NULL, 1, '2025-07-28 15:23:31', 1, 30, NULL, '线上');
 INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (6, 6, 7, 3, 'single', '2025-07-30', '10:30:00', '11:00:00', NULL, NULL, NULL, NULL, NULL, '希望预约12355老师的《语文》课程', 'pending', NULL, NULL, '2025-07-21 22:03:24', '2025-07-21 22:03:24', NULL, 1, '2025-07-28 15:23:31', 1, 30, NULL, '线上');
-INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (7, 6, 115, 5001, 'single', '2025-08-08', '10:30:00', '11:00:00', NULL, NULL, NULL, NULL, NULL, '希望预约门捷列夫老师的《初中化学基础课程》课程', 'pending', NULL, NULL, '2025-07-26 18:41:46', '2025-07-26 18:41:46', NULL, 1, '2025-07-28 15:12:55', 1, 30, NULL, '线上');
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (7, 6, 20, NULL, 'single', '2025-08-08', '10:30:00', '11:00:00', NULL, NULL, NULL, NULL, NULL, '希望预约门捷列夫老师的《初中化学基础课程》课程', 'pending', NULL, NULL, '2025-07-26 18:41:46', '2025-07-26 18:41:46', NULL, 1, '2025-07-28 15:12:55', 1, 30, NULL, '线上');
 INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (8, 6, 7, 1, 'recurring', NULL, NULL, NULL, '2', '18:00-19:00', '2025-07-28', '2025-09-29', 10, '希望预约12355老师的《小学语文基础班》课程', 'rejected', NULL, '我不同意', '2025-07-28 15:53:28', '2025-07-28 16:12:38', NULL, 0, NULL, 0, NULL, NULL, '线上');
 INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (9, 6, 7, 1, 'recurring', NULL, NULL, NULL, '1', '15:00-16:00', '2025-07-30', '2025-10-15', 12, '希望预约12355老师的《小学语文基础班》课程', 'approved', NULL, '可以', '2025-07-28 16:13:38', '2025-07-28 16:14:46', '2025-07-28 16:14:46', 0, NULL, 0, NULL, NULL, '线上');
-INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (10, 6, 110, 3003, 'recurring', NULL, NULL, NULL, '3', '09:00-10:00', '2025-07-29', '2025-10-14', 12, '希望预约Johnson老师的《小学英语精品课程》课程', 'rejected', NULL, '测试', '2025-07-28 21:09:03', '2025-07-28 21:09:23', NULL, 0, NULL, 0, NULL, NULL, '线上');
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (10, 6, 10, 19, 'recurring', NULL, NULL, NULL, '3', '09:00-10:00', '2025-07-29', '2025-10-14', 12, '希望预约Johnson老师的《小学英语精品课程》课程', 'rejected', NULL, '测试', '2025-07-28 21:09:03', '2025-07-28 21:09:23', NULL, 0, NULL, 0, NULL, NULL, '线上');
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (12, 6, 22, NULL, 'single', '2025-09-30', '08:30:00', '09:00:00', NULL, NULL, NULL, NULL, NULL, '申请与林教授老师进行华文科目试听', 'approved', NULL, NULL, '2025-09-10 16:38:56', '2025-09-10 16:38:56', '2025-09-10 16:38:56', 0, NULL, 1, 30, NULL, '线上');
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (13, 6, 22, 43, 'recurring', NULL, NULL, NULL, '4', '10:00-12:00', '2025-09-11', '2025-11-27', 12, '希望预约林教授老师的《中学古代文学班》课程', 'approved', NULL, '12332312312', '2025-09-10 21:07:59', '2025-09-10 21:08:11', '2025-09-10 21:08:11', 0, NULL, 0, NULL, 184, '南宁市');
 COMMIT;
 
 -- ----------------------------
@@ -127,11 +131,11 @@ CREATE TABLE `course_enrollments` (
   `student_id` bigint NOT NULL COMMENT '学生ID',
   `teacher_id` bigint NOT NULL COMMENT '授课教师ID',
   `course_id` bigint DEFAULT NULL COMMENT '课程ID（一对一课程可能为空）',
-  `grade` varchar(50) DEFAULT NULL COMMENT '年级',
-  `enrollment_type` enum('one_on_one','large_class') NOT NULL COMMENT '报名类型：one_on_one-一对一,large_class-大班课',
+  `grade` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '年级',
+  `enrollment_type` enum('one_on_one','large_class') COLLATE utf8mb4_general_ci NOT NULL COMMENT '报名类型：one_on_one-一对一,large_class-大班课',
   `total_sessions` int DEFAULT NULL COMMENT '总课程次数',
   `completed_sessions` int DEFAULT '0' COMMENT '已完成课程次数',
-  `enrollment_status` enum('active','completed','cancelled','suspended') DEFAULT 'active' COMMENT '报名状态：active-进行中，completed-已完成，cancelled-已取消，suspended-暂停',
+  `enrollment_status` enum('active','completed','cancelled','suspended') COLLATE utf8mb4_general_ci DEFAULT 'active' COMMENT '报名状态：active-进行中，completed-已完成，cancelled-已取消，suspended-暂停',
   `enrollment_date` date NOT NULL COMMENT '报名日期',
   `start_date` date DEFAULT NULL COMMENT '课程开始日期',
   `end_date` date DEFAULT NULL COMMENT '课程结束日期',
@@ -139,26 +143,28 @@ CREATE TABLE `course_enrollments` (
   `recurring_schedule` json DEFAULT NULL COMMENT '周期性预约安排，JSON格式：{"weekdays":[1,3,5],"timeSlots":["14:00-16:00","18:00-20:00"]}，weekday: 1=周一,2=周二...7=周日',
   `duration_minutes` int NOT NULL DEFAULT '120' COMMENT '单次课程时长，单位：分钟，只能选择90分钟或120分钟',
   `booking_request_id` bigint DEFAULT NULL COMMENT '关联预约申请ID',
-  `teacher_notes` text COMMENT '教师备注',
-  `student_feedback` text COMMENT '学生反馈',
+  `teacher_notes` text COLLATE utf8mb4_general_ci COMMENT '教师备注',
+  `student_feedback` text COLLATE utf8mb4_general_ci COMMENT '学生反馈',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
-  `teaching_location_id` bigint NOT NULL COMMENT '授课地点ID（线下）',
-  `teaching_location` varchar(255) DEFAULT '线上' COMMENT '授课地点名称',
+  `teaching_location_id` bigint DEFAULT NULL COMMENT '授课地点ID（线下）',
+  `teaching_location` varchar(255) COLLATE utf8mb4_general_ci DEFAULT '线上' COMMENT '授课地点名称',
   PRIMARY KEY (`id`),
   KEY `idx_student_id` (`student_id`),
   KEY `idx_teacher_id` (`teacher_id`),
   KEY `idx_course_id` (`course_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程关系表，记录学生课程报名关系';
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='课程关系表，记录学生课程报名关系';
 
 -- ----------------------------
 -- Records of course_enrollments
 -- ----------------------------
 BEGIN;
-INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`, `teaching_location_id`, `teaching_location`) VALUES (1, 6, 7, NULL, NULL, 'one_on_one', 12, 0, 'active', '2025-07-21', '2025-07-22', '2025-08-26', 0, '{\"weekdays\": [2, 3], \"timeSlots\": [\"17:00-18:00\"]}', 120, 3, NULL, NULL, '2025-07-21 13:12:05', 0, NULL, 0, '线上');
-INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`, `teaching_location_id`, `teaching_location`) VALUES (2, 6, 7, 3, NULL, 'large_class', 12, 0, 'active', '2025-07-21', '2025-07-25', '2025-09-02', 0, '{\"weekdays\": [2, 5], \"timeSlots\": [\"14:00-15:00\"]}', 120, 4, NULL, NULL, '2025-07-21 13:47:58', 0, NULL, 0, '线上');
-INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`, `teaching_location_id`, `teaching_location`) VALUES (3, 6, 7, 1, NULL, 'large_class', 12, 0, 'active', '2025-07-28', '2025-07-25', '2025-10-13', 0, '{\"weekdays\": [1], \"timeSlots\": [\"15:00-16:00\"]}', 120, 9, NULL, NULL, '2025-07-28 16:14:46', 0, NULL, 0, '线上');
+INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`, `teaching_location_id`, `teaching_location`) VALUES (1, 6, 7, NULL, NULL, 'one_on_one', 12, 0, 'suspended', '2025-07-21', '2025-07-22', '2025-08-26', 0, '{\"weekdays\": [2, 3], \"timeSlots\": [\"17:00-18:00\"]}', 120, 3, NULL, NULL, '2025-07-21 13:12:05', 0, NULL, 0, '线上');
+INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`, `teaching_location_id`, `teaching_location`) VALUES (2, 6, 7, 13, NULL, 'large_class', 12, 0, 'active', '2025-07-21', '2025-07-25', '2025-09-02', 0, '{\"weekdays\": [2, 5], \"timeSlots\": [\"14:00-15:00\"]}', 120, 4, NULL, NULL, '2025-07-21 13:47:58', 0, NULL, 0, '线上');
+INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`, `teaching_location_id`, `teaching_location`) VALUES (3, 6, 7, 13, NULL, 'large_class', 12, 0, 'suspended', '2025-07-24', '2025-07-25', '2025-10-13', 0, '{\"weekdays\": [1], \"timeSlots\": [\"15:00-16:00\"]}', 120, 9, NULL, NULL, '2025-07-28 16:14:46', 0, NULL, 0, '线上');
+INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`, `teaching_location_id`, `teaching_location`) VALUES (4, 6, 22, NULL, NULL, 'one_on_one', 1, 0, 'active', '2025-09-10', '2025-09-30', '2025-09-30', 1, NULL, 120, 12, NULL, NULL, '2025-09-10 16:38:56', 0, NULL, NULL, '线上');
+INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`, `teaching_location_id`, `teaching_location`) VALUES (5, 6, 22, 43, NULL, 'large_class', 12, 0, 'active', '2025-09-10', '2025-09-11', '2025-11-27', 0, '{\"weekdays\": [4], \"timeSlots\": [\"10:00-12:00\"]}', 120, 13, NULL, NULL, '2025-09-10 21:08:11', 0, NULL, 184, '南宁市');
 COMMIT;
 
 -- ----------------------------
@@ -170,17 +176,17 @@ CREATE TABLE `course_evaluation` (
   `teacher_id` bigint DEFAULT NULL COMMENT '教师ID，关联teachers表',
   `student_id` bigint DEFAULT NULL COMMENT '学生ID，关联students表',
   `course_id` bigint DEFAULT NULL COMMENT '课程ID，关联courses表',
-  `teacher_name` varchar(255) DEFAULT NULL COMMENT '教师姓名',
-  `student_name` varchar(255) DEFAULT NULL COMMENT '学生姓名',
-  `course_name` varchar(255) DEFAULT NULL COMMENT '课程名称',
+  `teacher_name` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '教师姓名',
+  `student_name` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '学生姓名',
+  `course_name` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '课程名称',
   `is_featured` tinyint(1) DEFAULT '0' COMMENT '是否精选：0-未精选，1-已精选（精选的会展示在首页）',
-  `student_comment` text COMMENT '学生对课程的评价和建议',
+  `student_comment` text COLLATE utf8mb4_general_ci COMMENT '学生对课程的评价和建议',
   `rating` decimal(10,7) DEFAULT '5.0000000' COMMENT '课程评分，0-5分',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：0-未删除，1-已删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
-  `course_location` varchar(255) DEFAULT NULL COMMENT '课程地点',
+  `course_location` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '课程地点',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_student_course` (`student_id`,`course_id`,`teacher_id`),
   KEY `idx_teacher_id` (`teacher_id`),
@@ -188,14 +194,14 @@ CREATE TABLE `course_evaluation` (
   KEY `idx_course_id` (`course_id`),
   CONSTRAINT `fk_course_evaluation_course` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_course_evaluation_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程评价表';
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='课程评价表';
 
 -- ----------------------------
 -- Records of course_evaluation
 -- ----------------------------
 BEGIN;
-INSERT INTO `course_evaluation` (`id`, `teacher_id`, `student_id`, `course_id`, `teacher_name`, `student_name`, `course_name`, `is_featured`, `student_comment`, `rating`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `course_location`) VALUES (1, 7, 6, 3, '12355', 'student23', '小学应用题专项班', 1, '老师教学很认真，课程内容很实用，孩子进步很大！', 5.0000000, '2025-08-27 00:39:56', '2025-08-27 00:39:56', 0, NULL, NULL);
-INSERT INTO `course_evaluation` (`id`, `teacher_id`, `student_id`, `course_id`, `teacher_name`, `student_name`, `course_name`, `is_featured`, `student_comment`, `rating`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `course_location`) VALUES (2, 7, 6, 1, '12355', 'student23', '小学语文基础班', 1, '老师很有耐心，教学方法很好，孩子很喜欢！', 5.0000000, '2025-08-27 00:40:27', '2025-08-27 00:40:27', 0, NULL, NULL);
+INSERT INTO `course_evaluation` (`id`, `teacher_id`, `student_id`, `course_id`, `teacher_name`, `student_name`, `course_name`, `is_featured`, `student_comment`, `rating`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `course_location`) VALUES (1, 7, 6, 13, '林雅文', 'student23', '小学华文基础班', 1, '老师教学很认真，课程内容很实用，孩子进步很大！', 5.0000000, '2025-08-27 00:39:56', '2025-08-27 00:39:56', 0, NULL, NULL);
+INSERT INTO `course_evaluation` (`id`, `teacher_id`, `student_id`, `course_id`, `teacher_name`, `student_name`, `course_name`, `is_featured`, `student_comment`, `rating`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `course_location`) VALUES (2, 7, 6, 14, '林雅文', 'student23', '拼音识字启蒙班', 1, '老师很有耐心，教学方法很好，孩子很喜欢！', 5.0000000, '2025-08-27 00:40:27', '2025-08-27 00:40:27', 0, NULL, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -209,10 +215,10 @@ CREATE TABLE `course_schedules` (
   `start_time` time NOT NULL COMMENT '开始时间',
   `end_time` time NOT NULL COMMENT '结束时间',
   `session_number` int DEFAULT NULL COMMENT '课程序号（第几次课）',
-  `schedule_status` enum('scheduled','completed','cancelled','rescheduled') DEFAULT 'scheduled' COMMENT '安排状态：scheduled-已安排，completed-已完成，cancelled-已取消，rescheduled-已调课',
-  `teacher_notes` text COMMENT '教师课后备注',
-  `student_feedback` text COMMENT '学生课后反馈',
-  `reschedule_reason` varchar(500) DEFAULT NULL COMMENT '调课原因',
+  `schedule_status` enum('scheduled','completed','cancelled','rescheduled') COLLATE utf8mb4_general_ci DEFAULT 'scheduled' COMMENT '安排状态：scheduled-已安排，completed-已完成，cancelled-已取消，rescheduled-已调课',
+  `teacher_notes` text COLLATE utf8mb4_general_ci COMMENT '教师课后备注',
+  `student_feedback` text COLLATE utf8mb4_general_ci COMMENT '学生课后反馈',
+  `reschedule_reason` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '调课原因',
   `reschedule_request_id` bigint DEFAULT NULL COMMENT '关联调课申请ID',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除',
@@ -221,7 +227,7 @@ CREATE TABLE `course_schedules` (
   KEY `idx_enrollment_id` (`enrollment_id`),
   KEY `idx_scheduled_date` (`scheduled_date`),
   KEY `idx_teacher_time` (`scheduled_date`,`start_time`,`end_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程安排表，记录具体的上课时间安排';
+) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='课程安排表，记录具体的上课时间安排';
 
 -- ----------------------------
 -- Records of course_schedules
@@ -259,6 +265,19 @@ INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_
 INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (30, 3, '2025-09-05', '15:00:00', '16:00:00', 7, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-28 16:14:46', 0, NULL);
 INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (31, 3, '2025-09-12', '15:00:00', '16:00:00', 8, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-28 16:14:46', 0, NULL);
 INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (32, 3, '2025-10-13', '15:00:00', '16:00:00', 11, 'scheduled', NULL, NULL, NULL, NULL, '2025-07-28 16:14:46', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (33, 4, '2025-09-30', '08:30:00', '09:00:00', 1, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 16:38:56', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (34, 5, '2025-09-11', '10:00:00', '12:00:00', 1, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 21:08:11', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (35, 5, '2025-09-18', '10:00:00', '12:00:00', 2, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 21:08:11', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (36, 5, '2025-09-25', '10:00:00', '12:00:00', 3, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 21:08:11', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (37, 5, '2025-10-02', '10:00:00', '12:00:00', 4, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 21:08:11', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (38, 5, '2025-10-09', '10:00:00', '12:00:00', 5, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 21:08:11', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (39, 5, '2025-10-16', '10:00:00', '12:00:00', 6, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 21:08:11', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (40, 5, '2025-10-23', '10:00:00', '12:00:00', 7, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 21:08:11', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (41, 5, '2025-10-30', '10:00:00', '12:00:00', 8, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 21:08:11', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (42, 5, '2025-11-06', '10:00:00', '12:00:00', 9, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 21:08:11', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (43, 5, '2025-11-13', '10:00:00', '12:00:00', 10, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 21:08:11', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (44, 5, '2025-11-20', '10:00:00', '12:00:00', 11, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 21:08:11', 0, NULL);
+INSERT INTO `course_schedules` (`id`, `enrollment_id`, `scheduled_date`, `start_time`, `end_time`, `session_number`, `schedule_status`, `teacher_notes`, `student_feedback`, `reschedule_reason`, `reschedule_request_id`, `created_at`, `is_deleted`, `deleted_at`) VALUES (45, 5, '2025-11-27', '10:00:00', '12:00:00', 12, 'scheduled', NULL, NULL, NULL, NULL, '2025-09-10 21:08:11', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -269,32 +288,32 @@ CREATE TABLE `courses` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '课程ID，主键自增',
   `teacher_id` bigint NOT NULL COMMENT '授课教师ID，关联teachers表',
   `subject_id` bigint NOT NULL COMMENT '课程科目ID，关联subjects表',
-  `title` varchar(200) NOT NULL COMMENT '课程标题',
-  `description` text COMMENT '课程详细描述，包括内容大纲、适合人群等',
+  `title` varchar(200) COLLATE utf8mb4_general_ci NOT NULL COMMENT '课程标题',
+  `description` text COLLATE utf8mb4_general_ci COMMENT '课程详细描述，包括内容大纲、适合人群等',
   `rating` decimal(10,7) DEFAULT '5.0000000' COMMENT '课程评分，0-5分',
-  `course_type` enum('one_on_one','large_class') NOT NULL COMMENT '课程类型：one_on_one-一对一,large_class-大班课',
+  `course_type` enum('one_on_one','large_class') COLLATE utf8mb4_general_ci NOT NULL COMMENT '课程类型：one_on_one-一对一,large_class-大班课',
   `price` decimal(10,2) DEFAULT NULL COMMENT '课程单价，单位：M豆，1M豆=1元，课程价格，1对1代表每小时价格，大班课代表总课程价格',
   `start_date` date DEFAULT NULL COMMENT '课程开始时间，格式：YYYY-MM-DD',
   `end_date` date DEFAULT NULL COMMENT '课程结束时间，格式：YYYY-MM-DD',
   `person_limit` int DEFAULT NULL COMMENT '最大报名人数，null表示不限制',
   `enrollment_count` int DEFAULT '0' COMMENT '当前报名人数',
-  `course_time_slots` text COMMENT '上课时间安排（只有大班课才需要设置上课时间安排），JSON格式存储：[{"weekday":1,"timeSlots":["08:00-10:00","17:00-19:00"]},{"weekday":6,"timeSlots":["13:00-15:00","15:00-17:00"]}]，weekday: 1=周一,2=周二...7=周日',
-  `image_url` varchar(500) DEFAULT NULL COMMENT '课程封面图URL',
+  `course_time_slots` text COLLATE utf8mb4_general_ci COMMENT '上课时间安排（只有大班课才需要设置上课时间安排），JSON格式存储：[{"weekday":1,"timeSlots":["08:00-10:00","17:00-19:00"]},{"weekday":6,"timeSlots":["13:00-15:00","15:00-17:00"]}]，weekday: 1=周一,2=周二...7=周日',
+  `image_url` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '课程封面图URL',
   `duration_minutes` int NOT NULL DEFAULT '120' COMMENT '单次课程时长，单位：分钟，只能选择90分钟或120分钟',
-  `status` enum('active','inactive','full','pending') DEFAULT 'active' COMMENT '课程状态：active-可报名，inactive-已下架，full-已满员，pending-待审批',
+  `status` enum('active','inactive','full','pending') COLLATE utf8mb4_general_ci DEFAULT 'active' COMMENT '课程状态：active-可报名，inactive-已下架，full-已满员，pending-待审批',
   `is_featured` tinyint(1) DEFAULT '0' COMMENT '是否为精选课程，在首页展示：1-是，0-否',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '课程创建时间',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
-  `course_location` varchar(255) DEFAULT '线上' COMMENT '课程地点',
+  `course_location` varchar(255) COLLATE utf8mb4_general_ci DEFAULT '线上' COMMENT '课程地点',
   `supports_online` tinyint(1) DEFAULT '0' COMMENT '是否支持线上',
-  `offline_locations` varchar(255) DEFAULT NULL COMMENT '线下地点ID CSV',
+  `offline_locations` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '线下地点ID CSV',
   PRIMARY KEY (`id`),
   KEY `idx_courses_status_deleted_created` (`status`,`is_deleted`,`created_at`),
   KEY `idx_courses_teacher_deleted_status` (`teacher_id`,`is_deleted`,`status`),
   KEY `idx_courses_subject_deleted_status` (`subject_id`,`is_deleted`,`status`),
   KEY `idx_courses_featured_status_deleted_created` (`is_featured`,`status`,`is_deleted`,`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程信息表，存储教师发布的课程详情';
+) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='课程信息表，存储教师发布的课程详情';
 
 -- ----------------------------
 -- Records of courses
@@ -312,7 +331,7 @@ INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`,
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (10, 5, 2, '生活中的科学', '从生活现象中学习科学原理，培养科学思维。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:36:22', 0, NULL, '线上', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (11, 6, 2, '环境科学启蒙班', '环境保护和生态科学的启蒙教育。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:36:22', 0, NULL, '线上', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (12, 6, 2, '科学探究方法班', '教授科学探究的基本方法和思维方式。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:36:22', 0, NULL, '线上', 0, NULL);
-INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (13, 7, 6, '小学华文基础班', '小学华文基础教学，包括拼音、汉字、词汇学习。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 60, 'active', 0, '2025-07-28 21:38:04', 0, NULL, '线上', 0, NULL);
+INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (13, 7, 6, '小学华文基础班', '小学华文基础教学，包括拼音、汉字、词汇学习。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:38:04', 0, NULL, '线上', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (14, 7, 6, '拼音识字启蒙班', '专注拼音教学和汉字识字启蒙。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:38:04', 0, NULL, '线上', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (15, 8, 6, '小学阅读理解班', '提升小学生的阅读理解能力和语言表达。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:38:04', 0, NULL, '线上', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (16, 8, 6, '写作启蒙班', '小学写作启蒙，从看图写话开始。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:38:04', 0, NULL, '线上', 0, NULL);
@@ -342,7 +361,7 @@ INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`,
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (40, 20, 8, '有机化学专题班', '有机化学专题学习，掌握有机反应机理。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (41, 21, 2, '中学生物实验班', '中学生物实验课程，探索生命科学奥秘。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (42, 21, 2, '分子生物学班', '分子生物学基础，了解生命的分子机制。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 0, NULL);
-INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (43, 22, 6, '中学古代文学班', '中学古代文学学习，深入理解经典作品。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 0, NULL);
+INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (43, 22, 6, '中学古代文学班', '中学古代文学学习，深入理解经典作品。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, 1, NULL, NULL, 120, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线下', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (44, 22, 6, '文言文精读班', '文言文精读训练，提升古文理解能力。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (45, 23, 6, '中学现代文学班', '中学现代文学鉴赏，培养文学素养。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 0, NULL);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`) VALUES (46, 23, 6, '中学写作指导班', '中学写作技巧指导，提升表达能力。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, NULL, NULL, NULL, 120, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 0, NULL);
@@ -363,13 +382,13 @@ COMMIT;
 DROP TABLE IF EXISTS `grades`;
 CREATE TABLE `grades` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '年级ID，主键自增',
-  `name` varchar(50) NOT NULL COMMENT '年级名称',
+  `name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '年级名称',
   `is_active` tinyint NOT NULL COMMENT '是否激活：1-是，0-否',
   `sort_order` int NOT NULL COMMENT '排序顺序',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=185 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年级表，存储所有年级的信息';
+) ENGINE=InnoDB AUTO_INCREMENT=185 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='年级表，存储所有年级的信息';
 
 -- ----------------------------
 -- Records of grades
@@ -385,19 +404,19 @@ DROP TABLE IF EXISTS `hour_details`;
 CREATE TABLE `hour_details` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '课时变动ID，主键自增',
   `user_id` bigint NOT NULL COMMENT '教师用户ID，关联users表',
-  `name` varchar(255) NOT NULL COMMENT '教师姓名',
+  `name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT '教师姓名',
   `hours` decimal(10,2) NOT NULL COMMENT '变动课时数，正数表示增加，负数表示减少',
   `hours_before` decimal(10,2) NOT NULL COMMENT '变动前课时数',
   `hours_after` decimal(10,2) NOT NULL COMMENT '变动后课时数',
   `transaction_type` tinyint(1) NOT NULL COMMENT '交易类型： 1-增加, 0-减少',
-  `reason` varchar(255) NOT NULL COMMENT '变动原因',
+  `reason` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT '变动原因',
   `booking_id` bigint DEFAULT NULL COMMENT '关联的课程ID，可为空',
   `operator_id` bigint DEFAULT NULL COMMENT '操作员ID（如管理员），可为空',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_booking_id` (`booking_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='教师课时变动记录表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='教师课时变动记录表';
 
 -- ----------------------------
 -- Records of hour_details
@@ -421,7 +440,7 @@ CREATE TABLE `job_post_subjects` (
   KEY `idx_subject_job` (`subject_id`,`job_post_id`),
   CONSTRAINT `fk_jps_job` FOREIGN KEY (`job_post_id`) REFERENCES `job_posts` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_jps_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='招聘与科目的多对多关联表';
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='招聘与科目的多对多关联表';
 
 -- ----------------------------
 -- Records of job_post_subjects
@@ -439,12 +458,12 @@ COMMIT;
 DROP TABLE IF EXISTS `job_posts`;
 CREATE TABLE `job_posts` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '招聘ID，主键自增',
-  `title` varchar(200) NOT NULL COMMENT '招聘标题',
-  `introduction` text COMMENT '岗位介绍/职位描述',
-  `position_tags` varchar(255) DEFAULT NULL COMMENT '职位标签，JSON数组字符串，如：["兼职","线上"]',
-  `subject_ids` varchar(100) DEFAULT NULL COMMENT '关联科目ID列表，逗号分隔，如：1,3,6',
-  `subject_names` varchar(300) DEFAULT NULL COMMENT '科目名称列表，逗号分隔，如：小学数学,小学华文,中学数学',
-  `status` enum('active','expired') DEFAULT 'active' COMMENT '招聘状态：active-招聘中，expired-已过期',
+  `title` varchar(200) COLLATE utf8mb4_general_ci NOT NULL COMMENT '招聘标题',
+  `introduction` text COLLATE utf8mb4_general_ci COMMENT '岗位介绍/职位描述',
+  `position_tags` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '职位标签，JSON数组字符串，如：["兼职","线上"]',
+  `subject_ids` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '关联科目ID列表，逗号分隔，如：1,3,6',
+  `subject_names` varchar(300) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '科目名称列表，逗号分隔，如：小学数学,小学华文,中学数学',
+  `status` enum('active','expired') COLLATE utf8mb4_general_ci DEFAULT 'active' COMMENT '招聘状态：active-招聘中，expired-已过期',
   `priority` int DEFAULT '0' COMMENT '优先级排序，值越小越靠前',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -455,7 +474,7 @@ CREATE TABLE `job_posts` (
   KEY `idx_job_posts_created` (`created_at`),
   KEY `idx_job_posts_list` (`is_deleted`,`status`,`priority`,`created_at`,`id`),
   FULLTEXT KEY `ft_title_intro` (`title`,`introduction`)
-) ENGINE=InnoDB AUTO_INCREMENT=1005 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='教师招聘信息表，供前台招聘页面展示';
+) ENGINE=InnoDB AUTO_INCREMENT=1005 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='教师招聘信息表，供前台招聘页面展示';
 
 -- ----------------------------
 -- Records of job_posts
@@ -476,7 +495,7 @@ CREATE TABLE `lesson_grades` (
   `schedule_id` bigint NOT NULL COMMENT '课程安排ID，关联course_schedules表',
   `student_id` bigint NOT NULL COMMENT '学生ID，关联students表',
   `score` decimal(5,2) DEFAULT NULL COMMENT '本节课成绩分数',
-  `teacher_comment` text COMMENT '教师对本节课的评价和建议',
+  `teacher_comment` text COLLATE utf8mb4_general_ci COMMENT '教师对本节课的评价和建议',
   `graded_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '成绩录入时间',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -489,12 +508,14 @@ CREATE TABLE `lesson_grades` (
   KEY `idx_graded_at` (`graded_at`),
   CONSTRAINT `fk_lesson_grades_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `course_schedules` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_lesson_grades_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程成绩表';
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='课程成绩表';
 
 -- ----------------------------
 -- Records of lesson_grades
 -- ----------------------------
 BEGIN;
+INSERT INTO `lesson_grades` (`id`, `schedule_id`, `student_id`, `score`, `teacher_comment`, `graded_at`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (1, 1, 6, 1.00, '1', '2025-09-10 17:04:52', '2025-09-10 17:04:52', '2025-09-10 17:04:52', 0, NULL);
+INSERT INTO `lesson_grades` (`id`, `schedule_id`, `student_id`, `score`, `teacher_comment`, `graded_at`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (2, 2, 6, 100.00, '231321213', '2025-09-10 17:22:59', '2025-09-10 17:22:59', '2025-09-10 17:22:59', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -565,22 +586,22 @@ CREATE TABLE `reschedule_requests` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '调课申请ID',
   `schedule_id` bigint NOT NULL COMMENT '原课程安排ID',
   `applicant_id` bigint NOT NULL COMMENT '申请人ID(学生或教师)',
-  `applicant_type` enum('student','teacher') NOT NULL COMMENT '申请人类型',
-  `request_type` enum('single','recurring','cancel') NOT NULL COMMENT '申请类型：single-单次调课，recurring-周期性调课，cancel-取消课程',
+  `applicant_type` enum('student','teacher') COLLATE utf8mb4_general_ci NOT NULL COMMENT '申请人类型',
+  `request_type` enum('single','recurring','cancel') COLLATE utf8mb4_general_ci NOT NULL COMMENT '申请类型：single-单次调课，recurring-周期性调课，cancel-取消课程',
   `original_date` date NOT NULL COMMENT '原定日期',
   `original_start_time` time NOT NULL COMMENT '原定开始时间',
   `original_end_time` time NOT NULL COMMENT '原定结束时间',
   `new_date` date DEFAULT NULL COMMENT '新日期',
   `new_start_time` time DEFAULT NULL COMMENT '新开始时间',
   `new_end_time` time DEFAULT NULL COMMENT '新结束时间',
-  `new_weekly_schedule` varchar(500) DEFAULT NULL COMMENT '新的周期性安排，格式：周一,周三 14:00-16:00;周五 18:00-20:00',
-  `reason` text NOT NULL COMMENT '调课原因',
-  `urgency_level` enum('low','medium','high') DEFAULT 'medium' COMMENT '紧急程度',
+  `new_weekly_schedule` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '新的周期性安排，格式：周一,周三 14:00-16:00;周五 18:00-20:00',
+  `reason` text COLLATE utf8mb4_general_ci NOT NULL COMMENT '调课原因',
+  `urgency_level` enum('low','medium','high') COLLATE utf8mb4_general_ci DEFAULT 'medium' COMMENT '紧急程度',
   `advance_notice_hours` int DEFAULT NULL COMMENT '提前通知小时数',
-  `status` enum('pending','approved','rejected','cancelled') DEFAULT 'pending' COMMENT '申请状态',
+  `status` enum('pending','approved','rejected','cancelled') COLLATE utf8mb4_general_ci DEFAULT 'pending' COMMENT '申请状态',
   `reviewer_id` bigint DEFAULT NULL COMMENT '审核人ID',
-  `reviewer_type` enum('teacher','student','admin') DEFAULT NULL COMMENT '审核人类型',
-  `review_notes` text COMMENT '审核备注',
+  `reviewer_type` enum('teacher','student','admin') COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '审核人类型',
+  `review_notes` text COLLATE utf8mb4_general_ci COMMENT '审核备注',
   `compensation_amount` decimal(10,2) DEFAULT '0.00' COMMENT '补偿金额(如需要)',
   `affects_future_sessions` tinyint(1) DEFAULT '0' COMMENT '是否影响后续课程',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请时间',
@@ -589,7 +610,7 @@ CREATE TABLE `reschedule_requests` (
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='调课申请表，记录课程时间调整申请';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='调课申请表，记录课程时间调整申请';
 
 -- ----------------------------
 -- Records of reschedule_requests
@@ -610,20 +631,20 @@ CREATE TABLE `schedules` (
   `start_time` time NOT NULL COMMENT '开始时间',
   `end_time` time NOT NULL COMMENT '结束时间',
   `total_times` int DEFAULT NULL COMMENT '总课程次数',
-  `status` enum('progressing','completed','cancelled') DEFAULT 'progressing' COMMENT '课程状态：progressing-进行中，confirmed-已确认，cancelled-已取消',
-  `teacher_notes` text COMMENT '教师课后备注和反馈',
-  `student_feedback` text COMMENT '学生课后反馈',
+  `status` enum('progressing','completed','cancelled') COLLATE utf8mb4_general_ci DEFAULT 'progressing' COMMENT '课程状态：progressing-进行中，confirmed-已确认，cancelled-已取消',
+  `teacher_notes` text COLLATE utf8mb4_general_ci COMMENT '教师课后备注和反馈',
+  `student_feedback` text COLLATE utf8mb4_general_ci COMMENT '学生课后反馈',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '排课创建时间',
   `booking_request_id` bigint DEFAULT NULL COMMENT '关联预约申请ID',
-  `booking_source` enum('request','admin') DEFAULT 'request' COMMENT '预约来源：request-申请预约，admin-管理员安排',
+  `booking_source` enum('request','admin') COLLATE utf8mb4_general_ci DEFAULT 'request' COMMENT '预约来源：request-申请预约，admin-管理员安排',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
-  `recurring_weekdays` varchar(50) DEFAULT NULL COMMENT '周期性预约的星期几，逗号分隔：1,3,5',
-  `recurring_time_slots` varchar(200) DEFAULT NULL COMMENT '周期性预约的时间段，逗号分隔：14:00-16:00,18:00-20:00',
+  `recurring_weekdays` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '周期性预约的星期几，逗号分隔：1,3,5',
+  `recurring_time_slots` varchar(200) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '周期性预约的时间段，逗号分隔：14:00-16:00,18:00-20:00',
   `is_trial` tinyint(1) DEFAULT '0' COMMENT '是否为试听课：true-是，false-否',
   `session_number` int DEFAULT NULL COMMENT '课程序号（在周期性课程中的第几次课）',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程安排表，记录具体的上课时间';
+) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='课程安排表，记录具体的上课时间';
 
 -- ----------------------------
 -- Records of schedules
@@ -676,15 +697,15 @@ CREATE TABLE `student_subjects` (
   UNIQUE KEY `uk_student_subject` (`student_id`,`subject_id`),
   KEY `idx_student_id` (`student_id`),
   KEY `idx_subject_id` (`subject_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学生感兴趣科目关联表';
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='学生感兴趣科目关联表';
 
 -- ----------------------------
 -- Records of student_subjects
 -- ----------------------------
 BEGIN;
-INSERT INTO `student_subjects` (`id`, `student_id`, `subject_id`, `created_at`) VALUES (1, 6, 1, '2025-07-21 13:12:05');
-INSERT INTO `student_subjects` (`id`, `student_id`, `subject_id`, `created_at`) VALUES (2, 6, 2, '2025-07-21 13:12:05');
-INSERT INTO `student_subjects` (`id`, `student_id`, `subject_id`, `created_at`) VALUES (3, 6, 6, '2025-07-21 13:12:05');
+INSERT INTO `student_subjects` (`id`, `student_id`, `subject_id`, `created_at`) VALUES (4, 6, 1, '2025-09-10 21:06:44');
+INSERT INTO `student_subjects` (`id`, `student_id`, `subject_id`, `created_at`) VALUES (5, 6, 2, '2025-09-10 21:06:44');
+INSERT INTO `student_subjects` (`id`, `student_id`, `subject_id`, `created_at`) VALUES (6, 6, 6, '2025-09-10 21:06:44');
 COMMIT;
 
 -- ----------------------------
@@ -694,24 +715,24 @@ DROP TABLE IF EXISTS `students`;
 CREATE TABLE `students` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '学生ID，主键自增',
   `user_id` bigint NOT NULL COMMENT '关联用户表的用户ID',
-  `real_name` varchar(50) NOT NULL COMMENT '学生真实姓名',
-  `subjects_interested` varchar(50) DEFAULT NULL COMMENT '感兴趣的科目列表如：[数学,英语,物理]',
-  `learning_goals` text COMMENT '学习目标和需求描述',
-  `preferred_teaching_style` varchar(100) DEFAULT NULL COMMENT '偏好的教学风格，如：严格型、温和型、互动型',
+  `real_name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '学生真实姓名',
+  `subjects_interested` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '感兴趣的科目列表如：[数学,英语,物理]',
+  `learning_goals` text COLLATE utf8mb4_general_ci COMMENT '学习目标和需求描述',
+  `preferred_teaching_style` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '偏好的教学风格，如：严格型、温和型、互动型',
   `balance` decimal(10,2) DEFAULT '0.00' COMMENT '学生余额，单位：M豆',
-  `budget_range` varchar(50) DEFAULT NULL COMMENT '预算范围，如：100-200元/小时',
+  `budget_range` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '预算范围，如：100-200元/小时',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
-  `gender` enum('男','女','不愿透露') DEFAULT '不愿透露' COMMENT '性别：男、女、不愿透露',
+  `gender` enum('男','女','不愿透露') COLLATE utf8mb4_general_ci DEFAULT '不愿透露' COMMENT '性别：男、女、不愿透露',
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学生详细信息表，存储学生的个人资料和学习偏好';
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='学生详细信息表，存储学生的个人资料和学习偏好';
 
 -- ----------------------------
 -- Records of students
 -- ----------------------------
 BEGIN;
-INSERT INTO `students` (`id`, `user_id`, `real_name`, `subjects_interested`, `learning_goals`, `preferred_teaching_style`, `balance`, `budget_range`, `is_deleted`, `deleted_at`, `gender`) VALUES (6, 10, 'student23', '数学,科学,华文', '希望提高数学和科学成绩，加强华文阅读能力', '实践型教学', 0.00, '100-200', 0, NULL, '不愿透露');
+INSERT INTO `students` (`id`, `user_id`, `real_name`, `subjects_interested`, `learning_goals`, `preferred_teaching_style`, `balance`, `budget_range`, `is_deleted`, `deleted_at`, `gender`) VALUES (6, 10, 'student23', '数学,科学,华文', '希望提高数学和科学成绩，加强华文阅读能力', '实践型教学', 380.00, '100-200', 0, NULL, '不愿透露');
 COMMIT;
 
 -- ----------------------------
@@ -720,7 +741,7 @@ COMMIT;
 DROP TABLE IF EXISTS `study_abroad_countries`;
 CREATE TABLE `study_abroad_countries` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '留学国家ID，主键自增',
-  `country_name` varchar(50) NOT NULL COMMENT '国家名称',
+  `country_name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '国家名称',
   `sort_order` int DEFAULT '0' COMMENT '排序权重，数值越小越靠前',
   `is_active` tinyint(1) DEFAULT '1' COMMENT '是否启用：1-启用，0-禁用',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -732,7 +753,7 @@ CREATE TABLE `study_abroad_countries` (
   KEY `idx_is_active` (`is_active`),
   KEY `idx_sort_order` (`sort_order`),
   KEY `idx_sac_active_deleted_sort` (`is_active`,`is_deleted`,`sort_order`,`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='留学国家管理表';
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='留学国家管理表';
 
 -- ----------------------------
 -- Records of study_abroad_countries
@@ -750,12 +771,12 @@ COMMIT;
 DROP TABLE IF EXISTS `study_abroad_programs`;
 CREATE TABLE `study_abroad_programs` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '留学项目ID，主键自增',
-  `title` varchar(200) NOT NULL COMMENT '项目标题',
+  `title` varchar(200) COLLATE utf8mb4_general_ci NOT NULL COMMENT '项目标题',
   `country_id` bigint NOT NULL COMMENT '留学国家ID，关联study_abroad_countries表',
   `stage_id` bigint NOT NULL COMMENT '留学阶段ID，关联study_abroad_stages表',
-  `description` text COMMENT '项目详细描述',
-  `image_url` varchar(500) DEFAULT NULL COMMENT '项目图片URL',
-  `tags` text COMMENT '项目标签，JSON格式存储',
+  `description` text COLLATE utf8mb4_general_ci COMMENT '项目详细描述',
+  `image_url` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '项目图片URL',
+  `tags` text COLLATE utf8mb4_general_ci COMMENT '项目标签，JSON格式存储',
   `is_hot` tinyint(1) DEFAULT '0' COMMENT '是否为热门项目：1-是，0-否',
   `sort_order` int DEFAULT '0' COMMENT '排序权重，数值越小越靠前',
   `is_active` tinyint(1) DEFAULT '1' COMMENT '是否启用：1-启用，0-禁用',
@@ -773,7 +794,7 @@ CREATE TABLE `study_abroad_programs` (
   KEY `idx_sap_country_stage_active` (`country_id`,`stage_id`,`is_active`,`is_deleted`),
   KEY `idx_sap_country_active` (`country_id`,`is_active`,`is_deleted`),
   KEY `idx_sap_stage_active` (`stage_id`,`is_active`,`is_deleted`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='留学项目管理表';
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='留学项目管理表';
 
 -- ----------------------------
 -- Records of study_abroad_programs
@@ -791,7 +812,7 @@ COMMIT;
 DROP TABLE IF EXISTS `study_abroad_stages`;
 CREATE TABLE `study_abroad_stages` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '留学阶段ID，主键自增',
-  `stage_name` varchar(50) NOT NULL COMMENT '阶段名称，如：高中、本科、硕士',
+  `stage_name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '阶段名称，如：高中、本科、硕士',
   `sort_order` int DEFAULT '0' COMMENT '排序权重，数值越小越靠前',
   `is_active` tinyint(1) DEFAULT '1' COMMENT '是否启用：1-启用，0-禁用',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -803,7 +824,7 @@ CREATE TABLE `study_abroad_stages` (
   KEY `idx_is_active` (`is_active`),
   KEY `idx_sort_order` (`sort_order`),
   KEY `idx_sas_active_deleted_sort` (`is_active`,`is_deleted`,`sort_order`,`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='留学阶段管理表';
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='留学阶段管理表';
 
 -- ----------------------------
 -- Records of study_abroad_stages
@@ -820,13 +841,13 @@ COMMIT;
 DROP TABLE IF EXISTS `subjects`;
 CREATE TABLE `subjects` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '科目ID，主键自增',
-  `name` varchar(50) NOT NULL COMMENT '科目名称，如：数学、语文、英语',
-  `icon_url` varchar(255) DEFAULT NULL COMMENT '科目图标URL地址',
+  `name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '科目名称，如：数学、语文、英语',
+  `icon_url` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '科目图标URL地址',
   `is_active` tinyint(1) DEFAULT '1' COMMENT '是否启用：true-启用，false-禁用',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='科目分类表，定义平台支持的所有教学科目';
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='科目分类表，定义平台支持的所有教学科目';
 
 -- ----------------------------
 -- Records of subjects
@@ -851,10 +872,12 @@ CREATE TABLE `suspension_requests` (
   `enrollment_id` bigint NOT NULL COMMENT '课程报名ID，关联course_enrollments',
   `student_id` bigint NOT NULL COMMENT '学生ID',
   `teacher_id` bigint NOT NULL COMMENT '教师ID',
-  `reason` text COMMENT '停课原因',
-  `status` enum('pending','approved','rejected','cancelled') DEFAULT 'pending' COMMENT '申请状态',
+  `reason` text COLLATE utf8mb4_general_ci COMMENT '停课原因',
+  `start_date` date DEFAULT NULL COMMENT '停课开始日期',
+  `end_date` date DEFAULT NULL COMMENT '停课结束日期',
+  `status` enum('pending','approved','rejected','cancelled') COLLATE utf8mb4_general_ci DEFAULT 'pending' COMMENT '申请状态',
   `admin_id` bigint DEFAULT NULL COMMENT '审核管理员ID',
-  `admin_notes` text COMMENT '管理员审核备注',
+  `admin_notes` text COLLATE utf8mb4_general_ci COMMENT '管理员审核备注',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `reviewed_at` timestamp NULL DEFAULT NULL COMMENT '审核时间',
@@ -863,13 +886,16 @@ CREATE TABLE `suspension_requests` (
   PRIMARY KEY (`id`),
   KEY `idx_enrollment_id` (`enrollment_id`),
   KEY `idx_student_id` (`student_id`),
-  KEY `idx_teacher_id` (`teacher_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='停课申请表，记录学生发起的课程暂停申请';
+  KEY `idx_teacher_id` (`teacher_id`),
+  KEY `idx_susp_req_enrollment_status` (`enrollment_id`,`status`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='停课申请表，记录学生发起的课程暂停申请';
 
 -- ----------------------------
 -- Records of suspension_requests
 -- ----------------------------
 BEGIN;
+INSERT INTO `suspension_requests` (`id`, `enrollment_id`, `student_id`, `teacher_id`, `reason`, `start_date`, `end_date`, `status`, `admin_id`, `admin_notes`, `created_at`, `updated_at`, `reviewed_at`, `is_deleted`, `deleted_at`) VALUES (1, 1, 6, 7, '学生申请停课', '2025-11-05', '2025-12-26', 'approved', 11, '213312123312', '2025-09-10 18:46:05', '2025-09-10 21:06:24', '2025-09-10 21:06:24', 0, NULL);
+INSERT INTO `suspension_requests` (`id`, `enrollment_id`, `student_id`, `teacher_id`, `reason`, `start_date`, `end_date`, `status`, `admin_id`, `admin_notes`, `created_at`, `updated_at`, `reviewed_at`, `is_deleted`, `deleted_at`) VALUES (2, 3, 6, 7, '学生申请停课', '2025-09-17', '2025-09-30', 'approved', 11, '331231223', '2025-09-10 22:04:54', '2025-09-10 22:05:23', '2025-09-10 22:05:23', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -878,13 +904,13 @@ COMMIT;
 DROP TABLE IF EXISTS `teacher_level`;
 CREATE TABLE `teacher_level` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '教师级别ID，主键自增',
-  `name` varchar(50) NOT NULL COMMENT '教师级别名称',
+  `name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '教师级别名称',
   `is_active` tinyint NOT NULL COMMENT '是否激活：1-是，0-否',
   `sort_order` int NOT NULL COMMENT '排序顺序',
   `create_time` datetime DEFAULT NULL COMMENT '创建时间',
   `update_time` datetime DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='教师级别表';
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='教师级别表';
 
 -- ----------------------------
 -- Records of teacher_level
@@ -913,7 +939,7 @@ CREATE TABLE `teacher_subjects` (
   KEY `idx_ts_subject_teacher` (`subject_id`,`teacher_id`),
   CONSTRAINT `fk_teacher_subjects_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_teacher_subjects_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='教师科目关联表';
+) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='教师科目关联表';
 
 -- ----------------------------
 -- Records of teacher_subjects
@@ -940,9 +966,9 @@ INSERT INTO `teacher_subjects` (`id`, `teacher_id`, `subject_id`, `created_at`) 
 INSERT INTO `teacher_subjects` (`id`, `teacher_id`, `subject_id`, `created_at`) VALUES (19, 19, 7, '2025-07-28 21:36:22');
 INSERT INTO `teacher_subjects` (`id`, `teacher_id`, `subject_id`, `created_at`) VALUES (20, 20, 8, '2025-07-28 21:36:22');
 INSERT INTO `teacher_subjects` (`id`, `teacher_id`, `subject_id`, `created_at`) VALUES (21, 21, 2, '2025-07-28 21:36:22');
-INSERT INTO `teacher_subjects` (`id`, `teacher_id`, `subject_id`, `created_at`) VALUES (22, 22, 6, '2025-07-28 21:36:22');
 INSERT INTO `teacher_subjects` (`id`, `teacher_id`, `subject_id`, `created_at`) VALUES (23, 23, 6, '2025-07-28 21:36:22');
 INSERT INTO `teacher_subjects` (`id`, `teacher_id`, `subject_id`, `created_at`) VALUES (24, 24, 6, '2025-07-28 21:36:22');
+INSERT INTO `teacher_subjects` (`id`, `teacher_id`, `subject_id`, `created_at`) VALUES (25, 22, 6, '2025-09-10 15:00:11');
 COMMIT;
 
 -- ----------------------------
@@ -952,29 +978,29 @@ DROP TABLE IF EXISTS `teachers`;
 CREATE TABLE `teachers` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '教师ID，主键自增',
   `user_id` bigint NOT NULL COMMENT '关联用户表的用户ID',
-  `real_name` varchar(50) NOT NULL COMMENT '教师真实姓名',
-  `education_background` enum('专科及以下','本科','硕士','博士') DEFAULT NULL COMMENT '教育背景：专科及以下、本科、硕士、博士',
+  `real_name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '教师真实姓名',
+  `education_background` enum('专科及以下','本科','硕士','博士') COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '教育背景：专科及以下、本科、硕士、博士',
   `rating` decimal(10,7) DEFAULT '5.0000000' COMMENT '教师评分，0-5分',
   `teaching_experience` int DEFAULT NULL COMMENT '教学经验年数',
-  `specialties` varchar(50) DEFAULT NULL COMMENT '专业领域如：[高考数学,竞赛辅导,基础提升]',
+  `specialties` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '专业领域如：[高考数学,竞赛辅导,基础提升]',
   `hourly_rate` decimal(10,2) DEFAULT NULL COMMENT '每小时收费标准，单位：元',
-  `introduction` text COMMENT '个人介绍和教学理念',
-  `photo_url` varchar(255) DEFAULT NULL COMMENT '个人照片',
-  `gender` enum('男','女','不愿透露') DEFAULT '不愿透露' COMMENT '性别：男、女、不愿透露',
+  `introduction` text COLLATE utf8mb4_general_ci COMMENT '个人介绍和教学理念',
+  `photo_url` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '个人照片',
+  `gender` enum('男','女','不愿透露') COLLATE utf8mb4_general_ci DEFAULT '不愿透露' COMMENT '性别：男、女、不愿透露',
   `is_verified` tinyint(1) DEFAULT '0' COMMENT '是否已认证：true-已认证，false-未认证',
   `is_featured` tinyint(1) DEFAULT '0' COMMENT '是否展示到首页：true-是，false-否',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   `current_hours` decimal(10,2) DEFAULT '0.00' COMMENT '本月课时数',
   `last_hours` decimal(10,2) DEFAULT '0.00' COMMENT '上个月课时数',
-  `available_time_slots` text COMMENT '可上课时间安排，JSON格式存储：[{"weekday":1,"timeSlots":["08:00-10:00","17:00-19:00"]},{"weekday":6,"timeSlots":["13:00-15:00","15:00-17:00"]}]，weekday: 1=周一,2=周二...7=周日',
-  `level` varchar(50) DEFAULT '王牌' COMMENT '教育级别：王牌、金牌、银牌、铜牌等',
-  `teaching_locations` varchar(255) DEFAULT NULL COMMENT '授课地点',
+  `available_time_slots` text COLLATE utf8mb4_general_ci COMMENT '可上课时间安排，JSON格式存储：[{"weekday":1,"timeSlots":["08:00-10:00","17:00-19:00"]},{"weekday":6,"timeSlots":["13:00-15:00","15:00-17:00"]}]，weekday: 1=周一,2=周二...7=周日',
+  `level` varchar(50) COLLATE utf8mb4_general_ci DEFAULT '王牌' COMMENT '教育级别：王牌、金牌、银牌、铜牌等',
+  `teaching_locations` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '授课地点',
   `supports_online` tinyint(1) DEFAULT '0' COMMENT '是否支持线上',
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`),
   KEY `idx_is_featured` (`is_featured`)
-) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='教师详细信息表，存储教师的专业资料和教学信息';
+) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='教师详细信息表，存储教师的专业资料和教学信息';
 
 -- ----------------------------
 -- Records of teachers
@@ -1001,7 +1027,7 @@ INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `r
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `rating`, `teaching_experience`, `specialties`, `hourly_rate`, `introduction`, `photo_url`, `gender`, `is_verified`, `is_featured`, `is_deleted`, `deleted_at`, `current_hours`, `last_hours`, `available_time_slots`, `level`, `teaching_locations`, `supports_online`) VALUES (19, 161, '陈院士', '博士', 5.0000000, 20, '中学物理,实验物理,科学研究', 300.00, '中科院物理博士，20年科学教育经验。擅长实验物理教学，培养学生的科学研究能力和创新精神。', NULL, '男', 1, 1, 0, NULL, 0.00, 0.00, '[{\"weekday\":1,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":2,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":3,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":4,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":5,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":6,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":7,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]}]', '王牌', NULL, 0);
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `rating`, `teaching_experience`, `specialties`, `hourly_rate`, `introduction`, `photo_url`, `gender`, `is_verified`, `is_featured`, `is_deleted`, `deleted_at`, `current_hours`, `last_hours`, `available_time_slots`, `level`, `teaching_locations`, `supports_online`) VALUES (20, 162, '刘博士', '博士', 5.0000000, 14, '中学化学,有机化学,化学实验', 260.00, '北理工化学博士，14年中学化学教学经验。特别擅长有机化学和实验教学，让抽象的化学概念变得具体可感。', NULL, '女', 1, 0, 0, NULL, 0.00, 0.00, '[{\"weekday\":1,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":2,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":3,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":4,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":5,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":6,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":7,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]}]', '王牌', NULL, 0);
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `rating`, `teaching_experience`, `specialties`, `hourly_rate`, `introduction`, `photo_url`, `gender`, `is_verified`, `is_featured`, `is_deleted`, `deleted_at`, `current_hours`, `last_hours`, `available_time_slots`, `level`, `teaching_locations`, `supports_online`) VALUES (21, 163, '赵教授', '博士', 5.0000000, 16, '中学生物,分子生物学,生命科学', 270.00, '华科生物博士，16年教学经验。专注分子生物学和生命科学教育，培养学生对生命科学的深度理解。', NULL, '男', 1, 0, 0, NULL, 0.00, 0.00, '[{\"weekday\":1,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":2,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":3,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":4,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":5,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":6,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":7,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]}]', '王牌', NULL, 0);
-INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `rating`, `teaching_experience`, `specialties`, `hourly_rate`, `introduction`, `photo_url`, `gender`, `is_verified`, `is_featured`, `is_deleted`, `deleted_at`, `current_hours`, `last_hours`, `available_time_slots`, `level`, `teaching_locations`, `supports_online`) VALUES (22, 164, '林教授', '博士', 5.0000000, 17, '中学华文,古代文学,文言文', 240.00, '北师大中文博士，17年中学华文教学经验。专精古代文学和文言文，让学生深入理解中华文化精髓。', NULL, '女', 1, 1, 0, NULL, 0.00, 0.00, '[{\"weekday\":1,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":2,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":3,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":4,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":5,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":6,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":7,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]}]', '王牌', NULL, 0);
+INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `rating`, `teaching_experience`, `specialties`, `hourly_rate`, `introduction`, `photo_url`, `gender`, `is_verified`, `is_featured`, `is_deleted`, `deleted_at`, `current_hours`, `last_hours`, `available_time_slots`, `level`, `teaching_locations`, `supports_online`) VALUES (22, 164, '林教授', '博士', 5.0000000, 17, '中学华文,古代文学,文言文', 240.00, '北师大中文博士，17年中学华文教学经验。专精古代文学和文言文，让学生深入理解中华文化精髓。', NULL, '女', 1, 1, 0, NULL, 0.00, 0.00, '[{\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"],\"weekday\":1},{\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"],\"weekday\":2},{\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"],\"weekday\":3},{\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"],\"weekday\":4},{\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"],\"weekday\":5},{\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"],\"weekday\":6},{\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"],\"weekday\":7}]', '王牌', '184', 1);
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `rating`, `teaching_experience`, `specialties`, `hourly_rate`, `introduction`, `photo_url`, `gender`, `is_verified`, `is_featured`, `is_deleted`, `deleted_at`, `current_hours`, `last_hours`, `available_time_slots`, `level`, `teaching_locations`, `supports_online`) VALUES (23, 165, '黄博士', '博士', 5.0000000, 13, '中学华文,现代文学,写作指导', 220.00, '复旦中文博士，专注中学华文教育13年。擅长现代文学和写作指导，培养学生的文学素养和表达能力。', NULL, '男', 1, 0, 0, NULL, 0.00, 0.00, '[{\"weekday\":1,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":2,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":3,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":4,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":5,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":6,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":7,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]}]', '王牌', NULL, 0);
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `rating`, `teaching_experience`, `specialties`, `hourly_rate`, `introduction`, `photo_url`, `gender`, `is_verified`, `is_featured`, `is_deleted`, `deleted_at`, `current_hours`, `last_hours`, `available_time_slots`, `level`, `teaching_locations`, `supports_online`) VALUES (24, 166, '郑教授', '博士', 5.0000000, 14, '中学华文,语言学,修辞学', 230.00, '中大中文博士，14年教学经验。专精语言学和修辞学，帮助学生掌握高级语言运用技巧。', NULL, '女', 1, 0, 0, NULL, 0.00, 0.00, '[{\"weekday\":1,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":2,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":3,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":4,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":5,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":6,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":7,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]}]', '王牌', NULL, 0);
 INSERT INTO `teachers` (`id`, `user_id`, `real_name`, `education_background`, `rating`, `teaching_experience`, `specialties`, `hourly_rate`, `introduction`, `photo_url`, `gender`, `is_verified`, `is_featured`, `is_deleted`, `deleted_at`, `current_hours`, `last_hours`, `available_time_slots`, `level`, `teaching_locations`, `supports_online`) VALUES (37, 183, '青', NULL, 5.0000000, NULL, NULL, NULL, NULL, NULL, '男', 0, 0, 0, NULL, 0.00, 0.00, '[{\"weekday\":1,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":2,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":3,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":4,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":5,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":6,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":7,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]}]', '王牌', NULL, 0);
@@ -1013,14 +1039,14 @@ COMMIT;
 DROP TABLE IF EXISTS `teaching_locations`;
 CREATE TABLE `teaching_locations` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '授课地址ID，主键自增',
-  `name` varchar(50) NOT NULL COMMENT '授课地点名称',
-  `address` varchar(255) NOT NULL COMMENT '授课地点详细地址',
+  `name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '授课地点名称',
+  `address` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT '授课地点详细地址',
   `is_active` tinyint NOT NULL COMMENT '是否激活：1-是，0-否',
   `sort_order` int NOT NULL COMMENT '排序顺序',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=185 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='授课地址表，存储所有授课地点的信息';
+) ENGINE=InnoDB AUTO_INCREMENT=185 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='授课地址表，存储所有授课地点的信息';
 
 -- ----------------------------
 -- Records of teaching_locations
@@ -1035,14 +1061,14 @@ COMMIT;
 DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '用户ID，主键自增',
-  `username` varchar(50) NOT NULL COMMENT '用户名，唯一标识',
-  `email` varchar(100) NOT NULL COMMENT '邮箱地址，用于登录和通知',
-  `password` varchar(255) NOT NULL COMMENT '密码（加密）Bcrypt',
-  `phone` varchar(20) DEFAULT NULL COMMENT '手机号码',
-  `birth_date` varchar(7) DEFAULT NULL COMMENT '出生年月，格式：YYYY-MM',
-  `avatar_url` varchar(255) DEFAULT NULL COMMENT '头像图片URL地址',
-  `user_type` enum('student','teacher','admin') NOT NULL COMMENT '用户类型：student-学生，teacher-教师，admin-管理员',
-  `status` enum('active','inactive','banned') DEFAULT 'active' COMMENT '账户状态：active-激活，inactive-未激活，banned-封禁',
+  `username` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '用户名，唯一标识',
+  `email` varchar(100) COLLATE utf8mb4_general_ci NOT NULL COMMENT '邮箱地址，用于登录和通知',
+  `password` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT '密码（加密）Bcrypt',
+  `phone` varchar(20) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '手机号码',
+  `birth_date` varchar(7) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '出生年月，格式：YYYY-MM',
+  `avatar_url` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '头像图片URL地址',
+  `user_type` enum('student','teacher','admin') COLLATE utf8mb4_general_ci NOT NULL COMMENT '用户类型：student-学生，teacher-教师，admin-管理员',
+  `status` enum('active','inactive','banned') COLLATE utf8mb4_general_ci DEFAULT 'active' COMMENT '账户状态：active-激活，inactive-未激活，banned-封禁',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：true-已删除，false-未删除',
@@ -1050,13 +1076,13 @@ CREATE TABLE `users` (
   `trial_times` int DEFAULT '1' COMMENT '免费试听课次数，新用户默认为1',
   `adjustment_times` int DEFAULT '3' COMMENT '教师/学生调课次数，每个月三次，月初刷新',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=184 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户基础信息表，存储所有用户的通用信息';
+) ENGINE=InnoDB AUTO_INCREMENT=184 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户基础信息表，存储所有用户的通用信息';
 
 -- ----------------------------
 -- Records of users
 -- ----------------------------
 BEGIN;
-INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (10, 'student', 'qinghaoyang@foxmail.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '', NULL, NULL, 'student', 'active', '2025-07-19 13:21:54', '2025-07-29 09:31:13', 0, NULL, 1, 3);
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (10, 'student', 'qinghaoyang@foxmail.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '', NULL, NULL, 'student', 'active', '2025-07-19 13:21:54', '2025-09-10 21:06:44', 0, NULL, 0, 3);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (11, 'admin', 'admin@admin.com', '$2a$10$CLJSuGd2ptKI9VlCz3r4buGyY7HfKg1qivwbKEfkk8/6Pz57oKjWK', NULL, NULL, NULL, 'admin', 'active', '2025-07-19 16:23:39', '2025-07-29 13:24:12', 0, NULL, 1, 3);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (143, 'teacher_primary_math_01', 'primary_math01@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800001001', NULL, NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 1, 3);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (144, 'teacher_primary_math_02', 'primary_math02@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800001002', NULL, NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 1, 3);
@@ -1079,7 +1105,7 @@ INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (161, 'teacher_middle_science_01', 'middle_science01@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800007001', NULL, NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 1, 3);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (162, 'teacher_middle_science_02', 'middle_science02@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800007002', NULL, NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 1, 3);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (163, 'teacher_middle_science_03', 'middle_science03@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800007003', NULL, NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 1, 3);
-INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (164, 'teacher_middle_chinese_01', 'middle_chinese01@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800008001', NULL, NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 1, 3);
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (164, 'teacher_middle_chinese_01', 'middle_chinese01@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800008001', NULL, NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-09-10 15:00:11', 0, NULL, 1, 3);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (165, 'teacher_middle_chinese_02', 'middle_chinese02@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800008002', NULL, NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 1, 3);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (166, 'teacher_middle_chinese_03', 'middle_chinese03@teacher.com', '$2a$10$pd68PvpCnLxJEymLxawDz.HUvpXAh56NFRnhaOXhBe4z2sh2no8iW', '13800008003', NULL, NULL, 'teacher', 'active', '2025-07-28 21:36:22', '2025-07-28 21:36:22', 0, NULL, 1, 3);
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date`, `avatar_url`, `user_type`, `status`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `trial_times`, `adjustment_times`) VALUES (183, 'teacher', 'qhycursor@126.com', '$2a$10$jlFOPIGNKGflN7bUxRAR2OZ9F8NdnZotJaRsZ/cZ.IBPFPz5Gc/da', '', NULL, NULL, 'teacher', 'active', '2025-07-29 13:07:29', '2025-07-29 13:07:29', 0, NULL, 1, 3);

@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { bookingAPI, teacherAPI, rescheduleAPI } from '../../utils/api'
+import { bookingAPI, teacherAPI, rescheduleAPI, suspensionAPI } from '../../utils/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 
@@ -34,6 +34,8 @@ interface ScheduleItem {
   studentName: string
   status: string
   isTrial: boolean
+  enrollmentId?: number
+  courseType?: string
   teacherId?: number
   teacherName?: string
   studentId?: number
@@ -41,6 +43,26 @@ interface ScheduleItem {
   durationMinutes?: number
   courseTitle?: string
   subjectName?: string
+  grade?: string
+}
+
+
+
+// 1v1 标题：学生姓名+科目(+年级)+一对一课程（若 subjectName 已含年级则不重复）
+const buildOneToOneTitle = (s: ScheduleItem): string | null => {
+  const type = (s.courseType || '').toLowerCase()
+  const isOneToOne = type.includes('one') || type.includes('1v1') || type.includes('one_to_one') || type.includes('one-on-one')
+  if (!isOneToOne) return null
+  const student = (s.studentName || '').trim()
+  let subjectWithGrade = (s.subjectName || '').trim()
+  const grade = (s.grade || '').trim()
+  if (grade && subjectWithGrade && !subjectWithGrade.includes(grade)) {
+    subjectWithGrade = `${subjectWithGrade}${grade}`
+  }
+  if (student && subjectWithGrade) {
+    return `${student}${subjectWithGrade}一对一课程`
+  }
+  return null
 }
 
 const userStore = useUserStore()
@@ -55,6 +77,11 @@ const upcomingWeeks = ref(2)
 const calendarLoading = ref(false)
 const monthDate = ref(new Date())
 const monthSchedules = ref<ScheduleItem[]>([])
+
+// 全部课程抽屉
+const allSchedulesVisible = ref(false)
+const allSchedulesLoading = ref(false)
+const allSchedules = ref<ScheduleItem[]>([])
 
 // 统计数据
 const statistics = ref({
@@ -84,6 +111,15 @@ const hourDetailsLoading = ref(false)
 // 调课弹窗
 const showRescheduleModal = ref(false)
 const rescheduleCourse = ref<any>(null)
+// 课程详情弹窗
+const showScheduleDetailModal = ref(false)
+
+// 停课申请弹窗
+const showSuspensionDialog = ref(false)
+const suspensionForm = ref<{ startDate: string; endDate: string; reason: string }>({ startDate: '', endDate: '', reason: '' })
+const currentEnrollmentId = ref<number | null>(null)
+
+const selectedSchedule = ref<ScheduleItem | null>(null)
 
 // 根据当前路由设置激活菜单
 watch(() => route.path, (path: string) => {
@@ -143,6 +179,45 @@ const fetchUpcomingCourses = async () => {
 const formatTimeRange = (startTime: string, endTime: string) => {
   return `${startTime}-${endTime}`
 }
+// 查看课程详情
+const viewScheduleDetail = (schedule: ScheduleItem) => {
+  selectedSchedule.value = schedule
+  showScheduleDetailModal.value = true
+}
+
+// 课程状态 -> 中文
+const getScheduleStatusText = (status?: string) => {
+  switch (status) {
+    case 'progressing':
+      return '进行中'
+    case 'completed':
+      return '已完成'
+    case 'cancelled':
+    case 'canceled':
+      return '已取消'
+    case 'rescheduled':
+      return '已改期'
+    default:
+      return status || '-'
+  }
+}
+
+// 课程状态 -> 标签类型
+const getScheduleStatusTag = (status?: string) => {
+  switch (status) {
+    case 'progressing':
+      return 'primary'
+    case 'completed':
+      return 'success'
+    case 'rescheduled':
+      return 'warning'
+    case 'cancelled':
+    case 'canceled':
+      return 'info'
+    default:
+      return 'info'
+  }
+}
 
 // 加载当月课表（用于日历渲染）
 const loadMonthSchedules = async () => {
@@ -160,11 +235,72 @@ const loadMonthSchedules = async () => {
       ElMessage.error(res.message || '获取当月课表失败')
     }
   } catch (e) {
+//      load all schedules for current teacher (very wide range)
+const loadAllSchedules = async () => {
+  try {
+    allSchedulesLoading.value = true
+    const res = await bookingAPI.getTeacherSchedules({ startDate: '1970-01-01', endDate: '2099-12-31' })
+    if (res.success && Array.isArray(res.data)) {
+      allSchedules.value = res.data.sort((a: any, b: any) => {
+        const d = a.scheduledDate.localeCompare(b.scheduledDate)
+        if (d !== 0) return d
+        return a.startTime.localeCompare(b.startTime)
+      })
+    } else {
+      allSchedules.value = []
+      ElMessage.error(res.message || '获取全部课程失败')
+    }
+  } catch (e) {
+    allSchedules.value = []
+    ElMessage.error('获取全部课程失败，请稍后重试')
+  } finally {
+    allSchedulesLoading.value = false
+  }
+}
+
+const openAllSchedulesDrawer = async () => {
+  allSchedulesVisible.value = true
+  if (allSchedules.value.length === 0) await loadAllSchedules()
+}
+
     console.error('加载当月课表失败:', e)
   } finally {
     calendarLoading.value = false
   }
 }
+
+// 全部课程抽屉（独立实现，避免受上方函数内作用域影响）
+const allVisible = ref(false)
+const allLoading = ref(false)
+const allList = ref<ScheduleItem[]>([])
+
+const fetchAllSchedules = async () => {
+  try {
+    allLoading.value = true
+    const res = await bookingAPI.getTeacherSchedules({ startDate: '1970-01-01', endDate: '2099-12-31' })
+    if (res.success && Array.isArray(res.data)) {
+      allList.value = res.data.sort((a: any, b: any) => {
+        const d = a.scheduledDate.localeCompare(b.scheduledDate)
+        if (d !== 0) return d
+        return a.startTime.localeCompare(b.startTime)
+      })
+    } else {
+      allList.value = []
+      ElMessage.error(res.message || '获取全部课程失败')
+    }
+  } catch (e) {
+    allList.value = []
+    ElMessage.error('获取全部课程失败，请稍后重试')
+  } finally {
+    allLoading.value = false
+  }
+}
+
+const openAllSchedules = async () => {
+  allVisible.value = true
+  if (allList.value.length === 0) await fetchAllSchedules()
+}
+
 
 const dateHasSchedule = (date: Date) => {
   const ds = date.toISOString().split('T')[0]
@@ -204,7 +340,7 @@ const openRescheduleModal = (schedule: ScheduleItem) => {
 
   rescheduleCourse.value = {
     id: schedule.courseId || schedule.id,
-    title: schedule.courseTitle || schedule.courseName || '自定义课程',
+    title: buildOneToOneTitle(schedule) || schedule.courseTitle || schedule.courseName || '自定义课程',
     teacher: schedule.teacherName || '当前教师',
     teacherId: schedule.teacherId,
     subject: schedule.subjectName || '未知科目',
@@ -215,33 +351,71 @@ const openRescheduleModal = (schedule: ScheduleItem) => {
   showRescheduleModal.value = true
 }
 
-// 请假（取消本次课程）
-const applyLeave = async (schedule: ScheduleItem) => {
-  try {
-    const { value, action } = await ElMessageBox.prompt('请输入请假/取消原因', '请假申请', {
-      confirmButtonText: '提交',
-      cancelButtonText: '取消',
-      inputPlaceholder: '请填写原因（必填）',
-      inputValidator: (v: string) => !!v && v.trim().length > 0 || '请填写原因'
-    })
-    if (action !== 'confirm') return
 
-    const res = await rescheduleAPI.createTeacherRequest({
-      scheduleId: schedule.id,
-      requestType: 'cancel',
-      reason: value
+// 打开停课弹窗（从即将开始/详情发起）
+const openSuspensionDialog = (schedule: ScheduleItem) => {
+  if (!schedule.enrollmentId) {
+    ElMessage.error('缺少报名ID，无法发起停课申请')
+    return
+  }
+  currentEnrollmentId.value = schedule.enrollmentId
+  const today = new Date()
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7)
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 13)
+  const fmt = (d: Date) => d.toISOString().split('T')[0]
+  suspensionForm.value.startDate = fmt(start)
+  suspensionForm.value.endDate = fmt(end)
+  suspensionForm.value.reason = ''
+  showSuspensionDialog.value = true
+}
+
+const submitSuspension = async () => {
+  if (!currentEnrollmentId.value) return
+  try {
+    // 基本前端校验：start ≥ 今日+7，end ≥ start+13
+    const parse = (s: string) => new Date(s + 'T00:00:00')
+    const today = new Date()
+    const minStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7)
+    if (parse(suspensionForm.value.startDate) < minStart) {
+      ElMessage.error('停课开始日期需从一周后开始')
+      return
+    }
+    const minEnd = new Date(parse(suspensionForm.value.startDate).getTime() + 13 * 24 * 3600 * 1000)
+    if (parse(suspensionForm.value.endDate) < minEnd) {
+      ElMessage.error('停课时长不少于两周')
+      return
+    }
+
+    // 验证区间内至少包含2次课（以该报名ID筛选）
+    const listRes = await bookingAPI.getTeacherSchedules({ startDate: suspensionForm.value.startDate, endDate: suspensionForm.value.endDate })
+    if (!(listRes.success && Array.isArray(listRes.data))) {
+      ElMessage.error('无法获取课程安排，请稍后重试')
+      return
+    }
+    const lessons = listRes.data.filter((s: any) => s.enrollmentId === currentEnrollmentId.value && (!s.status || s.status !== 'cancelled'))
+    if (lessons.length < 2) {
+      ElMessage.error('停课区间内需至少包含2次课')
+      return
+    }
+
+    const res = await suspensionAPI.createRequest({
+      enrollmentId: currentEnrollmentId.value,
+      startDate: suspensionForm.value.startDate,
+      endDate: suspensionForm.value.endDate,
+      reason: suspensionForm.value.reason?.trim() || undefined,
     })
     if (res.success) {
-      ElMessage.success('请假申请已提交，等待管理员审批')
+      ElMessage.success('停课申请已提交，等待管理员审批')
+      showSuspensionDialog.value = false
     } else {
-      ElMessage.error(res.message || '请假申请提交失败')
+      ElMessage.error(res.message || '停课申请提交失败')
     }
   } catch (e: any) {
-    if (e === 'cancel') return
-    console.error('请假申请失败:', e)
-    ElMessage.error(e?.message || '请假申请失败')
+    console.error('停课申请失败:', e)
+    ElMessage.error(e?.message || '停课申请失败')
   }
 }
+
 
 const handleRescheduleSuccess = () => {
   fetchUpcomingCourses()
@@ -346,6 +520,11 @@ onMounted(async () => {
               <el-icon><DocumentChecked /></el-icon>
               <span>调课记录</span>
             </el-menu-item>
+            <el-menu-item index="grade-entry" @click="$router.push('/teacher-center/grade-entry')">
+              <el-icon><Reading /></el-icon>
+              <span>成绩录入</span>
+            </el-menu-item>
+
 
             <el-menu-item index="my-hour-details">
               <el-icon><List /></el-icon>
@@ -411,7 +590,10 @@ onMounted(async () => {
                   <el-icon><Refresh /></el-icon>
                   刷新
                 </el-button>
+                <el-button @click="openAllSchedules" style="margin-left: 8px;">查看全部课程</el-button>
               </div>
+
+
             </div>
             <el-calendar v-model="monthDate">
               <template #date-cell="{ data }">
@@ -442,6 +624,29 @@ onMounted(async () => {
             <div class="upcoming-header">
               <h3>即将开始课程</h3>
               <div class="upcoming-actions">
+
+    <!-- 停课申请弹窗（教师） -->
+    <el-dialog v-model="showSuspensionDialog" title="停课申请" width="520px">
+      <el-form label-width="96px">
+        <el-form-item label="开始日期">
+          <el-date-picker v-model="suspensionForm.startDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择开始日期" />
+        </el-form-item>
+        <el-form-item label="结束日期">
+          <el-date-picker v-model="suspensionForm.endDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择结束日期" />
+        </el-form-item>
+        <el-form-item label="原因（可选）">
+          <el-input v-model="suspensionForm.reason" type="textarea" :rows="3" placeholder="可填写原因，便于管理员审核" />
+        </el-form-item>
+        <el-alert type="warning" :closable="false" show-icon>
+          停课规则：开始日期需从一周后起，且覆盖时长不少于两周；审批通过仅对区间内未开始课节生效。
+        </el-alert>
+      </el-form>
+      <template #footer>
+        <el-button @click="showSuspensionDialog = false">取消</el-button>
+        <el-button type="primary" @click="submitSuspension">提交申请</el-button>
+      </template>
+    </el-dialog>
+
                 <el-select v-model="upcomingWeeks" style="width: 140px;" @change="fetchUpcomingCourses">
                   <el-option :value="1" label="1周内" />
                   <el-option :value="2" label="2周内" />
@@ -457,7 +662,11 @@ onMounted(async () => {
                     {{ formatTimeRange(scope.row.startTime, scope.row.endTime) }}
                   </template>
                 </el-table-column>
-                <el-table-column prop="courseName" label="课程" />
+                <el-table-column label="课程">
+                  <template #default="scope">
+                    {{ buildOneToOneTitle(scope.row) || scope.row.courseTitle || scope.row.courseName }}
+                  </template>
+                </el-table-column>
                 <el-table-column prop="studentName" label="学生" width="120" />
                 <el-table-column label="类型" width="80">
                   <template #default="scope">
@@ -467,12 +676,14 @@ onMounted(async () => {
                 </el-table-column>
                 <el-table-column label="操作" width="260">
                   <template #default="scope">
-                    <el-button type="primary" size="small">详情</el-button>
+                    <el-button type="primary" size="small" @click="viewScheduleDetail(scope.row)">详情</el-button>
                     <el-button type="warning" size="small" @click="openRescheduleModal(scope.row)">
                       <el-icon><Refresh /></el-icon>
                       申请调课
                     </el-button>
-                    <el-button type="info" size="small" @click="applyLeave(scope.row)">请假</el-button>
+
+                    <el-button type="danger" size="small" @click="openSuspensionDialog(scope.row)">停课</el-button>
+
                   </template>
                 </el-table-column>
               </el-table>
@@ -504,6 +715,98 @@ onMounted(async () => {
       :is-teacher="true"
       @success="handleRescheduleSuccess"
     />
+
+    <!-- 课程详情弹窗 -->
+    <el-dialog
+      v-model="showScheduleDetailModal"
+      title="课程详情"
+      width="640px"
+    >
+      <div v-if="selectedSchedule" class="schedule-detail">
+        <div class="detail-header">
+          <div class="course-title">{{ (selectedSchedule && buildOneToOneTitle(selectedSchedule)) || selectedSchedule.courseTitle || selectedSchedule.courseName }}</div>
+          <div class="chips">
+            <el-tag type="info" size="small">{{ selectedSchedule.scheduledDate }}</el-tag>
+            <el-tag type="success" size="small">{{ formatTimeRange(selectedSchedule.startTime, selectedSchedule.endTime) }}</el-tag>
+            <el-tag :type="selectedSchedule.isTrial ? 'warning' : 'success'" size="small">{{ selectedSchedule.isTrial ? '试听' : '正式' }}</el-tag>
+          </div>
+        </div>
+<!--
+
+-->
+
+
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="label">学生</div>
+            <div class="value">{{ selectedSchedule.studentName || '-' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="label">教师</div>
+            <div class="value">{{ selectedSchedule.teacherName || '当前教师' }}</div>
+          </div>
+          <div class="detail-item">
+
+    <!-- 全部课程抽屉 -->
+    <el-drawer v-model="allVisible" title="全部课程" size="70%">
+      <div v-loading="allLoading">
+        <el-table :data="allList" style="width: 100%">
+          <el-table-column prop="scheduledDate" label="日期" width="120" />
+          <el-table-column label="时间" width="140">
+            <template #default="scope">
+              {{ scope.row.startTime }}-{{ scope.row.endTime }}
+            </template>
+          </el-table-column>
+          <el-table-column label="课程">
+            <template #default="scope">
+              {{ buildOneToOneTitle(scope.row) || scope.row.courseTitle || scope.row.courseName }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="studentName" label="学生" width="140" />
+          <el-table-column prop="subjectName" label="科目" width="120" />
+          <el-table-column label="状态" width="100">
+            <template #default="scope">
+              <el-tag :type="getScheduleStatusTag(scope.row.status)" size="small">{{ getScheduleStatusText(scope.row.status) }}</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div v-if="!allLoading && allList.length === 0" class="empty-state">
+          <el-empty description="暂无课程" />
+        </div>
+      </div>
+    </el-drawer>
+
+            <div class="label">学科</div>
+            <div class="value">{{ selectedSchedule.subjectName || '-' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="label">时长</div>
+            <div class="value">{{ selectedSchedule.durationMinutes || 0 }} 分钟</div>
+          </div>
+          <div class="detail-item">
+            <div class="label">状态</div>
+            <div class="value">
+              <el-tag :type="getScheduleStatusTag(selectedSchedule.status)" size="small">{{ getScheduleStatusText(selectedSchedule.status) }}</el-tag>
+            </div>
+          </div>
+        </div>
+
+        <el-alert type="info" :closable="false" class="hint">
+          提示：如需调整本次课程，请使用“申请调课”；如需暂停接下来一段时间的课程，请使用“停课”。
+        </el-alert>
+      </div>
+      <template #footer>
+        <div class="dialog-actions">
+          <el-button @click="showScheduleDetailModal = false">关闭</el-button>
+          <el-button type="warning" @click="selectedSchedule && openRescheduleModal(selectedSchedule)">
+            <el-icon><Refresh /></el-icon>
+            申请调课
+          </el-button>
+
+          <el-button type="danger" @click="selectedSchedule && openSuspensionDialog(selectedSchedule)">停课</el-button>
+        </div>
+      </template>
+    </el-dialog>
 
     <!-- 课时详情模态框 -->
     <el-dialog
@@ -805,6 +1108,65 @@ onMounted(async () => {
 .detail-value.total-value {
   color: #409eff;
   font-size: 18px;
+}
+
+/* 课程详情弹窗样式 */
+.schedule-detail {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.course-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.chips {
+  display: flex;
+  gap: 8px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  padding: 8px 0 12px;
+}
+
+.detail-item {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 4px solid #409eff20;
+}
+
+.detail-item .label {
+  color: #606266;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.detail-item .value {
+  color: #303133;
+}
+
+.hint {
+  margin-top: 8px;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 /* 响应式布局 */

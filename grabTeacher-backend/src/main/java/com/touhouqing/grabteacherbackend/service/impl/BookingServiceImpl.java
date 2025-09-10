@@ -752,7 +752,7 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // 获取课程信息
+        // 获取课程信息（大班课/有课程ID时）
         if (cs.getCourseId() != null) {
             Course course = courseMapper.selectById(cs.getCourseId());
             if (course != null) {
@@ -769,10 +769,10 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // 获取报名信息
+        // 获取报名信息（并补全一对一课程默认标题）
+        CourseEnrollment enrollment = null;
         if (cs.getEnrollmentId() != null) {
-            CourseEnrollment enrollment =
-                courseEnrollmentMapper.selectById(cs.getEnrollmentId());
+            enrollment = courseEnrollmentMapper.selectById(cs.getEnrollmentId());
             if (enrollment != null) {
                 vo.setTrial(enrollment.getTrial());
                 if (enrollment.getTotalSessions() != null) {
@@ -783,6 +783,59 @@ public class BookingServiceImpl implements BookingService {
                     vo.setDurationMinutes(enrollment.getDurationMinutes());
                 }
             }
+        }
+
+        // 若为一对一课程（courseId 为空 或 enrollmentType=one_on_one），按规则自动生成课程标题：姓名+科目+年级+一对一课程
+        boolean isOneOnOne = (cs.getCourseId() == null) || (enrollment != null && "one_on_one".equalsIgnoreCase(enrollment.getEnrollmentType()));
+        if (isOneOnOne) {
+            // 学生姓名
+            String studentName = vo.getStudentName();
+            if (studentName == null && cs.getStudentId() != null) {
+                Student s = studentMapper.selectById(cs.getStudentId());
+                if (s != null) studentName = s.getRealName();
+            }
+            studentName = studentName == null ? "" : studentName;
+
+            // 年级（优先报名关系中的年级）
+            String grade = null;
+            if (enrollment != null) {
+                grade = enrollment.getGrade();
+            }
+            grade = grade == null ? "" : grade;
+
+            // 科目名称（优先已有 subjectName；否则尝试从预约备注中解析，仅在必要时做一次查询）
+            String subjectName = vo.getSubjectName();
+            if ((subjectName == null || subjectName.isEmpty()) && cs.getBookingRequestId() != null) {
+                BookingRequest br = bookingRequestMapper.selectById(cs.getBookingRequestId());
+                if (br != null && br.getStudentRequirements() != null) {
+                    String req = br.getStudentRequirements();
+                    int idx1 = req.indexOf("进行");
+                    int idx2 = req.indexOf("科目", idx1 + 2);
+                    if (idx1 >= 0 && idx2 > idx1) {
+                        String sub = req.substring(idx1 + 2, idx2).trim();
+                        if (!sub.isEmpty()) subjectName = sub;
+                    }
+                }
+            }
+            if (subjectName == null) subjectName = "";
+
+            // 生成并设置标题（空字段不拼接空格，直接相连以符合示例样式：Jack小学数学P4一对一课程）
+            if (vo.getCourseTitle() == null || vo.getCourseTitle().isEmpty()) {
+                StringBuilder titleBuilder = new StringBuilder();
+                titleBuilder.append(studentName);
+                titleBuilder.append(subjectName);
+                titleBuilder.append(grade);
+                titleBuilder.append("一对一课程");
+                vo.setCourseTitle(titleBuilder.toString());
+            }
+
+            // 也回填 subjectName，便于前端展示
+            if ((vo.getSubjectName() == null || vo.getSubjectName().isEmpty()) && !subjectName.isEmpty()) {
+                vo.setSubjectName(subjectName);
+            }
+
+            // 明确标记类型
+            vo.setCourseType("one_on_one");
         }
 
         return vo;

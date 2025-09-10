@@ -11,6 +11,7 @@ import com.touhouqing.grabteacherbackend.mapper.*;
 import com.touhouqing.grabteacherbackend.service.RescheduleService;
 import com.touhouqing.grabteacherbackend.service.CacheKeyEvictor;
 import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
+import com.touhouqing.grabteacherbackend.service.QuotaService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,8 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -61,6 +64,9 @@ public  class RescheduleServiceImpl implements RescheduleService {
 
     @Autowired
     private CacheKeyEvictor cacheKeyEvictor;
+    @Autowired
+    private QuotaService quotaService;
+
 
     @Autowired
     private TeacherScheduleCacheService teacherScheduleCacheService;
@@ -82,13 +88,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
             throw new RuntimeException("学生信息不存在");
         }
 
-        // 检查用户本月调课次数是否足够
-        User user = userMapper.selectById(studentUserId);
-        if (user == null || user.getDeleted()) {
-            throw new RuntimeException("用户不存在");
-        }
-        Integer adjustmentTimes = user.getAdjustmentTimes();
-        boolean overQuota = (adjustmentTimes == null || adjustmentTimes <= 0);
+        // 配额判定改为按课程-月-角色在配额表中处理，见后续 consumeOnApply 调用
 
         // 获取课程安排信息（新表）
         CourseSchedule schedule = courseScheduleMapper.findById(request.getScheduleId());
@@ -99,6 +99,11 @@ public  class RescheduleServiceImpl implements RescheduleService {
         CourseEnrollment enrollment = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
         if (enrollment == null || Boolean.TRUE.equals(enrollment.getDeleted())) {
             throw new RuntimeException("报名关系不存在");
+        }
+        // 仅支持1v1课程
+        Course courseEntity = enrollment.getCourseId() != null ? courseMapper.selectById(enrollment.getCourseId()) : null;
+        if (courseEntity == null || !"one_on_one".equals(courseEntity.getCourseType())) {
+            throw new RuntimeException("仅支持1v1课程的调课/取消申请，班课请联系管理员处理");
         }
 
         // 验证学生权限
@@ -118,16 +123,17 @@ public  class RescheduleServiceImpl implements RescheduleService {
                    .eq("applicant_type", "student")
                    .eq("status", "pending")
                    .eq("is_deleted", false);
-        
+
         RescheduleRequest existingRequest = rescheduleRequestMapper.selectOne(queryWrapper);
         if (existingRequest != null) {
             throw new RuntimeException("该课程已有待处理的调课申请，请等待审批结果");
         }
 
-        // 单次调课需校验：距原定开课时间需≥4小时
+        // 4小时窗口校验（统一按北京时间）
+        ZonedDateTime nowBj = ZonedDateTime.now(ZoneId.of("Asia/Shanghai"));
+        ZonedDateTime scheduleBj = ZonedDateTime.of(LocalDateTime.of(schedule.getScheduledDate(), schedule.getStartTime()), ZoneId.of("Asia/Shanghai"));
         if ("single".equals(request.getRequestType())) {
-            LocalDateTime scheduleDateTime = LocalDateTime.of(schedule.getScheduledDate(), schedule.getStartTime());
-            if (!scheduleDateTime.isAfter(LocalDateTime.now().plusHours(4))) {
+            if (!scheduleBj.isAfter(nowBj.plusHours(4))) {
                 throw new RuntimeException("单次调课需在开课前4小时之外发起");
             }
             // 额外：对新请求的时间进行“待处理占用”检查
@@ -142,20 +148,27 @@ public  class RescheduleServiceImpl implements RescheduleService {
                     }
                 }
             }
+        } else if ("cancel".equals(request.getRequestType())) {
+            if (!scheduleBj.isAfter(nowBj.plusHours(4))) {
+                throw new RuntimeException("取消课程需在开课前4小时之外发起");
+            }
         }
 
         // 计算提前通知小时数
         int advanceNoticeHours = calculateAdvanceNoticeHours(schedule.getScheduledDate(), schedule.getStartTime());
 
-        // 若超额且余额不足以扣除0.5h对应M豆，则不允许创建申请
+        // 消耗本月配额（课程-月-角色），并判断是否超额；若超额则校验余额充足，否则回滚本次消耗
+        boolean overQuota = quotaService.consumeOnApply("STUDENT", student.getId(), schedule.getEnrollmentId());
         if (overQuota) {
             Course course = courseMapper.selectById(enrollment.getCourseId());
             if (course == null || course.getPrice() == null) {
+                quotaService.rollbackOnReject("STUDENT", student.getId(), schedule.getEnrollmentId());
                 throw new RuntimeException("课程价格缺失，无法计算超额调课扣费");
             }
             BigDecimal halfHourBeans = course.getPrice().multiply(new BigDecimal("0.5"));
             BigDecimal currentBalance = student.getBalance() == null ? BigDecimal.ZERO : student.getBalance();
             if (currentBalance.compareTo(halfHourBeans) < 0) {
+                quotaService.rollbackOnReject("STUDENT", student.getId(), schedule.getEnrollmentId());
                 throw new RuntimeException("学生余额不足，无法进行超额调课");
             }
         }
@@ -185,50 +198,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 .build();
 
         rescheduleRequestMapper.insert(rescheduleRequest);
-
-        // 扣减一次调课次数
-        // 优先尝试扣减一次调课次数（若本月次数为0则不变更）
-        userMapper.decrementAdjustmentTimes(studentUserId);
-
-        // 若超额，按照规则扣补：学生扣0.5h对应M豆，教师+1h
-        if (overQuota) {
-            Course course = courseMapper.selectById(schedule.getCourseId());
-            if (course != null && course.getPrice() != null) {
-                BigDecimal halfHourBeans = course.getPrice().multiply(new BigDecimal("0.5"));
-                // 学生扣除M豆并记录流水
-                BigDecimal before = student.getBalance() == null ? BigDecimal.ZERO : student.getBalance();
-                BigDecimal after = before.subtract(halfHourBeans);
-                studentMapper.incrementBalance(student.getId(), halfHourBeans.negate());
-                BalanceTransaction tx = BalanceTransaction.builder()
-                        .userId(student.getUserId())
-                        .name(student.getRealName())
-                        .amount(halfHourBeans.negate())
-                        .balanceBefore(before)
-                        .balanceAfter(after)
-                        .transactionType("DEDUCT")
-                        .reason("超额调课扣除0.5小时M豆")
-                        .bookingId(schedule.getBookingRequestId())
-                        .createdAt(LocalDateTime.now())
-                        .build();
-                balanceTransactionMapper.insert(tx);
-            }
-            // 教师课时 +1h
-            teacherMapper.incrementCurrentHours(schedule.getTeacherId(), BigDecimal.ONE);
-            // 写入教师课时明细
-            Teacher targetTeacher = teacherMapper.selectById(schedule.getTeacherId());
-            if (targetTeacher != null) {
-                HourDetail hd = HourDetail.builder()
-                        .userId(targetTeacher.getUserId())
-                        .name(targetTeacher.getRealName())
-                        .hours(new BigDecimal("1"))
-                        .transactionType(1)
-                        .reason("学生超额调课补偿")
-                        .bookingId(schedule.getId())
-                        .createdAt(LocalDateTime.now())
-                        .build();
-                hourDetailMapper.insert(hd);
-            }
-        }
+        // 配额已在 consumeOnApply 扣减；任何扣费/补偿均延后到审批通过时统一结算（见 adminApproveRescheduleRequest）
 
         log.info("调课申请创建成功，ID: {}", rescheduleRequest.getId());
         return convertToRescheduleResponseDTO(rescheduleRequest);
@@ -245,13 +215,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
             throw new RuntimeException("教师信息不存在");
         }
 
-        // 检查用户本月调课次数是否足够
-        User user = userMapper.selectById(teacherUserId);
-        if (user == null || user.getDeleted()) {
-            throw new RuntimeException("用户不存在");
-        }
-        Integer adjustmentTimes = user.getAdjustmentTimes();
-        boolean overQuota = (adjustmentTimes == null || adjustmentTimes <= 0);
+        // 教师配额判定改为按课程-月-角色在配额表中处理，见后续 consumeOnApply 调用
 
         // 获取课程安排信息
         CourseSchedule schedule = courseScheduleMapper.findById(request.getScheduleId());
@@ -263,6 +227,15 @@ public  class RescheduleServiceImpl implements RescheduleService {
         if (!schedule.getTeacherId().equals(teacher.getId())) {
             throw new RuntimeException("无权限操作此课程安排");
         }
+        // 仅支持1v1课程
+        CourseEnrollment enrollment2 = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
+        if (enrollment2 == null || Boolean.TRUE.equals(enrollment2.getDeleted())) {
+            throw new RuntimeException("报名关系不存在");
+        }
+        Course courseT = enrollment2.getCourseId() != null ? courseMapper.selectById(enrollment2.getCourseId()) : null;
+        if (courseT == null || !"one_on_one".equals(courseT.getCourseType())) {
+            throw new RuntimeException("仅支持1v1课程的调课/取消申请，班课请联系管理员处理");
+        }
 
         // 检查是否已有待处理的调课申请
         QueryWrapper<RescheduleRequest> queryWrapper = new QueryWrapper<>();
@@ -271,17 +244,22 @@ public  class RescheduleServiceImpl implements RescheduleService {
                    .eq("applicant_type", "teacher")
                    .eq("status", "pending")
                    .eq("is_deleted", false);
-        
+
         RescheduleRequest existingRequest = rescheduleRequestMapper.selectOne(queryWrapper);
         if (existingRequest != null) {
             throw new RuntimeException("该课程已有待处理的调课申请，请等待审批结果");
         }
 
-        // 单次调课需校验：距原定开课时间需≥4小时
+        // 4小时窗口校验（统一按北京时间）：单次调课/取消均需在4小时之外
+        ZonedDateTime nowBj2 = ZonedDateTime.now(ZoneId.of("Asia/Shanghai"));
+        ZonedDateTime scheduleBj2 = ZonedDateTime.of(LocalDateTime.of(schedule.getScheduledDate(), schedule.getStartTime()), ZoneId.of("Asia/Shanghai"));
         if ("single".equals(request.getRequestType())) {
-            LocalDateTime scheduleDateTime = LocalDateTime.of(schedule.getScheduledDate(), schedule.getStartTime());
-            if (!scheduleDateTime.isAfter(LocalDateTime.now().plusHours(4))) {
+            if (!scheduleBj2.isAfter(nowBj2.plusHours(4))) {
                 throw new RuntimeException("单次调课需在开课前4小时之外发起");
+            }
+        } else if ("cancel".equals(request.getRequestType())) {
+            if (!scheduleBj2.isAfter(nowBj2.plusHours(4))) {
+                throw new RuntimeException("取消课程需在开课前4小时之外发起");
             }
         }
 
@@ -311,51 +289,11 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 .deleted(false)
                 .build();
 
+        // 消耗本月配额（课程-月-角色）
+        quotaService.consumeOnApply("TEACHER", teacher.getId(), schedule.getEnrollmentId());
         rescheduleRequestMapper.insert(rescheduleRequest);
 
-        // 扣减一次调课次数
-        // 优先尝试扣减一次调课次数（若本月次数为0则不变更）
-        userMapper.decrementAdjustmentTimes(teacherUserId);
-
-        // 若超额，按照规则扣补：教师扣1h、学生补偿0.5h对应M豆
-        if (overQuota) {
-            // 教师课时 -1h（不低于0）
-            teacherMapper.decrementCurrentHours(teacher.getId(), BigDecimal.ONE);
-            // 写入教师课时明细
-            HourDetail hd = HourDetail.builder()
-                    .userId(teacher.getUserId())
-                    .name(teacher.getRealName())
-                    .hours(new BigDecimal("-1"))
-                    .transactionType(0)
-                    .reason("教师超额调课扣减")
-                    .bookingId(schedule.getId())
-                    .createdAt(LocalDateTime.now())
-                    .build();
-            hourDetailMapper.insert(hd);
-            // 学生补偿M豆并记录流水
-            Course course = courseMapper.selectById(schedule.getCourseId());
-            if (course != null && course.getPrice() != null) {
-                BigDecimal halfHourBeans = course.getPrice().multiply(new BigDecimal("0.5"));
-                Student targetStudent = studentMapper.selectById(schedule.getStudentId());
-                if (targetStudent != null) {
-                    BigDecimal before = targetStudent.getBalance() == null ? BigDecimal.ZERO : targetStudent.getBalance();
-                    BigDecimal after = before.add(halfHourBeans);
-                    studentMapper.incrementBalance(targetStudent.getId(), halfHourBeans);
-                    BalanceTransaction tx = BalanceTransaction.builder()
-                            .userId(targetStudent.getUserId())
-                            .name(targetStudent.getRealName())
-                            .amount(halfHourBeans)
-                            .balanceBefore(before)
-                            .balanceAfter(after)
-                            .transactionType("REFUND")
-                            .reason("教师超额调课补偿0.5小时M豆")
-                            .bookingId(schedule.getBookingRequestId())
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                    balanceTransactionMapper.insert(tx);
-                }
-            }
-        }
+        // 超额扣费/补偿延迟到审批通过时统一处理（见 adminApproveRescheduleRequest）
 
         log.info("教师调课申请创建成功，ID: {}", rescheduleRequest.getId());
         return convertToRescheduleResponseDTO(rescheduleRequest);
@@ -405,7 +343,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 rescheduleRequest.getNewEndTime().toString(),
                 schedule.getId()
             );
-            
+
             if (hasConflict) {
                 throw new RuntimeException("新的时间安排存在冲突，请选择其他时间");
             }
@@ -422,7 +360,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
         }
         rescheduleRequest.setReviewedAt(LocalDateTime.now());
         rescheduleRequest.setUpdatedAt(LocalDateTime.now());
-        
+
 
         rescheduleRequestMapper.updateById(rescheduleRequest);
 
@@ -478,7 +416,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
         }
 
         // 验证权限
-        if (!rescheduleRequest.getApplicantId().equals(student.getId()) || 
+        if (!rescheduleRequest.getApplicantId().equals(student.getId()) ||
             !"student".equals(rescheduleRequest.getApplicantType())) {
             throw new RuntimeException("无权限操作此调课申请");
         }
@@ -534,7 +472,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 rescheduleRequest.getNewEndTime().toString(),
                 schedule.getId()
             );
-            
+
             if (hasConflict) {
                 throw new RuntimeException("新的时间安排存在冲突，请选择其他时间");
             }
@@ -554,22 +492,18 @@ public  class RescheduleServiceImpl implements RescheduleService {
 
         rescheduleRequestMapper.updateById(rescheduleRequest);
 
-        // 如果管理员拒绝，返还申请人一次调课次数
+        // 如果管理员拒绝，回滚本次按（课程-月-角色）的配额消耗
         if ("rejected".equals(approval.getStatus())) {
-            Long applicantUserId = null;
             if ("student".equals(rescheduleRequest.getApplicantType())) {
                 Student applicant = studentMapper.selectById(rescheduleRequest.getApplicantId());
                 if (applicant != null) {
-                    applicantUserId = applicant.getUserId();
+                    quotaService.rollbackOnReject("STUDENT", applicant.getId(), schedule.getEnrollmentId());
                 }
             } else if ("teacher".equals(rescheduleRequest.getApplicantType())) {
                 Teacher applicant = teacherMapper.selectById(rescheduleRequest.getApplicantId());
                 if (applicant != null) {
-                    applicantUserId = applicant.getUserId();
+                    quotaService.rollbackOnReject("TEACHER", applicant.getId(), schedule.getEnrollmentId());
                 }
-            }
-            if (applicantUserId != null) {
-                userMapper.incrementAdjustmentTimes(applicantUserId);
             }
         }
 
@@ -603,12 +537,97 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 log.warn("精准清理/回填教师缓存失败，但不影响主流程", e);
             }
         }
+            // 超额扣费/补偿结算（审批通过后统一处理）
+            try {
+                CourseEnrollment enrollmentForPrice = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
+                Course course = (enrollmentForPrice != null && enrollmentForPrice.getCourseId() != null)
+                        ? courseMapper.selectById(enrollmentForPrice.getCourseId())
+                        : null;
+                if ("student".equals(rescheduleRequest.getApplicantType())) {
+                    boolean over = quotaService.isOverQuota("STUDENT", schedule.getStudentId(), schedule.getEnrollmentId());
+                    if (over && course != null && course.getPrice() != null) {
+                        BigDecimal halfHourBeans = course.getPrice().multiply(new BigDecimal("0.5"));
+                        Student st = studentMapper.selectById(schedule.getStudentId());
+                        if (st != null) {
+                            BigDecimal before = st.getBalance() == null ? BigDecimal.ZERO : st.getBalance();
+                            BigDecimal after = before.subtract(halfHourBeans);
+                            studentMapper.incrementBalance(st.getId(), halfHourBeans.negate());
+                            BalanceTransaction tx = BalanceTransaction.builder()
+                                    .userId(st.getUserId())
+                                    .name(st.getRealName())
+                                    .amount(halfHourBeans.negate())
+                                    .balanceBefore(before)
+                                    .balanceAfter(after)
+                                    .transactionType("DEDUCT")
+                                    .reason("学生超额调课扣除0.5小时M豆")
+                                    .bookingId(schedule.getBookingRequestId())
+                                    .createdAt(LocalDateTime.now())
+                                    .build();
+                            balanceTransactionMapper.insert(tx);
+                        }
+                        teacherMapper.incrementCurrentHours(schedule.getTeacherId(), BigDecimal.ONE);
+                        Teacher tch = teacherMapper.selectById(schedule.getTeacherId());
+                        if (tch != null) {
+                            HourDetail hd = HourDetail.builder()
+                                    .userId(tch.getUserId())
+                                    .name(tch.getRealName())
+                                    .hours(new BigDecimal("1"))
+                                    .transactionType(1)
+                                    .reason("学生超额调课补偿")
+                                    .bookingId(schedule.getId())
+                                    .createdAt(LocalDateTime.now())
+                                    .build();
+                            hourDetailMapper.insert(hd);
+                        }
+                    }
+                } else if ("teacher".equals(rescheduleRequest.getApplicantType())) {
+                    boolean over = quotaService.isOverQuota("TEACHER", schedule.getTeacherId(), schedule.getEnrollmentId());
+                    if (over && course != null && course.getPrice() != null) {
+                        BigDecimal halfHourBeans = course.getPrice().multiply(new BigDecimal("0.5"));
+                        teacherMapper.decrementCurrentHours(schedule.getTeacherId(), BigDecimal.ONE);
+                        Teacher tch = teacherMapper.selectById(schedule.getTeacherId());
+                        if (tch != null) {
+                            HourDetail hd = HourDetail.builder()
+                                    .userId(tch.getUserId())
+                                    .name(tch.getRealName())
+                                    .hours(new BigDecimal("-1"))
+                                    .transactionType(0)
+                                    .reason("教师超额调课扣减")
+                                    .bookingId(schedule.getId())
+                                    .createdAt(LocalDateTime.now())
+                                    .build();
+                            hourDetailMapper.insert(hd);
+                        }
+                        Student st = studentMapper.selectById(schedule.getStudentId());
+                        if (st != null) {
+                            BigDecimal before = st.getBalance() == null ? BigDecimal.ZERO : st.getBalance();
+                            BigDecimal after = before.add(halfHourBeans);
+                            studentMapper.incrementBalance(st.getId(), halfHourBeans);
+                            BalanceTransaction tx = BalanceTransaction.builder()
+                                    .userId(st.getUserId())
+                                    .name(st.getRealName())
+                                    .amount(halfHourBeans)
+                                    .balanceBefore(before)
+                                    .balanceAfter(after)
+                                    .transactionType("REFUND")
+                                    .reason("教师超额调课补偿0.5小时M豆")
+                                    .bookingId(schedule.getBookingRequestId())
+                                    .createdAt(LocalDateTime.now())
+                                    .build();
+                            balanceTransactionMapper.insert(tx);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("审批通过后结算超额扣费/补偿失败", e);
+            }
+
 
         log.info("管理员调课申请审批完成，状态: {}", approval.getStatus());
         return convertToRescheduleResponseDTO(rescheduleRequest);
     }
 
-    @Override
+
     public Page<RescheduleVO> getStudentRescheduleRequests(Long studentUserId, int page, int size, String status) {
         log.info("获取学生调课申请列表，学生用户ID: {}, 页码: {}, 大小: {}, 状态: {}", studentUserId, page, size, status);
 
@@ -1064,13 +1083,13 @@ public  class RescheduleServiceImpl implements RescheduleService {
         if (timeSlots.size() == 1) {
             String[] weekdayNames = {"", "周一", "周二", "周三", "周四", "周五", "周六", "周日"};
             StringBuilder sb = new StringBuilder();
-            
+
             for (int i = 0; i < weekdays.size(); i++) {
                 if (i > 0) sb.append("、");
                 sb.append(weekdayNames[weekdays.get(i)]);
             }
             sb.append(" ").append(timeSlots.get(0));
-            
+
             return sb.toString();
         }
 
@@ -1081,7 +1100,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
         for (int i = 0; i < weekdays.size(); i++) {
             if (i > 0) sb.append(";");
             sb.append(weekdayNames[weekdays.get(i)]);
-            
+
             // 为每个星期分配所有时间段
             for (int j = 0; j < timeSlots.size(); j++) {
                 if (j > 0) sb.append(",");
@@ -1112,7 +1131,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
         } else if ("recurring".equals(rescheduleRequest.getRequestType())) {
             // 周期性调课：需要更新后续所有课程安排（迁移至新表）
             log.info("周期性调课审批通过，开始更新后续课程安排");
-            
+
             try {
                 // 获取同一预约申请下的所有未来课程安排（新表）
                 List<CourseSchedule> all =
@@ -1125,14 +1144,14 @@ public  class RescheduleServiceImpl implements RescheduleService {
                         futureSchedules.add(cs);
                     }
                 }
-                
+
                 if (futureSchedules.isEmpty()) {
                     log.warn("没有找到需要更新的未来课程安排");
                     return;
                 }
-                
+
                 log.info("找到 {} 个未来课程安排需要更新", futureSchedules.size());
-                
+
                 // 更新所有未来课程的周期性安排字段：写入reschedule_request_id/reschedule_reason
                 for (CourseSchedule cs : futureSchedules) {
                     UpdateWrapper<CourseSchedule> uw = new UpdateWrapper<>();
@@ -1141,21 +1160,79 @@ public  class RescheduleServiceImpl implements RescheduleService {
                       .set("reschedule_reason", rescheduleRequest.getReason());
                     courseScheduleMapper.update(null, uw);
                 }
-                
+
                 // TODO: 同步缓存（按新表日期聚合回填）
-                
+
                 log.info("周期性调课更新完成，共更新 {} 个课程安排", futureSchedules.size());
-                
+
             } catch (Exception e) {
                 log.error("周期性调课更新失败", e);
                 throw new RuntimeException("周期性调课更新失败: " + e.getMessage());
             }
         } else if ("cancel".equals(rescheduleRequest.getRequestType())) {
-            // 取消课程：更新课程状态
-            schedule.setScheduleStatus("cancelled");
+            // 取消课程：更新课程状态 + 结算退款/工时 + 减少课程总节次
             UpdateWrapper<CourseSchedule> uw2 = new UpdateWrapper<>();
-            uw2.eq("id", schedule.getId()).set("schedule_status", "rescheduled");
+            uw2.eq("id", schedule.getId()).set("schedule_status", "cancelled");
             courseScheduleMapper.update(null, uw2);
+
+            try {
+                // 1) 计算本节课时长(小时)
+                java.time.Duration d = java.time.Duration.between(schedule.getStartTime(), schedule.getEndTime());
+                java.math.BigDecimal hours = new java.math.BigDecimal(d.toMinutes()).divide(new java.math.BigDecimal("60"), 2, java.math.RoundingMode.HALF_UP);
+
+                // 2) 找到报名与课程价格（按小时单价）
+                CourseEnrollment ce = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
+                if (ce != null && ce.getCourseId() != null) {
+                    Course c = courseMapper.selectById(ce.getCourseId());
+                    if (c != null && c.getPrice() != null) {
+                        java.math.BigDecimal refund = c.getPrice().multiply(hours);
+                        // 学生退款
+                        Student stu = studentMapper.selectById(ce.getStudentId());
+                        if (stu != null) {
+                            java.math.BigDecimal before = stu.getBalance() == null ? java.math.BigDecimal.ZERO : stu.getBalance();
+                            java.math.BigDecimal after = before.add(refund);
+                            studentMapper.incrementBalance(stu.getId(), refund);
+                            BalanceTransaction tx = BalanceTransaction.builder()
+                                    .userId(stu.getUserId())
+                                    .name(stu.getRealName())
+                                    .amount(refund)
+                                    .balanceBefore(before)
+                                    .balanceAfter(after)
+                                    .transactionType("REFUND")
+                                    .reason("取消课退款，课时: " + hours + "h")
+                                    .bookingId(schedule.getBookingRequestId())
+                                    .createdAt(java.time.LocalDateTime.now())
+                                    .build();
+                            balanceTransactionMapper.insert(tx);
+                        }
+                        // 教师工时扣减
+                        teacherMapper.decrementCurrentHours(schedule.getTeacherId(), refund.divide(c.getPrice(), 2, java.math.RoundingMode.HALF_UP));
+                        Teacher t = teacherMapper.selectById(schedule.getTeacherId());
+                        if (t != null) {
+                            HourDetail hd = HourDetail.builder()
+                                    .userId(t.getUserId())
+                                    .name(t.getRealName())
+                                    .hours(hours.negate())
+                                    .transactionType(0)
+                                    .reason("取消课扣减")
+                                    .bookingId(schedule.getId())
+                                    .createdAt(java.time.LocalDateTime.now())
+                                    .build();
+                            hourDetailMapper.insert(hd);
+                        }
+                    }
+
+                    // 3) 减少报名总节次
+                    Integer total = ce.getTotalSessions();
+                    if (total != null && total > 0) {
+                        UpdateWrapper<CourseEnrollment> uwEnroll = new UpdateWrapper<>();
+                        uwEnroll.eq("id", ce.getId()).set("total_sessions", total - 1);
+                        courseEnrollmentMapper.update(null, uwEnroll);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("取消课结算处理失败，不影响主流程", e);
+            }
         }
     }
 
@@ -1237,7 +1314,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
         log.info("找到 {} 个当前时间以后的进行中课程安排需要更新", futureSchedules.size());
         return futureSchedules;
     }
-    
+
     /**
      * 解析中文星期名称
      */
@@ -1268,12 +1345,12 @@ public  class RescheduleServiceImpl implements RescheduleService {
         }
 
         log.debug("开始解析时间段，输入: {}", weeklySchedule);
-        
+
         // 支持三种格式：
         // 1. 多星期单时间段：周一、周二、周四、周六 13:00-15:00
         // 2. 单星期多时间段：周六 13:00-15:00, 15:00-17:00, 17:00-19:00
         // 3. 混合格式：周二 10:00-12:00;周四 15:00-17:00;周五 19:00-21:00
-        
+
         // 首先检查是否是多星期单时间段格式（包含顿号）
         if (weeklySchedule.contains("、")) {
             // 多星期单时间段格式：周一、周二、周四、周六 13:00-15:00
@@ -1327,7 +1404,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 }
                 String allTimeSlotsStr = allTimeSlots.toString().trim();
                 log.info("拼接后的时间段字符串: '{}'", allTimeSlotsStr);
-                
+
                 if (allTimeSlotsStr.contains(",")) {
                     log.info("检测到逗号分隔，按逗号分割");
                     // 按逗号分割多个时间段
@@ -1348,7 +1425,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 }
             }
         }
-        
+
         log.debug("解析时间段结果: {}", timeSlots);
         return timeSlots;
     }

@@ -27,8 +27,8 @@ public class SuspensionController {
     private SuspensionService suspensionService;
 
     @PostMapping("/request")
-    @PreAuthorize("hasRole('STUDENT')")
-    @Operation(summary = "创建停课申请", description = "学生创建停课申请")
+    @PreAuthorize("hasAnyRole('STUDENT','TEACHER')")
+    @Operation(summary = "创建停课申请", description = "学生或教师创建停课申请（1v1）")
     public ResponseEntity<CommonResult<SuspensionVO>> createSuspensionRequest(
             @Valid @RequestBody SuspensionApplyDTO request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -93,6 +93,24 @@ public class SuspensionController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("获取失败"));
         }
     }
-}
 
+    @GetMapping("/teacher/requests")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "教师获取停课申请列表", description = "教师查看自己的停课申请列表")
+    public ResponseEntity<CommonResult<Page<SuspensionVO>>> getTeacherSuspensionRequests(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String status,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        try {
+            Page<SuspensionVO> result = suspensionService.getTeacherSuspensionRequests(currentUser.getId(), page, size, status);
+            return ResponseEntity.ok(CommonResult.success("获取成功", result));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("获取失败"));
+        }
+    }
+
+}
 

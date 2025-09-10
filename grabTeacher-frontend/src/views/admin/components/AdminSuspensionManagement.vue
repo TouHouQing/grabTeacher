@@ -14,6 +14,8 @@ interface SuspensionRequest {
   courseTitle?: string
   subjectName?: string
   reason?: string
+  startDate?: string
+  endDate?: string
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   statusDisplay?: string
   adminId?: number
@@ -175,6 +177,13 @@ onMounted(() => {
         <el-table-column prop="subjectName" label="科目" width="100" />
         <el-table-column prop="teacherName" label="教师" width="100" />
         <el-table-column prop="studentName" label="学生" width="120" />
+        <el-table-column label="停课区间" width="220">
+          <template #default="{ row }">
+            <span>{{ row.startDate || '-' }}</span>
+            <span v-if="row.startDate || row.endDate"> ~ </span>
+            <span>{{ row.endDate || '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="reason" label="停课原因" min-width="200" show-overflow-tooltip />
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
@@ -216,6 +225,7 @@ onMounted(() => {
         </div>
         <div class="detail-section">
           <h4>申请信息</h4>
+          <div class="detail-row"><span class="label">停课区间：</span><span>{{ (currentRequest.startDate || '-') + ' ~ ' + (currentRequest.endDate || '-') }}</span></div>
           <div class="detail-row"><span class="label">停课原因：</span><span>{{ currentRequest.reason || '-' }}</span></div>
           <div class="detail-row"><span class="label">状态：</span><span>{{ currentRequest.statusDisplay || currentRequest.status }}</span></div>
           <div class="detail-row" v-if="currentRequest.adminNotes"><span class="label">审批意见：</span><span>{{ currentRequest.adminNotes }}</span></div>

@@ -3,6 +3,7 @@ package com.touhouqing.grabteacherbackend.model.vo;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -13,6 +14,8 @@ public class SuspensionVO {
     private Long studentId;
     private Long teacherId;
     private String reason;
+    private LocalDate startDate;
+    private LocalDate endDate;
     private String status;
     private String statusDisplay;
     private Long adminId;

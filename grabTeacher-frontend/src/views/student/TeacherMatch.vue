@@ -3,7 +3,7 @@ import { ref, reactive, onMounted, nextTick, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock, Close, Warning, SuccessFilled, ArrowDown, Document, Star } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
-import { teacherAPI, subjectAPI, bookingAPI, publicTeacherLevelAPI, publicGradeAPI } from '../../utils/api'
+import { teacherAPI, subjectAPI, bookingAPI, publicTeacherLevelAPI, publicGradeAPI, publicTeachingLocationAPI } from '../../utils/api'
 const route = useRoute()
 const isTrialMode = computed(() => route.path.includes('/student-center/trial'))
 const isRecurringMode = computed(() => route.path.includes('/student-center/match'))
@@ -218,6 +218,11 @@ const showScheduleModal = ref(false)
 const currentTeacher = ref<Teacher | null>(null)
 const currentTeacherSchedule = ref<TeacherSchedule | null>(null)
 
+// 授课地点选择
+const activeTeachingLocations = ref<any[]>([])
+const allowedTeachingLocations = ref<Array<{ value: string | number; label: string }>>([])
+const selectedTeachingLocation = ref<string | number>('')
+
 // 课程选择相关数据
 const teacherCourses = ref<any[]>([])
 const selectedCourse = ref<any | null>(null)
@@ -418,7 +423,7 @@ const handleMatch = async () => {
       } else {
         // 数据为空数组
         console.log('匹配到空数组')
-        ElMessage.warning('暂未找到符合条件的教师，请尝试调整筛选条件')
+        ElMessage.warning('您所选择的上课时间或教师级别无匹配教师，请重新输入筛选条件')
         showResults.value = false
       }
     } else {
@@ -668,6 +673,39 @@ const formatTotalCost = () => {
   return `${totalCost.toFixed(0)}M豆`
 }
 
+// 加载授课地点（根据教师配置）
+async function loadAllowedTeachingLocations() {
+  if (!currentTeacher.value) return
+  try {
+    // 先取公共可用的地点字典
+    const res = await publicTeachingLocationAPI.getActive()
+    const list = res?.success ? (res.data || []) : []
+    activeTeachingLocations.value = list
+
+    // 拉取教师详情，获取其支持的线上与线下地点ID
+    const detail = await teacherAPI.getDetail(currentTeacher.value.id)
+    const options: Array<{ value: string | number; label: string }> = []
+    if (detail?.success && detail.data) {
+      const data = detail.data
+      if (data.supportsOnline) {
+        options.push({ value: 'online', label: '线上' })
+      }
+      const ids: number[] = Array.isArray(data.teachingLocationIds) ? data.teachingLocationIds : []
+      ids.forEach((id: number) => {
+        const item = list.find((x: any) => x.id === id)
+        if (item) options.push({ value: id, label: item.name })
+      })
+    }
+
+    allowedTeachingLocations.value = options
+    if (!selectedTeachingLocation.value && options.length > 0) {
+      selectedTeachingLocation.value = options[0].value
+    }
+  } catch (e) {
+    console.error('加载授课地点失败:', e)
+  }
+}
+
 // 获取教师课程列表
 const loadTeacherCourses = async (teacherId: number) => {
   try {
@@ -714,6 +752,7 @@ const showTeacherSchedule = async (teacher: Teacher) => {
   scheduleForm.selectedDurationMinutes = 120
   // 重置课程选择
   selectedCourse.value = null
+  selectedTeachingLocation.value = ''
 
   if (isTrialMode.value) {
     // 试听：不需要课程列表，沿用匹配时选择的日期与上下午/晚上
@@ -735,6 +774,7 @@ const showTeacherSchedule = async (teacher: Teacher) => {
     await generateAvailableTimeSlots()
   }
 
+  await loadAllowedTeachingLocations()
   showScheduleModal.value = true
 }
 
@@ -1315,6 +1355,17 @@ const createBookingRequest = async () => {
       bookingData.totalTimes = scheduleForm.sessionCount
     }
 
+    // 授课地点
+    if (!selectedTeachingLocation.value) {
+      ElMessage.warning('请选择授课地点')
+      return
+    }
+    if (selectedTeachingLocation.value === 'online') {
+      bookingData.teachingLocation = '线上'
+    } else {
+      bookingData.teachingLocationId = Number(selectedTeachingLocation.value)
+    }
+
     // 调用后端API创建预约申请
     const result = await bookingAPI.createRequest(bookingData)
 
@@ -1353,7 +1404,7 @@ const createBookingRequest = async () => {
       // 如果是余额不足，显示特殊提示
       if (errorMessage.includes('余额不足')) {
         ElMessage.warning({
-          message: '您的账户余额不足，请联系管理员充值或选择其他课程',
+          message: '请联系客服充值M豆后预约课程',
           duration: 10000,
           showClose: true
         })
@@ -2942,6 +2993,19 @@ watch(selectedCourse, (newCourse) => {
             </div>
           </el-form-item>
 
+          <!-- 授课地点选择 -->
+          <el-form-item label="授课地点" required>
+            <el-radio-group v-model="selectedTeachingLocation">
+              <el-radio-button
+                v-for="opt in allowedTeachingLocations"
+                :key="opt.value"
+                :label="opt.value"
+              >
+                {{ opt.label }}
+              </el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+
           <!-- 周期性预约的课程安排设置 -->
           <template v-if="scheduleForm.bookingType === 'recurring'">
             <el-form-item label="课程安排">
@@ -3360,9 +3424,11 @@ watch(selectedCourse, (newCourse) => {
             type="primary"
             @click="createBookingRequest"
             :disabled="
-              scheduleForm.bookingType === 'trial'
+              (!selectedTeachingLocation) ||
+              (scheduleForm.bookingType === 'trial'
                 ? (!scheduleForm.trialDate || !scheduleForm.trialStartTime || !scheduleForm.trialEndTime)
                 : (!selectedCourse || scheduleForm.selectedTimeSlots.length === 0 || scheduleForm.selectedWeekdays.length === 0)
+              )
             "
             size="large"
           >

@@ -1026,7 +1026,7 @@ export const rescheduleAPI = {
 
 // 学生端 停课管理 API
 export const suspensionAPI = {
-  createRequest: (data: { enrollmentId: number; reason?: string }) =>
+  createRequest: (data: { enrollmentId: number; startDate: string; endDate: string; reason?: string }) =>
     apiRequest('/api/suspension/request', { method: 'POST', body: JSON.stringify(data) }),
 
   getStudentRequests: (params: { page?: number; size?: number; status?: string }) => {
@@ -1312,4 +1312,19 @@ export const publicGradeAPI = {
 
 export const publicTeacherLevelAPI = {
   list: () => apiRequest('/api/public/teacher-levels')
+}
+
+
+// lesson-grades API
+export const lessonGradeAPI = {
+  create: (data: { scheduleId: number; studentId: number; score?: number; teacherComment?: string }) =>
+    apiRequest('/api/lesson-grades', { method: 'POST', body: JSON.stringify(data) }),
+  update: (data: { id: number; score?: number; teacherComment?: string }) =>
+    apiRequest('/api/lesson-grades', { method: 'PUT', body: JSON.stringify(data) }),
+  getByScheduleAndStudent: (scheduleId: number, studentId: number) =>
+    apiRequest(`/api/lesson-grades/schedule/${scheduleId}/student/${studentId}`),
+  getStudentSubjectChartData: (studentId: number, subjectName: string) =>
+    apiRequest(`/api/lesson-grades/student/${studentId}/subject/${encodeURIComponent(subjectName)}/chart-data`),
+  checkPermission: (scheduleId: number) =>
+    apiRequest(`/api/lesson-grades/check-permission/${scheduleId}`)
 }

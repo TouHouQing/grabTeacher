@@ -90,26 +90,29 @@ public class ScheduleCleanupJob {
                             .divide(new BigDecimal(60), 2, RoundingMode.HALF_UP);
                     if (hours.compareTo(BigDecimal.ZERO) > 0) {
                         // 查询教师以获取用户ID与姓名
-                        // 由 enrollment 反查 teacher_id 需要额外查询，简化：跳过课时累计或在后续服务中统一计算
-                        com.touhouqing.grabteacherbackend.model.entity.Teacher teacher = null;
-                        Long teacherUserId = teacher != null ? teacher.getUserId() : null;
-                        String teacherName = teacher != null ? teacher.getRealName() : null;
-                        // 记录教师课时明细
-                        HourDetail detail = HourDetail.builder()
-                                .userId(teacherUserId)
-                                .name(teacherName)
-                                .hours(hours)
-                                .hoursBefore(null)
-                                .hoursAfter(null)
-                                .transactionType(1)
-                                .reason("课程完成自动结算")
-                                .bookingId(schedule.getId())
-                                .operatorId(null)
-                                .createdAt(LocalDateTime.now())
-                                .build();
-                        hourDetailMapper.insert(detail);
-                        // 累加教师本月课时
-                        teacherMapper.incrementCurrentHours(schedule.getTeacherId(), hours);
+                        com.touhouqing.grabteacherbackend.model.entity.Teacher teacher = teacherMapper.selectById(schedule.getTeacherId());
+                        if (teacher != null) {
+                            Long teacherUserId = teacher.getUserId();
+                            String teacherName = teacher.getRealName();
+                            // 记录教师课时明细
+                            HourDetail detail = HourDetail.builder()
+                                    .userId(teacherUserId)
+                                    .name(teacherName)
+                                    .hours(hours)
+                                    .hoursBefore(null)
+                                    .hoursAfter(null)
+                                    .transactionType(1)
+                                    .reason("课程完成自动结算")
+                                    .bookingId(schedule.getId())
+                                    .operatorId(null)
+                                    .createdAt(LocalDateTime.now())
+                                    .build();
+                            hourDetailMapper.insert(detail);
+                            // 累加教师本月课时
+                            teacherMapper.incrementCurrentHours(schedule.getTeacherId(), hours);
+                        } else {
+                            log.warn("课程安排ID: {} 对应的教师ID: {} 不存在，跳过课时记录", schedule.getId(), schedule.getTeacherId());
+                        }
                     }
                     log.debug("课程安排ID: {} 已更新为已完成状态，原定时间: {} {}-{}", 
                             schedule.getId(), 

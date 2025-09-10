@@ -5,7 +5,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Timer, Refresh, VideoCamera, InfoFilled, Clock, Collection, Reading, Star } from '@element-plus/icons-vue'
 import { bookingAPI, rescheduleAPI, teacherAPI, studentAPI, apiRequest, suspensionAPI, enrollmentAPI } from '../../../utils/api'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '../../../stores/user'
+
 const RescheduleModal = defineAsyncComponent(() => import('../../../components/RescheduleModal.vue'))
+const userStore = useUserStore()
+
 
 // 课程安排接口（基于后端ScheduleVO）
 interface CourseSchedule {
@@ -58,6 +62,20 @@ interface Course {
   hasEvaluation?: boolean; // 是否已评价
   durationMinutes?: number; // 课程时长（分钟）
 }
+
+// 生成 1v1 课程显示标题：姓名+科目(+年级)+一对一课程
+const buildOneToOneTitle = (s: CourseSchedule): string | null => {
+  const type = (s.courseType || '').toLowerCase()
+  const isOneToOne = type.includes('one') || type.includes('1v1') || type.includes('one_to_one') || type.includes('one-on-one')
+  if (!isOneToOne) return null
+  const studentName = (s.studentName || '').trim()
+  const subject = (s.subjectName || '').trim()
+  if (studentName && subject) {
+    return `${studentName}${subject}一对一课程`
+  }
+  return null
+}
+
 
 // 调课相关接口
 
@@ -235,8 +253,10 @@ const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => 
       status = 'upcoming'
     }
 
-    // 确保课程标题不为空
-    const courseTitle = firstSchedule.courseTitle || firstSchedule.courseName || '未指定课程'
+    // 确保课程标题不为空；1v1 课程按“姓名+科目(+年级)+一对一课程”生成
+    const rawTitle = firstSchedule.courseTitle || firstSchedule.courseName || '未指定课程'
+    const generatedTitle = buildOneToOneTitle(firstSchedule)
+    const courseTitle = generatedTitle || rawTitle
     const teacherName = firstSchedule.teacherName || '未知教师'
     const subjectName = firstSchedule.subjectName || '未知科目'
 
@@ -288,6 +308,7 @@ const generateScheduleText = (schedules: CourseSchedule[]): string => {
   if (!first || !first.startTime || !first.endTime) {
     return '时间待定'
   }
+
   return `${first.startTime}-${first.endTime}`
 }
 
@@ -304,6 +325,8 @@ const getSubjectImage = (subject: string): string => {
 }
 
 // 组件挂载时加载数据
+
+
 onMounted(() => {
   loadStudentSchedules()
   loadBookings()
@@ -332,6 +355,9 @@ interface BookingRequest {
   teacherName: string
   courseTitle?: string
   subjectName?: string
+  grade?: string
+  courseType?: string
+  studentName?: string
   courseDurationMinutes?: number
   bookingType: 'single' | 'recurring'
   requestedDate?: string
@@ -380,6 +406,7 @@ const bookingStats = computed(() => {
 const filteredCourses = computed(() => {
   if (activeTab.value === 'suspended') return courses.value.filter(isCourseSuspended)
   if (activeTab.value === 'pending' || activeTab.value === 'approved') return []
+  if (activeTab.value === 'active') return mergedActiveCourses.value
   return courses.value.filter(course => course.status === activeTab.value)
 })
 
@@ -392,6 +419,87 @@ const filteredBookings = computed(() => {
   }
   return []
 })
+
+// 已审核且未开始的预约（用于“进行中”标签展示）
+const isBookingNotStartedYet = (b: BookingRequest): boolean => {
+  try {
+    const now = new Date()
+    if (b.bookingType === 'single' && b.requestedDate && b.requestedStartTime) {
+      const startStr = (b.requestedStartTime.length === 5) ? `${b.requestedStartTime}:00` : b.requestedStartTime
+      const start = new Date(`${b.requestedDate}T${startStr}+08:00`)
+      return start.getTime() > now.getTime()
+    }
+    if (b.bookingType === 'recurring' && b.startDate) {
+      const start = new Date(`${b.startDate}T00:00:00+08:00`)
+      return start.getTime() > now.getTime()
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
+const approvedUpcomingBookingsInActive = computed(() =>
+  bookings.value.filter(b => b.status === 'approved' && isBookingNotStartedYet(b))
+)
+
+// 将“已审核未开始的预约”映射为占位课程，合并到“进行中”列表
+const mapApprovedBookingToCourse = (b: BookingRequest): Course => {
+  const subject = (b.subjectName || '未知科目').trim()
+  const isSingle = b.bookingType === 'single'
+  const timeText = isSingle && b.requestedStartTime && b.requestedEndTime
+    ? `${b.requestedStartTime}-${b.requestedEndTime}`
+    : formatRecurringTime(b.recurringWeekdays || [], b.recurringTimeSlots || [])
+  const nextText = isSingle && b.requestedDate && b.requestedStartTime && b.requestedEndTime
+    ? `${b.requestedDate} ${b.requestedStartTime}-${b.requestedEndTime}`
+    : (b.startDate ? `${b.startDate} 起` : '待定')
+  const totalTimes = Number(b.totalTimes || 1)
+
+  // 1v1 预约命名：姓名+科目(+年级)+一对一课程
+  const type = (b.courseType || '').toLowerCase()
+  const likelyOneToOne = type ? (type.includes('one') || type.includes('1v1') || type.includes('one_to_one') || type.includes('one-on-one')) : true
+  const studentName = (userStore.user?.realName || b.studentName || '').trim()
+  const grade = (b.grade || '').trim()
+  let subjectWithGrade = subject
+  if (grade && !subjectWithGrade.includes(grade)) {
+    subjectWithGrade = `${subjectWithGrade}${grade}`
+  }
+  const generatedTitle = likelyOneToOne && studentName && subjectWithGrade
+    ? `${studentName}${subjectWithGrade}一对一课程`
+    : (b.courseTitle || '自定义课程')
+
+  const title = generatedTitle
+
+  return {
+    id: -1000000 - Number(b.id || 0),
+    title,
+    teacher: b.teacherName || '未知教师',
+    teacherAvatar: '@/assets/pictures/teacherBoy1.jpeg',
+    subject: subjectWithGrade,
+    schedule: timeText || '时间待定',
+    progress: 0,
+    nextClass: nextText,
+    startDate: isSingle ? (b.requestedDate || '') : (b.startDate || ''),
+    endDate: isSingle ? (b.requestedDate || '') : (b.endDate || ''),
+    totalLessons: totalTimes,
+    completedLessons: 0,
+    remainingLessons: totalTimes,
+    weeklySchedule: [],
+    image: getSubjectImage(subjectWithGrade),
+    description: `${title} - ${subjectWithGrade}课程`,
+    status: 'active',
+    schedules: [],
+    hasEvaluation: false,
+    durationMinutes: b.courseDurationMinutes || undefined
+  }
+}
+
+const mergedActiveCourses = computed(() => {
+  const base = courses.value.filter(c => c.status === 'active')
+  const placeholders = approvedUpcomingBookingsInActive.value.map(mapApprovedBookingToCourse)
+  return [...base, ...placeholders]
+})
+
 
 // 当前查看的课程详情
 const currentCourse = ref<Course | null>(null)
@@ -577,6 +685,23 @@ const resumeForm = ref({
   reason: '恢复停课课程，时间重新安排',
   startDate: '' as string
 })
+
+// ================= 停课申请（日期范围选择） =================
+const suspensionDialogVisible = ref(false)
+const currentSuspensionCourse = ref<Course | null>(null)
+const suspensionForm = ref({
+  dateRange: [] as [Date, Date] | [],
+  reason: '学生申请停课'
+})
+
+const initDefaultSuspensionRange = () => {
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  start.setDate(start.getDate() + 7)
+  const end = new Date(start)
+  end.setDate(end.getDate() + 13)
+  suspensionForm.value.dateRange = [start, end]
+}
 
 const getCourseDurationMinutes = (course?: Course | null): number => {
   // 优先使用课程直接设置的时长
@@ -1387,27 +1512,62 @@ const resumeCourse = (course: Course) => {
 
 // 发起停课申请
 const requestSuspension = async (course: Course) => {
-  // 确认对话框
-  try {
-    await ElMessageBox.confirm(
-      '确认停课吗？这将暂停剩余课时，稍后可发起“恢复课程”重新安排。',
-      '确认停课',
-      { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' }
-    )
-  } catch {
-    return
-  }
+  // 打开停课日期范围选择弹窗
+  currentSuspensionCourse.value = course
+  initDefaultSuspensionRange()
+  suspensionDialogVisible.value = true
+}
 
+const submitSuspension = async () => {
   try {
-    const firstSchedule = course.schedules?.[0]
+    if (!currentSuspensionCourse.value) return
+    const firstSchedule = currentSuspensionCourse.value.schedules?.[0]
     const enrollmentId = firstSchedule?.enrollmentId
     if (!enrollmentId) {
       ElMessage.error('无法获取报名信息，暂不能停课')
       return
     }
-    const result = await suspensionAPI.createRequest({ enrollmentId: Number(enrollmentId), reason: '学生申请停课' })
+    const range = suspensionForm.value.dateRange
+    if (!range || range.length !== 2) {
+      ElMessage.warning('请选择停课起止日期')
+      return
+    }
+    const [start, end] = range as [Date, Date]
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const minStart = new Date(today)
+    minStart.setDate(minStart.getDate() + 7)
+    const minEnd = new Date(start)
+    minEnd.setDate(minEnd.getDate() + 13)
+
+    if (start < minStart) {
+      ElMessage.warning('停课开始日期需从一周后开始')
+      return
+    }
+    if (end < minEnd) {
+      ElMessage.warning('停课时长不可少于两周（14天）')
+      return
+    }
+
+    const fmt = (d: Date) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${dd}`
+    }
+
+    const payload = {
+      enrollmentId: Number(enrollmentId),
+      startDate: fmt(start),
+      endDate: fmt(end),
+      reason: suspensionForm.value.reason || '学生申请停课'
+    }
+
+    const result = await suspensionAPI.createRequest(payload)
     if (result.success) {
       ElMessage.success('停课申请已提交，等待管理员审批')
+      suspensionDialogVisible.value = false
       await loadStudentSchedules()
     } else {
       ElMessage.error(result.message || '提交停课申请失败')
@@ -1970,7 +2130,7 @@ export default {
                       <el-icon><Reading /></el-icon> 查看成绩
                     </el-button>
                     <el-button
-                      v-if="course.remainingLessons && course.remainingLessons > 0 && !isCourseSuspended(course)"
+                      v-if="course.remainingLessons && course.remainingLessons > 0"
                       size="small"
                       type="warning"
                       @click="showReschedule(course)"
@@ -1979,21 +2139,13 @@ export default {
                       <el-icon><Refresh /></el-icon> 调课
                     </el-button>
                     <el-button
-                      v-if="course.status === 'active' && course.remainingLessons && course.remainingLessons > 0 && !isCourseSuspended(course)"
+                      v-if="course.status === 'active' && course.remainingLessons && course.remainingLessons > 0"
                       size="small"
                       type="danger"
                       @click="requestSuspension(course)"
                       :disabled="!!getSuspensionStatus(course.id)"
                     >
                       停课
-                    </el-button>
-                    <el-button
-                      v-if="isCourseSuspended(course)"
-                      size="small"
-                      type="primary"
-                      @click="resumeCourse(course)"
-                    >
-                      恢复课程
                     </el-button>
                     <el-button size="small" type="info" @click="showCourseDetail(course)">
                       <el-icon><InfoFilled /></el-icon> 详情
@@ -2003,6 +2155,7 @@ export default {
               </el-card>
             </div>
           </div>
+
         </el-tab-pane>
         <el-tab-pane label="已完成" name="completed">
           <div class="tab-content">
@@ -2087,9 +2240,6 @@ export default {
                     </div>
                   </div>
                   <div class="course-actions">
-                    <el-button size="small" type="primary" @click="resumeCourse(course)">
-                      恢复课程
-                    </el-button>
                     <el-button size="small" type="info" @click="showCourseDetail(course)">
                       <el-icon><InfoFilled /></el-icon> 详情
                     </el-button>
@@ -2589,96 +2739,44 @@ export default {
       </template>
     </el-dialog>
 
-    <!-- 恢复课程弹窗 -->
+    <!-- 停课申请弹窗（日期范围选择） -->
     <el-dialog
-      v-model="showResumeModal"
-      title="恢复课程（重新预约）"
-      width="800px"
+      v-model="suspensionDialogVisible"
+      title="申请停课"
+      width="560px"
     >
-      <div v-if="currentResumeCourse" class="resume-modal">
-        <div class="course-brief">
-          <h4>{{ currentResumeCourse.title }}</h4>
-          <p>{{ currentResumeCourse.subject }} | {{ currentResumeCourse.teacher }}</p>
-          <p>剩余课时：<strong>{{ currentResumeCourse.remainingLessons || 0 }}</strong> 节（时长：{{ getCourseDurationMinutes(currentResumeCourse) === 90 ? '1.5小时' : '2小时' }}）</p>
-        </div>
-
-        <el-form label-width="100px">
-          <el-form-item label="开始日期" required>
+      <div class="suspension-modal">
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          title="规则说明：停课需从一周后开始，且连续时长不少于两周。"
+          style="margin-bottom: 12px;"
+        />
+        <el-form label-width="96px">
+          <el-form-item label="停课区间" required>
             <el-date-picker
-              v-model="resumeForm.startDate"
-              type="date"
-              placeholder="选择开始日期"
-              value-format="YYYY-MM-DD"
-              :disabled-date="(date) => date.getTime() < new Date(new Date().setHours(0,0,0,0)).getTime()"
+              v-model="suspensionForm.dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              unlink-panels
+              :disabled-date="(date) => date.getTime() < new Date(new Date().setHours(0,0,0,0) + 7 * 24 * 3600 * 1000).getTime()"
             />
           </el-form-item>
-
-          <el-form-item label="选择时间段" required>
-            <div class="time-slot-selection">
-              <div
-                v-for="slot in getResumeTimeSlots"
-                :key="slot"
-                class="time-slot-card"
-                :class="{
-                  selected: resumeForm.selectedTimeSlots.includes(slot),
-                  disabled: isTimeSlotConflictWithSelectedForResume(slot) && !resumeForm.selectedTimeSlots.includes(slot)
-                }"
-                @click="selectResumeTimeSlot(slot)"
-              >
-                <span class="slot-time">{{ slot }}</span>
-                <div v-if="isTimeSlotConflictWithSelectedForResume(slot) && !resumeForm.selectedTimeSlots.includes(slot)" class="unavailable-overlay">
-                  <span class="unavailable-text">冲突</span>
-                </div>
-              </div>
-            </div>
-            <div v-if="getCourseDurationMinutes(currentResumeCourse) === 90" class="time-slot-tip">
-              <el-icon><InfoFilled /></el-icon>
-              <span>1.5小时课程在同一时间区间内只能选择一个时间段</span>
-            </div>
-          </el-form-item>
-
-          <el-form-item label="可选星期" required>
-            <div class="weekday-selection">
-              <el-checkbox-group v-model="resumeForm.selectedWeekdays">
-                <el-checkbox
-                  v-for="wd in [1,2,3,4,5,6,7]"
-                  :key="wd"
-                  :label="wd"
-                  :disabled="!isWeekdaySelectableForResume(wd)"
-                >{{ getWeekdayName(wd) }}</el-checkbox>
-              </el-checkbox-group>
-              <div v-if="resumeForm.selectedTimeSlots.length === 0" class="no-available-weekdays">请先选择时间段</div>
-            </div>
-          </el-form-item>
-
-          <el-form-item label="预计结束">
-            <div>
-              <template v-if="resumeForm.startDate && resumeForm.selectedWeekdays.length > 0 && (currentResumeCourse?.remainingLessons || 0) > 0">
-                预计结束日期：
-                {{ computeResumeEndDate(
-                  resumeForm.startDate,
-                  resumeForm.selectedWeekdays,
-                  Math.max(1, resumeForm.selectedTimeSlots.length),
-                  Number(currentResumeCourse?.remainingLessons || 0)
-                ) }}
-              </template>
-              <template v-else>
-                请选择开始日期、星期与时间段
-              </template>
-            </div>
-          </el-form-item>
-
           <el-form-item label="备注">
-            <el-input v-model="resumeForm.reason" type="textarea" :rows="3" placeholder="可填写恢复原因或时间偏好"></el-input>
+            <el-input v-model="suspensionForm.reason" type="textarea" :rows="3" placeholder="可填写停课原因"></el-input>
           </el-form-item>
         </el-form>
+        <div class="hint-text">提示：提交后将进入管理员审批，审批通过后，所选区间内的未开始课节将暂停。</div>
       </div>
-
       <template #footer>
-        <el-button @click="showResumeModal = false">取消</el-button>
-        <el-button type="primary" @click="submitResumeBooking">提交</el-button>
+        <el-button @click="suspensionDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitSuspension">提交申请</el-button>
       </template>
     </el-dialog>
+
 
     <!-- 预约详情弹窗 -->
     <el-dialog

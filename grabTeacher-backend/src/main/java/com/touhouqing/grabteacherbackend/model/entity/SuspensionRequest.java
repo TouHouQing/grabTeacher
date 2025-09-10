@@ -32,6 +32,12 @@ public class SuspensionRequest {
     @TableField("reason")
     private String reason;
 
+    @TableField("start_date")
+    private java.time.LocalDate startDate;
+
+    @TableField("end_date")
+    private java.time.LocalDate endDate;
+
     @TableField("status")
     @Builder.Default
     private String status = "pending"; // pending, approved, rejected, cancelled

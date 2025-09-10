@@ -586,13 +586,24 @@ public class TeacherServiceImpl implements TeacherService {
         // 使用优化的查询方法
         List<Teacher> teachers = matchTeachersOptimized(request);
 
-        // 转换为响应DTO并计算匹配分数
+        // 若严格筛选结果为空，降级为全部一对一教师，避免“无匹配教师”场景
+        if (teachers == null || teachers.isEmpty()) {
+            log.info("严格筛选无结果，降级到全部一对一教师进行智能排序（提供最优筛选结果）");
+            teachers = teacherMapper.findAllOneOnOneTeachers();
+        }
+
+        // 转换为响应DTO并计算匹配分数；同分随机展示
+        java.util.Comparator<TeacherMatchVO> cmp =
+                java.util.Comparator.comparing(TeacherMatchVO::getRecommendationScore)
+                        .reversed()
+                        .thenComparingInt(x -> java.util.concurrent.ThreadLocalRandom.current().nextInt());
+
         List<TeacherMatchVO> responses = teachers.stream()
                 .filter(teacher -> matchesGenderPreference(teacher, request)) // 添加性别过滤
                 .map(teacher -> convertToMatchResponse(teacher, request))
-                .sorted(Comparator.comparing(TeacherMatchVO::getRecommendationScore).reversed())
+                .sorted(cmp)
                 .limit(request.getLimit() != null ? Math.max(request.getLimit(), 5) : 5)
-                .collect(Collectors.toList());
+                .collect(java.util.stream.Collectors.toList());
 
         log.info("匹配到 {} 位教师", responses.size());
 
@@ -716,23 +727,45 @@ public class TeacherServiceImpl implements TeacherService {
      * 教龄按年限线性归一到上限（默认15年达满分）。
      */
     private int calculateRecommendationScore(Teacher teacher) {
-        // 评分（0-5）-> 百分制
+        // 教师评价（0-5）按百分制归一
         double rating = teacher.getRating() != null ? teacher.getRating().doubleValue() : 0.0;
-        rating = Math.max(0.0, Math.min(5.0, rating));
+        if (rating < 0) rating = 0.0;
+        if (rating > 5.0) rating = 5.0;
         int ratingScore = (int) Math.round((rating / 5.0) * 100);
 
-        // 学历评分（百分制）
-        int educationScore = getEducationScore(teacher.getEducationBackground());
+        // 学历点数：专科及以下=1，本科=2，硕士=3，博士=4 -> 百分制
+        int eduPoint = getEducationPoint(teacher.getEducationBackground());
+        int educationScore = (int) Math.round((eduPoint / 4.0) * 100);
 
-        // 教龄评分（百分制），15年及以上视为满分
-        int expYears = teacher.getTeachingExperience() != null ? teacher.getTeachingExperience() : 0;
-        int expCapYears = 15;
-        int experienceScore = (int) Math.round(Math.min(expYears, expCapYears) * 100.0 / expCapYears);
+        // 教龄点数：N≤3=1，3<N≤5=2，N>5=3 -> 百分制
+        int expPoint = getExperiencePoint(teacher.getTeachingExperience());
+        int experienceScore = (int) Math.round((expPoint / 3.0) * 100);
 
-        // 加权汇总
+        // 加权：教师评价50% + 学历30% + 教龄20%
         double weighted = ratingScore * 0.5 + educationScore * 0.3 + experienceScore * 0.2;
         int total = (int) Math.round(weighted);
         return Math.max(0, Math.min(100, total));
+    }
+
+    // 学历点数：博士4，硕士3，本科2，专科及以下1
+    private int getEducationPoint(String educationBackground) {
+        if (educationBackground == null || educationBackground.trim().isEmpty()) {
+            return 1;
+        }
+        String edu = educationBackground.trim().toLowerCase();
+        if (edu.contains("博士") || edu.contains("phd") || edu.contains("doctor")) return 4;
+        if (edu.contains("硕士") || edu.contains("master") || edu.contains("msc")) return 3;
+        if (edu.contains("本科") || edu.contains("学士") || edu.contains("bachelor") || edu.contains("bsc")) return 2;
+        // 专科/大专/高中/中专/associate 归为1
+        return 1;
+    }
+
+    // 教龄点数：≤3年=1；3<≤5年=2；>5年=3
+    private int getExperiencePoint(Integer years) {
+        int y = years == null ? 0 : years;
+        if (y <= 3) return 1;
+        if (y <= 5) return 2;
+        return 3;
     }
 
     /**
