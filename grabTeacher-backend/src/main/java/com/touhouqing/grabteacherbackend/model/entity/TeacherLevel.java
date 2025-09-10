@@ -23,6 +23,14 @@ public class TeacherLevel {
     @TableField("name")
     private String name;
 
+    @Schema(description = "是否激活")
+    @TableField("is_active")
+    private Boolean isActive;
+
+    @Schema(description = "排序顺序，越小越靠前")
+    @TableField("sort_order")
+    private Integer sortOrder;
+
     @Schema(description = "创建时间")
     @TableField("create_time")
     private LocalDateTime createTime;

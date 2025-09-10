@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.List;
 import java.util.Arrays;
 
+import java.util.stream.Collectors;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -53,6 +55,10 @@ public class AdminServiceImpl implements AdminService {
     private final PasswordEncoder passwordEncoder;
     @Autowired
     private org.springframework.cache.CacheManager cacheManager;
+
+    private final TeacherLevelMapper teacherLevelMapper;
+    private final TeachingLocationMapper teachingLocationMapper;
+
 
     /**
      * 获取系统统计信息
@@ -178,7 +184,7 @@ public class AdminServiceImpl implements AdminService {
         queryWrapper.orderByDesc("id");
 
         Page<Student> result = studentMapper.selectPage(pageParam, queryWrapper);
-        
+
         // 为每个学生填充trialTimes和avatarUrl字段
         if (result.getRecords() != null) {
             for (Student student : result.getRecords()) {
@@ -191,7 +197,7 @@ public class AdminServiceImpl implements AdminService {
                 }
             }
         }
-        
+
         return result;
     }
 
@@ -375,7 +381,7 @@ public class AdminServiceImpl implements AdminService {
 
         // 更新学生信息
         BigDecimal oldBalance = student.getBalance();
-        
+
         student.setRealName(request.getRealName());
         student.setSubjectsInterested(request.getSubjectsInterested());
         student.setLearningGoals(request.getLearningGoals());
@@ -386,7 +392,7 @@ public class AdminServiceImpl implements AdminService {
         // 管理员可以更新余额
         if (request.getBalance() != null && !request.getBalance().equals(oldBalance)) {
             student.setBalance(request.getBalance());
-            
+
             // 记录余额变动
             BigDecimal amountChange = request.getBalance().subtract(oldBalance);
             BalanceTransaction transaction = BalanceTransaction.builder()
@@ -401,8 +407,8 @@ public class AdminServiceImpl implements AdminService {
                     .createdAt(LocalDateTime.now())
                     .build();
             balanceTransactionMapper.insert(transaction);
-            
-            log.info("管理员更新学生余额: studentId={}, 余额变动: {} -> {}, 变动金额: {}", 
+
+            log.info("管理员更新学生余额: studentId={}, 余额变动: {} -> {}, 变动金额: {}",
                     studentId, oldBalance, request.getBalance(), amountChange);
         }
 
@@ -511,6 +517,19 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
+        // 授课地点回显：supportsOnline 独立，线下为ID列表（从CSV解析，保持兼容）
+        java.util.List<Long> offlineIds;
+        if (StringUtils.hasText(teacher.getTeachingLocations())) {
+            offlineIds = Arrays.stream(teacher.getTeachingLocations().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(Long::valueOf)
+                    .collect(Collectors.toList());
+        } else {
+            offlineIds = java.util.Collections.emptyList();
+        }
+        boolean supportsOnline = teacher.getSupportsOnline() != null ? teacher.getSupportsOnline() : offlineIds.isEmpty();
+
         return AdminTeacherDetailVO.builder()
                 .id(teacher.getId())
                 .userId(teacher.getUserId())
@@ -535,6 +554,9 @@ public class AdminServiceImpl implements AdminService {
                 .adjustmentTimes(user != null ? user.getAdjustmentTimes() : null)
                 .currentHours(teacher.getCurrentHours())
                 .lastHours(teacher.getLastHours())
+                .supportsOnline(supportsOnline)
+                .teachingLocationIds(offlineIds)
+                .teachingLocations(teacher.getTeachingLocations())
                 .deleted(teacher.getDeleted())
                 .deletedAt(teacher.getDeletedAt())
                 .build();
@@ -609,6 +631,43 @@ public class AdminServiceImpl implements AdminService {
             log.info("管理员未为教师设置可上课时间，默认所有时间都可以");
         }
 
+        // 级别校验与默认（从教师级别表选择）
+        String resolvedLevelName;
+        if (StringUtils.hasText(request.getLevel())) {
+            TeacherLevel lv = teacherLevelMapper.selectOne(new QueryWrapper<TeacherLevel>()
+                    .eq("name", request.getLevel())
+                    .eq("is_active", true));
+            if (lv == null) {
+                throw new RuntimeException("无效的教师级别");
+            }
+            resolvedLevelName = lv.getName();
+        } else {
+            TeacherLevel lv = teacherLevelMapper.selectOne(new QueryWrapper<TeacherLevel>()
+                    .eq("is_active", true)
+                    .orderByAsc("sort_order")
+                    .last("limit 1"));
+            if (lv == null) {
+                throw new RuntimeException("请先在教师级别表配置可用级别");
+            }
+            resolvedLevelName = lv.getName();
+        }
+
+        // 授课地点校验：supportsOnline 独立，线下地点必须来源于授课地点表且启用
+        boolean supportsOnline = Boolean.TRUE.equals(request.getSupportsOnline());
+        String teachingLocationsCsv = null;
+        if (request.getTeachingLocationIds() != null) {
+            if (!request.getTeachingLocationIds().isEmpty()) {
+                List<Long> ids = request.getTeachingLocationIds();
+                QueryWrapper<TeachingLocation> lq = new QueryWrapper<>();
+                lq.in("id", ids).eq("is_active", true);
+                Long cnt = teachingLocationMapper.selectCount(lq);
+                if (cnt == null || cnt.intValue() != ids.size()) {
+                    throw new RuntimeException("存在无效或未启用的授课地点");
+                }
+                teachingLocationsCsv = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
+            }
+        }
+
         // 创建教师信息，关联到刚创建的用户
         Teacher teacher = Teacher.builder()
                 .userId(user.getId()) // 关联到刚创建的用户
@@ -619,7 +678,9 @@ public class AdminServiceImpl implements AdminService {
                 .hourlyRate(request.getHourlyRate())
                 .introduction(request.getIntroduction())
                 .gender(request.getGender() != null ? request.getGender() : "不愿透露")
-                .level(request.getLevel() != null ? request.getLevel() : "王牌")
+                .level(resolvedLevelName)
+                .supportsOnline(supportsOnline)
+                .teachingLocations(teachingLocationsCsv)
                 .availableTimeSlots(availableTimeSlotsJson)
                 .rating(request.getRating() != null ? request.getRating() : BigDecimal.valueOf(5.0)) // 默认评分5.0
                 .verified(true) // 管理员添加的教师默认已审核
@@ -643,6 +704,7 @@ public class AdminServiceImpl implements AdminService {
         invalidateFeaturedTeachersJsonCaches();
         return teacher;
     }
+
 
     @Override
     @Transactional
@@ -707,9 +769,37 @@ public class AdminServiceImpl implements AdminService {
         teacher.setHourlyRate(request.getHourlyRate());
         teacher.setIntroduction(request.getIntroduction());
         teacher.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
-        // 更新教师级别
+        // 更新教师级别（从级别表校验）
         if (request.getLevel() != null) {
-            teacher.setLevel(request.getLevel());
+            TeacherLevel lv = teacherLevelMapper.selectOne(new QueryWrapper<TeacherLevel>()
+                    .eq("name", request.getLevel())
+                    .eq("is_active", true));
+            if (lv == null) {
+                throw new RuntimeException("无效的教师级别");
+            }
+            teacher.setLevel(lv.getName());
+        }
+
+        // 更新 supportsOnline（线上开关）
+        if (request.getSupportsOnline() != null) {
+            teacher.setSupportsOnline(Boolean.TRUE.equals(request.getSupportsOnline()));
+        }
+
+        // 
+        if (request.getTeachingLocationIds() != null) {
+            if (request.getTeachingLocationIds().isEmpty()) {
+                // 
+                teacher.setTeachingLocations(null);
+            } else {
+                List<Long> ids = request.getTeachingLocationIds();
+                QueryWrapper<TeachingLocation> q = new QueryWrapper<>();
+                q.in("id", ids).eq("is_active", true);
+                Long cnt = teachingLocationMapper.selectCount(q);
+                if (cnt == null || cnt.intValue() != ids.size()) {
+                    throw new RuntimeException("");
+                }
+                teacher.setTeachingLocations(ids.stream().map(String::valueOf).collect(Collectors.joining(",")));
+            }
         }
 
         // 更新教师评分

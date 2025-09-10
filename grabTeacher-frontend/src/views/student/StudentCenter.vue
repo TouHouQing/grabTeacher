@@ -17,8 +17,9 @@ const loading = ref(false)
 
 // 统计数据
 const statistics = ref({
-  remainingTrialTimes: 0,
+  totalBookings: 0,
   pendingBookings: 0,
+  monthlyAdjustments: 0,
   completedCourses: 0
 })
 const statsLoading = ref(false)
@@ -36,8 +37,6 @@ watch(() => route.path, (path: string) => {
     activeMenu.value = 'trial'
   } else if (path.includes('/match')) {
     activeMenu.value = 'match'
-  } else if (path.includes('/bookings')) {
-    activeMenu.value = 'bookings'
   } else {
     activeMenu.value = 'dashboard'
   }
@@ -130,8 +129,9 @@ const loadStatistics = async () => {
 
     if (result.success && result.data) {
               statistics.value = {
-          remainingTrialTimes: result.data.remainingTrialTimes || 0,
+          totalBookings: result.data.totalBookings || 0,
           pendingBookings: result.data.pendingBookings || 0,
+          monthlyAdjustments: result.data.monthlyAdjustments || 0,
           completedCourses: result.data.completedCourses || 0
         }
     } else {
@@ -208,10 +208,6 @@ onMounted(async () => {
               <el-icon><Connection /></el-icon>
               <span>1V1教师智能匹配</span>
             </el-menu-item>
-            <el-menu-item index="bookings" @click="$router.push('/student-center/bookings')">
-              <el-icon><Document /></el-icon>
-              <span>我的预约</span>
-            </el-menu-item>
 
             <el-menu-item index="courses">
               <el-icon><Reading /></el-icon>
@@ -253,8 +249,8 @@ onMounted(async () => {
                 <el-icon><Star /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : statistics.remainingTrialTimes }}</div>
-                <div class="stat-label">试听次数</div>
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.totalBookings }}</div>
+                <div class="stat-label">总预约课次</div>
               </div>
             </div>
             <div class="stat-card">
@@ -262,8 +258,8 @@ onMounted(async () => {
                 <el-icon><Reading /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">{{ balanceLoading ? '-' : (studentAdjustmentTimes ?? '-') }}</div>
-                <div class="stat-label">本月调课剩余</div>
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.pendingBookings }}</div>
+                <div class="stat-label">待审批课次</div>
               </div>
             </div>
             <div class="stat-card">
@@ -271,8 +267,8 @@ onMounted(async () => {
                 <el-icon><Document /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : statistics.pendingBookings }}</div>
-                <div class="stat-label">待审批预约</div>
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.monthlyAdjustments }}</div>
+                <div class="stat-label">本月已调课/取消课程次数</div>
               </div>
             </div>
           </div>

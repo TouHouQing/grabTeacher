@@ -9,6 +9,8 @@ const AdminStudentManagement = defineAsyncComponent(() => import('./components/A
 const AdminTeacherManagement = defineAsyncComponent(() => import('./components/AdminTeacherManagement.vue'))
 const AdminSubjectManagement = defineAsyncComponent(() => import('./components/AdminSubjectManagement.vue'))
 const AdminTeachingLocationManagement = defineAsyncComponent(() => import('./components/AdminTeachingLocationManagement.vue'))
+const AdminGradeManagement = defineAsyncComponent(() => import('./components/AdminGradeManagement.vue'))
+
 
 const AdminCourseManagement = defineAsyncComponent(() => import('./AdminCourseManagement.vue'))
 const AdminJobPostManagement = defineAsyncComponent(() => import('./components/AdminJobPostManagement.vue'))
@@ -86,6 +88,11 @@ const handleMenuSelect = (key: string) => {
               <el-icon><Document /></el-icon>
               <span>科目管理</span>
             </el-menu-item>
+            <el-menu-item index="grades">
+              <el-icon><Document /></el-icon>
+              <span>年级管理</span>
+            </el-menu-item>
+
             <el-menu-item index="locations">
               <el-icon><Document /></el-icon>
               <span>授课地点</span>
@@ -156,12 +163,15 @@ const handleMenuSelect = (key: string) => {
       </div>
 
       <!-- 主要内容区域 -->
+
       <div class="admin-content">
         <div v-if="activeMenu === 'dashboard'" class="content-panel"><AdminDashboard /></div>
         <div v-if="activeMenu === 'students'" class="content-panel"><AdminStudentManagement /></div>
         <div v-if="activeMenu === 'teachers'" class="content-panel"><AdminTeacherManagement /></div>
         <div v-if="activeMenu === 'subjects'" class="content-panel"><AdminSubjectManagement /></div>
+        <div v-if="activeMenu === 'grades'" class="content-panel"><AdminGradeManagement /></div>
         <div v-if="activeMenu === 'locations'" class="content-panel"><AdminTeachingLocationManagement /></div>
+
 
         <div v-if="activeMenu === 'courses'" class="content-panel"><AdminCourseManagement /></div>
         <div v-if="activeMenu === 'course-evaluations'" class="content-panel"><AdminCourseEvaluationManagement /></div>

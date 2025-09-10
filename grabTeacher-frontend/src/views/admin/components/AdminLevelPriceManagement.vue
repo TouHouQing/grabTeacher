@@ -6,6 +6,8 @@ import { teacherLevelAPI } from '@/utils/api'
 interface TeacherLevel {
   id: number
   name: string
+  isActive?: boolean
+  sortOrder?: number
   createTime?: string
   updateTime?: string
   usageCount?: number
@@ -15,6 +17,8 @@ const loading = ref(false)
 const list = ref<TeacherLevel[]>([])
 const creating = ref(false)
 const newName = ref('')
+const newIsActive = ref(true)
+const newSortOrder = ref<number | null>(0)
 
 const fetchList = async () => {
   try {
@@ -41,10 +45,13 @@ const createLevel = async () => {
   }
   try {
     creating.value = true
-    const res = await teacherLevelAPI.create(newName.value.trim())
+    const payload = { name: newName.value.trim(), isActive: newIsActive.value, sortOrder: Number(newSortOrder.value ?? 0) }
+    const res = await teacherLevelAPI.create(payload)
     if (res.success) {
       ElMessage.success('创建成功')
       newName.value = ''
+      newIsActive.value = true
+      newSortOrder.value = 0
       await fetchList()
     } else {
       ElMessage.error(res.message || '创建失败')
@@ -58,7 +65,7 @@ const renameLevel = async (row: TeacherLevel) => {
   const { value } = await ElMessageBox.prompt('输入新的级别名称', '重命名', { inputValue: row.name })
   const name = (value || '').trim()
   if (!name) return
-  const res = await teacherLevelAPI.update(row.id, name)
+  const res = await teacherLevelAPI.update(row.id, { name })
   if (res.success) {
     ElMessage.success('更新成功')
     await fetchList()
@@ -77,6 +84,32 @@ const deleteLevel = async (row: TeacherLevel) => {
     ElMessage.error(res.message || '删除失败')
   }
 }
+
+const toggleActive = async (row: TeacherLevel) => {
+  const res = await teacherLevelAPI.update(row.id, { isActive: !row.isActive })
+  if (res.success) {
+    ElMessage.success('状态已更新')
+    await fetchList()
+  } else {
+    ElMessage.error(res.message || '更新状态失败')
+  }
+}
+
+const setSortOrder = async (row: TeacherLevel) => {
+  const { value } = await ElMessageBox.prompt('输入新的排序（数字，越小越靠前）', '设置排序', {
+    inputValue: String(row.sortOrder ?? 0),
+    inputPattern: /^\d+$/,
+    inputErrorMessage: '请输入非负整数'
+  })
+  const sortOrder = Number(value)
+  const res = await teacherLevelAPI.update(row.id, { sortOrder })
+  if (res.success) {
+    ElMessage.success('排序已更新')
+    await fetchList()
+  } else {
+    ElMessage.error(res.message || '更新排序失败')
+  }
+}
 </script>
 
 <template>
@@ -87,11 +120,19 @@ const deleteLevel = async (row: TeacherLevel) => {
     <el-card>
       <div style="margin-bottom:12px; display:flex; gap:8px; align-items:center;">
         <el-input v-model="newName" placeholder="输入级别名称" style="width:240px" />
+        <el-switch v-model="newIsActive" active-text="启用" inactive-text="停用" />
+        <el-input-number v-model="newSortOrder" :min="0" :step="1" placeholder="排序" />
         <el-button type="primary" :loading="creating" @click="createLevel">新增级别</el-button>
       </div>
       <el-table :data="list" v-loading="loading" style="width: 100%">
         <el-table-column prop="id" label="ID" width="80" align="center" />
         <el-table-column prop="name" label="级别名称" min-width="160" />
+        <el-table-column prop="isActive" label="状态" width="120" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.isActive ? 'success' : 'info'">{{ row.isActive ? '启用' : '停用' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="sortOrder" label="排序" width="100" align="center" />
         <el-table-column prop="usageCount" label="使用数量" width="120" align="center">
           <template #default="{ row }">
             {{ row.usageCount ?? 0 }}
@@ -107,9 +148,11 @@ const deleteLevel = async (row: TeacherLevel) => {
             {{ row.updateTime ? new Date(row.updateTime).toLocaleString() : '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" align="center">
+        <el-table-column label="操作" width="300" align="center">
           <template #default="{ row }">
             <el-button size="small" @click="renameLevel(row)">重命名</el-button>
+            <el-button size="small" @click="() => toggleActive(row)">{{ row.isActive ? '停用' : '启用' }}</el-button>
+            <el-button size="small" @click="() => setSortOrder(row)">设排序</el-button>
             <el-button size="small" type="danger" @click="deleteLevel(row)">删除</el-button>
           </template>
         </el-table-column>

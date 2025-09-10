@@ -55,9 +55,17 @@ public class Teacher {
     private String gender;
 
 
-    @Schema(description = "教师级别", allowableValues = {"王牌", "金牌", "银牌", "铜牌"})
+    @Schema(description = "教师级别（从教师级别表选择）")
     @TableField("level")
     private String level;
+
+    @TableField("supports_online")
+    @Schema(description = "是否支持线上授课", example = "true")
+    private Boolean supportsOnline;
+
+    @TableField("teaching_locations")
+    @Schema(description = "授课地点ID列表，逗号分隔；为空代表无线下地点")
+    private String teachingLocations;
 
     @TableField("available_time_slots")
     @Schema(description = "可上课时间安排", example = "[{\"weekday\":1,\"timeSlots\":[\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":6,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\"]}]")

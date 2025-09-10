@@ -43,13 +43,20 @@ public class TeacherLevelController {
             Long cnt = teacherMapper.selectCount(new QueryWrapper<Teacher>()
                     .eq("level", lvl.getName())
                     .eq("is_deleted", false));
-            TeacherLevelVO vo = new TeacherLevelVO(lvl.getId(), lvl.getName(), lvl.getCreateTime(), lvl.getUpdateTime(), cnt);
+            TeacherLevelVO vo = new TeacherLevelVO();
+            vo.setId(lvl.getId());
+            vo.setName(lvl.getName());
+            vo.setIsActive(lvl.getIsActive());
+            vo.setSortOrder(lvl.getSortOrder());
+            vo.setCreateTime(lvl.getCreateTime());
+            vo.setUpdateTime(lvl.getUpdateTime());
+            vo.setUsageCount(cnt);
             result.add(vo);
         }
         return ResponseEntity.ok(CommonResult.success("获取成功", result));
     }
 
-    @Operation(summary = "新增", description = "创建新的教师级别，仅需名称")
+    @Operation(summary = "新增", description = "创建新的教师级别")
     @PostMapping
     public ResponseEntity<CommonResult<TeacherLevel>> create(@RequestBody TeacherLevel req) {
         if (req == null || !StringUtils.hasText(req.getName())) {
@@ -57,6 +64,8 @@ public class TeacherLevelController {
         }
         TeacherLevel entity = new TeacherLevel();
         entity.setName(req.getName().trim());
+        entity.setIsActive(req.getIsActive() != null ? req.getIsActive() : Boolean.TRUE);
+        entity.setSortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0);
         entity.setCreateTime(LocalDateTime.now());
         entity.setUpdateTime(LocalDateTime.now());
         boolean ok = teacherLevelService.save(entity);
@@ -72,14 +81,21 @@ public class TeacherLevelController {
         if (id == null || id <= 0) {
             return ResponseEntity.badRequest().body(CommonResult.error("ID不合法"));
         }
-        if (req == null || !StringUtils.hasText(req.getName())) {
-            return ResponseEntity.badRequest().body(CommonResult.error("级别名称不能为空"));
-        }
         TeacherLevel entity = teacherLevelService.getById(id);
         if (entity == null) {
             return ResponseEntity.badRequest().body(CommonResult.error("级别不存在"));
         }
-        entity.setName(req.getName().trim());
+        if (req != null) {
+            if (StringUtils.hasText(req.getName())) {
+                entity.setName(req.getName().trim());
+            }
+            if (req.getIsActive() != null) {
+                entity.setIsActive(req.getIsActive());
+            }
+            if (req.getSortOrder() != null) {
+                entity.setSortOrder(req.getSortOrder());
+            }
+        }
         entity.setUpdateTime(LocalDateTime.now());
         boolean ok = teacherLevelService.updateById(entity);
         if (!ok) {

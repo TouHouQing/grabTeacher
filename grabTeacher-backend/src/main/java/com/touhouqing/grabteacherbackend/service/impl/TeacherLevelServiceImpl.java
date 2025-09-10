@@ -12,7 +12,10 @@ import java.util.List;
 public class TeacherLevelServiceImpl extends ServiceImpl<TeacherLevelMapper, TeacherLevel> implements TeacherLevelService {
     @Override
     public List<TeacherLevel> listAll() {
-        return this.lambdaQuery().orderByAsc(TeacherLevel::getId).list();
+        return this.lambdaQuery()
+                .orderByAsc(TeacherLevel::getSortOrder)
+                .orderByAsc(TeacherLevel::getId)
+                .list();
     }
 }
 

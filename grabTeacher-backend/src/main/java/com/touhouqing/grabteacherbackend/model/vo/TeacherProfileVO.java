@@ -63,6 +63,16 @@ public class TeacherProfileVO {
     @Schema(description = "可上课时间安排")
     private List<TimeSlotDTO> availableTimeSlots;
 
+
+    @Schema(description = "是否支持线上授课", example = "true")
+    private Boolean supportsOnline;
+
+    @Schema(description = "线下授课地点ID列表", example = "[1,2,3]")
+    private List<Long> teachingLocationIds;
+
+    @Schema(description = "线下授课地点CSV（兼容字段）", example = "1,2,3")
+    private String teachingLocations;
+
     @Schema(description = "是否已认证", example = "true")
     private Boolean verified;
 

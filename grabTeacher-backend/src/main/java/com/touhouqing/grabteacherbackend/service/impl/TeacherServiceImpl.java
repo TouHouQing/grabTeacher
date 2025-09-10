@@ -19,9 +19,12 @@ import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.SubjectMapper;
 
+import com.touhouqing.grabteacherbackend.mapper.TeachingLocationMapper;
+
 import com.touhouqing.grabteacherbackend.mapper.UserMapper;
 import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
 import com.touhouqing.grabteacherbackend.mapper.RescheduleRequestMapper;
+import com.touhouqing.grabteacherbackend.mapper.HourDetailMapper;
 import com.touhouqing.grabteacherbackend.service.SubjectService;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
 import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
@@ -37,7 +40,9 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -56,7 +61,10 @@ public class TeacherServiceImpl implements TeacherService {
     private final StudentMapper studentMapper;
     private final UserMapper userMapper;
     private final BookingRequestMapper bookingRequestMapper;
+    private final TeachingLocationMapper teachingLocationMapper;
+
     private final RescheduleRequestMapper rescheduleRequestMapper;
+    private final HourDetailMapper hourDetailMapper;
 
     private final TeacherScheduleCacheService teacherScheduleCacheService;
     private final SubjectMapper subjectMapper;
@@ -177,6 +185,19 @@ public class TeacherServiceImpl implements TeacherService {
         User user = userMapper.selectById(teacher.getUserId());
         String birthDate = user != null ? user.getBirthDate() : null;
         String avatarUrl = user != null ? user.getAvatarUrl() : null;
+        // 兼容：计算 supportsOnline 与线下地点ID列表
+        Boolean supportsOnline = teacher.getSupportsOnline();
+        if (supportsOnline == null) {
+            supportsOnline = (teacher.getTeachingLocations() == null || teacher.getTeachingLocations().isEmpty());
+        }
+        java.util.List<Long> offlineLocationIds = new java.util.ArrayList<>();
+        if (teacher.getTeachingLocations() != null && !teacher.getTeachingLocations().isEmpty()) {
+            offlineLocationIds = java.util.Arrays.stream(teacher.getTeachingLocations().split(","))
+                    .filter(s -> s != null && !s.isEmpty())
+                    .map(Long::valueOf)
+                    .collect(java.util.stream.Collectors.toList());
+        }
+
 
         return TeacherProfileVO.builder()
                 .id(teacher.getId())
@@ -192,6 +213,9 @@ public class TeacherServiceImpl implements TeacherService {
                 .gender(teacher.getGender())
                 .avatarUrl(avatarUrl)
                 .availableTimeSlots(availableTimeSlots)
+                .supportsOnline(supportsOnline)
+                .teachingLocationIds(offlineLocationIds)
+                .teachingLocations(teacher.getTeachingLocations())
                 .verified(teacher.getVerified())
                 .adjustmentTimes(user != null ? user.getAdjustmentTimes() : null)
                 .deleted(teacher.getDeleted())
@@ -457,7 +481,7 @@ public class TeacherServiceImpl implements TeacherService {
         if (request.getIntroduction() != null) {
             teacher.setIntroduction(request.getIntroduction());
         }
-        
+
         // 教师不可修改科目（仅管理员可改）
         if (request.getSubjectIds() != null) {
             log.warn("教师尝试修改科目被忽略, userId={}, subjectIds={}", userId, request.getSubjectIds());
@@ -466,6 +490,31 @@ public class TeacherServiceImpl implements TeacherService {
             log.warn("教师尝试修改视频链接被忽略, userId={}", userId);
         }
         // 教师不可修改性别（仅管理员可改）
+
+        // 教师不可修改级别（仅管理员可改）
+        if (request.getLevel() != null) {
+            log.warn("教师尝试修改级别被忽略, userId={}", userId);
+        }
+        // 教师可以修改授课地点：supportsOnline 为线上开关；线下地点必须来源于授课地点表且启用
+        if (request.getSupportsOnline() != null) {
+            teacher.setSupportsOnline(Boolean.TRUE.equals(request.getSupportsOnline()));
+        }
+        if (request.getTeachingLocationIds() != null) {
+            if (request.getTeachingLocationIds().isEmpty()) {
+                // 空表示无任何线下地点
+                teacher.setTeachingLocations(null);
+            } else {
+                List<Long> ids = request.getTeachingLocationIds();
+                QueryWrapper<TeachingLocation> q = new QueryWrapper<>();
+                q.in("id", ids).eq("is_active", true);
+                Long cnt = teachingLocationMapper.selectCount(q);
+                if (cnt == null || cnt.intValue() != ids.size()) {
+                    throw new RuntimeException("存在无效或未启用的授课地点");
+                }
+                teacher.setTeachingLocations(ids.stream().map(String::valueOf).collect(Collectors.joining(",")));
+            }
+        }
+
         if (request.getGender() != null) {
             log.warn("教师尝试修改性别被忽略, userId={}", userId);
         }
@@ -543,16 +592,15 @@ public class TeacherServiceImpl implements TeacherService {
     private List<Teacher> matchTeachersOptimized(TeacherMatchDTO request) {
         // 智能匹配功能只匹配提供1对1课程的教师
 
-        // 如果指定了科目，使用联合查询
-        if (StringUtils.hasText(request.getSubject())) {
-            return teacherMapper.findOneOnOneTeachersBySubject(request.getSubject());
+        // 如果指定了科目和教师级别，使用联合查询
+        if (StringUtils.hasText(request.getSubject()) && StringUtils.hasText(request.getTeacherLevel())) {
+            return teacherMapper.findOneOnOneTeachersBySubjectAndLevel(request.getSubject(), request.getTeacherLevel());
         }
 
         // 如果只指定了科目
         if (StringUtils.hasText(request.getSubject())) {
             return teacherMapper.findOneOnOneTeachersBySubject(request.getSubject());
         }
-
 
         // 如果都没指定，返回所有提供1对1课程的已认证教师
         return teacherMapper.findAllOneOnOneTeachers();
@@ -1325,14 +1373,112 @@ public class TeacherServiceImpl implements TeacherService {
         bookingWrapper.eq("is_deleted", false);
         Long bookingRequests = bookingRequestMapper.selectCount(bookingWrapper);
 
+        // 5. 本月调课/请假次数 - 查询教师本月发起的调课申请
+        LocalDate now = LocalDate.now();
+        LocalDate startOfMonth = now.withDayOfMonth(1);
+        LocalDate endOfMonth = now.withDayOfMonth(now.lengthOfMonth());
+
+        QueryWrapper<RescheduleRequest> monthlyRescheduleWrapper = new QueryWrapper<>();
+        monthlyRescheduleWrapper.eq("applicant_id", teacher.getId());
+        monthlyRescheduleWrapper.eq("applicant_type", "teacher");
+        monthlyRescheduleWrapper.ge("created_at", startOfMonth.atStartOfDay());
+        monthlyRescheduleWrapper.le("created_at", endOfMonth.atTime(23, 59, 59));
+        monthlyRescheduleWrapper.eq("is_deleted", false);
+        Long monthlyRescheduleCount = rescheduleRequestMapper.selectCount(monthlyRescheduleWrapper);
+
+        // 6. 本月课时和上月课时
+        BigDecimal currentHours = teacher.getCurrentHours() != null ? teacher.getCurrentHours() : BigDecimal.ZERO;
+        BigDecimal lastHours = teacher.getLastHours() != null ? teacher.getLastHours() : BigDecimal.ZERO;
+
         statistics.put("rescheduleRequests", rescheduleRequestsCount);
         statistics.put("totalCourses", totalCourses != null ? totalCourses.intValue() : 0);
         statistics.put("upcomingClasses", upcomingClasses != null ? upcomingClasses.intValue() : 0);
         statistics.put("bookingRequests", bookingRequests != null ? bookingRequests.intValue() : 0);
+        statistics.put("monthlyRescheduleCount", monthlyRescheduleCount != null ? monthlyRescheduleCount.intValue() : 0);
+        statistics.put("currentHours", currentHours);
+        statistics.put("lastHours", lastHours);
 
         log.info("获取教师统计数据成功: userId={}, statistics={}", userId, statistics);
 
         return statistics;
+    }
+
+    /**
+     * 获取教师课时详情统计
+     */
+    @Override
+    public Map<String, Object> getHourDetailsSummary(Long userId) {
+        Map<String, Object> summary = new HashMap<>();
+
+        // 获取教师信息
+        Teacher teacher = getTeacherByUserId(userId);
+        if (teacher == null) {
+            throw new RuntimeException("教师信息不存在");
+        }
+
+        // 获取本月时间范围
+        LocalDate now = LocalDate.now();
+        LocalDate startOfMonth = now.withDayOfMonth(1);
+        LocalDate endOfMonth = now.withDayOfMonth(now.lengthOfMonth());
+        LocalDateTime startDateTime = startOfMonth.atStartOfDay();
+        LocalDateTime endDateTime = endOfMonth.atTime(23, 59, 59);
+
+        // 1. 正常上课的课时数 - 查询课程完成自动结算的记录
+        QueryWrapper<HourDetail> normalHoursWrapper = new QueryWrapper<>();
+        normalHoursWrapper.eq("user_id", userId);
+        normalHoursWrapper.eq("reason", "课程完成自动结算");
+        normalHoursWrapper.ge("created_at", startDateTime);
+        normalHoursWrapper.le("created_at", endDateTime);
+        List<HourDetail> normalHoursList = hourDetailMapper.selectList(normalHoursWrapper);
+        BigDecimal normalHours = normalHoursList.stream()
+                .map(HourDetail::getHours)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 2. 教师超出调课/请假次数后所扣课时 - 查询教师调课扣课时记录
+        QueryWrapper<HourDetail> teacherDeductionWrapper = new QueryWrapper<>();
+        teacherDeductionWrapper.eq("user_id", userId);
+        teacherDeductionWrapper.like("reason", "教师调课扣课时");
+        teacherDeductionWrapper.ge("created_at", startDateTime);
+        teacherDeductionWrapper.le("created_at", endDateTime);
+        List<HourDetail> teacherDeductionList = hourDetailMapper.selectList(teacherDeductionWrapper);
+        BigDecimal teacherDeduction = teacherDeductionList.stream()
+                .map(HourDetail::getHours)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 3. 学生超出调课/请假次数的补偿课时 - 查询学生调课补偿记录
+        QueryWrapper<HourDetail> studentCompensationWrapper = new QueryWrapper<>();
+        studentCompensationWrapper.eq("user_id", userId);
+        studentCompensationWrapper.like("reason", "学生调课补偿");
+        studentCompensationWrapper.ge("created_at", startDateTime);
+        studentCompensationWrapper.le("created_at", endDateTime);
+        List<HourDetail> studentCompensationList = hourDetailMapper.selectList(studentCompensationWrapper);
+        BigDecimal studentCompensation = studentCompensationList.stream()
+                .map(HourDetail::getHours)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 4. Admin手动调整记录 - 查询有操作员ID的记录
+        QueryWrapper<HourDetail> adminAdjustmentWrapper = new QueryWrapper<>();
+        adminAdjustmentWrapper.eq("user_id", userId);
+        adminAdjustmentWrapper.isNotNull("operator_id");
+        adminAdjustmentWrapper.ge("created_at", startDateTime);
+        adminAdjustmentWrapper.le("created_at", endDateTime);
+        List<HourDetail> adminAdjustmentList = hourDetailMapper.selectList(adminAdjustmentWrapper);
+        BigDecimal adminAdjustment = adminAdjustmentList.stream()
+                .map(HourDetail::getHours)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 5. 总课时 = 正常课时 + 学生补偿 - 教师扣除 + 管理员调整
+        BigDecimal totalHours = normalHours.add(studentCompensation).subtract(teacherDeduction).add(adminAdjustment);
+
+        summary.put("normalHours", normalHours);
+        summary.put("teacherDeduction", teacherDeduction.abs()); // 取绝对值显示
+        summary.put("studentCompensation", studentCompensation);
+        summary.put("adminAdjustment", adminAdjustment);
+        summary.put("totalHours", totalHours);
+
+        log.info("获取教师课时详情统计成功: userId={}, summary={}", userId, summary);
+
+        return summary;
     }
 
     /**

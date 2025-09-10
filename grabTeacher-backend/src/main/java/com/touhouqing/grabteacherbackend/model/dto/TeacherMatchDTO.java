@@ -15,13 +15,13 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class TeacherMatchDTO {
-    
+
     /**
      * 科目名称
      */
     private String subject;
-    
-    
+
+
     /**
      * 偏好时间
      */
@@ -51,6 +51,17 @@ public class TeacherMatchDTO {
      * 偏好的教师性别
      */
     private String preferredGender;
+
+    /**
+     * 偏好的教师级别
+     */
+    private String teacherLevel;
+
+    /**
+     * 年级
+     */
+    private String grade;
+
 
     /**
      * 返回结果数量限制（至少5）

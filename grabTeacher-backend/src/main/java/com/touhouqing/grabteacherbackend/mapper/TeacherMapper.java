@@ -42,6 +42,20 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
     List<Teacher> findOneOnOneTeachersBySubject(@Param("subject") String subject);
 
     /**
+     * 根据科目和教师级别查找提供1对1课程的教师 - 智能匹配专用
+     */
+    @Select("SELECT DISTINCT t.* FROM teachers t " +
+            "INNER JOIN teacher_subjects ts ON t.id = ts.teacher_id " +
+            "INNER JOIN subjects s ON ts.subject_id = s.id " +
+            "INNER JOIN courses c ON t.id = c.teacher_id " +
+            "WHERE t.is_deleted = 0 AND t.is_verified = 1 " +
+            "AND s.name = #{subject} AND s.is_deleted = 0 " +
+            "AND t.level = #{teacherLevel} " +
+            "AND c.is_deleted = 0 AND c.status = 'active' AND c.course_type = 'one_on_one' " +
+            "ORDER BY t.teaching_experience DESC")
+    List<Teacher> findOneOnOneTeachersBySubjectAndLevel(@Param("subject") String subject, @Param("teacherLevel") String teacherLevel);
+
+    /**
      * 按科目分页查询教师并支持关键字过滤（SQL端分页）
      */
     @Select({

@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 @TableName("booking_requests")
 @Schema(description = "预约申请实体")
 public class BookingRequest {
-    
+
     @TableId(type = IdType.AUTO)
     @Schema(description = "预约申请ID", example = "1")
     private Long id;
@@ -78,6 +78,12 @@ public class BookingRequest {
     @TableField("student_requirements")
     @Schema(description = "学生需求说明", example = "希望重点提高数学成绩")
     private String studentRequirements;
+
+
+    @TableField(exist = false)
+    @Schema(description = "年级（不入库，仅用于流程传递）", example = "高一")
+    private String grade;
+
 
     @Builder.Default
     @Schema(description = "申请状态", example = "pending", allowableValues = {"pending", "approved", "rejected", "cancelled"})

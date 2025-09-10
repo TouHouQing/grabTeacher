@@ -169,6 +169,31 @@ export const teachingLocationAPI = {
     apiRequest(`/api/admin/teaching-locations/${id}/status?isActive=${isActive}`, { method: 'PATCH' })
 }
 
+// 年级管理 API（仅管理员）
+export const gradeAPI = {
+  // 获取年级列表
+  getList: (params: any) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null && v !== '') searchParams.append(key, v.toString())
+    })
+    return apiRequest(`/api/admin/grades?${searchParams}`)
+  },
+  // 创建年级
+  create: (data: { name: string; isActive?: boolean; sortOrder?: number }) =>
+    apiRequest('/api/admin/grades', { method: 'POST', body: JSON.stringify(data) }),
+  // 更新年级
+  update: (id: number, data: { name?: string; isActive?: boolean; sortOrder?: number }) =>
+    apiRequest(`/api/admin/grades/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  // 删除年级
+  delete: (id: number) => apiRequest(`/api/admin/grades/${id}`, { method: 'DELETE' }),
+  // 更新启用状态
+  updateStatus: (id: number, isActive: boolean) =>
+    apiRequest(`/api/admin/grades/${id}/status?isActive=${isActive}`, { method: 'PATCH' })
+}
+
+
 
 // 学生管理 API
 export const studentAPI = {
@@ -303,6 +328,9 @@ export const teacherAPI = {
     level?: string
     availableTimeSlots?: any[]
     avatarUrl?: string
+    // 授课地点
+    supportsOnline?: boolean
+    teachingLocationIds?: number[]
   }) => apiRequest('/api/admin/teachers', {
     method: 'POST',
     body: JSON.stringify(data)
@@ -324,6 +352,9 @@ export const teacherAPI = {
     gender?: string
     level?: string
     availableTimeSlots?: any[]
+    // 授课地点
+    supportsOnline?: boolean
+    teachingLocationIds?: number[]
   }) => apiRequest(`/api/admin/teachers/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)
@@ -367,6 +398,8 @@ export const teacherAPI = {
   // 匹配教师
   matchTeachers: (data: {
     subject?: string
+    grade?: string
+    teacherLevel?: string
     preferredTime?: string
     preferredDateStart?: string
     preferredDateEnd?: string
@@ -483,6 +516,9 @@ export const teacherAPI = {
     return apiRequest(`/api/teacher/hour-details/my${query ? `?${query}` : ''}`)
   },
 
+  // 获取教师课时详情统计
+  getHourDetails: () => apiRequest('/api/teacher/hour-details/summary'),
+
   // 验证学生预约时间匹配度
   validateBookingTime: (teacherId: number, data: {
     weekdays: number[]
@@ -518,6 +554,7 @@ export const bookingAPI = {
     endDate?: string
     totalTimes?: number
     studentRequirements?: string
+    grade?: string
     trial?: boolean // 兼容旧字段
     isTrial?: boolean // 后端DTO字段名
     trialDurationMinutes?: number
@@ -1215,7 +1252,20 @@ export const teacherHourDetailsAPI = {
 // 级别价格 API（仅管理员）
 export const teacherLevelAPI = {
   list: () => apiRequest('/api/admin/teacher-levels'),
-  create: (name: string) => apiRequest('/api/admin/teacher-levels', { method: 'POST', body: JSON.stringify({ name }) }),
-  update: (id: number, name: string) => apiRequest(`/api/admin/teacher-levels/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+  create: (data: { name: string; isActive?: boolean; sortOrder?: number }) =>
+    apiRequest('/api/admin/teacher-levels', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, data: { name?: string; isActive?: boolean; sortOrder?: number }) =>
+    apiRequest(`/api/admin/teacher-levels/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   remove: (id: number) => apiRequest(`/api/admin/teacher-levels/${id}`, { method: 'DELETE' })
+}
+
+// 公开教师级别 API（学生端使用）
+
+// 公开年级 API（学生端使用）
+export const publicGradeAPI = {
+  list: () => apiRequest('/api/public/grades')
+}
+
+export const publicTeacherLevelAPI = {
+  list: () => apiRequest('/api/public/teacher-levels')
 }

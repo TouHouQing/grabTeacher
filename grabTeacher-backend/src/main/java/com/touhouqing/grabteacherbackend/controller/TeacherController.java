@@ -127,6 +127,23 @@ public class TeacherController {
     }
 
     /**
+     * 获取教师课时详情统计
+     */
+    @GetMapping("/hour-details/summary")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<CommonResult<Map<String, Object>>> getHourDetailsSummary(Authentication authentication) {
+        try {
+            UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+            Map<String, Object> summary = teacherService.getHourDetailsSummary(principal.getId());
+            return ResponseEntity.ok(CommonResult.success("获取成功", summary));
+        } catch (Exception e) {
+            logger.error("获取教师课时详情统计异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
+        }
+    }
+
+    /**
      * 更新教师信息
      */
     @PutMapping("/profile")

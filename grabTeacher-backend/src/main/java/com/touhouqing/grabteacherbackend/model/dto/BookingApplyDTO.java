@@ -21,7 +21,7 @@ import java.util.List;
 @Builder
 @Schema(description = "预约申请请求参数")
 public class BookingApplyDTO {
-    
+
     @NotNull(message = "教师ID不能为空")
     @Schema(description = "教师ID", example = "1")
     private Long teacherId;
@@ -61,6 +61,10 @@ public class BookingApplyDTO {
 
     @Schema(description = "学生需求说明", example = "希望重点提高数学成绩")
     private String studentRequirements;
+
+    @Schema(description = "年级", example = "高一")
+    private String grade;
+
 
     @Builder.Default
     @Schema(description = "是否为免费试听课（试听课次数有限，固定30分钟）", example = "false")

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, defineAsyncComponent, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Timer, Refresh, VideoCamera, InfoFilled, Clock, Collection, Reading, Star } from '@element-plus/icons-vue'
 import { bookingAPI, rescheduleAPI, teacherAPI, studentAPI, apiRequest, suspensionAPI, enrollmentAPI } from '../../../utils/api'
@@ -306,6 +306,7 @@ const getSubjectImage = (subject: string): string => {
 // 组件挂载时加载数据
 onMounted(() => {
   loadStudentSchedules()
+  loadBookings()
   // 延迟并行加载非关键数据，避免首屏并发四个请求
   setTimeout(async () => {
     try {
@@ -323,13 +324,73 @@ onMounted(() => {
 })
 
 // 课程过滤状态
-const activeTab = ref('all')
+const activeTab = ref('active')
+
+// 预约相关接口
+interface BookingRequest {
+  id: number
+  teacherName: string
+  courseTitle?: string
+  subjectName?: string
+  courseDurationMinutes?: number
+  bookingType: 'single' | 'recurring'
+  requestedDate?: string
+  requestedStartTime?: string
+  requestedEndTime?: string
+  recurringWeekdays?: number[]
+  recurringTimeSlots?: string[]
+  startDate?: string
+  endDate?: string
+  totalTimes?: number
+  studentRequirements?: string
+  teacherReply?: string
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+  isTrial?: boolean
+  trialDurationMinutes?: number
+  createdAt: string
+}
+
+// 预约相关数据
+const bookings = ref<BookingRequest[]>([])
+const bookingLoading = ref(false)
+const statusFilter = ref('')
+
+// 分页数据
+const pagination = reactive({
+  current: 1,
+  size: 10,
+  total: 0
+})
+
+// 弹窗相关
+const showDetailModal = ref(false)
+const selectedBooking = ref<BookingRequest | null>(null)
+
+// 统计信息
+const bookingStats = computed(() => {
+  const total = bookings.value.length
+  const pending = bookings.value.filter(b => b.status === 'pending').length
+  const approved = bookings.value.filter(b => b.status === 'approved').length
+  const trial = bookings.value.filter(b => b.isTrial).length
+
+  return { total, pending, approved, trial }
+})
 
 // 根据标签筛选课程
 const filteredCourses = computed(() => {
-  if (activeTab.value === 'all') return courses.value
   if (activeTab.value === 'suspended') return courses.value.filter(isCourseSuspended)
+  if (activeTab.value === 'pending' || activeTab.value === 'approved') return []
   return courses.value.filter(course => course.status === activeTab.value)
+})
+
+// 根据标签筛选预约
+const filteredBookings = computed(() => {
+  if (activeTab.value === 'pending') {
+    return bookings.value.filter(b => b.status === 'pending')
+  } else if (activeTab.value === 'approved') {
+    return bookings.value.filter(b => b.status === 'approved')
+  }
+  return []
 })
 
 // 当前查看的课程详情
@@ -1414,6 +1475,19 @@ const formatScheduleDate = (dateStr: string): string => {
   return `${year}年${month}月${day}日 ${weekday}`
 }
 
+// 格式化日期时间
+const formatDateTime = (dateTimeStr: string) => {
+  if (!dateTimeStr) return ''
+  const date = new Date(dateTimeStr)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 // 获取课程状态对应的CSS类
 const getScheduleStatusClass = (status: string): string => {
   switch (status) {
@@ -1729,17 +1803,6 @@ const getGradeLevel = (score: number): string => {
   return '不及格'
 }
 
-// 格式化日期时间
-const formatDateTime = (dateTime: string): string => {
-  const date = new Date(dateTime)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
 
 // 进入课堂
 const enterClassroom = (course: Course) => {
@@ -1749,6 +1812,107 @@ const enterClassroom = (course: Course) => {
     ElMessage.warning('该课程还未开始')
   } else {
     ElMessage.info('该课程已结束')
+  }
+}
+
+// ================= 预约相关方法 =================
+
+// 加载预约申请
+const loadBookings = async () => {
+  bookingLoading.value = true
+  try {
+    const result = await bookingAPI.getStudentRequests({
+      page: pagination.current,
+      size: pagination.size,
+      status: statusFilter.value
+    })
+
+    if (result.success && result.data) {
+      bookings.value = result.data.records || []
+      pagination.total = result.data.total || 0
+    } else {
+      ElMessage.error(result.message || '获取预约申请失败')
+    }
+  } catch (error) {
+    console.error('获取预约申请失败:', error)
+    ElMessage.error('获取预约申请失败，请稍后重试')
+  } finally {
+    bookingLoading.value = false
+  }
+}
+
+// 查看预约详情
+const viewBookingDetail = (booking: BookingRequest) => {
+  selectedBooking.value = booking
+  showDetailModal.value = true
+}
+
+// 关闭详情弹窗
+const closeDetailModal = () => {
+  showDetailModal.value = false
+  selectedBooking.value = null
+}
+
+// 取消预约
+const cancelBooking = async (booking: BookingRequest) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要取消这个预约申请吗？取消后无法恢复。',
+      '确认取消',
+      {
+        confirmButtonText: '确定取消',
+        cancelButtonText: '我再想想',
+        type: 'warning'
+      }
+    )
+
+    const result = await bookingAPI.cancel(booking.id)
+    if (result.success) {
+      ElMessage.success('预约申请已取消')
+      loadBookings()
+      if (showDetailModal.value) {
+        closeDetailModal()
+      }
+    } else {
+      ElMessage.error(result.message || '取消失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('取消预约失败:', error)
+      ElMessage.error('取消失败，请稍后重试')
+    }
+  }
+}
+
+// 工具函数
+
+const formatRecurringTime = (weekdays: number[], timeSlots: string[]) => {
+  if (!weekdays || !timeSlots) return ''
+
+  const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  const dayNames = weekdays.map(day => weekdayNames[day]).join('、')
+  const times = timeSlots.join('、')
+
+  return `每周${dayNames} ${times}`
+}
+
+const getStatusTagType = (status: string) => {
+  switch (status) {
+    case 'pending': return 'warning'
+    case 'approved': return 'success'
+    case 'rejected': return 'danger'
+    case 'cancelled': return 'info'
+    default: return 'info'
+  }
+}
+
+const getStatusText = (status: string) => {
+  switch (status) {
+    case 'pending': return '待审批'
+    case 'approved': return '已通过'
+    case 'rejected': return '已拒绝'
+    case 'cancelled': return '已取消'
+    default: return '未知'
   }
 }
 </script>
@@ -1766,105 +1930,6 @@ export default {
     <!-- 课程分类标签 -->
     <div class="course-tabs">
       <el-tabs v-model="activeTab" type="border-card">
-        <el-tab-pane label="全部课程" name="all">
-          <div class="tab-content">
-            <div v-if="loading" class="loading-container">
-              <el-skeleton :rows="3" animated />
-            </div>
-            <el-empty v-else-if="filteredCourses.length === 0" description="暂无课程">
-              <el-button type="primary" @click="loadStudentSchedules">刷新</el-button>
-            </el-empty>
-            <div v-else class="courses-grid">
-              <el-card v-for="course in filteredCourses" :key="course.id" class="course-card" :body-style="{ padding: '0px' }">
-                <div class="course-image">
-                  <img :src="$getImageUrl(course.image)" :alt="course.title">
-                  <div class="course-status">
-                    <el-tag size="small" :type="course.status === 'active' ? 'success' : course.status === 'upcoming' ? 'warning' : 'info'">
-                      {{ course.status === 'active' ? '进行中' : course.status === 'upcoming' ? '即将开始' : '已完成' }}
-                    </el-tag>
-                  </div>
-                  <!-- 调课/停课申请状态标签 -->
-                  <div v-if="getRescheduleStatus(course.id) || getSuspensionStatus(course.id)" class="reschedule-status-tag">
-                    <el-tag type="warning" size="small">{{ getSuspensionStatus(course.id) || getRescheduleStatus(course.id) }}</el-tag>
-                  </div>
-                </div>
-                <div class="course-content">
-                  <h3 class="course-title">{{ course.title }}</h3>
-                  <div class="course-teacher">
-                    <el-avatar :size="30" :src="$getImageUrl(course.teacherAvatar)"></el-avatar>
-                    <span>{{ course.teacher }}</span>
-                  </div>
-                  <div class="course-progress">
-                    <div class="progress-info">
-                      <span class="progress-text">进度: {{ course.completedLessons }}/{{ course.totalLessons }} 课时</span>
-                      <span v-if="course.remainingLessons" class="remaining-lessons">
-                        剩余: {{ course.remainingLessons }} 课时
-                      </span>
-                    </div>
-                    <el-progress :percentage="course.progress" :status="course.progress === 100 ? 'success' : ''"></el-progress>
-                  </div>
-                  <div class="course-schedule">
-                    <div class="schedule-item">
-                      <el-icon><Calendar /></el-icon>
-                      <span>{{ course.schedule }}</span>
-                    </div>
-                    <div class="schedule-item">
-                      <el-icon><Timer /></el-icon>
-                      <span>下次课程: {{ course.nextClass }}</span>
-                    </div>
-                    <div class="schedule-item" v-if="course.durationMinutes">
-                      <el-icon><Clock /></el-icon>
-                      <span>课程时长: {{ course.durationMinutes === 90 ? '1.5小时' : '2小时' }}</span>
-                    </div>
-                  </div>
-                  <div class="course-actions">
-                    <el-button size="small" type="success" @click="showGradeChart(course)">
-                      <el-icon><Reading /></el-icon> 查看成绩
-                    </el-button>
-                    <el-button
-                      v-if="course.status === 'completed'"
-                      size="small"
-                      type="warning"
-                      @click="showCourseEvaluation(course)"
-                      :disabled="course.hasEvaluation"
-                    >
-                      <el-icon><Star /></el-icon> {{ course.hasEvaluation ? '已评价' : '评价课程' }}
-                    </el-button>
-                    <el-button
-                      v-else-if="course.remainingLessons && course.remainingLessons > 0 && !isCourseSuspended(course)"
-                      size="small"
-                      type="warning"
-                      @click="showReschedule(course)"
-                      :disabled="!!getRescheduleStatus(course.id)"
-                    >
-                      <el-icon><Refresh /></el-icon> 调课
-                    </el-button>
-                    <el-button
-                      v-if="(course.status === 'active' || course.status === 'upcoming') && course.remainingLessons && course.remainingLessons > 0 && !isCourseSuspended(course)"
-                      size="small"
-                      type="danger"
-                      @click="requestSuspension(course)"
-                      :disabled="!!getSuspensionStatus(course.id)"
-                    >
-                      停课
-                    </el-button>
-                    <el-button
-                      v-if="isCourseSuspended(course)"
-                      size="small"
-                      type="primary"
-                      @click="resumeCourse(course)"
-                    >
-                      恢复课程
-                    </el-button>
-                    <el-button size="small" type="info" @click="showCourseDetail(course)">
-                      <el-icon><InfoFilled /></el-icon> 详情
-                    </el-button>
-                  </div>
-                </div>
-              </el-card>
-            </div>
-          </div>
-        </el-tab-pane>
         <el-tab-pane label="进行中" name="active">
           <div class="tab-content">
             <el-empty v-if="filteredCourses.length === 0" description="暂无进行中的课程" />
@@ -2031,6 +2096,192 @@ export default {
                   </div>
                 </div>
               </el-card>
+            </div>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="待审核" name="pending">
+          <div class="tab-content">
+            <div v-if="bookingLoading" class="loading-container">
+              <el-skeleton :rows="3" animated />
+            </div>
+            <el-empty v-else-if="filteredBookings.length === 0" description="暂无待审核的预约" />
+            <div v-else class="booking-list">
+              <div v-for="booking in filteredBookings" :key="booking.id" class="booking-item">
+                <div class="booking-header">
+                  <div class="teacher-info">
+                    <el-avatar :size="48" style="margin-right: 12px;">
+                      {{ booking.teacherName?.charAt(0) || 'T' }}
+                    </el-avatar>
+                    <div class="teacher-details">
+                      <div class="teacher-name">{{ booking.teacherName }}</div>
+                      <div class="course-info">
+                        <div class="course-title">{{ booking.courseTitle || '自定义课程' }}</div>
+                        <div class="course-meta" v-if="booking.subjectName || booking.courseDurationMinutes">
+                          <el-tag v-if="booking.subjectName" size="small" type="primary">{{ booking.subjectName }}</el-tag>
+                          <el-tag v-if="booking.courseDurationMinutes" size="small" type="info">{{ booking.courseDurationMinutes }}分钟</el-tag>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="booking-status">
+                    <el-tag :type="getStatusTagType(booking.status)" size="large">
+                      {{ getStatusText(booking.status) }}
+                    </el-tag>
+                    <el-tag v-if="booking.isTrial" type="warning" size="small" style="margin-left: 8px;">
+                      试听课
+                    </el-tag>
+                  </div>
+                </div>
+
+                <div class="booking-content">
+                  <div class="booking-details">
+                    <div class="detail-row">
+                      <span class="label">预约类型：</span>
+                      <span class="value">{{ booking.bookingType === 'single' ? '单次预约' : '周期性预约' }}</span>
+                    </div>
+
+                    <div v-if="booking.bookingType === 'single'" class="detail-row">
+                      <span class="label">上课时间：</span>
+                      <span class="value">
+                        {{ booking.requestedDate }} {{ booking.requestedStartTime }}-{{ booking.requestedEndTime }}
+                      </span>
+                    </div>
+
+                    <div v-else class="detail-row">
+                      <span class="label">上课时间：</span>
+                      <span class="value">
+                        {{ formatRecurringTime(booking.recurringWeekdays, booking.recurringTimeSlots) }}
+                      </span>
+                    </div>
+
+                    <div v-if="booking.bookingType === 'recurring'" class="detail-row">
+                      <span class="label">课程周期：</span>
+                      <span class="value">
+                        {{ booking.startDate }} 至 {{ booking.endDate }}
+                        <span v-if="booking.totalTimes">（共{{ booking.totalTimes }}次课）</span>
+                      </span>
+                    </div>
+
+                    <div v-if="booking.studentRequirements" class="detail-row">
+                      <span class="label">学习需求：</span>
+                      <span class="value">{{ booking.studentRequirements }}</span>
+                    </div>
+
+                    <div class="detail-row">
+                      <span class="label">申请时间：</span>
+                      <span class="value">{{ formatDateTime(booking.createdAt) }}</span>
+                    </div>
+
+                    <div v-if="booking.teacherReply" class="detail-row">
+                      <span class="label">教师回复：</span>
+                      <span class="value teacher-reply">{{ booking.teacherReply }}</span>
+                    </div>
+                  </div>
+
+                  <div class="booking-actions">
+                    <el-button size="small" @click="viewBookingDetail(booking)">
+                      详情
+                    </el-button>
+                    <el-button
+                      v-if="booking.status === 'pending'"
+                      type="danger"
+                      size="small"
+                      @click="cancelBooking(booking)"
+                    >
+                      取消预约
+                    </el-button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="已审核" name="approved">
+          <div class="tab-content">
+            <div v-if="bookingLoading" class="loading-container">
+              <el-skeleton :rows="3" animated />
+            </div>
+            <el-empty v-else-if="filteredBookings.length === 0" description="暂无已审核的预约" />
+            <div v-else class="booking-list">
+              <div v-for="booking in filteredBookings" :key="booking.id" class="booking-item">
+                <div class="booking-header">
+                  <div class="teacher-info">
+                    <el-avatar :size="48" style="margin-right: 12px;">
+                      {{ booking.teacherName?.charAt(0) || 'T' }}
+                    </el-avatar>
+                    <div class="teacher-details">
+                      <div class="teacher-name">{{ booking.teacherName }}</div>
+                      <div class="course-info">
+                        <div class="course-title">{{ booking.courseTitle || '自定义课程' }}</div>
+                        <div class="course-meta" v-if="booking.subjectName || booking.courseDurationMinutes">
+                          <el-tag v-if="booking.subjectName" size="small" type="primary">{{ booking.subjectName }}</el-tag>
+                          <el-tag v-if="booking.courseDurationMinutes" size="small" type="info">{{ booking.courseDurationMinutes }}分钟</el-tag>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="booking-status">
+                    <el-tag :type="getStatusTagType(booking.status)" size="large">
+                      {{ getStatusText(booking.status) }}
+                    </el-tag>
+                    <el-tag v-if="booking.isTrial" type="warning" size="small" style="margin-left: 8px;">
+                      试听课
+                    </el-tag>
+                  </div>
+                </div>
+
+                <div class="booking-content">
+                  <div class="booking-details">
+                    <div class="detail-row">
+                      <span class="label">预约类型：</span>
+                      <span class="value">{{ booking.bookingType === 'single' ? '单次预约' : '周期性预约' }}</span>
+                    </div>
+
+                    <div v-if="booking.bookingType === 'single'" class="detail-row">
+                      <span class="label">上课时间：</span>
+                      <span class="value">
+                        {{ booking.requestedDate }} {{ booking.requestedStartTime }}-{{ booking.requestedEndTime }}
+                      </span>
+                    </div>
+
+                    <div v-else class="detail-row">
+                      <span class="label">上课时间：</span>
+                      <span class="value">
+                        {{ formatRecurringTime(booking.recurringWeekdays, booking.recurringTimeSlots) }}
+                      </span>
+                    </div>
+
+                    <div v-if="booking.bookingType === 'recurring'" class="detail-row">
+                      <span class="label">课程周期：</span>
+                      <span class="value">
+                        {{ booking.startDate }} 至 {{ booking.endDate }}
+                        <span v-if="booking.totalTimes">（共{{ booking.totalTimes }}次课）</span>
+                      </span>
+                    </div>
+
+                    <div v-if="booking.studentRequirements" class="detail-row">
+                      <span class="label">学习需求：</span>
+                      <span class="value">{{ booking.studentRequirements }}</span>
+                    </div>
+
+                    <div class="detail-row">
+                      <span class="label">申请时间：</span>
+                      <span class="value">{{ formatDateTime(booking.createdAt) }}</span>
+                    </div>
+
+                    <div v-if="booking.teacherReply" class="detail-row">
+                      <span class="label">教师回复：</span>
+                      <span class="value teacher-reply">{{ booking.teacherReply }}</span>
+                    </div>
+                  </div>
+
+                  <div class="booking-actions">
+                    <el-button size="small" @click="viewBookingDetail(booking)">
+                      详情
+                    </el-button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </el-tab-pane>
@@ -2426,6 +2677,106 @@ export default {
       <template #footer>
         <el-button @click="showResumeModal = false">取消</el-button>
         <el-button type="primary" @click="submitResumeBooking">提交</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 预约详情弹窗 -->
+    <el-dialog
+      v-model="showDetailModal"
+      title="预约详情"
+      width="600px"
+      :before-close="closeDetailModal"
+    >
+      <div v-if="selectedBooking" class="booking-detail">
+        <div class="detail-section">
+          <h3>基本信息</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>教师姓名：</label>
+              <span>{{ selectedBooking.teacherName }}</span>
+            </div>
+            <div class="detail-item">
+              <label>课程类型：</label>
+              <span>{{ selectedBooking.courseTitle || '自定义课程' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>预约类型：</label>
+              <span>{{ selectedBooking.bookingType === 'single' ? '单次预约' : '周期性预约' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>申请状态：</label>
+              <el-tag :type="getStatusTagType(selectedBooking.status)">
+                {{ getStatusText(selectedBooking.status) }}
+              </el-tag>
+            </div>
+            <div class="detail-item">
+              <label>是否试听：</label>
+              <span>
+                {{ selectedBooking.isTrial ? '是' : '否' }}
+                <el-tag v-if="selectedBooking.isTrial" type="warning" size="small" style="margin-left: 8px;">
+                  {{ selectedBooking.trialDurationMinutes }}分钟
+                </el-tag>
+              </span>
+            </div>
+            <div class="detail-item">
+              <label>申请时间：</label>
+              <span>{{ formatDateTime(selectedBooking.createdAt) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>时间安排</h3>
+          <div v-if="selectedBooking.bookingType === 'single'" class="time-info">
+            <div class="time-item">
+              <label>上课日期：</label>
+              <span>{{ selectedBooking.requestedDate }}</span>
+            </div>
+            <div class="time-item">
+              <label>上课时间：</label>
+              <span>{{ selectedBooking.requestedStartTime }} - {{ selectedBooking.requestedEndTime }}</span>
+            </div>
+          </div>
+          <div v-else class="time-info">
+            <div class="time-item">
+              <label>上课时间：</label>
+              <span>{{ formatRecurringTime(selectedBooking.recurringWeekdays, selectedBooking.recurringTimeSlots) }}</span>
+            </div>
+            <div class="time-item">
+              <label>课程周期：</label>
+              <span>{{ selectedBooking.startDate }} 至 {{ selectedBooking.endDate }}</span>
+            </div>
+            <div v-if="selectedBooking.totalTimes" class="time-item">
+              <label>总课程数：</label>
+              <span>{{ selectedBooking.totalTimes }}次</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="selectedBooking.studentRequirements" class="detail-section">
+          <h3>学习需求</h3>
+          <div class="requirements-content">
+            {{ selectedBooking.studentRequirements }}
+          </div>
+        </div>
+
+        <div v-if="selectedBooking.teacherReply" class="detail-section">
+          <h3>教师回复</h3>
+          <div class="reply-content">
+            {{ selectedBooking.teacherReply }}
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="closeDetailModal">关闭</el-button>
+        <el-button
+          v-if="selectedBooking && selectedBooking.status === 'pending'"
+          type="danger"
+          @click="cancelBooking(selectedBooking)"
+        >
+          取消预约
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -3447,6 +3798,194 @@ h2 {
   border-radius: 8px;
   border-left: 4px solid #409eff;
   line-height: 1.6;
+  color: #606266;
+}
+
+/* 预约相关样式 */
+.booking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.booking-item {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: #fff;
+  transition: all 0.3s ease;
+}
+
+.booking-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #409eff;
+}
+
+.booking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.teacher-info {
+  display: flex;
+  align-items: center;
+}
+
+.teacher-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.teacher-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.course-info {
+  font-size: 14px;
+  color: #909399;
+}
+
+.booking-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.booking-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.booking-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.detail-row .label {
+  font-weight: 500;
+  color: #606266;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.detail-row .value {
+  color: #303133;
+  line-height: 1.5;
+}
+
+.teacher-reply {
+  background-color: #f0f9ff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border-left: 3px solid #409eff;
+}
+
+.booking-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.booking-detail {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section h3 {
+  margin: 0 0 16px 0;
+  color: #303133;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 1px solid #ebeef5;
+  padding-bottom: 8px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+}
+
+.detail-item label {
+  font-weight: 500;
+  color: #606266;
+  min-width: 80px;
+  margin-right: 8px;
+}
+
+.detail-item span {
+  color: #303133;
+}
+
+.time-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.time-item {
+  display: flex;
+  align-items: center;
+}
+
+.time-item label {
+  font-weight: 500;
+  color: #606266;
+  min-width: 80px;
+  margin-right: 8px;
+}
+
+.time-item span {
+  color: #303133;
+}
+
+.requirements-content,
+.reply-content {
+  background-color: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid #409eff;
+  line-height: 1.6;
+  color: #303133;
+}
+
+.reply-content {
+  border-left-color: #67c23a;
+}
+
+.course-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.course-title {
+  font-size: 14px;
   color: #606266;
 }
 </style>

@@ -78,6 +78,10 @@ public class CourseEnrollment {
     @Schema(description = "单次课程时长，单位：分钟，只能选择90分钟或120分钟", example = "120")
     private Integer durationMinutes;
 
+    @TableField("grade")
+    @Schema(description = "年级")
+    private String grade;
+
     @TableField("booking_request_id")
     @Schema(description = "关联预约申请ID")
     private Long bookingRequestId;

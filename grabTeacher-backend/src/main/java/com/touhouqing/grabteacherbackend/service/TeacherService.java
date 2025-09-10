@@ -97,4 +97,11 @@ public interface TeacherService {
      * @return 统计数据
      */
     Map<String, Object> getTeacherStatistics(Long userId);
+
+    /**
+     * 获取教师课时详情统计
+     * @param userId 教师用户ID
+     * @return 课时详情统计
+     */
+    Map<String, Object> getHourDetailsSummary(Long userId);
 }

@@ -16,6 +16,12 @@ public class TeacherLevelVO {
     @Schema(description = "教师级别名称")
     private String name;
 
+    @Schema(description = "是否激活")
+    private Boolean isActive;
+
+    @Schema(description = "排序顺序")
+    private Integer sortOrder;
+
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 

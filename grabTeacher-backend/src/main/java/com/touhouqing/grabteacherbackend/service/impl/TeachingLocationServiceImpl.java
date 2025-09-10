@@ -104,6 +104,14 @@ public class TeachingLocationServiceImpl implements TeachingLocationService {
     }
 
     @Override
+    @Cacheable(cacheNames = "activeTeachingLocations", key = "'all'", unless = "#result == null || #result.isEmpty()")
+    public java.util.List<TeachingLocation> getAllActiveLocations() {
+        QueryWrapper<TeachingLocation> qw = new QueryWrapper<>();
+        qw.eq("is_active", true).orderByAsc("sort_order").orderByDesc("id");
+        return teachingLocationMapper.selectList(qw);
+    }
+
+    @Override
     @Transactional
     @CacheEvict(cacheNames = {"teachingLocations", "activeTeachingLocations"}, allEntries = true)
     public void updateStatus(Long id, Boolean isActive) {

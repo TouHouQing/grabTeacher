@@ -92,6 +92,16 @@ public class AdminTeacherDetailVO {
     @Schema(description = "上月课时（小时）", example = "30.0")
     private BigDecimal lastHours;
 
+    // --- 新增：授课地点 ---
+    @Schema(description = "是否支持线上授课", example = "true")
+    private Boolean supportsOnline;
+
+    @Schema(description = "线下授课地点ID列表", example = "[1,2,3]")
+    private List<Long> teachingLocationIds;
+
+    @Schema(description = "线下授课地点CSV（兼容字段）", example = "1,2,3")
+    private String teachingLocations;
+
     @Schema(description = "是否已删除", example = "false")
     private Boolean deleted;
 

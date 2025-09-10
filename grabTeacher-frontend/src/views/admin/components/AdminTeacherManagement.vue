@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, Check, Close } from '@element-plus/icons-vue'
-import { teacherAPI, fileAPI, teacherLevelAPI } from '../../../utils/api'
+import { teacherAPI, fileAPI, teacherLevelAPI, teachingLocationAPI } from '../../../utils/api'
 import { getApiBaseUrl } from '../../../utils/env'
 import AvatarUploader from '../../../components/AvatarUploader.vue'
 import WideTimeSlotSelector from '../../../components/WideTimeSlotSelector.vue'
@@ -62,6 +62,19 @@ const fetchTeacherLevels = async () => {
     // ignore
   }
 }
+const TEACHING_LOCATION_OPTIONS = ref<{ label: string; value: number }[]>([])
+
+const fetchTeachingLocations = async () => {
+  try {
+    const res = await teachingLocationAPI.getList({ page: 1, size: 1000, isActive: true })
+    // 管理端返回结构：{ data: { locations: [], total, ... } }
+    const list = res?.data?.locations || []
+    TEACHING_LOCATION_OPTIONS.value = list.map((it: any) => ({ label: it.name, value: it.id }))
+  } catch (e) {
+    // ignore
+  }
+}
+
 
 const teacherForm = reactive({
   id: 0,
@@ -84,7 +97,10 @@ const teacherForm = reactive({
   adjustmentTimes: 3,
   // 展示用途：后端Teacher实体中的本月/上月课时
   currentHours: 0,
-  lastHours: 0
+  lastHours: 0,
+  // 授课地点：supportsOnline 为线上开关；ID 数组为线下地点
+  teachingLocationIds: [] as number[],
+  supportsOnline: true
 })
 const _teacherAvatarFile = ref<File | null>(null)
 
@@ -315,9 +331,11 @@ const handleAddTeacher = () => {
     rating: 5.0, // 默认评分5.0分
     introduction: '',
     gender: '不愿透露',
-    level: '王牌',
-    isVerified: false
+    level: '',
+    isVerified: false,
+    teachingLocationIds: []
   })
+  teacherForm.supportsOnline = true
   // 重置头像与本地文件
   teacherForm.avatarUrl = ''
   _teacherAvatarFile.value = null
@@ -346,6 +364,28 @@ const handleEditTeacher = async (teacher: any) => {
     Object.assign(teacherForm, teacher)
     teacherForm.isVerified = !!teacher.verified
   }
+
+  // 回显授课地点（CSV -> ID数组）
+  try {
+    const csv: string = (typeof (teacherForm as any).teachingLocations === 'string')
+      ? (teacherForm as any).teachingLocations
+      : (teacher as any)?.teachingLocations || ''
+    if (csv && csv.trim()) {
+      teacherForm.teachingLocationIds = csv.split(',').map((s: string) => Number(s.trim())).filter((n: number) => !Number.isNaN(n))
+    } else {
+      teacherForm.teachingLocationIds = []
+    }
+  } catch (e) {
+    // 回显授课地点异常时，降级为空（仅线下为空，线上开关另行回显）
+    teacherForm.teachingLocationIds = []
+  }
+  // 线上授课开关回显（兼容旧数据）
+  if (typeof (teacherForm as any).supportsOnline === 'boolean') {
+    teacherForm.supportsOnline = !!(teacherForm as any).supportsOnline
+  } else {
+    teacherForm.supportsOnline = teacherForm.teachingLocationIds.length === 0
+  }
+
 
   // 获取教师的科目ID列表
   try {
@@ -414,7 +454,9 @@ const saveTeacher = async () => {
       availableTimeSlots: availableTimeSlots.value,
       adjustmentTimes: teacherForm.adjustmentTimes,
       currentHours: teacherForm.currentHours,
-      lastHours: teacherForm.lastHours
+      lastHours: teacherForm.lastHours,
+      supportsOnline: teacherForm.supportsOnline,
+      teachingLocationIds: teacherForm.teachingLocationIds
     }
 
     // 处理密码：新建时使用默认密码，编辑时如果填写了密码则更新
@@ -540,8 +582,11 @@ const handleTeacherSizeChange = (size: number) => {
 }
 
 onMounted(async () => {
-  await fetchSubjects()
-  await fetchTeacherLevels()
+  await Promise.all([
+    fetchSubjects(),
+    fetchTeacherLevels(),
+    fetchTeachingLocations()
+  ])
   loadTeacherList()
 })
 </script>
@@ -757,7 +802,30 @@ onMounted(async () => {
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12" />
+          <el-col :span="12">
+            <el-form-item label="授课地点">
+              <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                <el-checkbox v-model="teacherForm.supportsOnline">线上</el-checkbox>
+                <el-select
+                  v-model="teacherForm.teachingLocationIds"
+                  multiple
+                  placeholder="请选择线下地点"
+                  style="width: 100%"
+                  collapse-tags
+                  collapse-tags-tooltip
+                  :max-collapse-tags="3"
+                >
+                  <el-option
+                    v-for="opt in TEACHING_LOCATION_OPTIONS"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
+                </el-select>
+                <small style="color:#999;font-size:12px;">可同时选择“线上 + 多个线下地点”</small>
+              </div>
+            </el-form-item>
+          </el-col>
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12">

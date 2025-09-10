@@ -8,6 +8,7 @@ import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentSubjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
 import com.touhouqing.grabteacherbackend.mapper.UserMapper;
+import com.touhouqing.grabteacherbackend.mapper.RescheduleRequestMapper;
 import com.touhouqing.grabteacherbackend.service.StudentService;
 import com.touhouqing.grabteacherbackend.mapper.BalanceTransactionMapper;
 import java.util.Map;
@@ -15,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 import com.touhouqing.grabteacherbackend.util.AliyunOssUtil;
 
@@ -35,6 +37,7 @@ public class StudentServiceImpl implements StudentService {
     private final StudentSubjectMapper studentSubjectMapper;
     private final BookingRequestMapper bookingRequestMapper;
     private final com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper courseScheduleMapper;
+    private final RescheduleRequestMapper rescheduleRequestMapper;
     private final UserMapper userMapper;
     private final BalanceTransactionMapper balanceTransactionMapper;
 
@@ -189,19 +192,51 @@ public class StudentServiceImpl implements StudentService {
             throw new RuntimeException("学生信息不存在");
         }
 
-        // 1. 试听次数 - 从User表获取trialTimes字段
-        User user = userMapper.selectById(userId);
-        Integer trialTimes = user != null ? user.getTrialTimes() : 0;
-        Long remainingTrialTimes = trialTimes != null ? trialTimes.longValue() : 0L;
+        // 1. 总预约课次（课次=某节课）- 统计该学生的所有排课次数（来自 course_schedules）
+        QueryWrapper<CourseSchedule> totalScheduleWrapper = new QueryWrapper<>();
+        totalScheduleWrapper.apply(
+                "exists (select 1 from course_enrollments ce where ce.id = course_schedules.enrollment_id and ce.student_id = {0} and ce.is_deleted = 0)",
+                student.getId()
+        );
+        totalScheduleWrapper.eq("is_deleted", 0);
+        Long totalBookings = courseScheduleMapper.selectCount(totalScheduleWrapper);
 
-        // 2. 待审批预约数 - 查询状态为pending的预约申请
-        QueryWrapper<BookingRequest> bookingWrapper = new QueryWrapper<>();
-        bookingWrapper.eq("student_id", student.getId());
-        bookingWrapper.eq("status", "pending");
-        bookingWrapper.eq("is_deleted", false);
-        Long pendingBookings = bookingRequestMapper.selectCount(bookingWrapper);
+        // 2. 待审批课次 - 查询状态为pending的预约申请
+        QueryWrapper<BookingRequest> pendingBookingWrapper = new QueryWrapper<>();
+        pendingBookingWrapper.eq("student_id", student.getId());
+        pendingBookingWrapper.eq("status", "pending");
+        pendingBookingWrapper.eq("is_deleted", false);
+        Long pendingBookings = bookingRequestMapper.selectCount(pendingBookingWrapper);
 
-        // 3. 完成课程数 - 查询course_schedules + join enrollments（使用 Mapper 进行统计）
+        // 3. 本月已调课/取消课程次数 - 查询本月的调课申请和取消的课程
+        LocalDate now = LocalDate.now();
+        LocalDate startOfMonth = now.withDayOfMonth(1);
+        LocalDate endOfMonth = now.withDayOfMonth(now.lengthOfMonth());
+        
+        // 统计调课申请次数
+        QueryWrapper<RescheduleRequest> rescheduleWrapper = new QueryWrapper<>();
+        rescheduleWrapper.eq("applicant_id", student.getId());
+        rescheduleWrapper.eq("applicant_type", "student");
+        rescheduleWrapper.ge("created_at", startOfMonth.atStartOfDay());
+        rescheduleWrapper.le("created_at", endOfMonth.atTime(23, 59, 59));
+        rescheduleWrapper.eq("is_deleted", false);
+        Long rescheduleCount = rescheduleRequestMapper.selectCount(rescheduleWrapper);
+        
+        // 统计取消的课程次数（通过course_schedules表查询cancelled状态）
+        QueryWrapper<CourseSchedule> cancelledWrapper = new QueryWrapper<>();
+        cancelledWrapper.apply(
+                "exists (select 1 from course_enrollments ce where ce.id = course_schedules.enrollment_id and ce.student_id = {0} and ce.is_deleted = 0)",
+                student.getId()
+        );
+        cancelledWrapper.eq("schedule_status", "cancelled");
+        cancelledWrapper.ge("created_at", startOfMonth.atStartOfDay());
+        cancelledWrapper.le("created_at", endOfMonth.atTime(23, 59, 59));
+        cancelledWrapper.eq("is_deleted", 0);
+        Long cancelledCount = courseScheduleMapper.selectCount(cancelledWrapper);
+        
+        Long monthlyAdjustments = (rescheduleCount != null ? rescheduleCount : 0L) + (cancelledCount != null ? cancelledCount : 0L);
+
+        // 4. 完成课程数 - 查询course_schedules + join enrollments（使用 Mapper 进行统计）
         QueryWrapper<CourseSchedule> completedQw =
                 new QueryWrapper<>();
         completedQw.apply(
@@ -212,8 +247,9 @@ public class StudentServiceImpl implements StudentService {
         completedQw.eq("is_deleted", 0);
         Long completedCourses = courseScheduleMapper.selectCount(completedQw);
 
-        statistics.put("remainingTrialTimes", remainingTrialTimes);
+        statistics.put("totalBookings", totalBookings != null ? totalBookings.intValue() : 0);
         statistics.put("pendingBookings", pendingBookings != null ? pendingBookings.intValue() : 0);
+        statistics.put("monthlyAdjustments", monthlyAdjustments.intValue());
         statistics.put("completedCourses", completedCourses != null ? completedCourses.intValue() : 0);
 
         log.info("获取学生统计数据成功: userId={}, statistics={}", userId, statistics);

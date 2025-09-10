@@ -17,5 +17,7 @@ public interface TeachingLocationService {
     Page<TeachingLocation> list(int page, int size, String keyword, Boolean isActive);
 
     void updateStatus(Long id, Boolean isActive);
+
+    java.util.List<TeachingLocation> getAllActiveLocations();
 }
 

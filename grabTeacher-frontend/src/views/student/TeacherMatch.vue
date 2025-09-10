@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock, Close, Warning, SuccessFilled, ArrowDown, Document } from '@element-plus/icons-vue'
+import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock, Close, Warning, SuccessFilled, ArrowDown, Document, Star } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
-import { teacherAPI, subjectAPI, bookingAPI } from '../../utils/api'
+import { teacherAPI, subjectAPI, bookingAPI, publicTeacherLevelAPI, publicGradeAPI } from '../../utils/api'
 const route = useRoute()
 const isTrialMode = computed(() => route.path.includes('/student-center/trial'))
 const isRecurringMode = computed(() => route.path.includes('/student-center/match'))
@@ -84,9 +84,11 @@ interface AvailableTimeSlot {
 
 const matchForm = reactive({
   subject: '',
+  grade: '',
   preferredWeekdays: [] as number[], // 偏好的星期几
   preferredTimeSlots: [] as string[], // 偏好的时间段（由 selectedPeriods 自动映射）
-  gender: '' // 使用空字符串作为默认值
+  gender: '', // 使用空字符串作为默认值
+  teacherLevel: '' // 教师级别，空字符串表示不限级别
 })
 
 // 三段时间偏好：morning/afternoon/evening
@@ -202,6 +204,8 @@ const loading = ref(false)
 const showResults = ref(false)
 const matchedTeachers = ref<Teacher[]>([])
 const subjects = ref<any[]>([])
+const teacherLevels = ref<any[]>([])
+const grades = ref<any[]>([])
 const loadingOptions = ref(false)
 
 // 添加性别选择组件的引用和重置键
@@ -334,11 +338,13 @@ const handleMatch = async () => {
 
     const matchRequest = {
       subject: matchForm.subject,
+      grade: matchForm.grade || undefined,
       preferredWeekdays: matchForm.preferredWeekdays.length > 0 ? matchForm.preferredWeekdays : undefined,
       preferredTimeSlots,
       preferredDateStart,
       preferredDateEnd,
       preferredGender: matchForm.gender || undefined,
+      teacherLevel: matchForm.teacherLevel || undefined,
       limit: 5
     }
 
@@ -438,6 +444,8 @@ const resetForm = () => {
   matchForm.preferredTimeSlots = []
   selectedPeriods.value = []
   matchForm.gender = ''
+  matchForm.teacherLevel = ''
+  matchForm.grade = ''
   trialSearchDate.value = ''
   trialSearchSegment.value = ''
 
@@ -467,12 +475,39 @@ const loadSubjects = async () => {
   }
 }
 
+// 获取教师级别选项
+const loadTeacherLevels = async () => {
+  try {
+    const result = await publicTeacherLevelAPI.list()
+    if (result.success && result.data) {
+      teacherLevels.value = result.data
+    }
+  } catch (error) {
+    console.error('获取教师级别列表失败:', error)
+  }
+}
+
+// 获取年级选项（公开）
+const loadGrades = async () => {
+  try {
+    const result = await publicGradeAPI.list()
+    if (result.success && result.data) {
+      grades.value = result.data
+    }
+  } catch (error) {
+    console.error('获取年级列表失败:', error)
+  }
+}
 
 // 初始化选项数据
 const initOptions = async () => {
   loadingOptions.value = true
   try {
-    await loadSubjects()
+    await Promise.all([
+      loadSubjects(),
+      loadTeacherLevels(),
+      loadGrades()
+    ])
   } finally {
     loadingOptions.value = false
   }
@@ -1241,6 +1276,8 @@ const createBookingRequest = async () => {
       return
     }
     // 验证课程时长选择（仅当课程时长为空时）
+
+
     if (!selectedCourse.value.durationMinutes && !scheduleForm.selectedDurationMinutes) {
       ElMessage.warning('请选择课程时长')
       return
@@ -1255,6 +1292,7 @@ const createBookingRequest = async () => {
       studentRequirements: scheduleForm.bookingType === 'trial'
         ? `申请与${currentTeacher.value.name}老师进行${matchForm.subject}科目试听`
         : `希望预约${currentTeacher.value.name}老师的《${selectedCourse.value.title}》课程`,
+      grade: matchForm.grade || undefined,
       isTrial: scheduleForm.bookingType === 'trial',
       trialDurationMinutes: scheduleForm.bookingType === 'trial' ? 30 : undefined,
       selectedDurationMinutes: scheduleForm.bookingType === 'recurring' ? (selectedCourse.value?.durationMinutes || scheduleForm.selectedDurationMinutes) : undefined
@@ -2606,6 +2644,8 @@ watch(selectedCourse, (newCourse) => {
     <p class="description">{{ isTrialMode ? '选择合适的日期与时间，提交30分钟免费试听申请' : '根据您的学习需求和偏好，系统将为您匹配最合适的1对1教师' }}</p>
 
     <div class="match-container">
+
+
       <div class="match-form-section">
         <el-form :model="matchForm" label-position="top" class="match-form" :key="formResetKey">
           <el-form-item label="科目 Subjects" required>
@@ -2623,7 +2663,30 @@ watch(selectedCourse, (newCourse) => {
             </el-select>
           </el-form-item>
 
+          <el-form-item label="教师级别 Teacher Level">
+            <el-select v-model="matchForm.teacherLevel" placeholder="不限级别（可选）" clearable :loading="loadingOptions">
+              <el-option
+                v-for="level in teacherLevels"
+                :key="level.id"
+                :label="level.name"
+                :value="level.name">
+                <div class="option-with-icon">
+                  <el-icon><Star /></el-icon>
+                  <span>{{ level.name }}</span>
+                </div>
+              </el-option>
+            </el-select>
+          </el-form-item>
 
+          <el-form-item label="年级 Grade">
+            <el-select v-model="matchForm.grade" placeholder="请选择年级（可选）" clearable :loading="loadingOptions">
+              <el-option
+                v-for="g in grades"
+                :key="g.id || g.name"
+                :label="g.name || g"
+                :value="g.name || g" />
+            </el-select>
+          </el-form-item>
 
 
           <!-- 试听前置：日期与上下午/晚上选择 -->

@@ -15,7 +15,8 @@ import {
   Setting,
   VideoCamera,
   ChatDotRound,
-  List
+  List,
+  Refresh
 } from '@element-plus/icons-vue'
 
 // 导入消息组件
@@ -47,11 +48,23 @@ const statistics = ref({
   upcomingClasses: 0,
   bookingRequests: 0,
   currentHours: 0,
-  lastHours: 0
+  lastHours: 0,
+  monthlyRescheduleCount: 0
 })
 const statsLoading = ref(false)
 // 工资统计（基于时薪 * 课时）
 const salary = ref({ currentSalary: 0, lastSalary: 0 })
+
+// 课时详情模态框
+const showHourDetailsModal = ref(false)
+const hourDetails = ref({
+  normalHours: 0,        // 正常上课的课时数
+  teacherDeduction: 0,   // 教师超出调课/请假次数后所扣课时
+  studentCompensation: 0, // 学生超出调课/请假次数的补偿课时
+  adminAdjustment: 0,    // 总Admin手动调整记录
+  totalHours: 0          // 总课时
+})
+const hourDetailsLoading = ref(false)
 
 // 根据当前路由设置激活菜单
 watch(() => route.path, (path: string) => {
@@ -127,7 +140,8 @@ const loadStatistics = async () => {
         upcomingClasses: statsRes.data.upcomingClasses || 0,
         bookingRequests: statsRes.data.bookingRequests || 0,
         currentHours: statsRes.data.currentHours || 0,
-        lastHours: statsRes.data.lastHours || 0
+        lastHours: statsRes.data.lastHours || 0,
+        monthlyRescheduleCount: statsRes.data.monthlyRescheduleCount || 0
       }
     } else {
       ElMessage.error(statsRes.message || '获取统计数据失败')
@@ -148,6 +162,24 @@ const loadStatistics = async () => {
     ElMessage.error('获取统计数据失败，请稍后重试')
   } finally {
     statsLoading.value = false
+  }
+}
+
+// 获取课时详情
+const loadHourDetails = async () => {
+  try {
+    hourDetailsLoading.value = true
+    const res = await teacherAPI.getHourDetails()
+    if (res.success && res.data) {
+      hourDetails.value = res.data
+    } else {
+      ElMessage.error(res.message || '获取课时详情失败')
+    }
+  } catch (error) {
+    console.error('获取课时详情失败:', error)
+    ElMessage.error('获取课时详情失败，请稍后重试')
+  } finally {
+    hourDetailsLoading.value = false
   }
 }
 
@@ -222,38 +254,21 @@ onMounted(async () => {
           <div class="dashboard-stats">
             <div class="stat-card">
               <div class="stat-icon">
+                <el-icon><Refresh /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ statsLoading ? '-' : statistics.monthlyRescheduleCount }}</div>
+                <div class="stat-label">本月已申请调课/请假次数</div>
+              </div>
+            </div>
+            <div class="stat-card clickable" @click="showHourDetailsModal = true">
+              <div class="stat-icon">
                 <el-icon><Money /></el-icon>
               </div>
               <div class="stat-info">
                 <div class="stat-value">{{ statsLoading ? '-' : statistics.currentHours }}</div>
-                <div class="stat-label">本月课时(小时)</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">
-                <el-icon><Money /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : statistics.lastHours }}</div>
-                <div class="stat-label">上月课时(小时)</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">
-                <el-icon><Money /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : `$${salary.currentSalary}` }}</div>
-                <div class="stat-label">本月工资</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">
-                <el-icon><Money /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ statsLoading ? '-' : `$${salary.lastSalary}` }}</div>
-                <div class="stat-label">上月工资</div>
+                <div class="stat-label">本月累计课时(小时)</div>
+                <div class="stat-hint">点击查看详情</div>
               </div>
             </div>
           </div>
@@ -261,10 +276,6 @@ onMounted(async () => {
           <div class="quick-actions">
             <h3>快捷操作</h3>
             <div class="action-buttons">
-              <el-button type="success">
-                <el-icon><VideoCamera /></el-icon>
-                开始上课
-              </el-button>
               <el-button type="primary" @click="$router.push('/teacher-center/schedule')">
                 <el-icon><Calendar /></el-icon>
                 查看课表
@@ -333,6 +344,43 @@ onMounted(async () => {
         </div>
       </el-main>
     </el-container>
+
+    <!-- 课时详情模态框 -->
+    <el-dialog
+      v-model="showHourDetailsModal"
+      title="本月课时详情"
+      width="600px"
+      @open="loadHourDetails"
+    >
+      <div v-loading="hourDetailsLoading" class="hour-details-content">
+        <div class="detail-item">
+          <div class="detail-label">正常上课的课时数：</div>
+          <div class="detail-value positive">{{ hourDetails.normalHours }}小时</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">教师超出调课/请假次数后所扣课时：</div>
+          <div class="detail-value negative">-{{ hourDetails.teacherDeduction }}小时</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">学生超出调课/请假次数的补偿课时：</div>
+          <div class="detail-value positive">+{{ hourDetails.studentCompensation }}小时</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Admin手动调整记录：</div>
+          <div class="detail-value" :class="hourDetails.adminAdjustment >= 0 ? 'positive' : 'negative'">
+            {{ hourDetails.adminAdjustment >= 0 ? '+' : '' }}{{ hourDetails.adminAdjustment }}小时
+          </div>
+        </div>
+        <el-divider />
+        <div class="detail-item total">
+          <div class="detail-label">本月累计课时：</div>
+          <div class="detail-value total-value">{{ hourDetails.totalHours }}小时</div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showHourDetailsModal = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -408,7 +456,7 @@ onMounted(async () => {
 
 .dashboard-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   margin-bottom: 30px;
 }
@@ -474,6 +522,68 @@ onMounted(async () => {
 .action-buttons {
   display: flex;
   gap: 15px;
+}
+
+/* 课时详情模态框样式 */
+.clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1);
+}
+
+.stat-hint {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.hour-details-content {
+  padding: 20px 0;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
+}
+
+.detail-item.total {
+  font-weight: bold;
+  font-size: 16px;
+  padding: 16px 0;
+}
+
+.detail-label {
+  color: #666;
+  flex: 1;
+}
+
+.detail-value {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.detail-value.positive {
+  color: #67c23a;
+}
+
+.detail-value.negative {
+  color: #f56c6c;
+}
+
+.detail-value.total-value {
+  color: #409eff;
+  font-size: 18px;
 }
 
 /* 响应式布局 */
@@ -572,7 +682,7 @@ onMounted(async () => {
   }
 
   .dashboard-stats {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: 12px;
     margin-bottom: 20px;
   }

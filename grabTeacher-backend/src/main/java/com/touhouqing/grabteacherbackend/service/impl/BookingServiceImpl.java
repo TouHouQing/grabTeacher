@@ -137,6 +137,7 @@ public class BookingServiceImpl implements BookingService {
                 .endDate(request.getEndDate())
                 .totalTimes(request.getTotalTimes())
                 .studentRequirements(request.getStudentRequirements())
+                .grade(request.getGrade())
                 .isTrial(isTrial)
                 .trialDurationMinutes(request.getTrialDurationMinutes())
                 .status(isTrial ? "approved" : "pending")
@@ -976,6 +977,7 @@ public class BookingServiceImpl implements BookingService {
                         .trial(Boolean.TRUE.equals(bookingRequest.getIsTrial()))
                         .recurringSchedule(buildRecurringScheduleJson(weekdays, timeSlots))
                         .durationMinutes(courseDurationMinutes)
+                        .grade(bookingRequest.getGrade())
                         .bookingRequestId(bookingRequest.getId())
                         .deleted(false)
                         .build();
@@ -1104,6 +1106,7 @@ public class BookingServiceImpl implements BookingService {
                         .trial(Boolean.TRUE.equals(bookingRequest.getIsTrial()))
                         .recurringSchedule(buildRecurringScheduleJson(weekdays, timeSlots))
                         .durationMinutes(courseDurationMinutes)
+                        .grade(bookingRequest.getGrade())
                         .bookingRequestId(bookingRequest.getId())
                         .deleted(false)
                         .build();
@@ -1347,6 +1350,7 @@ public class BookingServiceImpl implements BookingService {
                         .endDate(bookingRequest.getRequestedDate())
                         .trial(Boolean.TRUE.equals(bookingRequest.getIsTrial()))
                         .durationMinutes(courseDurationMinutes)
+                        .grade(bookingRequest.getGrade())
                         .bookingRequestId(bookingRequest.getId())
                         .deleted(false)
                         .build();

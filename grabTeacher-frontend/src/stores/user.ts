@@ -69,6 +69,10 @@ export interface TeacherInfo {
     timeSlots: string[]
   }[]
   isVerified?: boolean
+  // 新增：表驱动字段
+  level?: string
+  teachingLocationIds?: number[]
+  supportsOnline?: boolean
 }
 
 export interface PasswordChangeRequest {
@@ -375,6 +379,17 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // 获取启用的授课地点列表（公开接口）
+  const getTeachingLocations = async (): Promise<ApiResponse<{ id: number; name: string }[]>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/public/teaching-locations/active`)
+      return await response.json()
+    } catch (error) {
+      console.error('获取授课地点列表失败:', error)
+      return { success: false, message: '网络错误，请稍后重试' }
+    }
+  }
+
   // 修改密码
   const changePassword = async (data: PasswordChangeRequest): Promise<ApiResponse<string>> => {
     try {
@@ -463,8 +478,9 @@ export const useUserStore = defineStore('user', () => {
     getTeacherProfile,
     updateTeacherProfile,
     getSubjects,
+    getTeachingLocations,
     changePassword,
     updateUserProfile,
-    adminLogin,
+    adminLogin
   }
 })
