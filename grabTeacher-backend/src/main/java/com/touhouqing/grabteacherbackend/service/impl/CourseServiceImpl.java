@@ -43,6 +43,8 @@ public class CourseServiceImpl implements CourseService {
     @Autowired
     private SubjectMapper subjectMapper;
 
+    @Autowired
+    private com.touhouqing.grabteacherbackend.mapper.TeachingLocationMapper teachingLocationMapper;
 
     @Autowired
     private com.touhouqing.grabteacherbackend.util.AliyunOssUtil ossUtil;
@@ -135,12 +137,34 @@ public class CourseServiceImpl implements CourseService {
             courseStatus = "pending";
         }
 
-        // 课程地点（仅支持 线上/线下），默认线上
-        String courseLocation = request.getCourseLocation();
-        if (!StringUtils.hasText(courseLocation)) {
-            courseLocation = "线上";
-        } else if (!isValidCourseLocation(courseLocation)) {
-            throw new RuntimeException("无效的课程地点");
+        // 课程地点约束：一对一不需要设置；大班课需二选一（线上 或 线下且选定地点）
+        String finalCourseLocation = null;
+        if ("one_on_one".equals(request.getCourseType())) {
+            // 一对一课程不需要设置课程地点
+            finalCourseLocation = null;
+        } else {
+            Long offlineId = request.getOfflineLocationId();
+            boolean reqOnline = Boolean.TRUE.equals(request.getSupportsOnline());
+            if (offlineId != null) {
+                var loc = teachingLocationMapper.selectById(offlineId);
+                if (loc == null || !Boolean.TRUE.equals(loc.getIsActive())) {
+                    throw new RuntimeException("线下地点无效或未激活");
+                }
+                // 方案A：仅存地点名称，保持与地点表一致
+                finalCourseLocation = loc.getName();
+            } else if (reqOnline) {
+                finalCourseLocation = "线上";
+            } else {
+                // 兼容老前端仅传 courseLocation 的情况
+                String locStr = request.getCourseLocation();
+                if ("线上".equals(locStr)) {
+                    finalCourseLocation = "线上";
+                } else if ("线下".equals(locStr)) {
+                    throw new RuntimeException("请选择线下授课地点");
+                } else {
+                    throw new RuntimeException("大班课必须选择线上或线下地点");
+                }
+            }
         }
 
         Course course = Course.builder()
@@ -151,11 +175,11 @@ public class CourseServiceImpl implements CourseService {
                 .courseType(request.getCourseType())
                 .durationMinutes(request.getDurationMinutes())
                 .status(courseStatus)
-                .courseLocation(courseLocation)
                 .deleted(false)
                 .imageUrl(request.getImageUrl())
                 .price(request.getPrice()) // 所有课程类型都可以设置价格
                 .build();
+        course.setCourseLocation(finalCourseLocation);
 
         // 设置大班课专用字段
         if ("large_class".equals(request.getCourseType())) {
@@ -250,12 +274,33 @@ public class CourseServiceImpl implements CourseService {
         course.setCourseType(request.getCourseType());
         course.setDurationMinutes(request.getDurationMinutes());
 
-        // 课程地点：仅当提供时更新；值必须为 线上/线下
-        if (request.getCourseLocation() != null) {
-            if (!isValidCourseLocation(request.getCourseLocation())) {
-                throw new RuntimeException("无效的课程地点");
+        // 课程地点/授课方式：一对一不设置；大班课二选一（线上 或 线下并指定地点）
+        if ("one_on_one".equals(request.getCourseType())) {
+            course.setCourseLocation(null);
+        } else if ("large_class".equals(request.getCourseType())) {
+            Long offlineId = request.getOfflineLocationId();
+            Boolean reqOnline = request.getSupportsOnline();
+            if (offlineId != null) {
+                var loc = teachingLocationMapper.selectById(offlineId);
+                if (loc == null || !Boolean.TRUE.equals(loc.getIsActive())) {
+                    throw new RuntimeException("线下地点无效或未激活");
+                }
+                // 方案A：仅存地点名称
+                course.setCourseLocation(loc.getName());
+            } else if (Boolean.TRUE.equals(reqOnline)) {
+                course.setCourseLocation("线上");
+            } else if (request.getCourseLocation() != null) {
+                // 兼容老前端：若仅提供 courseLocation
+                if ("线上".equals(request.getCourseLocation())) {
+                    course.setCourseLocation("线上");
+                } else if ("线下".equals(request.getCourseLocation())) {
+                    throw new RuntimeException("请选择线下授课地点");
+                } else {
+                    throw new RuntimeException("无效的课程地点");
+                }
+            } else {
+                throw new RuntimeException("大班课必须选择线上或线下地点");
             }
-            course.setCourseLocation(request.getCourseLocation());
         }
 
         // 记录旧封面，若请求带新图则覆盖
@@ -692,6 +737,9 @@ public class CourseServiceImpl implements CourseService {
                 .imageUrl(course.getImageUrl());
 
         CourseVO response = builder.build();
+        // 附加授课方式（方案A：从course_location推导），线下地点ID无法从名称反推，置空
+        response.setSupportsOnline("线上".equals(course.getCourseLocation()));
+        response.setOfflineLocationId(null);
 
         // 回显大班课每周时间周期
         if (course.getCourseTimeSlots() != null && !course.getCourseTimeSlots().isEmpty()) {
@@ -829,6 +877,10 @@ public class CourseServiceImpl implements CourseService {
                     .enrollmentCount(c.getEnrollmentCount())
                     .imageUrl(c.getImageUrl())
                     .build();
+
+            // 授课方式（方案A：从 course_location 推导），线下地点ID无法从名称反推，置空
+            resp.setSupportsOnline("线上".equals(c.getCourseLocation()));
+            resp.setOfflineLocationId(null);
 
             // 回显批量列表的周期时间（管理端可能需要）
             if (c.getCourseTimeSlots() != null && !c.getCourseTimeSlots().isEmpty()) {

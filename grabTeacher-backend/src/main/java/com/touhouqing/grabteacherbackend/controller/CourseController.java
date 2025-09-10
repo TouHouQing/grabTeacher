@@ -47,7 +47,6 @@ public class CourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
     })
     @PostMapping
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<CommonResult<Course>> createCourse(
             @Valid @RequestBody CourseDTO request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -77,7 +76,7 @@ public class CourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "课程不存在")
     })
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CommonResult<Course>> updateCourse(
             @Parameter(description = "课程ID", required = true) @PathVariable Long id,
             @Valid @RequestBody CourseDTO request,
@@ -107,7 +106,7 @@ public class CourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "课程不存在")
     })
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CommonResult<Void>> deleteCourse(
             @Parameter(description = "课程ID", required = true) @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -216,7 +215,7 @@ public class CourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
     })
     @GetMapping("/teacher/{teacherId}")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CommonResult<List<CourseVO>>> getTeacherCourses(
             @Parameter(description = "教师ID", required = true) @PathVariable Long teacherId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -235,33 +234,7 @@ public class CourseController {
         }
     }
 
-    /**
-     * 获取当前教师的课程列表
-     */
-    @Operation(summary = "获取当前教师课程列表", description = "教师查看自己的课程列表")
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
-    })
-    @GetMapping("/my-courses")
-    @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<CommonResult<List<CourseVO>>> getMyTeacherCourses(
-            @AuthenticationPrincipal UserPrincipal currentUser) {
-        try {
-            // 需要先获取当前用户对应的教师ID
-            // 这里简化处理，实际应该通过service获取
-            List<CourseVO> courses = courseService.getTeacherCourses(null, currentUser.getId(), "teacher");
-            return ResponseEntity.ok(CommonResult.success("获取我的课程列表成功", courses));
-        } catch (RuntimeException e) {
-            logger.warn("获取我的课程列表失败: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(CommonResult.error(e.getMessage()));
-        } catch (Exception e) {
-            logger.error("获取我的课程列表异常: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResult.error("获取失败，请稍后重试"));
-        }
-    }
+    
 
     /**
      * 获取教师的公开课程列表（供学生预约时查看）
@@ -299,7 +272,7 @@ public class CourseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "课程不存在")
     })
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CommonResult<Void>> updateCourseStatus(
             @Parameter(description = "课程ID", required = true) @PathVariable Long id,
             @Parameter(description = "课程状态", required = true) @RequestParam String status,

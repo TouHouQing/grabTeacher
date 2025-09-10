@@ -7,12 +7,14 @@ import com.touhouqing.grabteacherbackend.model.dto.TeacherMatchDTO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherMatchVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherProfileVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherScheduleVO;
+import com.touhouqing.grabteacherbackend.model.vo.ClassRecordVO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotAvailabilityDTO;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 public interface TeacherService {
     
@@ -104,4 +106,17 @@ public interface TeacherService {
      * @return 课时详情统计
      */
     Map<String, Object> getHourDetailsSummary(Long userId);
+
+    /**
+     * 获取教师上课记录
+     * @param userId 教师用户ID
+     * @param page 页码
+     * @param size 每页大小
+     * @param year 年份筛选
+     * @param month 月份筛选
+     * @param studentName 学生姓名筛选
+     * @param courseName 课程名称筛选
+     * @return 上课记录分页数据
+     */
+    Page<ClassRecordVO> getClassRecords(Long userId, int page, int size, Integer year, Integer month, String studentName, String courseName);
 }

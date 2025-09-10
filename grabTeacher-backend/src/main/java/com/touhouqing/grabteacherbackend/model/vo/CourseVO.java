@@ -65,6 +65,12 @@ public class CourseVO {
     @Schema(description = "课程地点", example = "线上", allowableValues = {"线上", "线下"})
     private String courseLocation;
 
+    @Schema(description = "是否支持线上（仅大班课）", example = "true")
+    private Boolean supportsOnline;
+
+    @Schema(description = "线下地点ID（仅大班课）", example = "184")
+    private Long offlineLocationId;
+
     @Schema(description = "课程价格（大班课专用）", example = "299.00")
     private BigDecimal price;
 

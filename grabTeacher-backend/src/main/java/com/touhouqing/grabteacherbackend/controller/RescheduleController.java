@@ -445,6 +445,37 @@ public class RescheduleController {
     }
 
     /**
+     * 教师端：调课记录列表（含筛选）
+     */
+    @GetMapping("/teacher/requests")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "教师获取调课记录", description = "教师查看全部调课/请假记录，支持筛选")
+    public ResponseEntity<CommonResult<Page<RescheduleVO>>> getTeacherRescheduleRequests(
+            @Parameter(description = "页码", example = "1") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每页大小", example = "10") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "审批状态", example = "pending") @RequestParam(required = false) String status,
+            @Parameter(description = "年份", example = "2025") @RequestParam(required = false) Integer year,
+            @Parameter(description = "月份(1-12)", example = "9") @RequestParam(required = false) Integer month,
+            @Parameter(description = "类型：single/recurring/cancel", example = "single") @RequestParam(required = false) String requestType,
+            @Parameter(description = "申请人类型：student/teacher", example = "student") @RequestParam(required = false) String applicantType,
+            @Parameter(description = "申请人姓名关键词") @RequestParam(required = false) String applicantName,
+            @Parameter(description = "课程名称关键词") @RequestParam(required = false) String courseName,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        try {
+            Page<RescheduleVO> result = rescheduleService.getTeacherRescheduleRequests(
+                    currentUser.getId(), page, size, status, year, month, requestType, applicantType, applicantName, courseName);
+            return ResponseEntity.ok(CommonResult.success("获取成功", result));
+        } catch (RuntimeException e) {
+            logger.warn("获取教师调课记录失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("获取教师调课记录异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
+        }
+    }
+
+    /**
      * 教师端：创建调课申请
      */
     @PostMapping("/teacher/request")

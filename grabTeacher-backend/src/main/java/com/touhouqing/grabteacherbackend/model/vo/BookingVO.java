@@ -20,7 +20,7 @@ import java.util.List;
 @Builder
 @Schema(description = "预约申请响应数据")
 public class BookingVO {
-    
+
     @Schema(description = "预约申请ID", example = "1")
     private Long id;
 
@@ -86,6 +86,13 @@ public class BookingVO {
 
     @Schema(description = "管理员备注", example = "特殊情况处理")
     private String adminNotes;
+
+    @Schema(description = "授课地点ID（线下地点）", example = "101")
+    private Long teachingLocationId;
+
+    @Schema(description = "授课地点名称（如：线上 或 线下地点名称）", example = "线上")
+    private String teachingLocation;
+
 
     @Schema(description = "申请时间")
     private LocalDateTime createdAt;

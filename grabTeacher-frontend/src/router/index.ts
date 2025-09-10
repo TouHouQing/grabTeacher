@@ -76,24 +76,19 @@ const router = createRouter({
           component: () => import('../views/teacher/TeacherProfile.vue'),
           meta: { requiresAuth: true, role: 'teacher' }
         },
-
         {
-          path: 'schedule',
-          name: 'TeacherSchedule',
-          component: () => import('../views/teacher/Schedule.vue'),
+          path: 'password',
+          name: 'TeacherPassword',
+          component: () => import('../views/teacher/TeacherPassword.vue'),
           meta: { requiresAuth: true, role: 'teacher' }
         },
+
+
         {
           path: 'bookings',
           name: 'TeacherBookings',
           component: () => import('../views/teacher/BookingManagement.vue'),
-          meta: { requiresAuth: true, role: 'teacher' }
-        },
-        {
-          path: 'courses',
-          name: 'TeacherCourses',
-          component: () => import('../views/teacher/components/TeacherCourses.vue'),
-          meta: { requiresAuth: true, role: 'teacher' }
+          meta: { requiresAuth: true, role: 'teacher', title: '调课记录' }
         },
 
       ]
@@ -170,10 +165,7 @@ const router = createRouter({
       redirect: '/teacher-center/profile'
     },
 
-    {
-      path: '/teacher/schedule',
-      redirect: '/teacher-center/schedule'
-    },
+
     {
       path: '/admin/user-management',
       redirect: '/admin-center/user-management'

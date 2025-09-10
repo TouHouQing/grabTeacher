@@ -10,10 +10,12 @@ import com.touhouqing.grabteacherbackend.model.dto.TeacherMatchDTO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherMatchVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherProfileVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherScheduleVO;
+import com.touhouqing.grabteacherbackend.model.vo.ClassRecordVO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotAvailabilityDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
 // import removed: Schedule replaced by CourseSchedule in services
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
@@ -112,11 +114,8 @@ public class TeacherServiceImpl implements TeacherService {
             return null;
         }
 
-        // 获取用户信息
+        // 获取用户信息（容错：若用户行缺失，仍返回教师基础信息）
         User user = userMapper.selectById(teacher.getUserId());
-        if (user == null) {
-            return null;
-        }
 
         // 获取教师的科目ID列表
         List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
@@ -140,14 +139,26 @@ public class TeacherServiceImpl implements TeacherService {
             availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
         }
 
+        // 支持线上与线下地点ID集合
+        Boolean supportsOnline = Boolean.TRUE.equals(teacher.getSupportsOnline());
+        List<Long> locationIds = new java.util.ArrayList<>();
+        if (org.springframework.util.StringUtils.hasText(teacher.getTeachingLocations())) {
+            for (String s : teacher.getTeachingLocations().split(",")) {
+                if (org.springframework.util.StringUtils.hasText(s)) {
+                    try { locationIds.add(Long.parseLong(s.trim())); } catch (NumberFormatException ignore) {}
+                }
+            }
+        }
+
+
         return TeacherDetailVO.builder()
                 .id(teacher.getId())
                 .userId(teacher.getUserId())
                 .realName(teacher.getRealName())
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .phone(user.getPhone())
-                .avatarUrl(user.getAvatarUrl())
+                .username(user != null ? user.getUsername() : null)
+                .email(user != null ? user.getEmail() : null)
+                .phone(user != null ? user.getPhone() : null)
+                .avatarUrl(user != null ? user.getAvatarUrl() : null)
                 .educationBackground(teacher.getEducationBackground())
                 .teachingExperience(teacher.getTeachingExperience())
                 .specialties(teacher.getSpecialties())
@@ -156,6 +167,8 @@ public class TeacherServiceImpl implements TeacherService {
                 .introduction(teacher.getIntroduction())
                 .gender(teacher.getGender())
                 .level(teacher.getLevel())
+                .supportsOnline(supportsOnline)
+                .teachingLocationIds(locationIds)
                 .availableTimeSlots(availableTimeSlots)
                 .verified(teacher.getVerified())
                 .deleted(teacher.getDeleted())
@@ -1521,5 +1534,38 @@ public class TeacherServiceImpl implements TeacherService {
 
         List<Teacher> teachers = teacherMapper.selectList(queryWrapper);
         return teachers != null ? teachers : new ArrayList<>();
+    }
+
+    @Override
+    public Page<ClassRecordVO> getClassRecords(Long userId, int page, int size, Integer year, Integer month, String studentName, String courseName) {
+        // 获取教师信息
+        Teacher teacher = getTeacherByUserId(userId);
+        if (teacher == null) {
+            throw new RuntimeException("教师信息不存在");
+        }
+
+        // 执行查询
+        List<ClassRecordVO> records = courseScheduleMapper.selectClassRecords(
+                teacher.getId(), 
+                year, 
+                month, 
+                StringUtils.hasText(studentName) ? studentName : null,
+                StringUtils.hasText(courseName) ? courseName : null
+        );
+        
+        // 手动分页
+        int total = records.size();
+        int start = (page - 1) * size;
+        int end = Math.min(start + size, total);
+        
+        List<ClassRecordVO> pageRecords = records.subList(start, end);
+        
+        // 构建分页结果
+        Page<ClassRecordVO> result = new Page<>(page, size);
+        result.setRecords(pageRecords);
+        result.setTotal(total);
+        result.setPages((long) Math.ceil((double) total / size));
+        
+        return result;
     }
 }

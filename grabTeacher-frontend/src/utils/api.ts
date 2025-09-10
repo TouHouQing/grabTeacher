@@ -169,6 +169,12 @@ export const teachingLocationAPI = {
     apiRequest(`/api/admin/teaching-locations/${id}/status?isActive=${isActive}`, { method: 'PATCH' })
 }
 
+// 公开：授课地点 API（学生端使用）
+export const publicTeachingLocationAPI = {
+  getActive: () => apiRequest('/api/public/teaching-locations/active')
+}
+
+
 // 年级管理 API（仅管理员）
 export const gradeAPI = {
   // 获取年级列表
@@ -519,6 +525,24 @@ export const teacherAPI = {
   // 获取教师课时详情统计
   getHourDetails: () => apiRequest('/api/teacher/hour-details/summary'),
 
+  // 获取教师上课记录
+  getClassRecords: (params: {
+    page?: number
+    size?: number
+    year?: number
+    month?: number
+    studentName?: string
+    courseName?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null && v !== '') searchParams.append(key, v.toString())
+    })
+    const query = searchParams.toString()
+    return apiRequest(`/api/teacher/class-records${query ? `?${query}` : ''}`)
+  },
+
   // 验证学生预约时间匹配度
   validateBookingTime: (teacherId: number, data: {
     weekdays: number[]
@@ -555,6 +579,9 @@ export const bookingAPI = {
     totalTimes?: number
     studentRequirements?: string
     grade?: string
+    // 授课地点选择
+    teachingLocationId?: number // 线下地点ID
+    teachingLocation?: string   // 线上时传 '线上'
     trial?: boolean // 兼容旧字段
     isTrial?: boolean // 后端DTO字段名
     trialDurationMinutes?: number
@@ -713,7 +740,7 @@ export const courseAPI = {
     personLimit?: number | null
     courseTimeSlots?: { weekday: number; timeSlots: string[] }[]
     imageUrl?: string
-    courseLocation?: '线上' | '线下'
+    courseLocation?: string
   }) => apiRequest('/api/courses', {
     method: 'POST',
     body: JSON.stringify(data)
@@ -735,7 +762,7 @@ export const courseAPI = {
     personLimit?: number | null
     courseTimeSlots?: Array<{ weekday: number; timeSlots: string[] }>
     imageUrl?: string
-    courseLocation?: '线上' | '线下'
+    courseLocation?: string
   }) => apiRequest(`/api/courses/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)
@@ -751,9 +778,6 @@ export const courseAPI = {
 
   // 获取教师的课程列表
   getTeacherCourses: (teacherId: number) => apiRequest(`/api/courses/teacher/${teacherId}`),
-
-  // 获取当前教师的课程列表
-  getMyCourses: () => apiRequest('/api/courses/my-courses'),
 
   // 更新课程状态
   updateStatus: (id: number, status: string) => apiRequest(`/api/courses/${id}/status?status=${status}`, {
@@ -968,6 +992,26 @@ export const rescheduleAPI = {
       }
     })
     return apiRequest(`/api/reschedule/admin/requests?${searchParams}`)
+  },
+
+  // 教师：获取调课记录列表（含筛选）
+  getTeacherRequests: (params: {
+    page?: number
+    size?: number
+    status?: string
+    year?: number
+    month?: number
+    requestType?: 'single' | 'recurring' | 'cancel'
+    applicantType?: 'student' | 'teacher'
+    applicantName?: string
+    courseName?: string
+  }) => {
+    const sp = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null && v !== '') sp.append(key, v.toString())
+    })
+    return apiRequest(`/api/reschedule/teacher/requests?${sp}`)
   },
 
   // 管理员：审批调课申请

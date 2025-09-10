@@ -2,6 +2,7 @@ package com.touhouqing.grabteacherbackend.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.touhouqing.grabteacherbackend.model.entity.CourseSchedule;
+import com.touhouqing.grabteacherbackend.model.vo.ClassRecordVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -107,6 +108,43 @@ public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
                                 @Param("date") LocalDate date,
                                 @Param("startTime") LocalTime startTime,
                                 @Param("endTime") LocalTime endTime);
+
+    /**
+     * 查询教师上课记录
+     */
+    @Select("SELECT " +
+            "cs.id as scheduleId, " +
+            "cs.scheduled_date as scheduledDate, " +
+            "cs.start_time as startTime, " +
+            "cs.end_time as endTime, " +
+            "cs.session_number as sessionNumber, " +
+            "cs.teacher_notes as teacherNotes, " +
+            "cs.student_feedback as studentFeedback, " +
+            "ce.duration_minutes as durationMinutes, " +
+            "ce.is_trial as isTrial, " +
+            "ce.enrollment_type as courseType, " +
+            "s.real_name as studentName, " +
+            "t.real_name as teacherName, " +
+            "COALESCE(c.title, '一对一课程') as courseName " +
+            "FROM course_schedules cs " +
+            "INNER JOIN course_enrollments ce ON cs.enrollment_id = ce.id " +
+            "INNER JOIN students s ON ce.student_id = s.id " +
+            "INNER JOIN teachers t ON ce.teacher_id = t.id " +
+            "LEFT JOIN courses c ON ce.course_id = c.id " +
+            "WHERE cs.schedule_status = 'completed' " +
+            "AND ce.teacher_id = #{teacherId} " +
+            "AND cs.is_deleted = 0 " +
+            "AND ce.is_deleted = 0 " +
+            "AND (#{year} IS NULL OR YEAR(cs.scheduled_date) = #{year}) " +
+            "AND (#{month} IS NULL OR MONTH(cs.scheduled_date) = #{month}) " +
+            "AND (#{studentName} IS NULL OR #{studentName} = '' OR s.real_name LIKE CONCAT('%', #{studentName}, '%')) " +
+            "AND (#{courseName} IS NULL OR #{courseName} = '' OR c.title LIKE CONCAT('%', #{courseName}, '%') OR '一对一课程' LIKE CONCAT('%', #{courseName}, '%')) " +
+            "ORDER BY cs.scheduled_date DESC, cs.start_time DESC")
+    List<ClassRecordVO> selectClassRecords(@Param("teacherId") Long teacherId,
+                                          @Param("year") Integer year,
+                                          @Param("month") Integer month,
+                                          @Param("studentName") String studentName,
+                                          @Param("courseName") String courseName);
 }
 
 

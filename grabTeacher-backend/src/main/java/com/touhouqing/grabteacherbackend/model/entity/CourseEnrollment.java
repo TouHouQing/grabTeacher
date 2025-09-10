@@ -82,6 +82,15 @@ public class CourseEnrollment {
     @Schema(description = "年级")
     private String grade;
 
+
+    @TableField("teaching_location_id")
+    @Schema(description = "线下授课地点ID（来自teaching_locations），线上则为空", example = "101")
+    private Long teachingLocationId;
+
+    @TableField("teaching_location")
+    @Schema(description = "授课地点名称（如：线上 或 线下地点名称）", example = "线上")
+    private String teachingLocation;
+
     @TableField("booking_request_id")
     @Schema(description = "关联预约申请ID")
     private Long bookingRequestId;

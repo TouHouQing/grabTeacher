@@ -3,7 +3,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Phone, Message, Location, School, Trophy, ArrowLeft, Loading, Star, Clock, Document, InfoFilled } from '@element-plus/icons-vue'
-import { teacherAPI, evaluationAPI, bookingAPI } from '@/utils/api'
+import { teacherAPI, evaluationAPI, bookingAPI, publicTeachingLocationAPI } from '@/utils/api'
 import { useUserStore } from '@/stores/user'
 import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
 import teacherBoy2 from '@/assets/pictures/teacherBoy2.jpeg'
@@ -77,6 +77,12 @@ const selectedTimeSlot = ref('')
 const availableTimeSlots = ref([]) // 可用时间段
 const loadingSubjects = ref(false)
 // const loadingTimeSlots = ref(false) // 暂时注释，未使用
+
+
+// 授课地点选择
+const activeTeachingLocations = ref<any[]>([])
+const allowedTeachingLocations = ref<Array<{ value: string | number; label: string }>>([])
+const selectedTeachingLocation = ref<string | number>('')
 
 // 试听课时间段选项（选择大时间段后，具体时间按半小时切分）
 const timePeriods = [
@@ -405,6 +411,32 @@ const goBack = () => {
 }
 
 // 获取教师详情数据
+// 加载可选择的授课地点（根据教师配置）
+async function loadAllowedTeachingLocations() {
+  try {
+    const res = await publicTeachingLocationAPI.getActive()
+    const list = res?.success ? (res.data || []) : []
+    activeTeachingLocations.value = list
+
+    const options: Array<{ value: string | number; label: string }> = []
+    if (teacher.value?.supportsOnline) {
+      options.push({ value: 'online', label: '线上' })
+    }
+    const ids: number[] = Array.isArray((teacher.value as any)?.teachingLocationIds) ? (teacher.value as any).teachingLocationIds : []
+    ids.forEach((id) => {
+      const item = list.find((x: any) => x.id === id)
+      if (item) options.push({ value: id, label: item.name })
+    })
+
+    allowedTeachingLocations.value = options
+    if (!selectedTeachingLocation.value && options.length > 0) {
+      selectedTeachingLocation.value = options[0].value
+    }
+  } catch (e) {
+    console.error('加载授课地点失败:', e)
+  }
+}
+
 const fetchTeacherDetail = async () => {
   try {
     loading.value = true
@@ -438,15 +470,30 @@ const fetchTeacherDetail = async () => {
       // 赋值可授课时间（后端字段：availableTimeSlots -> [{ weekday: 1-7, timeSlots: ["HH:mm-HH:mm"] }])
       teacherAvailableSlots.value = Array.isArray(teacherData.availableTimeSlots) ? teacherData.availableTimeSlots : []
 
+
+      // 授课地点能力
+      teacher.value.supportsOnline = !!teacherData.supportsOnline
+      teacher.value.teachingLocationIds = Array.isArray(teacherData.teachingLocationIds) ? teacherData.teachingLocationIds : []
+
+      // 载入可选授课地点
+      await loadAllowedTeachingLocations()
+
     } else {
-      // 如果API失败，使用默认数据
+      // 接口返回失败：使用安全兜底，保留页面，不再跳转
       if (teachersData[teacherId]) {
         teacher.value = teachersData[teacherId]
         ElMessage.warning('使用默认教师数据')
       } else {
-        ElMessage.error('教师信息不存在')
-        router.push('/famous-teachers')
-        return
+        teacher.value = {
+          id: teacherId,
+          name: '该教师',
+          subjects: [],
+          level: '未设置',
+          description: '暂无详细资料',
+          avatar: '',
+          tags: []
+        }
+        ElMessage.warning('暂未获取到教师详情，已使用最小信息展示')
       }
     }
   } catch (error) {
@@ -456,9 +503,16 @@ const fetchTeacherDetail = async () => {
       teacher.value = teachersData[teacherId]
       ElMessage.warning('网络异常，使用默认教师数据')
     } else {
-      ElMessage.error('教师信息不存在')
-      router.push('/famous-teachers')
-      return
+      teacher.value = {
+        id: teacherId,
+        name: '该教师',
+        subjects: [],
+        level: '未设置',
+        description: '暂无详细资料',
+        avatar: '',
+        tags: []
+      }
+      ElMessage.warning('暂未获取到教师详情，已使用最小信息展示')
     }
   } finally {
     loading.value = false
@@ -628,6 +682,7 @@ const loadSubjects = async () => {
 // 生成半小时切分的时间段
 const generateHalfHourSlots = (start: string, end: string) => {
   const result: string[] = []
+
   const [startH, startM] = start.split(':').map(n => parseInt(n))
   const [endH, endM] = end.split(':').map(n => parseInt(n))
 
@@ -670,9 +725,15 @@ const confirmTrialBooking = async () => {
     return
   }
 
+  if (!selectedTeachingLocation.value) {
+    ElMessage.warning('请选择授课地点')
+    return
+  }
+
+
   try {
     // 构建试听课预约请求数据
-    const bookingData = {
+    const bookingData: any = {
       teacherId: teacherId,
       bookingType: 'single' as const,
       studentRequirements: `申请与${teacher.value?.name}老师进行${selectedSubject.value}科目试听`,
@@ -681,6 +742,13 @@ const confirmTrialBooking = async () => {
       requestedDate: selectedDate.value,
       requestedStartTime: selectedTimeSlot.value.split('-')[0],
       requestedEndTime: selectedTimeSlot.value.split('-')[1]
+    }
+
+    // 选择授课地点
+    if (selectedTeachingLocation.value === 'online') {
+      bookingData.teachingLocation = '线上'
+    } else {
+      bookingData.teachingLocationId = Number(selectedTeachingLocation.value)
     }
 
     // 调用后端API创建试听课预约申请
@@ -759,6 +827,8 @@ const resetBookingForm = () => {
   selectedTimeSlot.value = ''
   selectedTimePeriod.value = ''
   availableTimeSlots.value = []
+  selectedTeachingLocation.value = ''
+
   bookingType.value = ''
 }
 
@@ -893,9 +963,15 @@ const confirmCourseBooking = async () => {
     return
   }
 
+  if (!selectedTeachingLocation.value) {
+    ElMessage.warning('请选择授课地点')
+    return
+  }
+
+
   try {
     // 构建正式课预约请求数据
-    const bookingData = {
+    const bookingData: any = {
       teacherId: teacherId,
       courseId: selectedCourse.value.id,
       bookingType: 'recurring' as const,
@@ -907,6 +983,13 @@ const confirmCourseBooking = async () => {
       startDate: scheduleForm.value.startDate,
       endDate: scheduleForm.value.endDate,
       totalTimes: scheduleForm.value.sessionCount
+    }
+
+    // 选择授课地点
+    if (selectedTeachingLocation.value === 'online') {
+      bookingData.teachingLocation = '线上'
+    } else {
+      bookingData.teachingLocationId = Number(selectedTeachingLocation.value)
     }
 
     // 调用后端API创建正式课预约申请
@@ -1251,6 +1334,19 @@ watch(() => scheduleForm.value.sessionCount, () => {
             </el-select>
           </el-form-item>
 
+          <el-form-item label="授课地点" required>
+            <el-radio-group v-model="selectedTeachingLocation">
+              <el-radio-button
+                v-for="opt in allowedTeachingLocations"
+                :key="opt.value"
+                :label="opt.value"
+              >
+                {{ opt.label }}
+              </el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+
+
           <el-form-item label="上课日期" required>
             <el-date-picker
               v-model="selectedDate"
@@ -1291,7 +1387,7 @@ watch(() => scheduleForm.value.sessionCount, () => {
 
         <div class="booking-actions">
           <el-button @click="closeBookingModal">取消</el-button>
-          <el-button type="primary" @click="confirmTrialBooking" :disabled="!selectedSubject || !selectedDate || !selectedTimeSlot">
+          <el-button type="primary" @click="confirmTrialBooking" :disabled="!selectedSubject || !selectedDate || !selectedTimeSlot || !selectedTeachingLocation">
             确认预约
           </el-button>
         </div>
@@ -1412,6 +1508,20 @@ watch(() => scheduleForm.value.sessionCount, () => {
               由于该课程未设置固定时长，请选择您希望的课程时长
             </div>
           </el-form-item>
+
+          <!-- 授课地点选择 -->
+          <el-form-item label="授课地点" required>
+            <el-radio-group v-model="selectedTeachingLocation">
+              <el-radio-button
+                v-for="opt in allowedTeachingLocations"
+                :key="opt.value"
+                :label="opt.value"
+              >
+                {{ opt.label }}
+              </el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+
 
           <!-- 课程安排设置 -->
           <el-form-item label="课程安排">
@@ -1563,7 +1673,7 @@ watch(() => scheduleForm.value.sessionCount, () => {
           <el-button
             type="primary"
             @click="confirmCourseBooking"
-            :disabled="!selectedCourse || scheduleForm.selectedWeekdays.length === 0 || scheduleForm.selectedTimeSlots.length === 0"
+            :disabled="!selectedCourse || !selectedTeachingLocation || scheduleForm.selectedWeekdays.length === 0 || scheduleForm.selectedTimeSlots.length === 0"
           >
             确认预约
           </el-button>

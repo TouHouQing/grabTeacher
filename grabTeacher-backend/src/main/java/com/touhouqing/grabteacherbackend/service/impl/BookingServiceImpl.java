@@ -59,6 +59,10 @@ public class BookingServiceImpl implements BookingService {
     @Autowired
     private SubjectMapper subjectMapper;
 
+
+    @Autowired
+    private TeachingLocationMapper teachingLocationMapper;
+
     @Autowired
     private DistributedLockService distributedLockService;
 
@@ -119,6 +123,45 @@ public class BookingServiceImpl implements BookingService {
 
 
 
+        // 验证授课地点选择并归一化
+        Long chosenLocationId = null;
+        String chosenLocationName = null;
+        List<Long> allowedOfflineIds = new ArrayList<>();
+        if (StringUtils.hasText(teacher.getTeachingLocations())) {
+            for (String s : teacher.getTeachingLocations().split(",")) {
+                if (StringUtils.hasText(s)) {
+                    try { allowedOfflineIds.add(Long.parseLong(s.trim())); } catch (NumberFormatException ignore) {}
+                }
+            }
+        }
+        boolean teacherSupportsOnline = Boolean.TRUE.equals(teacher.getSupportsOnline());
+
+        if (request.getTeachingLocationId() != null) {
+            Long locId = request.getTeachingLocationId();
+            if (!allowedOfflineIds.contains(locId)) {
+                throw new RuntimeException("请选择该教师支持的线下授课地点");
+            }
+            TeachingLocation loc = teachingLocationMapper.selectById(locId);
+            if (loc == null || !Boolean.TRUE.equals(loc.getIsActive())) {
+                throw new RuntimeException("所选线下授课地点不存在或已停用");
+            }
+            chosenLocationId = loc.getId();
+            chosenLocationName = loc.getName();
+        } else if (StringUtils.hasText(request.getTeachingLocation())) {
+            String locText = request.getTeachingLocation().trim();
+            if ("线上".equals(locText)) {
+                if (!teacherSupportsOnline) {
+                    throw new RuntimeException("该教师不支持线上授课");
+                }
+                chosenLocationName = "线上";
+            } else {
+                throw new RuntimeException("无效的授课地点选择");
+            }
+        } else {
+            throw new RuntimeException("请选择授课地点");
+        }
+
+
         // 验证预约时间
         validateBookingTime(request, student.getId(), request.getTeacherId());
 
@@ -137,6 +180,8 @@ public class BookingServiceImpl implements BookingService {
                 .endDate(request.getEndDate())
                 .totalTimes(request.getTotalTimes())
                 .studentRequirements(request.getStudentRequirements())
+                .teachingLocationId(chosenLocationId)
+                .teachingLocation(chosenLocationName)
                 .grade(request.getGrade())
                 .isTrial(isTrial)
                 .trialDurationMinutes(request.getTrialDurationMinutes())
@@ -869,17 +914,17 @@ public class BookingServiceImpl implements BookingService {
     public boolean hasTrialTimeConflict(Long teacherId, LocalDate date, String startTime, String endTime) {
         LocalTime start = LocalTime.parse(startTime);
         LocalTime end = LocalTime.parse(endTime);
-        
+
         // 试听课之间可以共存，但需要检查是否会影响基础2小时区间的可用性
         // 如果8:00-8:30有试听课，那么8:00-10:00的基础区间应该被标记为不可用（用于正式课）
         // 但是8:30-10:00之间还可以预约试听课
-        
+
         // 检查是否有完全相同的30分钟试听课时间段
         int exactConflictCount = courseScheduleMapper.countTrialTimeConflicts(teacherId, date, start, end);
         if (exactConflictCount > 0) {
             return true; // 完全相同的时间段不能重复预约
         }
-        
+
         // 检查是否会影响基础2小时区间的可用性
         String baseSlot = mapToBaseTimeSlot(startTime, endTime);
         if (baseSlot != null) {
@@ -895,7 +940,7 @@ public class BookingServiceImpl implements BookingService {
                 }
             }
         }
-        
+
         return false;
     }
 
@@ -904,16 +949,16 @@ public class BookingServiceImpl implements BookingService {
      */
     private boolean isTrialSlotInOccupiedBase(String startTime, String endTime, String baseSlot) {
         String[] baseTimes = baseSlot.split("-");
-        
+
         LocalTime trialStart = LocalTime.parse(startTime);
         LocalTime baseStart = LocalTime.parse(baseTimes[0]);
-        
+
         // 如果试听课的开始时间等于基础区间的开始时间，则认为该基础区间被占用
         // 例如：8:00-8:30的试听课会占用8:00-10:00的基础区间
         if (trialStart.equals(baseStart)) {
             return true;
         }
-        
+
         return false;
     }
 
@@ -977,6 +1022,8 @@ public class BookingServiceImpl implements BookingService {
                         .trial(Boolean.TRUE.equals(bookingRequest.getIsTrial()))
                         .recurringSchedule(buildRecurringScheduleJson(weekdays, timeSlots))
                         .durationMinutes(courseDurationMinutes)
+                        .teachingLocationId(bookingRequest.getTeachingLocationId())
+                        .teachingLocation(bookingRequest.getTeachingLocation())
                         .grade(bookingRequest.getGrade())
                         .bookingRequestId(bookingRequest.getId())
                         .deleted(false)
@@ -1106,6 +1153,8 @@ public class BookingServiceImpl implements BookingService {
                         .trial(Boolean.TRUE.equals(bookingRequest.getIsTrial()))
                         .recurringSchedule(buildRecurringScheduleJson(weekdays, timeSlots))
                         .durationMinutes(courseDurationMinutes)
+                        .teachingLocationId(bookingRequest.getTeachingLocationId())
+                        .teachingLocation(bookingRequest.getTeachingLocation())
                         .grade(bookingRequest.getGrade())
                         .bookingRequestId(bookingRequest.getId())
                         .deleted(false)
@@ -1350,6 +1399,8 @@ public class BookingServiceImpl implements BookingService {
                         .endDate(bookingRequest.getRequestedDate())
                         .trial(Boolean.TRUE.equals(bookingRequest.getIsTrial()))
                         .durationMinutes(courseDurationMinutes)
+                        .teachingLocationId(bookingRequest.getTeachingLocationId())
+                        .teachingLocation(bookingRequest.getTeachingLocation())
                         .grade(bookingRequest.getGrade())
                         .bookingRequestId(bookingRequest.getId())
                         .deleted(false)
@@ -1473,6 +1524,8 @@ public class BookingServiceImpl implements BookingService {
                 .status(bookingRequest.getStatus())
                 .teacherReply(bookingRequest.getTeacherReply())
                 .adminNotes(bookingRequest.getAdminNotes())
+                .teachingLocationId(bookingRequest.getTeachingLocationId())
+                .teachingLocation(bookingRequest.getTeachingLocation())
                 .createdAt(bookingRequest.getCreatedAt())
                 .updatedAt(bookingRequest.getUpdatedAt())
                 .approvedAt(bookingRequest.getApprovedAt())

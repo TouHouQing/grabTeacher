@@ -2,8 +2,8 @@
 import { ref, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { bookingAPI, teacherAPI } from '../../utils/api'
-import { ElMessage } from 'element-plus'
+import { bookingAPI, teacherAPI, rescheduleAPI } from '../../utils/api'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 
 import {
@@ -13,14 +13,15 @@ import {
   Reading,
   Money,
   Setting,
-  VideoCamera,
   ChatDotRound,
   List,
-  Refresh
+  Refresh,
+  Lock
 } from '@element-plus/icons-vue'
 
 // 导入消息组件
 import TeacherMessages from './components/TeacherMessages.vue'
+const RescheduleModal = defineAsyncComponent(() => import('../../components/RescheduleModal.vue'))
 const TeacherHourDetails = defineAsyncComponent(() => import('./components/TeacherHourDetails.vue'))
 
 // 课程安排接口定义
@@ -33,6 +34,13 @@ interface ScheduleItem {
   studentName: string
   status: string
   isTrial: boolean
+  teacherId?: number
+  teacherName?: string
+  studentId?: number
+  courseId?: number
+  durationMinutes?: number
+  courseTitle?: string
+  subjectName?: string
 }
 
 const userStore = useUserStore()
@@ -40,6 +48,13 @@ const route = useRoute()
 const activeMenu = ref('dashboard')
 const todayCourses = ref<ScheduleItem[]>([])
 const loading = ref(false)
+// 即将开始筛选范围（周）
+const upcomingWeeks = ref(2)
+
+// 当月日历数据
+const calendarLoading = ref(false)
+const monthDate = ref(new Date())
+const monthSchedules = ref<ScheduleItem[]>([])
 
 // 统计数据
 const statistics = ref({
@@ -66,14 +81,18 @@ const hourDetails = ref({
 })
 const hourDetailsLoading = ref(false)
 
+// 调课弹窗
+const showRescheduleModal = ref(false)
+const rescheduleCourse = ref<any>(null)
+
 // 根据当前路由设置激活菜单
 watch(() => route.path, (path: string) => {
   if (path.includes('/profile')) {
     activeMenu.value = 'profile'
+  } else if (path.includes('/password')) {
+    activeMenu.value = 'password'
   } else if (path.includes('/schedule')) {
     activeMenu.value = 'schedule'
-  } else if (path.includes('/courses')) {
-    activeMenu.value = 'courses'
   } else if (path.includes('/bookings')) {
     activeMenu.value = 'bookings'
   } else if (path.includes('/reschedule')) {
@@ -89,11 +108,12 @@ const fetchUpcomingCourses = async () => {
   try {
     loading.value = true
     const today = new Date().toISOString().split('T')[0]
-    const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const rangeDays = upcomingWeeks.value * 7
+    const nextDate = new Date(Date.now() + rangeDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
     const response = await bookingAPI.getTeacherSchedules({
       startDate: today,
-      endDate: nextWeek
+      endDate: nextDate
     })
 
     if (response.success && response.data) {
@@ -122,6 +142,110 @@ const fetchUpcomingCourses = async () => {
 // 格式化时间显示
 const formatTimeRange = (startTime: string, endTime: string) => {
   return `${startTime}-${endTime}`
+}
+
+// 加载当月课表（用于日历渲染）
+const loadMonthSchedules = async () => {
+  try {
+    calendarLoading.value = true
+    const d = new Date(monthDate.value)
+    const start = new Date(d.getFullYear(), d.getMonth(), 1)
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+    const startStr = start.toISOString().split('T')[0]
+    const endStr = end.toISOString().split('T')[0]
+    const res = await bookingAPI.getTeacherSchedules({ startDate: startStr, endDate: endStr })
+    if (res.success && res.data) {
+      monthSchedules.value = res.data
+    } else {
+      ElMessage.error(res.message || '获取当月课表失败')
+    }
+  } catch (e) {
+    console.error('加载当月课表失败:', e)
+  } finally {
+    calendarLoading.value = false
+  }
+}
+
+const dateHasSchedule = (date: Date) => {
+  const ds = date.toISOString().split('T')[0]
+  return monthSchedules.value.some(s => s.scheduledDate === ds)
+}
+
+const dateScheduleStatus = (date: Date): 'none' | 'has' => {
+  return dateHasSchedule(date) ? 'has' : 'none'
+}
+
+// 打开调课弹窗
+const openRescheduleModal = (schedule: ScheduleItem) => {
+  const enhancedSchedule = {
+    id: schedule.id,
+    teacherId: schedule.teacherId,
+    teacherName: schedule.teacherName || '当前教师',
+    studentId: schedule.studentId,
+    studentName: schedule.studentName,
+    courseId: schedule.courseId,
+    courseTitle: schedule.courseTitle || schedule.courseName || '自定义课程',
+    subjectName: schedule.subjectName || '未知科目',
+    scheduledDate: schedule.scheduledDate,
+    startTime: schedule.startTime,
+    endTime: schedule.endTime,
+    durationMinutes: schedule.durationMinutes || 120,
+    totalTimes: 1,
+    status: schedule.status || 'progressing',
+    teacherNotes: undefined,
+    studentFeedback: undefined,
+    createdAt: undefined,
+    bookingRequestId: undefined,
+    bookingSource: undefined,
+    isTrial: schedule.isTrial,
+    sessionNumber: 1,
+    courseType: 'regular'
+  }
+
+  rescheduleCourse.value = {
+    id: schedule.courseId || schedule.id,
+    title: schedule.courseTitle || schedule.courseName || '自定义课程',
+    teacher: schedule.teacherName || '当前教师',
+    teacherId: schedule.teacherId,
+    subject: schedule.subjectName || '未知科目',
+    remainingLessons: 1,
+    weeklySchedule: [],
+    schedules: [enhancedSchedule]
+  }
+  showRescheduleModal.value = true
+}
+
+// 请假（取消本次课程）
+const applyLeave = async (schedule: ScheduleItem) => {
+  try {
+    const { value, action } = await ElMessageBox.prompt('请输入请假/取消原因', '请假申请', {
+      confirmButtonText: '提交',
+      cancelButtonText: '取消',
+      inputPlaceholder: '请填写原因（必填）',
+      inputValidator: (v: string) => !!v && v.trim().length > 0 || '请填写原因'
+    })
+    if (action !== 'confirm') return
+
+    const res = await rescheduleAPI.createTeacherRequest({
+      scheduleId: schedule.id,
+      requestType: 'cancel',
+      reason: value
+    })
+    if (res.success) {
+      ElMessage.success('请假申请已提交，等待管理员审批')
+    } else {
+      ElMessage.error(res.message || '请假申请提交失败')
+    }
+  } catch (e: any) {
+    if (e === 'cancel') return
+    console.error('请假申请失败:', e)
+    ElMessage.error(e?.message || '请假申请失败')
+  }
+}
+
+const handleRescheduleSuccess = () => {
+  fetchUpcomingCourses()
+  loadMonthSchedules()
 }
 
 // 获取统计数据
@@ -191,6 +315,7 @@ onMounted(async () => {
   }
   fetchUpcomingCourses()
   loadStatistics()
+  loadMonthSchedules()
 })
 </script>
 
@@ -215,24 +340,16 @@ onMounted(async () => {
           >
             <el-menu-item index="dashboard" @click="$router.push('/teacher-center')">
               <el-icon><HomeFilled /></el-icon>
-              <span>控制台</span>
+              <span>我的课表</span>
             </el-menu-item>
             <el-menu-item index="bookings" @click="$router.push('/teacher-center/bookings')">
               <el-icon><DocumentChecked /></el-icon>
-              <span>预约管理</span>
-            </el-menu-item>
-            <el-menu-item index="schedule" @click="$router.push('/teacher-center/schedule')">
-              <el-icon><Calendar /></el-icon>
-              <span>课表管理</span>
-            </el-menu-item>
-            <el-menu-item index="courses" @click="$router.push('/teacher-center/courses')">
-              <el-icon><Reading /></el-icon>
-              <span>课程管理</span>
+              <span>调课记录</span>
             </el-menu-item>
 
             <el-menu-item index="my-hour-details">
               <el-icon><List /></el-icon>
-              <span>课时明细</span>
+              <span>上课记录</span>
             </el-menu-item>
 
 
@@ -243,14 +360,18 @@ onMounted(async () => {
 
             <el-menu-item index="profile" @click="$router.push('/teacher-center/profile')">
               <el-icon><Setting /></el-icon>
-              <span>个人设置</span>
+              <span>个人资料</span>
+            </el-menu-item>
+            <el-menu-item index="password" @click="$router.push('/teacher-center/password')">
+              <el-icon><Lock /></el-icon>
+              <span>修改密码</span>
             </el-menu-item>
           </el-menu>
         </div>
       </el-aside>
       <el-main>
         <div v-if="activeMenu === 'dashboard'" class="dashboard">
-          <h2>欢迎回来，{{ userStore.user?.realName }}!</h2>
+          <h2>我的课表</h2>
           <div class="dashboard-stats">
             <div class="stat-card">
               <div class="stat-icon">
@@ -273,13 +394,43 @@ onMounted(async () => {
             </div>
           </div>
 
+          <div class="calendar-section">
+            <div class="calendar-header">
+              <h3>当月课表</h3>
+              <div class="calendar-actions">
+                <el-date-picker
+                  v-model="monthDate"
+                  type="month"
+                  placeholder="选择月份"
+                  format="YYYY-MM"
+                  value-format="YYYY-MM-DD"
+                  @change="loadMonthSchedules"
+                  style="width: 160px;"
+                />
+                <el-button type="primary" @click="loadMonthSchedules" :loading="calendarLoading" style="margin-left: 8px;">
+                  <el-icon><Refresh /></el-icon>
+                  刷新
+                </el-button>
+              </div>
+            </div>
+            <el-calendar v-model="monthDate">
+              <template #date-cell="{ data }">
+                <div class="calendar-cell" :class="dateScheduleStatus(data.date) === 'has' ? 'has-schedule' : 'no-schedule'">
+                  <span class="date-number">{{ data.day.split('-').slice(-1)[0] }}</span>
+                  <span v-if="dateScheduleStatus(data.date) === 'has'" class="dot"></span>
+                </div>
+              </template>
+            </el-calendar>
+            <div class="calendar-legend">
+              <span><i class="dot"></i> 有课程</span>
+              <span class="muted">无课程</span>
+            </div>
+          </div>
+
           <div class="quick-actions">
             <h3>快捷操作</h3>
             <div class="action-buttons">
-              <el-button type="primary" @click="$router.push('/teacher-center/schedule')">
-                <el-icon><Calendar /></el-icon>
-                查看课表
-              </el-button>
+
               <el-button type="warning" @click="$router.push({ path: '/about', hash: '#contact-us' })">
                 <el-icon><ChatLineRound /></el-icon>
                 联系客服
@@ -288,7 +439,16 @@ onMounted(async () => {
           </div>
 
           <div class="upcoming-courses">
-            <h3>即将开始课程</h3>
+            <div class="upcoming-header">
+              <h3>即将开始课程</h3>
+              <div class="upcoming-actions">
+                <el-select v-model="upcomingWeeks" style="width: 140px;" @change="fetchUpcomingCourses">
+                  <el-option :value="1" label="1周内" />
+                  <el-option :value="2" label="2周内" />
+                  <el-option :value="4" label="4周内" />
+                </el-select>
+              </div>
+            </div>
             <div v-loading="loading">
               <el-table :data="todayCourses" style="width: 100%">
                 <el-table-column prop="scheduledDate" label="日期" width="120" />
@@ -305,10 +465,14 @@ onMounted(async () => {
                     <el-tag v-else type="success" size="small">正式</el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="180">
-                  <template #default>
-                    <el-button type="primary" size="small">进入教室</el-button>
-                    <el-button type="info" size="small">查看详情</el-button>
+                <el-table-column label="操作" width="260">
+                  <template #default="scope">
+                    <el-button type="primary" size="small">详情</el-button>
+                    <el-button type="warning" size="small" @click="openRescheduleModal(scope.row)">
+                      <el-icon><Refresh /></el-icon>
+                      申请调课
+                    </el-button>
+                    <el-button type="info" size="small" @click="applyLeave(scope.row)">请假</el-button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -320,17 +484,6 @@ onMounted(async () => {
 
 
         </div>
-        <div v-else-if="activeMenu === 'courses'">
-          <router-view v-if="$route.path.includes('/courses')" />
-          <div v-else>
-            <h3>课程管理</h3>
-            <p>请点击菜单中的"课程管理"进入课程管理页面。</p>
-            <el-button type="primary" @click="$router.push('/teacher-center/courses')">
-              进入课程管理
-            </el-button>
-          </div>
-        </div>
-
         <div v-else-if="activeMenu === 'messages'">
           <TeacherMessages />
         </div>
@@ -344,6 +497,13 @@ onMounted(async () => {
         </div>
       </el-main>
     </el-container>
+
+    <RescheduleModal
+      v-model="showRescheduleModal"
+      :course="rescheduleCourse"
+      :is-teacher="true"
+      @success="handleRescheduleSuccess"
+    />
 
     <!-- 课时详情模态框 -->
     <el-dialog
@@ -505,6 +665,67 @@ onMounted(async () => {
   padding: 20px;
   margin-bottom: 30px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.calendar-section {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.calendar-cell {
+  position: relative;
+  padding: 4px 6px;
+}
+
+.calendar-cell .date-number {
+  font-size: 12px;
+}
+
+.calendar-cell .dot {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #67c23a;
+}
+
+.calendar-legend {
+  margin-top: 8px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.calendar-legend .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #67c23a;
+  margin-right: 6px;
+}
+
+.calendar-legend .muted {
+  color: #999;
+}
+
+.upcoming-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .quick-actions h3, .upcoming-courses h3 {

@@ -70,7 +70,17 @@ public interface RescheduleService {
      * @param status 状态筛选
      * @return 分页调课申请列表
      */
-    Page<RescheduleVO> getTeacherRescheduleRequests(Long teacherUserId, int page, int size, String status);
+    Page<RescheduleVO> getTeacherRescheduleRequests(
+            Long teacherUserId,
+            int page,
+            int size,
+            String status,
+            Integer year,
+            Integer month,
+            String requestType,
+            String applicantType,
+            String applicantName,
+            String courseName);
 
     /**
      * 管理员获取所有调课申请列表

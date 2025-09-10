@@ -11,7 +11,7 @@
  Target Server Version : 80406 (8.4.6)
  File Encoding         : 65001
 
- Date: 10/09/2025 12:15:33
+ Date: 10/09/2025 14:50:30
 */
 
 SET NAMES utf8mb4;
@@ -99,6 +99,8 @@ CREATE TABLE `booking_requests` (
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
   `is_trial` tinyint(1) DEFAULT '0' COMMENT '是否为免费试听课：true-是，false-否',
   `trial_duration_minutes` int DEFAULT NULL COMMENT '试听课时长（分钟）',
+  `teaching_location_id` bigint DEFAULT NULL COMMENT '授课地点ID（线下）',
+  `teaching_location` varchar(255) DEFAULT '线上' COMMENT '授课地点名称',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='预约申请表，记录学生的课程预约申请';
 
@@ -106,14 +108,14 @@ CREATE TABLE `booking_requests` (
 -- Records of booking_requests
 -- ----------------------------
 BEGIN;
-INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`) VALUES (3, 6, 7, NULL, 'recurring', NULL, NULL, NULL, '2,3', '17:00-18:00', '2025-07-22', '2025-08-26', 12, '希望预约12355老师的语文课程', 'approved', '可以', NULL, '2025-07-21 13:07:49', '2025-07-21 13:12:05', '2025-07-21 13:12:05', 0, NULL, 0, NULL);
-INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`) VALUES (4, 6, 7, 3, 'recurring', NULL, NULL, NULL, '2,5', '14:00-15:00', '2025-07-23', '2025-08-27', 12, '希望预约12355老师的《语文》课程', 'approved', '可以', NULL, '2025-07-21 13:47:39', '2025-07-21 13:47:58', '2025-07-21 13:47:58', 1, '2025-07-28 15:23:31', 0, NULL);
-INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`) VALUES (5, 6, 7, 3, 'single', '2025-08-16', '11:00:00', '11:30:00', NULL, NULL, NULL, NULL, NULL, '希望预约12355老师的《语文》课程', 'pending', NULL, NULL, '2025-07-21 22:03:14', '2025-07-21 22:03:14', NULL, 1, '2025-07-28 15:23:31', 1, 30);
-INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`) VALUES (6, 6, 7, 3, 'single', '2025-07-30', '10:30:00', '11:00:00', NULL, NULL, NULL, NULL, NULL, '希望预约12355老师的《语文》课程', 'pending', NULL, NULL, '2025-07-21 22:03:24', '2025-07-21 22:03:24', NULL, 1, '2025-07-28 15:23:31', 1, 30);
-INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`) VALUES (7, 6, 115, 5001, 'single', '2025-08-08', '10:30:00', '11:00:00', NULL, NULL, NULL, NULL, NULL, '希望预约门捷列夫老师的《初中化学基础课程》课程', 'pending', NULL, NULL, '2025-07-26 18:41:46', '2025-07-26 18:41:46', NULL, 1, '2025-07-28 15:12:55', 1, 30);
-INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`) VALUES (8, 6, 7, 1, 'recurring', NULL, NULL, NULL, '2', '18:00-19:00', '2025-07-28', '2025-09-29', 10, '希望预约12355老师的《小学语文基础班》课程', 'rejected', NULL, '我不同意', '2025-07-28 15:53:28', '2025-07-28 16:12:38', NULL, 0, NULL, 0, NULL);
-INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`) VALUES (9, 6, 7, 1, 'recurring', NULL, NULL, NULL, '1', '15:00-16:00', '2025-07-30', '2025-10-15', 12, '希望预约12355老师的《小学语文基础班》课程', 'approved', NULL, '可以', '2025-07-28 16:13:38', '2025-07-28 16:14:46', '2025-07-28 16:14:46', 0, NULL, 0, NULL);
-INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`) VALUES (10, 6, 110, 3003, 'recurring', NULL, NULL, NULL, '3', '09:00-10:00', '2025-07-29', '2025-10-14', 12, '希望预约Johnson老师的《小学英语精品课程》课程', 'rejected', NULL, '测试', '2025-07-28 21:09:03', '2025-07-28 21:09:23', NULL, 0, NULL, 0, NULL);
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (3, 6, 7, NULL, 'recurring', NULL, NULL, NULL, '2,3', '17:00-18:00', '2025-07-22', '2025-08-26', 12, '希望预约12355老师的语文课程', 'approved', '可以', NULL, '2025-07-21 13:07:49', '2025-07-21 13:12:05', '2025-07-21 13:12:05', 0, NULL, 0, NULL, NULL, '线上');
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (4, 6, 7, 3, 'recurring', NULL, NULL, NULL, '2,5', '14:00-15:00', '2025-07-23', '2025-08-27', 12, '希望预约12355老师的《语文》课程', 'approved', '可以', NULL, '2025-07-21 13:47:39', '2025-07-21 13:47:58', '2025-07-21 13:47:58', 1, '2025-07-28 15:23:31', 0, NULL, NULL, '线上');
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (5, 6, 7, 3, 'single', '2025-08-16', '11:00:00', '11:30:00', NULL, NULL, NULL, NULL, NULL, '希望预约12355老师的《语文》课程', 'pending', NULL, NULL, '2025-07-21 22:03:14', '2025-07-21 22:03:14', NULL, 1, '2025-07-28 15:23:31', 1, 30, NULL, '线上');
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (6, 6, 7, 3, 'single', '2025-07-30', '10:30:00', '11:00:00', NULL, NULL, NULL, NULL, NULL, '希望预约12355老师的《语文》课程', 'pending', NULL, NULL, '2025-07-21 22:03:24', '2025-07-21 22:03:24', NULL, 1, '2025-07-28 15:23:31', 1, 30, NULL, '线上');
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (7, 6, 115, 5001, 'single', '2025-08-08', '10:30:00', '11:00:00', NULL, NULL, NULL, NULL, NULL, '希望预约门捷列夫老师的《初中化学基础课程》课程', 'pending', NULL, NULL, '2025-07-26 18:41:46', '2025-07-26 18:41:46', NULL, 1, '2025-07-28 15:12:55', 1, 30, NULL, '线上');
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (8, 6, 7, 1, 'recurring', NULL, NULL, NULL, '2', '18:00-19:00', '2025-07-28', '2025-09-29', 10, '希望预约12355老师的《小学语文基础班》课程', 'rejected', NULL, '我不同意', '2025-07-28 15:53:28', '2025-07-28 16:12:38', NULL, 0, NULL, 0, NULL, NULL, '线上');
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (9, 6, 7, 1, 'recurring', NULL, NULL, NULL, '1', '15:00-16:00', '2025-07-30', '2025-10-15', 12, '希望预约12355老师的《小学语文基础班》课程', 'approved', NULL, '可以', '2025-07-28 16:13:38', '2025-07-28 16:14:46', '2025-07-28 16:14:46', 0, NULL, 0, NULL, NULL, '线上');
+INSERT INTO `booking_requests` (`id`, `student_id`, `teacher_id`, `course_id`, `booking_type`, `requested_date`, `requested_start_time`, `requested_end_time`, `recurring_weekdays`, `recurring_time_slots`, `start_date`, `end_date`, `total_times`, `student_requirements`, `status`, `teacher_reply`, `admin_notes`, `created_at`, `updated_at`, `approved_at`, `is_deleted`, `deleted_at`, `is_trial`, `trial_duration_minutes`, `teaching_location_id`, `teaching_location`) VALUES (10, 6, 110, 3003, 'recurring', NULL, NULL, NULL, '3', '09:00-10:00', '2025-07-29', '2025-10-14', 12, '希望预约Johnson老师的《小学英语精品课程》课程', 'rejected', NULL, '测试', '2025-07-28 21:09:03', '2025-07-28 21:09:23', NULL, 0, NULL, 0, NULL, NULL, '线上');
 COMMIT;
 
 -- ----------------------------
@@ -142,6 +144,8 @@ CREATE TABLE `course_enrollments` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
+  `teaching_location_id` bigint NOT NULL COMMENT '授课地点ID（线下）',
+  `teaching_location` varchar(255) DEFAULT '线上' COMMENT '授课地点名称',
   PRIMARY KEY (`id`),
   KEY `idx_student_id` (`student_id`),
   KEY `idx_teacher_id` (`teacher_id`),
@@ -152,9 +156,9 @@ CREATE TABLE `course_enrollments` (
 -- Records of course_enrollments
 -- ----------------------------
 BEGIN;
-INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`) VALUES (1, 6, 7, NULL, NULL, 'one_on_one', 12, 0, 'active', '2025-07-21', '2025-07-22', '2025-08-26', 0, '{\"weekdays\": [2, 3], \"timeSlots\": [\"17:00-18:00\"]}', 120, 3, NULL, NULL, '2025-07-21 13:12:05', 0, NULL);
-INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`) VALUES (2, 6, 7, 3, NULL, 'large_class', 12, 0, 'active', '2025-07-21', '2025-07-25', '2025-09-02', 0, '{\"weekdays\": [2, 5], \"timeSlots\": [\"14:00-15:00\"]}', 120, 4, NULL, NULL, '2025-07-21 13:47:58', 0, NULL);
-INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`) VALUES (3, 6, 7, 1, NULL, 'large_class', 12, 0, 'active', '2025-07-28', '2025-07-25', '2025-10-13', 0, '{\"weekdays\": [1], \"timeSlots\": [\"15:00-16:00\"]}', 120, 9, NULL, NULL, '2025-07-28 16:14:46', 0, NULL);
+INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`, `teaching_location_id`, `teaching_location`) VALUES (1, 6, 7, NULL, NULL, 'one_on_one', 12, 0, 'active', '2025-07-21', '2025-07-22', '2025-08-26', 0, '{\"weekdays\": [2, 3], \"timeSlots\": [\"17:00-18:00\"]}', 120, 3, NULL, NULL, '2025-07-21 13:12:05', 0, NULL, 0, '线上');
+INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`, `teaching_location_id`, `teaching_location`) VALUES (2, 6, 7, 3, NULL, 'large_class', 12, 0, 'active', '2025-07-21', '2025-07-25', '2025-09-02', 0, '{\"weekdays\": [2, 5], \"timeSlots\": [\"14:00-15:00\"]}', 120, 4, NULL, NULL, '2025-07-21 13:47:58', 0, NULL, 0, '线上');
+INSERT INTO `course_enrollments` (`id`, `student_id`, `teacher_id`, `course_id`, `grade`, `enrollment_type`, `total_sessions`, `completed_sessions`, `enrollment_status`, `enrollment_date`, `start_date`, `end_date`, `is_trial`, `recurring_schedule`, `duration_minutes`, `booking_request_id`, `teacher_notes`, `student_feedback`, `created_at`, `is_deleted`, `deleted_at`, `teaching_location_id`, `teaching_location`) VALUES (3, 6, 7, 1, NULL, 'large_class', 12, 0, 'active', '2025-07-28', '2025-07-25', '2025-10-13', 0, '{\"weekdays\": [1], \"timeSlots\": [\"15:00-16:00\"]}', 120, 9, NULL, NULL, '2025-07-28 16:14:46', 0, NULL, 0, '线上');
 COMMIT;
 
 -- ----------------------------
@@ -176,6 +180,7 @@ CREATE TABLE `course_evaluation` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除：0-未删除，1-已删除',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
+  `course_location` varchar(255) DEFAULT NULL COMMENT '课程地点',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_student_course` (`student_id`,`course_id`,`teacher_id`),
   KEY `idx_teacher_id` (`teacher_id`),
@@ -189,8 +194,8 @@ CREATE TABLE `course_evaluation` (
 -- Records of course_evaluation
 -- ----------------------------
 BEGIN;
-INSERT INTO `course_evaluation` (`id`, `teacher_id`, `student_id`, `course_id`, `teacher_name`, `student_name`, `course_name`, `is_featured`, `student_comment`, `rating`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (1, 7, 6, 3, '12355', 'student23', '小学应用题专项班', 1, '老师教学很认真，课程内容很实用，孩子进步很大！', 5.0000000, '2025-08-27 00:39:56', '2025-08-27 00:39:56', 0, NULL);
-INSERT INTO `course_evaluation` (`id`, `teacher_id`, `student_id`, `course_id`, `teacher_name`, `student_name`, `course_name`, `is_featured`, `student_comment`, `rating`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (2, 7, 6, 1, '12355', 'student23', '小学语文基础班', 1, '老师很有耐心，教学方法很好，孩子很喜欢！', 5.0000000, '2025-08-27 00:40:27', '2025-08-27 00:40:27', 0, NULL);
+INSERT INTO `course_evaluation` (`id`, `teacher_id`, `student_id`, `course_id`, `teacher_name`, `student_name`, `course_name`, `is_featured`, `student_comment`, `rating`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `course_location`) VALUES (1, 7, 6, 3, '12355', 'student23', '小学应用题专项班', 1, '老师教学很认真，课程内容很实用，孩子进步很大！', 5.0000000, '2025-08-27 00:39:56', '2025-08-27 00:39:56', 0, NULL, NULL);
+INSERT INTO `course_evaluation` (`id`, `teacher_id`, `student_id`, `course_id`, `teacher_name`, `student_name`, `course_name`, `is_featured`, `student_comment`, `rating`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`, `course_location`) VALUES (2, 7, 6, 1, '12355', 'student23', '小学语文基础班', 1, '老师很有耐心，教学方法很好，孩子很喜欢！', 5.0000000, '2025-08-27 00:40:27', '2025-08-27 00:40:27', 0, NULL, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -364,12 +369,13 @@ CREATE TABLE `grades` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=184 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年级表，存储所有年级的信息';
+) ENGINE=InnoDB AUTO_INCREMENT=185 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='年级表，存储所有年级的信息';
 
 -- ----------------------------
 -- Records of grades
 -- ----------------------------
 BEGIN;
+INSERT INTO `grades` (`id`, `name`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (184, '一年级', 1, 0, '2025-09-10 14:14:38', '2025-09-10 14:14:38');
 COMMIT;
 
 -- ----------------------------
@@ -1020,7 +1026,7 @@ CREATE TABLE `teaching_locations` (
 -- Records of teaching_locations
 -- ----------------------------
 BEGIN;
-INSERT INTO `teaching_locations` (`id`, `name`, `address`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (184, '南宁市', '楠楠说请求序', 1, 0, '2025-09-10 11:18:30', '2025-09-10 11:18:30');
+INSERT INTO `teaching_locations` (`id`, `name`, `address`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (184, '南宁市', '南宁市青秀区', 1, 0, '2025-09-10 11:18:30', '2025-09-10 11:18:30');
 COMMIT;
 
 -- ----------------------------

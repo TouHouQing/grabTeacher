@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
-import { useUserStore, type TeacherInfo, type PasswordChangeRequest } from '../../stores/user'
+import { useUserStore, type TeacherInfo } from '../../stores/user'
 import { ElMessage } from 'element-plus'
 import WideTimeSlotSelector from '../../components/WideTimeSlotSelector.vue'
 import { fileAPI } from '../../utils/api'
@@ -99,12 +99,6 @@ const teacherForm = reactive<TeacherInfo>({
 // 可上课时间
 const availableTimeSlots = ref<TimeSlot[]>([])
 
-// 密码修改表单
-const passwordForm = reactive<PasswordChangeRequest>({
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: ''
-})
 
 // 邮箱修改表单
 const emailForm = reactive({
@@ -115,7 +109,6 @@ const emailForm = reactive({
 // 加载状态
 const loading = ref(false)
 const formLoading = ref(false)
-const passwordLoading = ref(false)
 const emailLoading = ref(false)
 const showEmailDialog = ref(false)
 
@@ -268,49 +261,6 @@ const getSelectedSubjectNames = () => {
   return subjectNames.join(', ')
 }
 
-// 修改密码
-const changePassword = async () => {
-  if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-    ElMessage.warning('请填写完整的密码信息')
-    return
-  }
-
-  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-    ElMessage.error('新密码和确认密码不一致')
-    return
-  }
-
-  if (passwordForm.newPassword.length < 6) {
-    ElMessage.error('新密码长度不能少于6位')
-    return
-  }
-
-  // 验证密码必须包含字母和数字
-  const hasLetter = /[a-zA-Z]/.test(passwordForm.newPassword)
-  const hasNumber = /[0-9]/.test(passwordForm.newPassword)
-  if (!hasLetter || !hasNumber) {
-    ElMessage.error('密码必须包含字母和数字')
-    return
-  }
-
-  passwordLoading.value = true
-  try {
-    const response = await userStore.changePassword(passwordForm)
-    if (response.success) {
-      ElMessage.success('密码修改成功')
-      // 清空表单
-      passwordForm.currentPassword = ''
-      passwordForm.newPassword = ''
-      passwordForm.confirmPassword = ''
-    } else {
-      ElMessage.error(response.message || '密码修改失败')
-    }
-  } catch (error) {
-    ElMessage.error('密码修改失败')
-  } finally {
-    passwordLoading.value = false
-  }
-}
 
 // 修改邮箱
 const changeEmail = async () => {
@@ -373,7 +323,7 @@ onMounted(() => {
 
 <template>
   <div class="teacher-profile">
-    <h2>个人设置</h2>
+    <h2>个人资料</h2>
 
     <el-tabs>
       <el-tab-pane label="基本信息">
@@ -523,41 +473,6 @@ onMounted(() => {
         </div>
       </el-tab-pane>
 
-      <el-tab-pane label="修改密码">
-        <div class="password-container">
-          <el-form :model="passwordForm" label-width="120px">
-            <el-form-item label="当前密码">
-              <el-input
-                v-model="passwordForm.currentPassword"
-                type="password"
-                placeholder="请输入当前密码"
-                show-password
-              ></el-input>
-            </el-form-item>
-            <el-form-item label="新密码">
-              <el-input
-                v-model="passwordForm.newPassword"
-                type="password"
-                placeholder="请输入新密码(至少6位，必须包括字母和数字)"
-                show-password
-              ></el-input>
-            </el-form-item>
-            <el-form-item label="确认新密码">
-              <el-input
-                v-model="passwordForm.confirmPassword"
-                type="password"
-                placeholder="请再次输入新密码"
-                show-password
-              ></el-input>
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="changePassword" :loading="passwordLoading">
-                修改密码
-              </el-button>
-            </el-form-item>
-          </el-form>
-        </div>
-      </el-tab-pane>
     </el-tabs>
 
     <!-- 邮箱修改对话框 -->
@@ -634,10 +549,6 @@ onMounted(() => {
   flex: 1;
 }
 
-.password-container {
-  margin-top: 20px;
-  max-width: 600px;
-}
 
 @media (max-width: 768px) {
   .profile-container {

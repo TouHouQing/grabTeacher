@@ -8,6 +8,7 @@ import com.touhouqing.grabteacherbackend.model.dto.TeacherMatchDTO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherMatchVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherProfileVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherScheduleVO;
+import com.touhouqing.grabteacherbackend.model.vo.ClassRecordVO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotAvailabilityDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeValidationResultDTO;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
@@ -138,6 +139,31 @@ public class TeacherController {
             return ResponseEntity.ok(CommonResult.success("获取成功", summary));
         } catch (Exception e) {
             logger.error("获取教师课时详情统计异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("获取失败"));
+        }
+    }
+
+    /**
+     * 获取教师上课记录
+     */
+    @GetMapping("/class-records")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<CommonResult<Page<ClassRecordVO>>> getClassRecords(
+            Authentication authentication,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) String studentName,
+            @RequestParam(required = false) String courseName) {
+        try {
+            UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+            Page<ClassRecordVO> result = teacherService.getClassRecords(
+                    principal.getId(), page, size, year, month, studentName, courseName);
+            return ResponseEntity.ok(CommonResult.success("获取成功", result));
+        } catch (Exception e) {
+            logger.error("获取教师上课记录异常: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResult.error("获取失败"));
         }

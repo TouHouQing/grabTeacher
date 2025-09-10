@@ -81,4 +81,11 @@ public class BookingApplyDTO {
 
     @Schema(description = "关联的报名ID（用于恢复课程时识别原报名）", example = "1001")
     private Long enrollmentId;
+
+    // 授课地点选择
+    @Schema(description = "线下授课地点ID（教师配置的地点之一）", example = "101")
+    private Long teachingLocationId;
+
+    @Schema(description = "授课地点名称（例如：线上 或 线下地点名称）。当选择线上授课时传递 '线上'", example = "线上")
+    private String teachingLocation;
 }

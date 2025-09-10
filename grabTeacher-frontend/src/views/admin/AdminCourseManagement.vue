@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, watch, computed, defineAsyncComponent } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
-import { courseAPI, subjectAPI, teacherAPI, fileAPI } from '../../utils/api'
+import { courseAPI, subjectAPI, teacherAPI, fileAPI, publicTeachingLocationAPI } from '../../utils/api'
 const CompactTimeSlotSelector = defineAsyncComponent(() => import('../../components/CompactTimeSlotSelector.vue'))
 
 // 课程接口定义
@@ -28,7 +28,7 @@ interface Course {
   enrollmentCount?: number
 
   imageUrl?: string
-  courseLocation?: '线上' | '线下'
+  courseLocation?: string
   _localImageFile?: File | null
   _localPreviewUrl?: string
 }
@@ -94,13 +94,30 @@ const courseForm = reactive({
   endDate: '',
   personLimit: null as number | null,
   imageUrl: '' as string,
-  courseLocation: '线上' as '线上' | '线下',
+  courseLocation: '线上' as string,
   // 临时选择的本地文件与预览
   _localImageFile: null as File | null,
   courseTimeSlots: [] as Array<{ weekday: number; timeSlots: string[] }>,
 
   _localPreviewUrl: '' as string
 })
+
+// 授课地点（大班课专用）
+const activeLocations = ref<Array<{ id: number; name: string }>>([])
+const locationMode = ref<'online' | 'offline'>('online')
+const selectedOfflineLocationId = ref<number | null>(null)
+
+const fetchActiveLocations = async () => {
+  try {
+    const resp = await publicTeachingLocationAPI.getActive()
+    if (resp?.success) {
+      activeLocations.value = resp.data || []
+    }
+  } catch (e) {
+    console.warn('获取授课地点失败:', e)
+  }
+}
+
 
 // 选择封面图片（仅本地预览，不立即上传）
 const onSelectCover = (e: Event) => {
@@ -376,6 +393,9 @@ const resetForm = () => {
 
   courseForm.personLimit = null
   courseForm.courseLocation = '线上'
+  // 重置授课地点选择（仅大班课使用）
+  locationMode.value = 'online'
+  selectedOfflineLocationId.value = null
 
 }
 
@@ -388,7 +408,6 @@ const openAddDialog = () => {
   // 打开时计算一次
   recomputeSuggestedPrice()
 }
-
 // 打开编辑对话框（确保从详情接口获取最新的每周时间周期用于回显）
 const openEditDialog = async (course: Course) => {
   // 先用列表数据快速填充，提升响应速度
@@ -419,7 +438,38 @@ const openEditDialog = async (course: Course) => {
 
   // 仅当为大班课且列表数据缺少周期信息时，再拉取详情，避免不必要请求
   const needFetchDetail = course.courseType === 'large_class' && (!listSlots || listSlots.length === 0)
+  // 回显授课地点（方案A：从名称判断线上/线下）
+  if (courseForm.courseType === 'large_class') {
+    if ((courseForm.courseLocation || '') === '线上') {
+      locationMode.value = 'online'
+      selectedOfflineLocationId.value = null
+    } else {
+      locationMode.value = 'offline'
+      const match = activeLocations.value.find(l => l.name === (courseForm.courseLocation || ''))
+      selectedOfflineLocationId.value = match ? match.id : null
+    }
+  } else {
+    locationMode.value = 'online'
+    selectedOfflineLocationId.value = null
+  }
   if (!needFetchDetail) return
+
+  // 
+  //  a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+  //  a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+  //  a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+  //  a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+  //  a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+  //  a0 a0 a0
+  //  a0 a0 a0 a0
+  //  a0 a0
+  //  a0
+  //  a0
+  //  a0
+  //  a0
+  //  a0
+  //  a0
+  //  a0
 
   try {
     const resp = await courseAPI.getById(course.id)
@@ -484,14 +534,27 @@ const saveCourse = async () => {
       durationMinutes: courseForm.durationMinutes,
       status: courseForm.status,
       price: courseForm.price, // 所有课程类型都可以设置价格
-      courseLocation: courseForm.courseLocation,
       ...(coverUrl ? { imageUrl: coverUrl } : {})
     }
+
     if (courseForm.courseType === 'large_class') {
       courseData.startDate = courseForm.startDate
       courseData.endDate = courseForm.endDate
       courseData.personLimit = courseForm.personLimit
       courseData.courseTimeSlots = courseForm.courseTimeSlots
+
+      // 授课地点：大班课二选一（线上/线下单选）
+      if (locationMode.value === 'online') {
+        courseData.supportsOnline = true
+        courseData.courseLocation = '线上'
+      } else {
+        if (!selectedOfflineLocationId.value) {
+          ElMessage.error('请选择一个线下授课地点')
+          loading.value = false
+          return
+        }
+        courseData.offlineLocationId = selectedOfflineLocationId.value
+      }
     }
 
     let response: any
@@ -681,6 +744,7 @@ onMounted(() => {
   fetchCourses()
   fetchSubjects()
   fetchTeachers()
+  fetchActiveLocations()
 })
 
 // 相关字段变化时重算建议价格
@@ -1102,12 +1166,20 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
           </template>
         </el-form-item>
 
-        <el-form-item label="课程地点">
-          <el-radio-group v-model="courseForm.courseLocation">
-            <el-radio label="线上">线上</el-radio>
-            <el-radio label="线下">线下</el-radio>
-          </el-radio-group>
-        </el-form-item>
+        <!-- 大班课：授课方式与地点选择（方案A） -->
+        <template v-if="courseForm.courseType === 'large_class'">
+          <el-form-item label="授课方式" required>
+            <el-radio-group v-model="locationMode">
+              <el-radio label="online">线上</el-radio>
+              <el-radio label="offline">线下</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item v-if="locationMode === 'offline'" label="线下地点" required>
+            <el-select v-model="selectedOfflineLocationId" placeholder="请选择线下授课地点" style="width: 100%">
+              <el-option v-for="loc in activeLocations" :key="loc.id" :label="loc.name" :value="loc.id" />
+            </el-select>
+          </el-form-item>
+        </template>
       </el-form>
 
       <template #footer>

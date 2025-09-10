@@ -56,7 +56,10 @@ const fetchTeacherLevels = async () => {
   try {
     const res = await teacherLevelAPI.list()
     if (res.success && Array.isArray(res.data)) {
-      LEVEL_OPTIONS.value = res.data.map((it: any) => ({ label: it.name, value: it.name }))
+      // 仅展示激活状态的级别，避免选择后被后端校验拒绝
+      LEVEL_OPTIONS.value = res.data
+        .filter((it: any) => it.isActive)
+        .map((it: any) => ({ label: it.name, value: it.name }))
     }
   } catch (e) {
     // ignore
@@ -457,6 +460,12 @@ const saveTeacher = async () => {
       lastHours: teacherForm.lastHours,
       supportsOnline: teacherForm.supportsOnline,
       teachingLocationIds: teacherForm.teachingLocationIds
+    }
+
+    // 如果当前教师的级别已被禁用（选项中不存在），则不要提交 level 字段，避免后端校验报错
+    const activeLevelSet = new Set(LEVEL_OPTIONS.value.map(o => o.value))
+    if (!activeLevelSet.has(baseData.level)) {
+      delete baseData.level
     }
 
     // 处理密码：新建时使用默认密码，编辑时如果填写了密码则更新

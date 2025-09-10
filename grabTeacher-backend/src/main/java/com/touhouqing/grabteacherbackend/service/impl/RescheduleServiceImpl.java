@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-public class RescheduleServiceImpl implements RescheduleService {
+public  class RescheduleServiceImpl implements RescheduleService {
 
     @Autowired
     private RescheduleRequestMapper rescheduleRequestMapper;
@@ -698,7 +698,16 @@ public class RescheduleServiceImpl implements RescheduleService {
     }
 
     @Override
-    public Page<RescheduleVO> getTeacherRescheduleRequests(Long teacherUserId, int page, int size, String status) {
+    public Page<RescheduleVO> getTeacherRescheduleRequests(Long teacherUserId,
+                                                           int page,
+                                                           int size,
+                                                           String status,
+                                                           Integer year,
+                                                           Integer month,
+                                                           String requestType,
+                                                           String applicantType,
+                                                           String applicantName,
+                                                           String courseName) {
         log.info("获取教师调课申请列表，教师用户ID: {}, 页码: {}, 大小: {}, 状态: {}", teacherUserId, page, size, status);
 
         Teacher teacher = teacherMapper.findByUserId(teacherUserId);
@@ -780,9 +789,50 @@ public class RescheduleServiceImpl implements RescheduleService {
             vos.add(vo);
         }
 
+        // 追加内存筛选，避免大范围SQL改动
+        List<RescheduleVO> filtered = new ArrayList<>(vos);
+        if (requestType != null && !requestType.isEmpty()) {
+            filtered = filtered.stream().filter(v -> requestType.equalsIgnoreCase(v.getRequestType())).collect(Collectors.toList());
+        }
+        if (applicantType != null && !applicantType.isEmpty()) {
+            filtered = filtered.stream().filter(v -> applicantType.equalsIgnoreCase(v.getApplicantType())).collect(Collectors.toList());
+        }
+        if (applicantName != null && !applicantName.isEmpty()) {
+            String kw = applicantName.trim().toLowerCase();
+            filtered = filtered.stream().filter(v -> v.getApplicantName() != null && v.getApplicantName().toLowerCase().contains(kw)).collect(Collectors.toList());
+        }
+        if (courseName != null && !courseName.isEmpty()) {
+            String kw = courseName.trim().toLowerCase();
+            filtered = filtered.stream().filter(v -> v.getCourseTitle() != null && v.getCourseTitle().toLowerCase().contains(kw)).collect(Collectors.toList());
+        }
+        if (year != null || month != null) {
+            Integer y = year;
+            Integer m = month;
+            filtered = filtered.stream().filter(v -> {
+                boolean match = false;
+                if (v.getOriginalDate() != null) {
+                    boolean yOk = (y == null) || v.getOriginalDate().getYear() == y;
+                    boolean mOk = (m == null) || v.getOriginalDate().getMonthValue() == m;
+                    match = yOk && mOk;
+                }
+                if (!match && v.getNewDate() != null) {
+                    boolean yOk = (y == null) || v.getNewDate().getYear() == y;
+                    boolean mOk = (m == null) || v.getNewDate().getMonthValue() == m;
+                    match = yOk && mOk;
+                }
+                return match;
+            }).collect(Collectors.toList());
+        }
+
+        // 手动分页
+        long total = filtered.size();
+        int fromIndex = Math.max(0, (page - 1) * size);
+        int toIndex = Math.min(filtered.size(), fromIndex + size);
+        List<RescheduleVO> pageRecords = fromIndex < toIndex ? filtered.subList(fromIndex, toIndex) : Collections.emptyList();
+
         Page<RescheduleVO> responsePage = new Page<>(page, size);
-        responsePage.setTotal(resultPage.getTotal());
-        responsePage.setRecords(vos);
+        responsePage.setTotal(total);
+        responsePage.setRecords(pageRecords);
         return responsePage;
     }
 

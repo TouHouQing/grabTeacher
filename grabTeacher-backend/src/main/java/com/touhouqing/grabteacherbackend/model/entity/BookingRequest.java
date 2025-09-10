@@ -79,6 +79,16 @@ public class BookingRequest {
     @Schema(description = "学生需求说明", example = "希望重点提高数学成绩")
     private String studentRequirements;
 
+    // 授课地点（学生在预约时选择，教师必须支持该地点）
+    @TableField("teaching_location_id")
+    @Schema(description = "线下授课地点ID（来自teaching_locations）", example = "101")
+    private Long teachingLocationId;
+
+    @TableField("teaching_location")
+    @Schema(description = "授课地点名称（如：线上 或 线下地点名称）", example = "线上")
+    private String teachingLocation;
+
+
 
     @TableField(exist = false)
     @Schema(description = "年级（不入库，仅用于流程传递）", example = "高一")
