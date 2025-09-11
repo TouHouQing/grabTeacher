@@ -5,6 +5,8 @@ import { useRouter } from 'vue-router'
 import { subjectAPI, teacherAPI } from '../utils/api'
 import { ElMessage } from 'element-plus'
 import { Loading, View, Calendar } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
+
 
 // 定义组件名称
 defineOptions({
@@ -13,6 +15,8 @@ defineOptions({
 
 // 路由实例
 const router = useRouter()
+
+const userStore = useUserStore()
 
 // 导入图片资源
 import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
@@ -301,8 +305,13 @@ const viewTeacherDetail = (teacherId: number) => {
   router.push(`/teacher-detail/${teacherId}`)
 }
 
-// 立即预约（跳转到详情并自动触发预约流程）
+// 立即预约（未登录先去登录，已登录则跳转到详情并自动触发预约流程）
 const bookTeacherNow = (teacherId: number) => {
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('请先登录后再预约')
+    router.push('/login')
+    return
+  }
   router.push({ path: `/teacher-detail/${teacherId}`, query: { autoBooking: '1' } })
 }
 

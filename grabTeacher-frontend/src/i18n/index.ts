@@ -61,7 +61,8 @@ const en = {
         title: 'Recommended Teachers',
         subtitle: 'Quality teachers popular among students',
         experience: 'years of teaching',
-        bookingBtn: 'Book Course'
+        bookingBtn: 'Book Course',
+        viewMore: 'Browse More Teachers'
       },
       hotCourses: {
         title: 'Popular Courses',
@@ -144,7 +145,8 @@ const zh = {
         title: '推荐教师',
         subtitle: '受学生欢迎的优质教师',
         experience: '年教龄',
-        bookingBtn: '预约课程'
+        bookingBtn: '预约课程',
+        viewMore: '浏览更多教师'
       },
       hotCourses: {
         title: '热门课程',

@@ -697,15 +697,8 @@ const handleBooking = async () => {
 
   // 检查登录状态
   if (!userStore.isLoggedIn) {
-    try {
-      await ElMessageBox.alert('请先登录或联系管理员进行预约', '提示', {
-        confirmButtonText: '确定',
-        type: 'warning',
-      center: true
-    })
-  } finally {
-    router.push({ path: '/about', hash: '#contact-us' })
-  }
+    ElMessage.warning('请先登录后再预约')
+    router.push({ path: '/login' })
     return
   }
 

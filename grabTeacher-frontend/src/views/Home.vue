@@ -343,7 +343,7 @@ defineOptions({
                   </div>
                 </div>
                 <div class="view-more">
-                    <el-button type="primary" plain @click="$router.push('/famous-teachers')">{{ $t('home.sections.hotCourses.viewMore') }}</el-button>
+                    <el-button type="primary" plain @click="$router.push('/famous-teachers')">{{ $t('home.sections.recommendedTeachers.viewMore') }}</el-button>
                 </div>
             </div>
 
