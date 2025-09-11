@@ -292,6 +292,36 @@ const monthlyScheduleData = ref<Array<Array<{
   availableCount: number
   bookedCount: number
 }>>>([])
+// 工具：解析时间段开始小时并映射上午/下午/晚上
+const getStartHourFromTime = (timeStr: string): number | null => {
+  if (!timeStr) return null
+  const start = timeStr.split('-')[0]
+  if (!start) return null
+  const h = parseInt(start.split(':')[0], 10)
+  return Number.isFinite(h) ? h : null
+}
+
+const getPeriodByHour = (hour: number): 'morning' | 'afternoon' | 'evening' | null => {
+  if (hour >= 8 && hour < 12) return 'morning'
+  if (hour >= 13 && hour < 17) return 'afternoon'
+  if (hour >= 17 && hour < 21) return 'evening'
+  return null
+}
+
+// 按学生勾选的上午/下午/晚上过滤月度课表时间段（多选/单选均支持；未勾选则不过滤）
+const filterTimeSlotsBySelectedPeriods = (
+  slots: Array<{ timeSlot?: string; time?: string; available?: boolean; booked?: boolean }>
+) => {
+  const allowed = selectedPeriods.value.length > 0 ? selectedPeriods.value : ['morning', 'afternoon', 'evening']
+  return (slots || []).filter((s) => {
+    const t = (s.timeSlot || s.time || '')
+    const h = getStartHourFromTime(t)
+    if (h === null) return false
+    const p = getPeriodByHour(h)
+    return p ? allowed.includes(p) : false
+  })
+}
+
 
 // 日期详情查看相关数据
 const showDayDetailModal = ref(false)
@@ -1480,13 +1510,24 @@ const getAvailableTimeSlotsForSelection = (): string[] => {
   // 获取当前应该使用的时长（优先使用课程固定时长，其次使用学生选择的时长）
   const currentDuration = selectedCourse.value?.durationMinutes || scheduleForm.selectedDurationMinutes
 
-  // 如果有明确的时长设置，根据时长生成时间段
+  // 先按时长生成候选时间段
+  let slots: string[]
   if (currentDuration) {
-    return getAvailableTimeSlotsByDuration(currentDuration)
+    slots = getAvailableTimeSlotsByDuration(currentDuration)
+  } else {
+    slots = getUniqueTimeSlots()
   }
 
-  // 默认返回完整时间段
-  return getUniqueTimeSlots()
+  // 若学生勾选了上午/下午/晚上，则只展示对应区间内的时间按钮
+  const allowed = selectedPeriods.value.length > 0 ? selectedPeriods.value : null
+  if (!allowed) return slots
+
+  return slots.filter((s) => {
+    const h = getStartHourFromTime(s)
+    if (h === null) return false
+    const p = getPeriodByHour(h)
+    return p ? allowed.includes(p) : false
+  })
 }
 
 // 找到1.5小时时间段对应的基础2小时时间段
@@ -2287,13 +2328,14 @@ const generateMonthlyScheduleData = async () => {
 
           if (specificDateData) {
             // 使用具体日期的数据（包含预订信息）
+            const filteredSlots = filterTimeSlotsBySelectedPeriods(specificDateData.timeSlots)
             weekData.push({
               day: dayNumber,
               date: dateStr,
               isCurrentMonth: true,
-              timeSlots: specificDateData.timeSlots,
-              availableCount: specificDateData.availableCount,
-              bookedCount: specificDateData.bookedCount
+              timeSlots: filteredSlots,
+              availableCount: filteredSlots.filter(slot => slot.available).length,
+              bookedCount: filteredSlots.filter(slot => slot.booked).length
             })
           } else {
             // 如果没有具体日期的数据，根据星期几生成基础时间段
@@ -2311,13 +2353,15 @@ const generateMonthlyScheduleData = async () => {
                 isTrial: false
               }))
 
+              const filteredSlots = filterTimeSlotsBySelectedPeriods(timeSlots)
+
               weekData.push({
                 day: dayNumber,
                 date: dateStr,
                 isCurrentMonth: true,
-                timeSlots: timeSlots,
-                availableCount: timeSlots.length,
-                bookedCount: 0
+                timeSlots: filteredSlots,
+                availableCount: filteredSlots.filter(slot => slot.available).length,
+                bookedCount: filteredSlots.filter(slot => slot.booked).length
               })
             } else {
               // 如果老师在这一天不排课，显示完全空的数据
@@ -2379,14 +2423,15 @@ const generateDefaultMonthlyScheduleData = () => {
 
         // 生成该日的默认时间段数据
         const timeSlots = generateDefaultDayTimeSlots()
+        const filteredSlots = filterTimeSlotsBySelectedPeriods(timeSlots)
 
         weekData.push({
           day: dayNumber,
           date: dateStr,
           isCurrentMonth: true,
-          timeSlots: timeSlots,
-          availableCount: timeSlots.filter(slot => slot.available).length,
-          bookedCount: timeSlots.filter(slot => slot.booked).length
+          timeSlots: filteredSlots,
+          availableCount: filteredSlots.filter(slot => slot.available).length,
+          bookedCount: filteredSlots.filter(slot => slot.booked).length
         })
       } else {
         // 对于不在当月的日期，不显示或显示为空
@@ -2618,6 +2663,8 @@ watch(
     try {
       await generateAvailableTimeSlots(newStart, scheduleForm.endDate)
     } catch (err) {
+
+
       console.error('根据开始日期刷新可用时间段失败:', err)
     }
   }
@@ -2628,6 +2675,14 @@ onMounted(() => {
   initOptions()
   // 如果从课程详情页带来了 teacherId/courseId，预加载并直接展示该老师
   preloadFromQuery()
+
+// 当学生勾选的上午/下午/晚上变化时，若月度课表弹窗已打开则重新生成以应用过滤
+watch(selectedPeriods, () => {
+  if (showMonthlyModal.value) {
+    generateMonthlyScheduleData()
+  }
+})
+
 })
 
 // 处理课程时长变化
