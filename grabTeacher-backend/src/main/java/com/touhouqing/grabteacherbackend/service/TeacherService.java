@@ -17,12 +17,12 @@ import java.util.Map;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 public interface TeacherService {
-    
+
     /**
      * 根据用户ID获取教师信息
      */
     Teacher getTeacherByUserId(Long userId);
-    
+
     /**
      * 根据ID获取教师信息
      */
@@ -37,7 +37,7 @@ public interface TeacherService {
      * 根据用户ID获取教师详细信息（包含科目信息）
      */
     TeacherProfileVO getTeacherProfileByUserId(Long userId);
-    
+
     /**
      * 获取教师列表
      */
@@ -57,6 +57,20 @@ public interface TeacherService {
      * 获取精选教师列表（天下名师页面使用）
      */
     List<TeacherListVO> getFeaturedTeachers(int page, int size, String subject, String keyword);
+
+    /**
+     * 获取教师列表（包含科目信息，支持精确姓名）
+     */
+    default java.util.List<TeacherListVO> getTeacherListWithSubjects(int page, int size, String subject, String keyword, String realNameExact) {
+        return getTeacherListWithSubjects(page, size, subject, keyword);
+    }
+
+    /**
+     * 统计教师总数（支持精确姓名）
+     */
+    default long countTeachers(String subject, String keyword, String realNameExact) {
+        return countTeachers(subject, keyword);
+    }
 
     /**
      * 统计精选教师总数（支持筛选）

@@ -38,6 +38,11 @@ public class BookingRequest {
     @Schema(description = "课程ID，可为空(自定义预约)", example = "1")
     private Long courseId;
 
+    @TableField("subject_id")
+    @Schema(description = "用户选择的科目ID（试听课保存该值）", example = "1")
+    private Long subjectId;
+
+
     @NotNull(message = "预约类型不能为空")
     @TableField("booking_type")
     @Schema(description = "预约类型", example = "single", allowableValues = {"single", "recurring"}, required = true)
@@ -90,8 +95,8 @@ public class BookingRequest {
 
 
 
-    @TableField(exist = false)
-    @Schema(description = "年级（不入库，仅用于流程传递）", example = "高一")
+    @TableField("grade")
+    @Schema(description = "年级（预约时选择并入库）", example = "高一")
     private String grade;
 
 

@@ -110,9 +110,9 @@ watch(selectedPeriods, (periods) => {
 
 // 试听匹配前置参数
 const trialSearchDate = ref<string>('')
-const trialSearchSegment = ref<'morning' | 'afternoon' | 'evening' | ''>('')
+
 // 是否从匹配页预设了试听日期与时间段
-const isTrialPreset = computed(() => isTrialMode.value && !!trialSearchDate.value && !!trialSearchSegment.value)
+const isTrialPreset = computed(() => isTrialMode.value && !!trialSearchDate.value && selectedPeriods.value.length > 0)
 //
 
 //
@@ -236,6 +236,12 @@ const selectedRecurringSchedule = ref<RecurringSchedule | null>(null)
 // 试听课时间段选择相关数据
 const selectedTimePeriod = ref<string>('') // 选中的时间段类型：morning/afternoon/evening
 const availableTrialSlotsByPeriod = ref<string[]>([]) // 当前选中时间段类型下的可用时间段
+const trialPeriodOptions = computed<string[]>(() => {
+  return selectedPeriods.value.length > 0
+    ? [...selectedPeriods.value]
+    : ['morning', 'afternoon', 'evening']
+})
+
 // 获取明天的日期作为默认开始日期
 const getDefaultStartDate = () => {
   const tomorrow = new Date()
@@ -308,15 +314,19 @@ const handleMatch = async () => {
     ElMessage.warning('请选择科目')
     return
   }
+  if (!matchForm.grade) {
+    ElMessage.warning('请选择年级')
+    return
+  }
 
-  // 试听模式下，要求先选择日期与上下午/晚上
+  // 试听模式下，要求先选择日期与偏好时间段（上午/下午/晚上，可多选）
   if (isTrialMode.value) {
     if (!trialSearchDate.value) {
       ElMessage.warning('请先选择上课日期')
       return
     }
-    if (!trialSearchSegment.value) {
-      ElMessage.warning('请先选择上下午/晚上')
+    if (selectedPeriods.value.length === 0) {
+      ElMessage.warning('请选择偏好上课时间段（可多选上午/下午/晚上）')
       return
     }
   }
@@ -331,11 +341,10 @@ const handleMatch = async () => {
     let preferredDateStart: string | undefined
     let preferredDateEnd: string | undefined
     if (isTrialMode.value) {
-      const seg = trialSearchSegment.value
       const segSlots: string[] = []
-      if (seg === 'morning') segSlots.push('08:00-10:00', '10:00-12:00')
-      if (seg === 'afternoon') segSlots.push('13:00-15:00', '15:00-17:00')
-      if (seg === 'evening') segSlots.push('17:00-19:00', '19:00-21:00')
+      if (selectedPeriods.value.includes('morning')) segSlots.push('08:00-10:00', '10:00-12:00')
+      if (selectedPeriods.value.includes('afternoon')) segSlots.push('13:00-15:00', '15:00-17:00')
+      if (selectedPeriods.value.includes('evening')) segSlots.push('17:00-19:00', '19:00-21:00')
       preferredTimeSlots = segSlots
       preferredDateStart = trialSearchDate.value
       preferredDateEnd = trialSearchDate.value
@@ -452,7 +461,6 @@ const resetForm = () => {
   matchForm.teacherLevel = ''
   matchForm.grade = ''
   trialSearchDate.value = ''
-  trialSearchSegment.value = ''
 
   // 重置匹配结果和状态
   showResults.value = false
@@ -759,12 +767,11 @@ const showTeacherSchedule = async (teacher: Teacher) => {
     // 避免预设触发清空逻辑
     isInitializingTrialPreset.value = true
     scheduleForm.trialDate = trialSearchDate.value ? toYMD(trialSearchDate.value as unknown as string | Date) : ''
-    selectedTimePeriod.value = trialSearchSegment.value || ''
+    selectedTimePeriod.value = (selectedPeriods.value[0] || '')
     if (scheduleForm.trialDate) {
-      await loadTrialAvailability(scheduleForm.trialDate, selectedTimePeriod.value || undefined)
+      await loadTrialAvailability(scheduleForm.trialDate)
       if (selectedTimePeriod.value) {
         availableTrialSlotsByPeriod.value = getTrialTimeSlotsByPeriod(selectedTimePeriod.value)
-    //   
     isInitializingTrialPreset.value = false
       }
     }
@@ -1013,7 +1020,7 @@ const getTrialTimeSlotsByPeriod = (period: string): string[] => {
   }
 }
 
-// 选择时间段类型
+
 const selectTimePeriod = (period: string) => {
   selectedTimePeriod.value = period
   availableTrialSlotsByPeriod.value = getTrialTimeSlotsByPeriod(period)
@@ -2714,23 +2721,9 @@ watch(selectedCourse, (newCourse) => {
             </el-select>
           </el-form-item>
 
-          <el-form-item label="教师级别 Teacher Level">
-            <el-select v-model="matchForm.teacherLevel" placeholder="不限级别（可选）" clearable :loading="loadingOptions">
-              <el-option
-                v-for="level in teacherLevels"
-                :key="level.id"
-                :label="level.name"
-                :value="level.name">
-                <div class="option-with-icon">
-                  <el-icon><Star /></el-icon>
-                  <span>{{ level.name }}</span>
-                </div>
-              </el-option>
-            </el-select>
-          </el-form-item>
 
-          <el-form-item label="年级 Grade">
-            <el-select v-model="matchForm.grade" placeholder="请选择年级（可选）" clearable :loading="loadingOptions">
+          <el-form-item label="年级 Grade" required>
+            <el-select v-model="matchForm.grade" placeholder="请选择年级" clearable :loading="loadingOptions">
               <el-option
                 v-for="g in grades"
                 :key="g.id || g.name"
@@ -2745,16 +2738,16 @@ watch(selectedCourse, (newCourse) => {
             <el-date-picker v-model="trialSearchDate" type="date" placeholder="请选择上课日期" :disabled-date="(date) => date < new Date()" format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
           </el-form-item>
           <el-form-item v-if="isTrialMode" label="偏好上课时间 Preferred Schedule">
-            <div class="trial-time-preference-container">
-              <el-radio-group v-model="trialSearchSegment" class="trial-time-radio-group">
+            <div class="time-preference-container">
+              <el-checkbox-group v-model="selectedPeriods" class="time-preference-checkbox-group">
                 <div class="time-preference-row">
-                  <el-radio-button label="morning">上午（8-12点）</el-radio-button>
-                  <el-radio-button label="afternoon">下午（13-17点）</el-radio-button>
+                  <el-checkbox label="morning">上午（8-12点）</el-checkbox>
+                  <el-checkbox label="afternoon">下午（13-17点）</el-checkbox>
                 </div>
                 <div class="time-preference-row">
-                  <el-radio-button label="evening">晚上（17-21点）</el-radio-button>
+                  <el-checkbox label="evening">晚上（17-21点）</el-checkbox>
                 </div>
-              </el-radio-group>
+              </el-checkbox-group>
             </div>
           </el-form-item>
 
@@ -2771,6 +2764,21 @@ watch(selectedCourse, (newCourse) => {
               </el-checkbox-group>
             </div>
           </el-form-item>
+          <el-form-item label="教师级别 Teacher Level">
+            <el-select v-model="matchForm.teacherLevel" placeholder="不限级别（可选）" clearable :loading="loadingOptions">
+              <el-option
+                v-for="level in teacherLevels"
+                :key="level.id"
+                :label="level.name"
+                :value="level.name">
+                <div class="option-with-icon">
+                  <el-icon><Star /></el-icon>
+                  <span>{{ level.name }}</span>
+                </div>
+              </el-option>
+            </el-select>
+          </el-form-item>
+
 
           <el-form-item>
             <el-radio-group v-model="matchForm.gender" size="large" ref="genderRadioGroupRef">
@@ -3089,10 +3097,10 @@ watch(selectedCourse, (newCourse) => {
               <div class="form-item-tip">{{ isTrialPreset ? '请选择具体时间进行试听（30分钟免费体验）' : '请先选择时间段类型，然后选择具体时间进行试听（30分钟免费体验）' }}</div>
 
               <!-- 时间段类型选择 -->
-              <div class="time-period-selection" v-if="!isTrialPreset && scheduleForm.trialDate">
+              <div class="time-period-selection" v-if="scheduleForm.trialDate">
                 <div class="period-buttons">
                   <el-button
-                    v-for="period in ['morning', 'afternoon', 'evening']"
+                    v-for="period in trialPeriodOptions"
                     :key="period"
                     :type="selectedTimePeriod === period ? 'primary' : 'default'"
                     :icon="getTimePeriodIcon(period)"

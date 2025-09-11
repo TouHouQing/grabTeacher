@@ -44,6 +44,9 @@ public class BookingVO {
 
     @Schema(description = "科目名称", example = "数学")
     private String subjectName;
+    @Schema(description = "年级", example = "高一")
+    private String grade;
+
 
     @Schema(description = "课程时长（分钟）", example = "120")
     private Integer courseDurationMinutes;

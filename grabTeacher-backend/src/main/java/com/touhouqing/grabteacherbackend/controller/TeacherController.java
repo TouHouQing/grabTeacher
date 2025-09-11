@@ -201,14 +201,16 @@ public class TeacherController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String subject,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String realName) {
         try {
             // 查询归一化：去除首尾空白；空字符串统一为 null，减少缓存键碎片
             String normSubject = normalizeParam(subject);
             String normKeyword = normalizeKeyword(keyword);
+            String normRealName = normalizeParam(realName);
 
-            List<TeacherListVO> teachers = teacherService.getTeacherListWithSubjects(page, size, normSubject, normKeyword);
-            long total = teacherService.countTeachers(normSubject, normKeyword);
+            List<TeacherListVO> teachers = teacherService.getTeacherListWithSubjects(page, size, normSubject, normKeyword, normRealName);
+            long total = teacherService.countTeachers(normSubject, normKeyword, normRealName);
 
             Map<String, Object> data = new HashMap<>();
             data.put("records", teachers);

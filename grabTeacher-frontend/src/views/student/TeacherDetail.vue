@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Phone, Message, Location, School, Trophy, ArrowLeft, Loading, Star, Clock, Document, InfoFilled } from '@element-plus/icons-vue'
-import { teacherAPI, evaluationAPI, bookingAPI, publicTeachingLocationAPI } from '@/utils/api'
+import { teacherAPI, evaluationAPI, bookingAPI, publicTeachingLocationAPI, publicGradeAPI } from '@/utils/api'
 import { useUserStore } from '@/stores/user'
 import teacherBoy1 from '@/assets/pictures/teacherBoy1.jpeg'
 import teacherBoy2 from '@/assets/pictures/teacherBoy2.jpeg'
@@ -67,6 +67,84 @@ const reviewsPage = ref(1)
 const reviewsSize = ref(10)
 const reviewsTotal = ref(0)
 
+// 学生评价自动滚动（无穷循环）相关
+const reviewsScrollRef = ref<HTMLElement | null>(null)
+const isReviewsHovering = ref(false)
+const scrollSpeed = ref(0.6) // px/frame
+let reviewsRafId: number | null = null
+
+const loopedReviews = computed(() => {
+  const arr = reviews.value as any[]
+  return arr && arr.length > 0 ? [...arr, ...arr] : []
+})
+
+const shouldAutoScroll = () => {
+  const el = reviewsScrollRef.value
+  if (!el) return false
+  return el.scrollHeight > el.clientHeight + 10
+}
+
+const reviewsStep = () => {
+  const el = reviewsScrollRef.value
+  if (!el) {
+    reviewsRafId = null
+    return
+  }
+  if (!document.hidden && !isReviewsHovering.value) {
+    const half = el.scrollHeight / 2
+    el.scrollTop += scrollSpeed.value
+    if (el.scrollTop >= half) {
+      el.scrollTop = el.scrollTop - half
+    }
+  }
+  reviewsRafId = window.requestAnimationFrame(reviewsStep)
+}
+
+const startReviewsAutoScroll = () => {
+  if (reviewsRafId != null) return
+  if (!shouldAutoScroll()) return
+  reviewsRafId = window.requestAnimationFrame(reviewsStep)
+}
+
+const stopReviewsAutoScroll = () => {
+  if (reviewsRafId != null) {
+    window.cancelAnimationFrame(reviewsRafId)
+    reviewsRafId = null
+  }
+}
+
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    stopReviewsAutoScroll()
+  } else {
+    startReviewsAutoScroll()
+  }
+}
+
+watch(reviews, async () => {
+  await nextTick()
+  const el = reviewsScrollRef.value
+  if (el) el.scrollTop = 0
+  stopReviewsAutoScroll()
+  startReviewsAutoScroll()
+})
+
+watch(isReviewsHovering, (hover) => {
+  if (hover) {
+    stopReviewsAutoScroll()
+  } else {
+    startReviewsAutoScroll()
+  }
+})
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  stopReviewsAutoScroll()
+})
 // 预约相关状态
 const showBookingModal = ref(false)
 const bookingType = ref<'trial' | 'formal' | ''>('') // 试听课或正式课
@@ -83,6 +161,11 @@ const loadingSubjects = ref(false)
 const activeTeachingLocations = ref<any[]>([])
 const allowedTeachingLocations = ref<Array<{ value: string | number; label: string }>>([])
 const selectedTeachingLocation = ref<string | number>('')
+// 年级选择
+const grades = ref<Array<{ id: string | number; name: string }>>([])
+const selectedGrade = ref<string | number>('')
+
+
 
 // 试听课时间段选项（选择大时间段后，具体时间按半小时切分）
 const timePeriods = [
@@ -523,15 +606,34 @@ const fetchTeacherDetail = async () => {
 const fetchTeacherReviews = async () => {
   try {
     reviewsLoading.value = true
-    const result = await evaluationAPI.listPublic({
+    const pageSize = 50
+    reviewsSize.value = pageSize
+
+    let all: any[] = []
+    let total = 0
+
+    // 第一次请求，获取总数
+    const first = await evaluationAPI.listPublic({
       teacherId: teacherId,
-      page: reviewsPage.value,
-      size: reviewsSize.value
+      page: 1,
+      size: pageSize
     })
 
-    if (result.success && result.data) {
-      reviews.value = result.data.records || []
-      reviewsTotal.value = result.data.total || 0
+    if (first.success && first.data) {
+      const records = first.data.records || []
+      total = Number(first.data.total || records.length || 0)
+      all = records
+
+      const totalPages = Math.ceil(total / pageSize)
+      for (let p = 2; p <= totalPages; p++) {
+        const res = await evaluationAPI.listPublic({ teacherId: teacherId, page: p, size: pageSize })
+        if (res.success && res.data && res.data.records) {
+          all = all.concat(res.data.records)
+        }
+      }
+
+      reviews.value = all
+      reviewsTotal.value = total
     } else {
       reviews.value = []
       reviewsTotal.value = 0
@@ -576,21 +678,22 @@ onMounted(() => {
 
   // 获取学生评价
   fetchTeacherReviews()
+
+  // 若带有 autoBooking 参数，则自动触发预约
+  const autoBooking = (route.query as any)?.autoBooking
+  if (autoBooking) {
+    nextTick(() => {
+      handleBooking()
+      // 清理 autoBooking，避免再次触发
+      const q: any = { ...(route.query || {}) }
+      delete q.autoBooking
+      router.replace({ path: route.path, query: q })
+    })
+  }
 })
 
 // 立即预约按钮点击事件
 const handleBooking = async () => {
-  try {
-    // 确认预约
-    await ElMessageBox.confirm('确认预约该教师？', '确认预约', {
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-      type: 'info',
-      center: true
-    })
-  } catch {
-    return // 用户取消
-  }
 
   // 检查登录状态
   if (!userStore.isLoggedIn) {
@@ -634,14 +737,28 @@ const showBookingTypeSelection = () => {
 // 显示试听课预约弹窗
 const showTrialBookingModal = async () => {
   showBookingModal.value = true
-  await loadSubjects()
+  await Promise.all([loadSubjects(), loadGrades()])
 }
 
 // 显示正式课预约弹窗（显示预约课程按钮页面）
+// 加载年级列表（公开）
+const loadGrades = async () => {
+  try {
+    const res = await publicGradeAPI.list()
+    if (res.success && Array.isArray(res.data)) {
+      grades.value = res.data.map((g: any) => ({ id: g.id ?? g.name, name: g.name ?? String(g) }))
+    } else {
+      grades.value = []
+    }
+  } catch (e) {
+    grades.value = []
+  }
+}
+
 const showFormalBookingModal = async () => {
   showBookingModal.value = false
   showCourseScheduleModal.value = true
-  await loadTeacherCourses()
+  await Promise.all([loadTeacherCourses(), loadGrades()])
 }
 
 // 加载科目列表
@@ -720,7 +837,7 @@ const selectTimeSlot = (timeSlot: string) => {
 
 // 确认试听课预约
 const confirmTrialBooking = async () => {
-  if (!selectedSubject.value || !selectedDate.value || !selectedTimeSlot.value) {
+  if (!selectedSubject.value || !selectedGrade.value || !selectedDate.value || !selectedTimeSlot.value) {
     ElMessage.warning('请完整填写预约信息')
     return
   }
@@ -737,6 +854,8 @@ const confirmTrialBooking = async () => {
       teacherId: teacherId,
       bookingType: 'single' as const,
       studentRequirements: `申请与${teacher.value?.name}老师进行${selectedSubject.value}科目试听`,
+      grade: String(selectedGrade.value),
+
       isTrial: true,
       trialDurationMinutes: 30,
       requestedDate: selectedDate.value,
@@ -828,6 +947,7 @@ const resetBookingForm = () => {
   selectedTimePeriod.value = ''
   availableTimeSlots.value = []
   selectedTeachingLocation.value = ''
+  selectedGrade.value = ''
 
   bookingType.value = ''
 }
@@ -967,6 +1087,10 @@ const confirmCourseBooking = async () => {
     ElMessage.warning('请选择授课地点')
     return
   }
+  if (!selectedGrade.value) {
+    ElMessage.warning('请选择年级')
+    return
+  }
 
 
   try {
@@ -974,6 +1098,8 @@ const confirmCourseBooking = async () => {
     const bookingData: any = {
       teacherId: teacherId,
       courseId: selectedCourse.value.id,
+      grade: String(selectedGrade.value),
+
       bookingType: 'recurring' as const,
       studentRequirements: `希望预约${teacher.value?.name}老师的《${selectedCourse.value.title}》课程`,
       isTrial: false,
@@ -1059,6 +1185,7 @@ const resetCourseForm = () => {
   scheduleForm.value.selectedTimeSlots = []
   scheduleForm.value.selectedWeekdays = []
   availableTimeSlotsForCourse.value = []
+  selectedGrade.value = ''
 }
 
 // 关闭课程安排弹窗
@@ -1261,10 +1388,16 @@ watch(() => scheduleForm.value.sessionCount, () => {
           </h4>
 
           <div v-loading="reviewsLoading" class="reviews-container">
-            <div v-if="reviews.length > 0" class="reviews-scroll">
+            <div
+              v-if="reviews.length > 0"
+              class="reviews-scroll"
+              ref="reviewsScrollRef"
+              @mouseenter="isReviewsHovering = true"
+              @mouseleave="isReviewsHovering = false"
+            >
               <div
-                v-for="review in reviews"
-                :key="review.id"
+                v-for="(review, idx) in loopedReviews"
+                :key="(review.id || idx) + '-' + idx"
                 class="review-item"
               >
                 <div class="review-header">
@@ -1334,6 +1467,22 @@ watch(() => scheduleForm.value.sessionCount, () => {
             </el-select>
           </el-form-item>
 
+          <el-form-item label="选择年级" required>
+            <el-select
+              v-model="selectedGrade"
+              placeholder="请选择年级"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="g in grades"
+                :key="g.id"
+                :label="g.name"
+                :value="g.id"
+              />
+            </el-select>
+          </el-form-item>
+
+
           <el-form-item label="授课地点" required>
             <el-radio-group v-model="selectedTeachingLocation">
               <el-radio-button
@@ -1387,7 +1536,7 @@ watch(() => scheduleForm.value.sessionCount, () => {
 
         <div class="booking-actions">
           <el-button @click="closeBookingModal">取消</el-button>
-          <el-button type="primary" @click="confirmTrialBooking" :disabled="!selectedSubject || !selectedDate || !selectedTimeSlot || !selectedTeachingLocation">
+          <el-button type="primary" @click="confirmTrialBooking" :disabled="!selectedSubject || !selectedGrade || !selectedDate || !selectedTimeSlot || !selectedTeachingLocation">
             确认预约
           </el-button>
         </div>
@@ -1447,6 +1596,22 @@ watch(() => scheduleForm.value.sessionCount, () => {
         </div>
 
         <el-form :model="scheduleForm" label-width="120px" class="schedule-form">
+
+          <el-form-item label="选择年级" required>
+            <el-select
+              v-model="selectedGrade"
+              placeholder="请选择年级"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="g in grades"
+                :key="g.id"
+                :label="g.name"
+                :value="g.id"
+              />
+            </el-select>
+          </el-form-item>
+
           <el-form-item label="选择课程" required>
             <div v-if="loadingCourses" class="loading-courses">
               <el-skeleton :rows="2" animated />
@@ -1473,6 +1638,8 @@ watch(() => scheduleForm.value.sessionCount, () => {
                         价格面议
                       </el-tag>
                       <el-tag size="small" type="success" v-if="course.durationMinutes">
+
+
                         {{ course.durationMinutes }}分钟
                       </el-tag>
                       <el-tag size="small" type="info" v-else>
@@ -1502,6 +1669,8 @@ watch(() => scheduleForm.value.sessionCount, () => {
                   <div class="duration-label">2小时</div>
                 </div>
               </el-radio>
+
+
             </el-radio-group>
             <div class="form-item-tip">
               <el-icon><InfoFilled /></el-icon>
@@ -1673,7 +1842,7 @@ watch(() => scheduleForm.value.sessionCount, () => {
           <el-button
             type="primary"
             @click="confirmCourseBooking"
-            :disabled="!selectedCourse || !selectedTeachingLocation || scheduleForm.selectedWeekdays.length === 0 || scheduleForm.selectedTimeSlots.length === 0"
+            :disabled="!selectedCourse || !selectedGrade || !selectedTeachingLocation || scheduleForm.selectedWeekdays.length === 0 || scheduleForm.selectedTimeSlots.length === 0"
           >
             确认预约
           </el-button>
@@ -1931,9 +2100,9 @@ h2 {
 }
 
 .reviews-scroll {
-  max-height: 500px;
-  overflow-y: auto;
-  padding-right: 10px;
+  height: 320px;
+  overflow: hidden;
+  padding-right: 0;
 }
 
 .reviews-scroll::-webkit-scrollbar {

@@ -487,6 +487,7 @@ export const teacherAPI = {
     size?: number
     subject?: string
     keyword?: string
+    realName?: string
   }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params).forEach(key => {

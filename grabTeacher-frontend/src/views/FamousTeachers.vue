@@ -4,7 +4,7 @@ import ContactUs from '../components/ContactUs.vue'
 import { useRouter } from 'vue-router'
 import { subjectAPI, teacherAPI } from '../utils/api'
 import { ElMessage } from 'element-plus'
-import { Loading, View } from '@element-plus/icons-vue'
+import { Loading, View, Calendar } from '@element-plus/icons-vue'
 
 // 定义组件名称
 defineOptions({
@@ -31,7 +31,7 @@ const pageSize = ref(6)
 // 过滤条件
 const filter = reactive({
   subject: '',
-  experience: ''
+  experience: '', keyword: ''
 })
 
 
@@ -256,7 +256,7 @@ const loadTeachersWithFilter = async () => {
     loadingTeachers.value = true
     const params: any = {
       page: currentPage.value,
-      size: pageSize.value
+      size: pageSize.value, realName: filter.keyword ? filter.keyword.trim() : undefined
     }
 
     if (filter.subject) {
@@ -282,7 +282,7 @@ const loadTeachersWithFilter = async () => {
 // 重置筛选
 const resetFilter = async () => {
   filter.subject = ''
-  filter.experience = ''
+  filter.experience = ''; filter.keyword = ''
   currentPage.value = 1
   await loadTeachers() // 重新加载所有教师数据
 }
@@ -299,6 +299,11 @@ const refreshData = async () => {
 // 查看教师详情
 const viewTeacherDetail = (teacherId: number) => {
   router.push(`/teacher-detail/${teacherId}`)
+}
+
+// 立即预约（跳转到详情并自动触发预约流程）
+const bookTeacherNow = (teacherId: number) => {
+  router.push({ path: `/teacher-detail/${teacherId}`, query: { autoBooking: '1' } })
 }
 
 
@@ -326,7 +331,7 @@ const loadTeachers = async () => {
     const response = await teacherAPI.getPublicList({
       page: currentPage.value,
       size: pageSize.value,
-      subject: filter.subject || undefined,
+      subject: filter.subject || undefined, realName: filter.keyword ? filter.keyword.trim() : undefined,
     })
     if (response.success && response.data) {
       const records = Array.isArray(response.data.records) ? response.data.records : []
@@ -388,6 +393,10 @@ onMounted(() => {
               />
             </el-select>
           </el-form-item>
+          <el-form-item label="姓名">
+            <el-input v-model="filter.keyword" placeholder="输入姓名（严格匹配）" clearable />
+          </el-form-item>
+
           <el-form-item label="教龄">
             <el-select v-model="filter.experience" placeholder="教学经验" clearable>
               <el-option label="5年以下" value="0-5" />
@@ -456,6 +465,9 @@ onMounted(() => {
                 </template>
               </div>
               <div class="teacher-actions">
+                <el-button type="primary" @click="bookTeacherNow(teacher.id)" size="large">
+                  <el-icon><Calendar /></el-icon> 立即预约
+                </el-button>
                 <el-button type="primary" @click="viewTeacherDetail(teacher.id)" size="large">
                   <el-icon><View /></el-icon> 查看详情
                 </el-button>

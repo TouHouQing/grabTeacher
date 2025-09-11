@@ -170,6 +170,7 @@ public class BookingServiceImpl implements BookingService {
                 .studentId(student.getId())
                 .teacherId(request.getTeacherId())
                 .courseId(request.getCourseId())
+                .subjectId(request.getSubjectId())
                 .bookingType(request.getBookingType())
                 .requestedDate(request.getRequestedDate())
                 .requestedStartTime(request.getRequestedStartTime())
@@ -1556,7 +1557,39 @@ public class BookingServiceImpl implements BookingService {
                 Subject subject = subjectMapper.selectById(course.getSubjectId());
                 subjectName = subject != null ? subject.getName() : null;
             }
+
         }
+
+        // 若课程未绑定或未获取到科目，则根据预约保存的 subjectId 回填（支持试听课）
+        if (subjectName == null && bookingRequest.getSubjectId() != null) {
+            Subject subject = subjectMapper.selectById(bookingRequest.getSubjectId());
+            if (subject != null) {
+                subjectName = subject.getName();
+            }
+        }
+        // 兼容历史数据：如果仍为空且为试听课，尝试从学生需求中解析科目名称
+        if (subjectName == null && Boolean.TRUE.equals(bookingRequest.getIsTrial())) {
+            String req = bookingRequest.getStudentRequirements();
+            if (req != null) {
+                int idx1 = req.indexOf("进行");
+                int idx2 = req.indexOf("科目", idx1 + 2);
+                if (idx1 >= 0 && idx2 > idx1) {
+                    String sub = req.substring(idx1 + 2, idx2).trim();
+                    if (!sub.isEmpty()) subjectName = sub;
+                }
+            }
+        }
+
+        String grade = bookingRequest.getGrade();
+        if (courseTitle == null || courseTitle.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(studentName);
+            if (subjectName != null) sb.append(subjectName);
+            if (grade != null) sb.append(grade);
+            sb.append("一对一课程");
+            courseTitle = sb.toString();
+        }
+
 
         return BookingVO.builder()
                 .id(bookingRequest.getId())
@@ -1568,6 +1601,7 @@ public class BookingServiceImpl implements BookingService {
                 .courseTitle(courseTitle)
                 .subjectName(subjectName)
                 .courseDurationMinutes(courseDurationMinutes)
+                .grade(grade)
                 .bookingType(bookingRequest.getBookingType())
                 .requestedDate(bookingRequest.getRequestedDate())
                 .requestedStartTime(bookingRequest.getRequestedStartTime())

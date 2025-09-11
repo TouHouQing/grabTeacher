@@ -29,6 +29,9 @@ public class BookingApplyDTO {
     @Schema(description = "课程ID，可为空(自定义预约)", example = "1")
     private Long courseId;
 
+    @Schema(description = "学生选择的科目ID（试听课必填，正式课可为空）", example = "1")
+    private Long subjectId;
+
     @NotBlank(message = "预约类型不能为空")
     @Schema(description = "预约类型", example = "single", allowableValues = {"single", "recurring"})
     private String bookingType;

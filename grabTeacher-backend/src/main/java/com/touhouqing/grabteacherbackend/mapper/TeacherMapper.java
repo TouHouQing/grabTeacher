@@ -96,6 +96,41 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
         "</script>"
     })
     long countTeachersBySubject(@Param("subject") String subject, @Param("keyword") String keyword);
+    /**
+     * 按科目分页查询教师（精确姓名匹配）
+     */
+    @Select({
+        "<script>",
+        "SELECT DISTINCT t.* FROM teachers t",
+        "INNER JOIN teacher_subjects ts ON t.id = ts.teacher_id",
+        "INNER JOIN subjects s ON ts.subject_id = s.id",
+        "WHERE t.is_deleted = 0 AND t.is_verified = 1",
+        "AND s.name = #{subject} AND s.is_deleted = 0",
+        "AND t.real_name = #{realName}",
+        "ORDER BY t.id DESC",
+        "LIMIT #{size} OFFSET #{offset}",
+        "</script>"
+    })
+    List<Teacher> findTeachersBySubjectPagedExactName(@Param("subject") String subject,
+                                                      @Param("realName") String realName,
+                                                      @Param("offset") int offset,
+                                                      @Param("size") int size);
+
+    /**
+     * 按科目统计教师数量（精确姓名）
+     */
+    @Select({
+        "<script>",
+        "SELECT COUNT(DISTINCT t.id) FROM teachers t",
+        "INNER JOIN teacher_subjects ts ON t.id = ts.teacher_id",
+        "INNER JOIN subjects s ON ts.subject_id = s.id",
+        "WHERE t.is_deleted = 0 AND t.is_verified = 1",
+        "AND s.name = #{subject} AND s.is_deleted = 0",
+        "AND t.real_name = #{realName}",
+        "</script>"
+    })
+    long countTeachersBySubjectExactName(@Param("subject") String subject, @Param("realName") String realName);
+
 
 
 

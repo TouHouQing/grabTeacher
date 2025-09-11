@@ -297,6 +297,20 @@ public class TeacherServiceImpl implements TeacherService {
         return teacherMapper.selectCount(queryWrapper);
     }
 
+    @Override
+    public long countTeachers(String subject, String keyword, String realNameExact) {
+        if (org.springframework.util.StringUtils.hasText(realNameExact)) {
+            if (org.springframework.util.StringUtils.hasText(subject)) {
+                return teacherMapper.countTeachersBySubjectExactName(subject, realNameExact);
+            }
+            QueryWrapper<Teacher> qw = new QueryWrapper<>();
+            qw.eq("is_deleted", false).eq("is_verified", true).eq("real_name", realNameExact);
+            Long cnt = teacherMapper.selectCount(qw);
+            return cnt != null ? cnt : 0L;
+        }
+        return countTeachers(subject, keyword);
+    }
+
     /**
      * 根据科目统计教师数量
      */
@@ -325,6 +339,29 @@ public class TeacherServiceImpl implements TeacherService {
         // 批量装配，消除 N+1
         return assembleTeacherListResponses(teachers);
     }
+
+    @Override
+    public List<TeacherListVO> getTeacherListWithSubjects(int page, int size, String subject, String keyword, String realNameExact) {
+        if (org.springframework.util.StringUtils.hasText(realNameExact)) {
+            // 精确姓名优先，且只匹配 real_name 字段
+            List<Teacher> teachers;
+            if (org.springframework.util.StringUtils.hasText(subject)) {
+                int offset = Math.max(0, (page - 1) * size);
+                teachers = teacherMapper.findTeachersBySubjectPagedExactName(subject, realNameExact, offset, size);
+            } else {
+                Page<Teacher> pageParam = new Page<>(page, size);
+                QueryWrapper<Teacher> qw = new QueryWrapper<>();
+                qw.eq("is_deleted", false).eq("is_verified", true).eq("real_name", realNameExact).orderByDesc("id");
+                Page<Teacher> result = teacherMapper.selectPage(pageParam, qw);
+                teachers = result.getRecords();
+            }
+            return assembleTeacherListResponses(teachers);
+        }
+        // 默认走原逻辑（支持 keyword 模糊）
+        List<Teacher> teachers = getFilteredTeacherList(page, size, subject, keyword);
+        return assembleTeacherListResponses(teachers);
+    }
+
 
     /**
      * 获取精选教师列表（天下名师页面使用）

@@ -79,6 +79,9 @@ CREATE TABLE `booking_requests` (
   `student_id` bigint NOT NULL COMMENT '学生ID',
   `teacher_id` bigint NOT NULL COMMENT '教师ID',
   `course_id` bigint DEFAULT NULL COMMENT '课程ID，可为空(自定义预约)',
+  `subject_id` bigint DEFAULT NULL COMMENT '用户选择的科目ID',
+  `grade` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '年级',
+
   `booking_type` enum('single','recurring') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '预约类型：single-单次，recurring-周期性',
   `requested_date` date DEFAULT NULL COMMENT '请求的上课日期(单次预约)',
   `requested_start_time` time DEFAULT NULL COMMENT '请求的开始时间(单次预约)',
