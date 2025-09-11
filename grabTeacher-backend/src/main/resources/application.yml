@@ -60,7 +60,7 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
-      database: ${REDIS_DATABASE:2}
+      database: ${REDIS_DATABASE:1}
       # 提高超时时间，避免高并发下偶发超时
       timeout: ${REDIS_TIMEOUT:10000ms}
       lettuce:

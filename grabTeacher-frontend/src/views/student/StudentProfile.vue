@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useUserStore, type StudentInfo, type PasswordChangeRequest } from '../../stores/user'
 import { ElMessage } from 'element-plus'
-import { getApiBaseUrl } from '../../utils/env'
 import { fileAPI } from '../../utils/api'
-import defaultAvatar from '../../assets/pictures/studentBoy2.jpeg'
 
 
 const userStore = useUserStore()
@@ -54,13 +52,6 @@ onUnmounted(() => {
   }
 })
 
-// 科目接口
-interface Subject {
-  id: number
-  name: string
-}
-
-
 // 学生信息表单
 const studentForm = reactive<StudentInfo>({
   realName: '',
@@ -70,19 +61,6 @@ const studentForm = reactive<StudentInfo>({
   preferredTeachingStyle: '',
   budgetRange: '',
   gender: '不愿透露'
-})
-
-// 科目相关数据
-const subjects = ref<Subject[]>([])
-const selectedSubjectIds = ref<number[]>([])
-
-
-// 计算属性：将选中的科目转换为字符串
-const subjectsString = computed(() => {
-  return selectedSubjectIds.value
-    .map(id => subjects.value.find(s => s.id === id)?.name)
-    .filter(Boolean)
-    .join(',')
 })
 
 // 性别选项
@@ -99,18 +77,11 @@ const passwordForm = reactive<PasswordChangeRequest>({
   confirmPassword: ''
 })
 
-// 邮箱修改表单
-const emailForm = reactive({
-  newEmail: '',
-  currentPassword: ''
-})
-
 // 加载状态
 const loading = ref(false)
 const formLoading = ref(false)
 const passwordLoading = ref(false)
-const emailLoading = ref(false)
-const showEmailDialog = ref(false)
+
 
 // 获取学生信息
 const fetchStudentProfile = async () => {
@@ -119,10 +90,6 @@ const fetchStudentProfile = async () => {
     const response = await userStore.getStudentProfile()
     if (response.success && response.data) {
       Object.assign(studentForm, response.data)
-      // 从profile响应中直接设置科目信息
-      if ((response.data as any).subjectIds) {
-        selectedSubjectIds.value = (response.data as any).subjectIds
-      }
     } else {
       ElMessage.warning(response.message || '获取学生信息失败')
     }
@@ -133,37 +100,7 @@ const fetchStudentProfile = async () => {
   }
 }
 
-// 获取科目列表
-const fetchSubjects = async () => {
-  try {
-    const response = await fetch(`${getApiBaseUrl()}/api/public/subjects/active`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
 
-    if (response.ok) {
-      const result = await response.json()
-      if (result.success && result.data) {
-        subjects.value = result.data.map((subject: any) => ({
-          id: subject.id,
-          name: subject.name
-        }))
-      }
-    }
-  } catch (error) {
-    console.error('获取科目列表失败:', error)
-  }
-}
-
-
-// 获取学生感兴趣的科目（从profile数据中获取，不需要单独请求）
-const fetchStudentSubjects = async () => {
-  // 学生的科目信息已经包含在profile中，不需要单独请求
-  // 这个函数保留是为了兼容性，但实际上科目信息会在loadProfile中设置
-  console.log('学生科目信息已从profile中获取')
-}
 
 // 保存学生信息
 const saveProfile = async () => {
@@ -172,18 +109,14 @@ const saveProfile = async () => {
     return
   }
 
-  // 更新科目字符串
-  studentForm.subjectsInterested = subjectsString.value
-
   formLoading.value = true
   try {
     // 1) 若选择了新头像，先上传至OSS，拿到最终URL
     const uploadedAvatarUrl = await uploadAvatarIfNeeded()
 
-    // 构建包含科目ID的请求数据
+    // 构建请求数据
     const requestData = {
       ...studentForm,
-      subjectIds: selectedSubjectIds.value,
       // 2) 如果上传了新头像，使用新URL；否则保持原有值
       ...(uploadedAvatarUrl && { avatarUrl: uploadedAvatarUrl })
     }
@@ -259,61 +192,9 @@ const changePassword = async () => {
   }
 }
 
-// 修改邮箱
-const changeEmail = async () => {
-  if (!emailForm.newEmail || !emailForm.currentPassword) {
-    ElMessage.warning('请填写完整的邮箱信息')
-    return
-  }
-
-  // 简单的邮箱格式验证
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(emailForm.newEmail)) {
-    ElMessage.error('请输入正确的邮箱格式')
-    return
-  }
-
-  if (emailForm.currentPassword.length < 6) {
-    ElMessage.error('密码长度不能少于6位')
-    return
-  }
-
-  emailLoading.value = true
-  try {
-    // 临时使用fetch直接调用API，稍后会在store中添加方法
-    const response = await fetch(`${getApiBaseUrl()}/api/user/update-email`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userStore.token}`
-      },
-      body: JSON.stringify(emailForm)
-    })
-    const result = await response.json()
-
-    if (result.success) {
-      ElMessage.success('邮箱修改成功')
-      // 清空表单
-      emailForm.newEmail = ''
-      emailForm.currentPassword = ''
-      // 关闭对话框
-      showEmailDialog.value = false
-      // 重新获取用户信息以更新显示
-      await userStore.initializeAuth()
-    } else {
-      ElMessage.error(result.message || '邮箱修改失败')
-    }
-  } catch (error) {
-    ElMessage.error('邮箱修改失败')
-  } finally {
-    emailLoading.value = false
-  }
-}
-
 // 页面加载时获取数据
 onMounted(async () => {
-  await fetchSubjects()
-  await fetchStudentProfile() // 这里会自动从profile中获取科目信息
+  await fetchStudentProfile()
 })
 
 
@@ -330,7 +211,7 @@ onMounted(async () => {
         <div class="profile-container" v-loading="loading">
           <div class="avatar-container">
             <div class="avatar">
-              <img :src="_localAvatarPreview || studentForm.avatarUrl || defaultAvatar" alt="头像">
+              <img :src="_localAvatarPreview || studentForm.avatarUrl || $getImageUrl('@/assets/pictures/studentBoy2.jpeg')" alt="头像">
             </div>
             <input type="file" accept="image/*" @change="onSelectAvatar" style="margin-bottom: 8px;" />
             <div v-if="_localAvatarFile" class="avatar-tip">
@@ -343,21 +224,8 @@ onMounted(async () => {
               <el-form-item label="用户名">
                 <el-input :value="userStore.user?.username" disabled></el-input>
               </el-form-item>
-              <el-form-item label="邮箱">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <el-input :value="userStore.user?.email" disabled style="flex: 1;"></el-input>
-                  <el-button type="text" @click="showEmailDialog = true">修改</el-button>
-                </div>
-              </el-form-item>
               <el-form-item label="真实姓名" required>
                 <el-input v-model="studentForm.realName" placeholder="请输入真实姓名"></el-input>
-              </el-form-item>
-              <el-form-item label="出生年月" required>
-                <el-input
-                  v-model="studentForm.birthDate"
-                  type="month"
-                  placeholder="请选择出生年月"
-                ></el-input>
               </el-form-item>
               <el-form-item label="性别">
                 <el-radio-group v-model="studentForm.gender">
@@ -370,24 +238,6 @@ onMounted(async () => {
                   </el-radio>
                 </el-radio-group>
               </el-form-item>
-              <el-form-item label="感兴趣的科目">
-                <el-select
-                  v-model="selectedSubjectIds"
-                  multiple
-                  placeholder="请选择感兴趣的科目"
-                  style="width: 100%"
-                >
-                  <el-option
-                    v-for="subject in subjects"
-                    :key="subject.id"
-                    :label="subject.name"
-                    :value="subject.id"
-                  />
-                </el-select>
-                <div style="margin-top: 5px; color: #909399; font-size: 12px;">
-                  已选择：{{ subjectsString || '暂无' }}
-                </div>
-              </el-form-item>
               <el-form-item label="学习目标">
                 <el-input
                   v-model="studentForm.learningGoals"
@@ -395,23 +245,6 @@ onMounted(async () => {
                   :rows="3"
                   placeholder="请描述您的学习目标"
                 ></el-input>
-              </el-form-item>
-              <el-form-item label="偏好教学风格">
-                <el-select v-model="studentForm.preferredTeachingStyle" placeholder="请选择偏好的教学风格" style="width: 100%">
-                  <el-option label="启发式教学" value="启发式教学"></el-option>
-                  <el-option label="严谨型教学" value="严谨型教学"></el-option>
-                  <el-option label="幽默风趣型" value="幽默风趣型"></el-option>
-                  <el-option label="互动式教学" value="互动式教学"></el-option>
-                  <el-option label="实践型教学" value="实践型教学"></el-option>
-                </el-select>
-              </el-form-item>
-              <el-form-item label="预算范围">
-                <el-select v-model="studentForm.budgetRange" placeholder="请选择预算范围" style="width: 100%">
-                  <el-option label="50-100元/小时" value="50-100"></el-option>
-                  <el-option label="100-200元/小时" value="100-200"></el-option>
-                  <el-option label="200-300元/小时" value="200-300"></el-option>
-                  <el-option label="300元以上/小时" value="300+"></el-option>
-                </el-select>
               </el-form-item>
               <el-form-item>
                 <el-button type="primary" @click="saveProfile" :loading="formLoading">
@@ -460,37 +293,7 @@ onMounted(async () => {
       </el-tab-pane>
     </el-tabs>
 
-    <!-- 邮箱修改对话框 -->
-    <el-dialog v-model="showEmailDialog" title="修改邮箱" width="400px">
-      <el-form :model="emailForm" label-width="100px">
-        <el-form-item label="当前邮箱">
-          <el-input :value="userStore.user?.email" disabled></el-input>
-        </el-form-item>
-        <el-form-item label="新邮箱">
-          <el-input
-            v-model="emailForm.newEmail"
-            type="email"
-            placeholder="请输入新邮箱地址"
-          ></el-input>
-        </el-form-item>
-        <el-form-item label="当前密码">
-          <el-input
-            v-model="emailForm.currentPassword"
-            type="password"
-            placeholder="请输入当前密码进行验证"
-            show-password
-          ></el-input>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showEmailDialog = false">取消</el-button>
-          <el-button type="primary" @click="changeEmail" :loading="emailLoading">
-            确认修改
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
+
   </div>
 </template>
 

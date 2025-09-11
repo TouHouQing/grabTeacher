@@ -34,6 +34,10 @@ public class SuspensionServiceImpl implements SuspensionService {
     private TeacherMapper teacherMapper;
     @Autowired
     private CourseMapper courseMapper;
+    @Autowired
+    private BookingRequestMapper bookingRequestMapper;
+    @Autowired
+    private com.touhouqing.grabteacherbackend.service.StudentService studentService;
 
     @Override
     @Transactional
@@ -120,27 +124,100 @@ public class SuspensionServiceImpl implements SuspensionService {
         suspensionRequestMapper.updateById(sr);
 
         if ("approved".equals(approval.getStatus())) {
-            // 1) 将报名状态置为 suspended
-            UpdateWrapper<CourseEnrollment> uw = new UpdateWrapper<>();
-            uw.eq("id", enrollment.getId()).set("enrollment_status", "suspended");
-            courseEnrollmentMapper.update(null, uw);
-
-            // 2) 软删区间内课节：从 startDate 到 endDate（含），仅删除未开始/未取消的课节
-
+            // 仅软删所选日期区间内的课节；并据此调整报名总课次与退款
             List<CourseSchedule> all = courseScheduleMapper.findByBookingRequestId(enrollment.getBookingRequestId());
             LocalDate today = LocalDate.now();
             LocalDate startSuspendDate = sr.getStartDate() != null ? sr.getStartDate() : today.plusDays(7);
             LocalDate endSuspendDate = sr.getEndDate() != null ? sr.getEndDate() : startSuspendDate.plusDays(13);
+
+            int deletedCount = 0;
+            java.math.BigDecimal refundTotal = java.math.BigDecimal.ZERO;
+
+            // 拿到课程单价（每小时）；若无价格则退款为0
+            java.math.BigDecimal pricePerHour = null;
+            if (enrollment.getCourseId() != null) {
+                Course c = courseMapper.selectById(enrollment.getCourseId());
+                if (c != null) pricePerHour = c.getPrice();
+            }
+            // 兜底：一对一未绑定课程时，按教师时薪退款
+            if (pricePerHour == null) {
+                try {
+                    Teacher t = teacherMapper.selectById(enrollment.getTeacherId());
+                    if (t != null && t.getHourlyRate() != null) {
+                        pricePerHour = t.getHourlyRate();
+                    }
+                } catch (Exception ignored) {}
+            }
+
             for (CourseSchedule cs : all) {
                 if (cs.getScheduledDate() == null) continue;
                 LocalDate d = cs.getScheduledDate();
-                if (!Boolean.TRUE.equals(cs.getDeleted())
-                        && ("scheduled".equals(cs.getScheduleStatus()) || d.isAfter(today))
-                        && ( (d.isEqual(startSuspendDate) || d.isAfter(startSuspendDate))
-                             && (d.isEqual(endSuspendDate) || d.isBefore(endSuspendDate)) )) {
+                boolean inRange = (d.isEqual(startSuspendDate) || d.isAfter(startSuspendDate))
+                        && (d.isEqual(endSuspendDate) || d.isBefore(endSuspendDate));
+                boolean notDeleted = !Boolean.TRUE.equals(cs.getDeleted());
+                boolean futureOrScheduled = ("scheduled".equals(cs.getScheduleStatus()) || d.isAfter(today));
+                if (notDeleted && futureOrScheduled && inRange) {
+                    // 软删课节
                     UpdateWrapper<CourseSchedule> csUw = new UpdateWrapper<>();
                     csUw.eq("id", cs.getId()).set("is_deleted", true).set("deleted_at", LocalDateTime.now());
                     courseScheduleMapper.update(null, csUw);
+                    deletedCount++;
+
+                    // 计算本节课退款（按时长*每小时单价），试听课不退款
+                    if (pricePerHour != null && (enrollment.getTrial() == null || !enrollment.getTrial())) {
+                        if (cs.getStartTime() != null && cs.getEndTime() != null) {
+                            java.time.Duration dur = java.time.Duration.between(cs.getStartTime(), cs.getEndTime());
+                            java.math.BigDecimal hours = new java.math.BigDecimal(dur.toMinutes())
+                                    .divide(new java.math.BigDecimal("60"), 2, java.math.RoundingMode.HALF_UP);
+                            refundTotal = refundTotal.add(pricePerHour.multiply(hours));
+                        }
+                    }
+                }
+            }
+
+            // 调整报名总课次：扣除被删除的节数
+            if (deletedCount > 0) {
+                Integer total = enrollment.getTotalSessions() == null ? 0 : enrollment.getTotalSessions();
+                int newTotal = Math.max(0, total - deletedCount);
+                UpdateWrapper<CourseEnrollment> euw = new UpdateWrapper<>();
+                euw.eq("id", enrollment.getId()).set("total_sessions", newTotal);
+                courseEnrollmentMapper.update(null, euw);
+
+                // 同步扣减 booking_requests.total_times（若为有限次预约）
+                if (enrollment.getBookingRequestId() != null) {
+                    try {
+                        BookingRequest br = bookingRequestMapper.selectById(enrollment.getBookingRequestId());
+                        if (br != null && br.getTotalTimes() != null) {
+                            int newBrTotal = Math.max(0, br.getTotalTimes() - deletedCount);
+                            UpdateWrapper<BookingRequest> brUw = new UpdateWrapper<>();
+                            brUw.eq("id", br.getId()).set("total_times", newBrTotal);
+                            bookingRequestMapper.update(null, brUw);
+                        }
+                    } catch (Exception ex) {
+                        log.warn("同步扣减 booking_requests.total_times 失败", ex);
+                    }
+                }
+            }
+
+            // 退款入账并记录交易
+            if (refundTotal.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                try {
+                    Student st = studentMapper.selectById(enrollment.getStudentId());
+                    if (st != null && st.getUserId() != null) {
+                        boolean ok = studentService.updateStudentBalance(
+                                st.getUserId(),
+                                refundTotal,
+                                "停课删除课节退款（报名ID:" + enrollment.getId() + ")",
+                                enrollment.getBookingRequestId(),
+                                adminUserId
+                        );
+                        if (!ok) {
+                            log.error("停课退款失败，userId={}, refund={}", st.getUserId(), refundTotal);
+                            throw new RuntimeException("停课退款失败");
+                        }
+                    }
+                } catch (Exception ex) {
+                    log.error("停课退款异常", ex);
                 }
             }
         }

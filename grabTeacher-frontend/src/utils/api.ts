@@ -1055,6 +1055,7 @@ export const suspensionAPI = {
 // 报名查询 API（用于展示已停课课程）
 export const enrollmentAPI = {
   getStudentSuspended: () => apiRequest('/api/enrollments/student/suspended'),
+  getByBookingRequestId: (bookingRequestId: number) => apiRequest(`/api/enrollments/by-booking/${bookingRequestId}`),
   enrollCourse: (courseId: number) => apiRequest(`/api/enrollments/course/${courseId}/enroll`, { method: 'POST' })
 }
 

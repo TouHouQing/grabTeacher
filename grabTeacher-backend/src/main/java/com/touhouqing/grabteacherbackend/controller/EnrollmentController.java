@@ -106,6 +106,34 @@ public class EnrollmentController {
         return CommonResult.success("获取成功", vos);
     }
 
+    @GetMapping("/by-booking/{bookingRequestId}")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "根据预约申请ID查询报名", description = "用于从已审批预约占位卡解析报名ID（若已创建报名）")
+    public CommonResult<?> getEnrollmentByBooking(@PathVariable("bookingRequestId") Long bookingRequestId,
+                                                  @AuthenticationPrincipal UserPrincipal currentUser) {
+        Student student = studentMapper.findByUserId(currentUser.getId());
+        if (student == null) {
+            return CommonResult.error("学生信息不存在");
+        }
+        QueryWrapper<CourseEnrollment> qw = new QueryWrapper<>();
+        qw.eq("booking_request_id", bookingRequestId)
+          .eq("student_id", student.getId())
+          .eq("is_deleted", false);
+        CourseEnrollment ce = courseEnrollmentMapper.selectOne(qw);
+        if (ce == null) {
+            return CommonResult.error("未找到对应报名");
+        }
+        java.util.Map<String, Object> data = new java.util.HashMap<>();
+        data.put("id", ce.getId());
+        data.put("studentId", ce.getStudentId());
+        data.put("teacherId", ce.getTeacherId());
+        data.put("courseId", ce.getCourseId());
+        data.put("enrollmentStatus", ce.getEnrollmentStatus());
+        return CommonResult.success("获取成功", data);
+    }
+
+
+
     @PostMapping("/course/{courseId}/enroll")
     @PreAuthorize("hasRole('STUDENT')")
     @Operation(summary = "学生报名大班课", description = "学生对大班课进行报名并扣除相应M豆")
