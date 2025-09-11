@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh } from '@element-plus/icons-vue'
 import { jobPostAPI, subjectAPI } from '../../../utils/api'
@@ -27,7 +27,8 @@ const form = reactive({
   title: '',
   introduction: '',
   subjectIds: [] as number[],
-  tags: [] as string[],
+  employmentType: '不限' as '全职' | '兼职' | '不限',
+  teachingMode: '不限' as '线上' | '线下' | '不限',
   status: 'active',
   priority: 0,
 })
@@ -74,7 +75,7 @@ const onReset = () => { searchForm.keyword=''; searchForm.status=''; searchForm.
 // 新建与编辑
 const onAdd = () => {
   dialogTitle.value = '新增招聘'
-  Object.assign(form, { id: 0, title: '', introduction: '', subjectIds: [], tags: [], status: 'active', priority: 0 })
+  Object.assign(form, { id: 0, title: '', introduction: '', subjectIds: [], employmentType: '不限', teachingMode: '不限', status: 'active', priority: 0 })
   dialogVisible.value = true
 }
 const onEdit = async (row: any) => {
@@ -87,7 +88,8 @@ const onEdit = async (row: any) => {
     introduction: jp.introduction,
     // 冗余字段 subject_ids 为逗号字符串，优先解析；否则从名称推断为空
     subjectIds: (jp.subjectIds ? String(jp.subjectIds).split(',').filter(Boolean).map((x: string)=>+x) : []),
-    tags: (()=>{ try{ return (jp.positionTags? JSON.parse(jp.positionTags): [])?.slice(0, TAG_MAX_COUNT) }catch{ return [] } })(),
+    employmentType: (()=>{ try{ const arr = (jp.positionTags? JSON.parse(jp.positionTags): []); return arr.includes('全职') ? '全职' : (arr.includes('兼职') ? '兼职' : '不限') }catch{ return '不限' } })(),
+    teachingMode: (()=>{ try{ const arr = (jp.positionTags? JSON.parse(jp.positionTags): []); return arr.includes('线上') ? '线上' : (arr.includes('线下') ? '线下' : '不限') }catch{ return '不限' } })(),
     status: jp.status || 'active',
     priority: jp.priority ?? 0,
   })
@@ -99,7 +101,7 @@ const onSave = async () => {
   if (!form.title?.trim()) { ElMessage.warning('请输入标题'); return }
   if (!form.subjectIds?.length) { ElMessage.warning('请选择科目'); return }
   try {
-    const payload = { title: form.title, introduction: form.introduction, subjectIds: form.subjectIds, tags: form.tags.slice(0, TAG_MAX_COUNT), status: form.status, priority: form.priority }
+    const payload = { title: form.title, introduction: form.introduction, subjectIds: form.subjectIds, tags: [ ...(form.employmentType !== '不限' ? [form.employmentType] : []), ...(form.teachingMode !== '不限' ? [form.teachingMode] : []) ], status: form.status, priority: form.priority }
     const res = form.id === 0
       ? await jobPostAPI.create(payload)
       : await jobPostAPI.update(form.id, payload)
@@ -146,48 +148,7 @@ const onPageChange = (p: number) => { pagination.currentPage = p; loadList() }
 const onSizeChange = (s: number) => { pagination.pageSize = s; pagination.currentPage = 1; loadList() }
 
 
-// 标签编辑器：轻量输入 + 按回车/逗号添加
-const TAG_MAX_COUNT = 4
-const TAG_MAX_LEN = 12
-const tagInput = ref('')
-const tagFocused = ref(false)
-const tagInputRef = ref<HTMLInputElement | null>(null)
-const tagLimitReached = computed(() => form.tags.length >= TAG_MAX_COUNT)
 
-const splitToTags = (text: string): string[] => {
-  return text
-    .split(/[,，、\s;；]+/)
-    .map(t => t.trim())
-    .filter(Boolean)
-}
-
-const addTags = (candidates: string[]) => {
-  for (const raw of candidates) {
-    if (form.tags.length >= TAG_MAX_COUNT) break
-    const t = raw.slice(0, TAG_MAX_LEN)
-    if (!t) continue
-    if (form.tags.includes(t)) continue
-    form.tags.push(t)
-    if (form.tags.length >= TAG_MAX_COUNT) break
-  }
-}
-
-const addTagsFromInput = () => {
-  if (!tagInput.value) return
-  addTags(splitToTags(tagInput.value))
-  tagInput.value = ''
-}
-
-const onTagRemove = (tag: string) => {
-  form.tags = form.tags.filter(t => t !== tag)
-}
-
-const onTagInputKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Enter' || e.key === ',' || e.key === '、' || e.key === '，' || e.key === ';' || e.key === '；') {
-    e.preventDefault()
-    addTagsFromInput()
-  }
-}
 
 onMounted(async () => { await loadOptions(); await loadList() })
 </script>
@@ -286,14 +247,19 @@ onMounted(async () => { await loadOptions(); await loadList() })
             <el-option v-for="s in subjectOptions" :key="s.value" :label="s.label" :value="s.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="标签">
-          <div style="width: 520px">
-            <div class="tag-editor" @click="tagInputRef?.focus()">
-              <el-tag v-for="t in form.tags" :key="t" closable @close="onTagRemove(t)" type="info" class="tag-chip">{{ t }}</el-tag>
-              <input ref="tagInputRef" v-model="tagInput" class="tag-input" :disabled="tagLimitReached" :placeholder="`输入后按回车或逗号添加（最多${TAG_MAX_COUNT}个）`" @keydown="onTagInputKeydown" @blur="addTagsFromInput" />
-            </div>
-            <div class="tag-hint">提示：标签可自定义，建议使用短语词（如“急招”“线上”“线下”“寒假”），将展示在招聘列表。</div>
-          </div>
+        <el-form-item label="任职模式">
+          <el-radio-group v-model="form.employmentType">
+            <el-radio-button label="全职" />
+            <el-radio-button label="兼职" />
+            <el-radio-button label="不限" />
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="授课形式">
+          <el-radio-group v-model="form.teachingMode">
+            <el-radio-button label="线上" />
+            <el-radio-button label="线下" />
+            <el-radio-button label="不限" />
+          </el-radio-group>
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" style="width: 200px">
@@ -328,10 +294,7 @@ onMounted(async () => { await loadOptions(); await loadList() })
 .search-actions { white-space: nowrap; display:flex; gap:8px; align-items:center; }
 .form-actions-row { width: 100%; margin-top: 4px; }
 .form-actions-row .el-form-item__content { display:flex; gap:8px; }
-.tag-editor { display:flex; flex-wrap:wrap; gap:6px; min-height:34px; align-items:center; border:1px solid var(--el-border-color); border-radius:4px; padding:4px 8px; }
-.tag-chip { margin: 2px 0; }
-.tag-input { flex:1; min-width:160px; border: none; outline: none; height:26px; line-height:26px; }
-.tag-hint { color:#909399; font-size:12px; margin-top:6px; }
+
 .tags-cell { display:flex; flex-wrap:wrap; gap:6px; max-height: 44px; overflow:hidden; align-items:center; }
 .cell-tag { margin: 2px 0; }
 </style>

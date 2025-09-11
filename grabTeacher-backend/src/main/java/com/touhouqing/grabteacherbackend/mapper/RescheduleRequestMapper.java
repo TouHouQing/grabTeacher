@@ -25,8 +25,9 @@ public interface RescheduleRequestMapper extends BaseMapper<RescheduleRequest> {
      * 根据教师ID获取需要审批的调课申请列表
      */
     @Select("SELECT rr.* FROM reschedule_requests rr " +
-            "INNER JOIN schedules s ON rr.schedule_id = s.id " +
-            "WHERE s.teacher_id = #{teacherId} AND rr.is_deleted = 0 " +
+            "INNER JOIN course_schedules cs ON rr.schedule_id = cs.id " +
+            "INNER JOIN course_enrollments ce ON cs.enrollment_id = ce.id " +
+            "WHERE ce.teacher_id = #{teacherId} AND rr.is_deleted = 0 " +
             "ORDER BY rr.created_at DESC")
     List<RescheduleRequest> findByTeacherId(@Param("teacherId") Long teacherId);
 
@@ -55,8 +56,9 @@ public interface RescheduleRequestMapper extends BaseMapper<RescheduleRequest> {
      * 统计教师待处理的调课申请数量
      */
     @Select("SELECT COUNT(*) FROM reschedule_requests rr " +
-            "INNER JOIN schedules s ON rr.schedule_id = s.id " +
-            "WHERE s.teacher_id = #{teacherId} AND rr.status = 'pending' AND rr.is_deleted = 0")
+            "INNER JOIN course_schedules cs ON rr.schedule_id = cs.id " +
+            "INNER JOIN course_enrollments ce ON cs.enrollment_id = ce.id " +
+            "WHERE ce.teacher_id = #{teacherId} AND rr.status = 'pending' AND rr.is_deleted = 0")
     int countPendingByTeacherId(@Param("teacherId") Long teacherId);
 
     /**

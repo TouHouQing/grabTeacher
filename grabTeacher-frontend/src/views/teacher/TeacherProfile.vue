@@ -6,17 +6,6 @@ import WideTimeSlotSelector from '../../components/WideTimeSlotSelector.vue'
 import { fileAPI } from '../../utils/api'
 import defaultAvatar from '../../assets/pictures/teacherBoy2.jpeg'
 
-// 学历枚举与归一化（与后端保持一致）
-const EDUCATION_ALLOWED = ['专科及以下', '本科', '硕士', '博士'] as const
-const normalizeEducation = (value: string): string => {
-  if (!value) return ''
-  if (EDUCATION_ALLOWED.includes(value as any)) return value
-  if (value.includes('硕士')) return '硕士'
-  if (value.includes('博士')) return '博士'
-  if (value.includes('本科')) return '本科'
-  if (value.includes('专科')) return '专科及以下'
-  return ''
-}
 
 const userStore = useUserStore()
 const _localAvatarFile = ref<File | null>(null)
@@ -72,120 +61,34 @@ interface TimeSlot {
   timeSlots: string[]
 }
 
-// 科目相关数据
-const subjects = ref<{id: number, name: string}[]>([])
-const selectedSubjectIds = ref<number[]>([])
 
-// 授课地点相关数据
-const teachingLocations = ref<{ id: number; name: string }[]>([])
-const selectedTeachingLocationIds = ref<number[]>([])
-
-// 教师信息表单
+// 教师信息表单（仅保留需要在教师端编辑/展示的字段）
 const teacherForm = reactive<TeacherInfo>({
-  realName: '',
-  birthDate: '',
-  educationBackground: '',
-  teachingExperience: 0,
-  specialties: '',
-  subjects: '',
-  subjectIds: [],
-  hourlyRate: 0,
-  introduction: '',
-  videoIntroUrl: '',
-  gender: '不愿透露',
-  supportsOnline: true
+  introduction: ''
 })
 
 // 可上课时间
 const availableTimeSlots = ref<TimeSlot[]>([])
 
 
-// 邮箱修改表单
-const emailForm = reactive({
-  newEmail: '',
-  currentPassword: ''
-})
 
 // 加载状态
 const loading = ref(false)
 const formLoading = ref(false)
-const emailLoading = ref(false)
-const showEmailDialog = ref(false)
 
-// 性别选项
-const genderOptions = [
-  { label: '不愿透露', value: '不愿透露' },
-  { label: '男', value: '男' },
-  { label: '女', value: '女' }
-]
 
-// 获取科目列表（用于显示科目名称）
-const fetchSubjects = async () => {
-  try {
-    const response = await userStore.getSubjects()
-    if (response.success && response.data) {
-      subjects.value = response.data
-    } else {
-      ElMessage.warning(response.message || '获取科目列表失败')
-    }
-  } catch (error) {
-    ElMessage.error('获取科目列表失败')
-  }
-}
 
-// 获取授课地点列表（用于选择）
-const fetchTeachingLocations = async () => {
-  try {
-    const response = await userStore.getTeachingLocations()
-    if (response.success && response.data) {
-      teachingLocations.value = response.data
-    } else {
-      ElMessage.warning(response.message || '获取授课地点列表失败')
-    }
-  } catch (error) {
-    ElMessage.error('获取授课地点列表失败')
-  }
-}
-
-// 获取教师信息
+// 获取教师信息（剔除与教师端无关的字段处理）
 const fetchTeacherProfile = async () => {
   loading.value = true
   try {
     const response = await userStore.getTeacherProfile()
     if (response.success && response.data) {
       Object.assign(teacherForm, response.data)
-      teacherForm.educationBackground = normalizeEducation(teacherForm.educationBackground || '')
-      // 设置选中的科目ID
-      if (response.data.subjectIds) {
-        selectedSubjectIds.value = [...response.data.subjectIds]
-      }
-      // 设置授课地点（ID数组）；为空表示线上
-      if ((response.data as any).teachingLocationIds) {
-        selectedTeachingLocationIds.value = [
-          ...((response.data as any).teachingLocationIds as number[])
-        ]
-      } else if ((response.data as any).teachingLocations) {
-        const csv: string = (response.data as any).teachingLocations
-        selectedTeachingLocationIds.value = csv
-          ? csv.split(',').map(s => Number(s.trim())).filter(n => !Number.isNaN(n))
-          : []
-      } else {
-        selectedTeachingLocationIds.value = []
-
-      // 设置线上授课开关（兼容老数据：无线下地点=线上）
-      if ((response.data as any).hasOwnProperty('supportsOnline')) {
-        teacherForm.supportsOnline = !!(response.data as any).supportsOnline
-      } else {
-        teacherForm.supportsOnline = selectedTeachingLocationIds.value.length === 0
-      }
-
-      }
-
       // 设置可上课时间
       if (response.data.availableTimeSlots) {
         availableTimeSlots.value = [...response.data.availableTimeSlots]
       } else {
-        // 如果没有设置可上课时间，清空数组（表示所有时间都可以）
         availableTimeSlots.value = []
       }
     } else {
@@ -206,14 +109,10 @@ const saveProfile = async () => {
     // 1) 若选择了新头像，先上传至OSS，拿到最终URL
     const uploadedAvatarUrl = await uploadAvatarIfNeeded()
 
-    // 提交教师可修改的字段（不包含：姓名/性别/级别/经验/时薪/评分/学历/科目）
+    // 提交教师端可修改字段（移除邮箱、姓名、出生年月、性别、学历、经验、科目、授课地点、特长、时薪）
     const formData = {
-      birthDate: teacherForm.birthDate,
-      specialties: teacherForm.specialties,
       introduction: teacherForm.introduction,
-      supportsOnline: teacherForm.supportsOnline,
       availableTimeSlots: availableTimeSlots.value,
-      teachingLocationIds: selectedTeachingLocationIds.value,
       ...(uploadedAvatarUrl && { avatarUrl: uploadedAvatarUrl })
     }
 
@@ -222,10 +121,6 @@ const saveProfile = async () => {
       ElMessage.success('保存成功')
       if (response.data) {
         Object.assign(teacherForm, response.data)
-        // 更新选中的科目ID（用于显示）
-        if (response.data.subjectIds) {
-          selectedSubjectIds.value = [...response.data.subjectIds]
-        }
       }
       // 3) 保存成功后更新头像显示和清理临时文件
       if (uploadedAvatarUrl) {
@@ -248,75 +143,11 @@ const saveProfile = async () => {
   }
 }
 
-// 获取选中科目的名称
-const getSelectedSubjectNames = () => {
-  if (!selectedSubjectIds.value || selectedSubjectIds.value.length === 0) {
-    return ''
-  }
-
-  const subjectNames = selectedSubjectIds.value
-    .map(id => subjects.value.find(s => s.id === id)?.name)
-    .filter(name => name)
-
-  return subjectNames.join(', ')
-}
 
 
-// 修改邮箱
-const changeEmail = async () => {
-  if (!emailForm.newEmail || !emailForm.currentPassword) {
-    ElMessage.warning('请填写完整的邮箱信息')
-    return
-  }
-
-  // 简单的邮箱格式验证
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(emailForm.newEmail)) {
-    ElMessage.error('请输入正确的邮箱格式')
-    return
-  }
-
-  if (emailForm.currentPassword.length < 6) {
-    ElMessage.error('密码长度不能少于6位')
-    return
-  }
-
-  emailLoading.value = true
-  try {
-    // 临时使用fetch直接调用API
-    const response = await fetch(`${(window as any).__GT_API_BASE_URL__ || 'http://localhost:8080'}/api/user/update-email`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userStore.token}`
-      },
-      body: JSON.stringify(emailForm)
-    })
-    const result = await response.json()
-
-    if (result.success) {
-      ElMessage.success('邮箱修改成功')
-      // 清空表单
-      emailForm.newEmail = ''
-      emailForm.currentPassword = ''
-      // 关闭对话框
-      showEmailDialog.value = false
-      // 重新获取用户信息以更新显示
-      await userStore.initializeAuth()
-    } else {
-      ElMessage.error(result.message || '邮箱修改失败')
-    }
-  } catch (error) {
-    ElMessage.error('邮箱修改失败')
-  } finally {
-    emailLoading.value = false
-  }
-}
 
 // 页面加载时获取数据
 onMounted(() => {
-  fetchSubjects()
-  fetchTeachingLocations()
   fetchTeacherProfile()
 })
 </script>
@@ -343,112 +174,7 @@ onMounted(() => {
               <el-form-item label="用户名">
                 <el-input :value="userStore.user?.username" disabled></el-input>
               </el-form-item>
-              <el-form-item label="邮箱">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <el-input :value="userStore.user?.email" disabled style="flex: 1;"></el-input>
-                  <el-button type="text" @click="showEmailDialog = true">修改</el-button>
-                </div>
-              </el-form-item>
-              <el-form-item label="真实姓名" required>
-                <el-input :value="teacherForm.realName" readonly placeholder="仅管理员可修改"></el-input>
-                <small style="color: #999; font-size: 12px;">注：姓名仅能由管理员修改</small>
-              </el-form-item>
-              <el-form-item label="出生年月" required>
-                <el-input
-                  v-model="teacherForm.birthDate"
-                  type="month"
-                  placeholder="请选择出生年月"
-                ></el-input>
-              </el-form-item>
-              <el-form-item label="性别">
-                <el-radio-group v-model="teacherForm.gender" disabled>
-                  <el-radio
-                    v-for="option in genderOptions"
-                    :key="option.value"
-                    :label="option.value"
-                  >
-                    {{ option.label }}
-                  </el-radio>
-                </el-radio-group>
-                <small style="color: #999; font-size: 12px;">注：性别仅能由管理员修改</small>
-              </el-form-item>
-              <el-form-item label="学历">
-                <el-select v-model="teacherForm.educationBackground" placeholder="请选择学历" style="width: 100%" disabled>
-                  <el-option label="专科及以下" value="专科及以下"></el-option>
-                  <el-option label="本科" value="本科"></el-option>
-                  <el-option label="硕士" value="硕士"></el-option>
-                  <el-option label="博士" value="博士"></el-option>
-                </el-select>
-                <small style="color: #999; font-size: 12px;">注：学历仅能由管理员修改</small>
-              </el-form-item>
-              <el-form-item label="教学经验(年)">
-                <el-input-number
-                  v-model="teacherForm.teachingExperience"
-                  :min="0"
-                  :max="50"
-                  style="width: 100%"
-                  disabled
-                ></el-input-number>
-                <small style="color: #999; font-size: 12px;">注：教学经验仅能由管理员修改</small>
-              </el-form-item>
-              <el-form-item label="教授科目">
-                <el-select
-                  v-model="selectedSubjectIds"
-                  multiple
-                  placeholder="请选择您教授的科目"
-                  style="width: 100%"
-                  collapse-tags
-                  collapse-tags-tooltip
-                  :max-collapse-tags="4"
-                  disabled
-                >
-                  <el-option
-                    v-for="subject in subjects"
-                    :key="subject.id"
-                    :label="subject.name"
-                    :value="subject.id"
-                  />
-                </el-select>
-                <small style="color: #999; font-size: 12px;">注：科目仅能由管理员修改</small>
-              </el-form-item>
-              <el-form-item label="授课地点">
-                <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
-                  <el-checkbox v-model="teacherForm.supportsOnline">线上</el-checkbox>
-                  <el-select
-                    v-model="selectedTeachingLocationIds"
-                    multiple
-                    placeholder="请选择线下地点"
-                    style="width: 100%"
-                    collapse-tags
-                    collapse-tags-tooltip
-                    :max-collapse-tags="3"
-                  >
-                    <el-option
-                      v-for="loc in teachingLocations"
-                      :key="loc.id"
-                      :label="loc.name"
-                      :value="loc.id"
-                    />
-                  </el-select>
-                  <small style="color:#999;font-size:12px;">可同时选择“线上 + 多个线下地点”</small>
-                </div>
-              </el-form-item>
 
-              <el-form-item label="专业特长">
-                <el-input
-                  v-model="teacherForm.specialties"
-                  placeholder="请输入专业特长，用逗号分隔"
-                ></el-input>
-              </el-form-item>
-              <el-form-item label="小时收费(元)">
-                <el-input
-                  :value="teacherForm.hourlyRate ? `$${teacherForm.hourlyRate}` : '暂未设置收费标准'"
-                  readonly
-                  placeholder="暂未设置收费标准（请联系管理员设置）"
-                  style="width: 100%"
-                ></el-input>
-                <small style="color: #999; font-size: 12px;">注：收费标准只能由管理员设置</small>
-              </el-form-item>
               <el-form-item label="个人介绍">
                 <el-input
                   v-model="teacherForm.introduction"
@@ -475,37 +201,6 @@ onMounted(() => {
 
     </el-tabs>
 
-    <!-- 邮箱修改对话框 -->
-    <el-dialog v-model="showEmailDialog" title="修改邮箱" width="400px">
-      <el-form :model="emailForm" label-width="100px">
-        <el-form-item label="当前邮箱">
-          <el-input :value="userStore.user?.email" disabled></el-input>
-        </el-form-item>
-        <el-form-item label="新邮箱">
-          <el-input
-            v-model="emailForm.newEmail"
-            type="email"
-            placeholder="请输入新邮箱地址"
-          ></el-input>
-        </el-form-item>
-        <el-form-item label="当前密码">
-          <el-input
-            v-model="emailForm.currentPassword"
-            type="password"
-            placeholder="请输入当前密码进行验证"
-            show-password
-          ></el-input>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showEmailDialog = false">取消</el-button>
-          <el-button type="primary" @click="changeEmail" :loading="emailLoading">
-            确认修改
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
