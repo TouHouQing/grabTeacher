@@ -128,6 +128,8 @@ watch(() => route.path, (path: string) => {
     activeMenu.value = 'schedule'
   } else if (path.includes('/bookings')) {
     activeMenu.value = 'bookings'
+  } else if (path.includes('/grade-entry')) {
+    activeMenu.value = 'grade-entry'
   } else if (path.includes('/reschedule')) {
     activeMenu.value = 'reschedule'
 
@@ -526,7 +528,7 @@ onMounted(async () => {
               <el-avatar :size="64" :src="userStore.user?.avatarUrl || $getImageUrl('@/assets/pictures/teacherBoy2.jpeg')" />
             </div>
             <div class="info">
-              <h3>{{ userStore.user?.username }}</h3>
+              <h3>{{ userStore.user?.realName || userStore.user?.username }}</h3>
               <p>教师</p>
             </div>
           </div>
@@ -542,10 +544,6 @@ onMounted(async () => {
             <el-menu-item index="bookings" @click="$router.push('/teacher-center/bookings')">
               <el-icon><DocumentChecked /></el-icon>
               <span>调课记录</span>
-            </el-menu-item>
-            <el-menu-item index="grade-entry" @click="$router.push('/teacher-center/grade-entry')">
-              <el-icon><Reading /></el-icon>
-              <span>成绩录入</span>
             </el-menu-item>
 
 
@@ -563,6 +561,10 @@ onMounted(async () => {
             <el-menu-item index="profile" @click="$router.push('/teacher-center/profile')">
               <el-icon><Setting /></el-icon>
               <span>个人资料</span>
+            </el-menu-item>
+            <el-menu-item index="grade-entry" @click="$router.push('/teacher-center/grade-entry')">
+              <el-icon><Reading /></el-icon>
+              <span>成绩录入</span>
             </el-menu-item>
             <el-menu-item index="password" @click="$router.push('/teacher-center/password')">
               <el-icon><Lock /></el-icon>

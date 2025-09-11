@@ -38,24 +38,25 @@
                lg.schedule_id,
                lg.student_id,
                s.real_name AS student_name,
-               sch.teacher_id,
+               ce.teacher_id,
                t.real_name AS teacher_name,
-               sch.course_id,
+               ce.course_id,
                c.title AS course_title,
                sub.name AS subject_name,
-               sch.scheduled_date,
-               sch.start_time,
-               sch.end_time,
+               cs.scheduled_date,
+               cs.start_time,
+               cs.end_time,
                lg.score,
                lg.teacher_comment,
                lg.graded_at,
                lg.created_at,
                lg.updated_at
         FROM lesson_grades lg
-                 LEFT JOIN schedules sch ON lg.schedule_id = sch.id AND sch.is_deleted = 0
+                 LEFT JOIN course_schedules cs ON lg.schedule_id = cs.id AND cs.is_deleted = 0
+                 LEFT JOIN course_enrollments ce ON cs.enrollment_id = ce.id AND ce.is_deleted = 0
                  LEFT JOIN students s ON lg.student_id = s.id AND s.is_deleted = 0
-                 LEFT JOIN teachers t ON sch.teacher_id = t.id AND t.is_deleted = 0
-                 LEFT JOIN courses c ON sch.course_id = c.id AND c.is_deleted = 0
+                 LEFT JOIN teachers t ON ce.teacher_id = t.id AND t.is_deleted = 0
+                 LEFT JOIN courses c ON ce.course_id = c.id AND c.is_deleted = 0
                  LEFT JOIN subjects sub ON c.subject_id = sub.id AND sub.is_deleted = 0
         WHERE lg.is_deleted = 0
           AND lg.student_id = #{studentId}
@@ -63,12 +64,12 @@
               AND sub.name = #{subjectName}
           </if>
           <if test="startDate != null">
-              AND sch.scheduled_date &gt;= #{startDate}
+              AND cs.scheduled_date &gt;= #{startDate}
           </if>
           <if test="endDate != null">
-              AND sch.scheduled_date &lt;= #{endDate}
+              AND cs.scheduled_date &lt;= #{endDate}
           </if>
-        ORDER BY sch.scheduled_date DESC, sch.start_time DESC
+        ORDER BY cs.scheduled_date DESC, cs.start_time DESC
     </select>
 
     <!-- 分页查询教师录入的成绩（包含详细信息） -->
@@ -77,27 +78,28 @@
                lg.schedule_id,
                lg.student_id,
                s.real_name AS student_name,
-               sch.teacher_id,
+               ce.teacher_id,
                t.real_name AS teacher_name,
-               sch.course_id,
+               ce.course_id,
                c.title AS course_title,
                sub.name AS subject_name,
-               sch.scheduled_date,
-               sch.start_time,
-               sch.end_time,
+               cs.scheduled_date,
+               cs.start_time,
+               cs.end_time,
                lg.score,
                lg.teacher_comment,
                lg.graded_at,
                lg.created_at,
                lg.updated_at
         FROM lesson_grades lg
-                 LEFT JOIN schedules sch ON lg.schedule_id = sch.id AND sch.is_deleted = 0
+                 LEFT JOIN course_schedules cs ON lg.schedule_id = cs.id AND cs.is_deleted = 0
+                 LEFT JOIN course_enrollments ce ON cs.enrollment_id = ce.id AND ce.is_deleted = 0
                  LEFT JOIN students s ON lg.student_id = s.id AND s.is_deleted = 0
-                 LEFT JOIN teachers t ON sch.teacher_id = t.id AND t.is_deleted = 0
-                 LEFT JOIN courses c ON sch.course_id = c.id AND c.is_deleted = 0
+                 LEFT JOIN teachers t ON ce.teacher_id = t.id AND t.is_deleted = 0
+                 LEFT JOIN courses c ON ce.course_id = c.id AND c.is_deleted = 0
                  LEFT JOIN subjects sub ON c.subject_id = sub.id AND sub.is_deleted = 0
         WHERE lg.is_deleted = 0
-          AND sch.teacher_id = #{teacherId}
+          AND ce.teacher_id = #{teacherId}
           <if test="studentName != null and studentName != ''">
               AND s.real_name LIKE CONCAT('%', #{studentName}, '%')
           </if>
@@ -105,12 +107,12 @@
               AND sub.name = #{subjectName}
           </if>
           <if test="startDate != null">
-              AND sch.scheduled_date &gt;= #{startDate}
+              AND cs.scheduled_date &gt;= #{startDate}
           </if>
           <if test="endDate != null">
-              AND sch.scheduled_date &lt;= #{endDate}
+              AND cs.scheduled_date &lt;= #{endDate}
           </if>
-        ORDER BY sch.scheduled_date DESC, sch.start_time DESC
+        ORDER BY cs.scheduled_date DESC, cs.start_time DESC
     </select>
 
     <!-- 查询学生某科目的所有成绩（用于图表展示） -->
@@ -119,30 +121,31 @@
                lg.schedule_id,
                lg.student_id,
                s.real_name AS student_name,
-               sch.teacher_id,
+               ce.teacher_id,
                t.real_name AS teacher_name,
-               sch.course_id,
+               ce.course_id,
                c.title AS course_title,
                sub.name AS subject_name,
-               sch.scheduled_date,
-               sch.start_time,
-               sch.end_time,
+               cs.scheduled_date,
+               cs.start_time,
+               cs.end_time,
                lg.score,
                lg.teacher_comment,
                lg.graded_at,
                lg.created_at,
                lg.updated_at
         FROM lesson_grades lg
-                 LEFT JOIN schedules sch ON lg.schedule_id = sch.id AND sch.is_deleted = 0
+                 LEFT JOIN course_schedules cs ON lg.schedule_id = cs.id AND cs.is_deleted = 0
+                 LEFT JOIN course_enrollments ce ON cs.enrollment_id = ce.id AND ce.is_deleted = 0
                  LEFT JOIN students s ON lg.student_id = s.id AND s.is_deleted = 0
-                 LEFT JOIN teachers t ON sch.teacher_id = t.id AND t.is_deleted = 0
-                 LEFT JOIN courses c ON sch.course_id = c.id AND c.is_deleted = 0
+                 LEFT JOIN teachers t ON ce.teacher_id = t.id AND t.is_deleted = 0
+                 LEFT JOIN courses c ON ce.course_id = c.id AND c.is_deleted = 0
                  LEFT JOIN subjects sub ON c.subject_id = sub.id AND sub.is_deleted = 0
         WHERE lg.is_deleted = 0
           AND lg.student_id = #{studentId}
           AND sub.name = #{subjectName}
           AND lg.score IS NOT NULL
-        ORDER BY sch.scheduled_date ASC, sch.start_time ASC
+        ORDER BY cs.scheduled_date ASC, cs.start_time ASC
     </select>
 
     <!-- 查询学生在指定日期范围内的成绩 -->
@@ -151,37 +154,38 @@
                lg.schedule_id,
                lg.student_id,
                s.real_name AS student_name,
-               sch.teacher_id,
+               ce.teacher_id,
                t.real_name AS teacher_name,
-               sch.course_id,
+               ce.course_id,
                c.title AS course_title,
                sub.name AS subject_name,
-               sch.scheduled_date,
-               sch.start_time,
-               sch.end_time,
+               cs.scheduled_date,
+               cs.start_time,
+               cs.end_time,
                lg.score,
                lg.teacher_comment,
                lg.graded_at,
                lg.created_at,
                lg.updated_at
         FROM lesson_grades lg
-                 LEFT JOIN schedules sch ON lg.schedule_id = sch.id AND sch.is_deleted = 0
+                 LEFT JOIN course_schedules cs ON lg.schedule_id = cs.id AND cs.is_deleted = 0
+                 LEFT JOIN course_enrollments ce ON cs.enrollment_id = ce.id AND ce.is_deleted = 0
                  LEFT JOIN students s ON lg.student_id = s.id AND s.is_deleted = 0
-                 LEFT JOIN teachers t ON sch.teacher_id = t.id AND t.is_deleted = 0
-                 LEFT JOIN courses c ON sch.course_id = c.id AND c.is_deleted = 0
+                 LEFT JOIN teachers t ON ce.teacher_id = t.id AND t.is_deleted = 0
+                 LEFT JOIN courses c ON ce.course_id = c.id AND c.is_deleted = 0
                  LEFT JOIN subjects sub ON c.subject_id = sub.id AND sub.is_deleted = 0
         WHERE lg.is_deleted = 0
           AND lg.student_id = #{studentId}
-          AND sch.scheduled_date &gt;= #{startDate}
-          AND sch.scheduled_date &lt;= #{endDate}
-        ORDER BY sch.scheduled_date ASC, sch.start_time ASC
+          AND cs.scheduled_date &gt;= #{startDate}
+          AND cs.scheduled_date &lt;= #{endDate}
+        ORDER BY cs.scheduled_date ASC, cs.start_time ASC
     </select>
 
     <!-- 统计学生成绩数据 -->
     <select id="countGradesByStudentId" resultType="java.lang.Long">
         SELECT COUNT(*)
         FROM lesson_grades lg
-                 LEFT JOIN schedules sch ON lg.schedule_id = sch.id AND sch.is_deleted = 0
+                 LEFT JOIN course_schedules cs ON lg.schedule_id = cs.id AND cs.is_deleted = 0
         WHERE lg.is_deleted = 0
           AND lg.student_id = #{studentId}
     </select>
@@ -190,9 +194,10 @@
     <select id="countGradesByTeacherId" resultType="java.lang.Long">
         SELECT COUNT(*)
         FROM lesson_grades lg
-                 LEFT JOIN schedules sch ON lg.schedule_id = sch.id AND sch.is_deleted = 0
+                 LEFT JOIN course_schedules cs ON lg.schedule_id = cs.id AND cs.is_deleted = 0
+                 LEFT JOIN course_enrollments ce ON cs.enrollment_id = ce.id AND ce.is_deleted = 0
         WHERE lg.is_deleted = 0
-          AND sch.teacher_id = #{teacherId}
+          AND ce.teacher_id = #{teacherId}
     </select>
 
 </mapper>

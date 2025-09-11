@@ -48,8 +48,8 @@ const filteredRows = computed(() => {
 
 const initDefaultDateRange = () => {
   const today = new Date()
-  const start = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000)
-  const end = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const start = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const end = today
   const fmt = (d: Date) => d.toISOString().split('T')[0]
   dateRange.value = [fmt(start), fmt(end)]
 }
