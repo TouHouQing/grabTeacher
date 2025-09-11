@@ -655,19 +655,7 @@ public class BookingServiceImpl implements BookingService {
         java.util.List<CourseSchedule> schedules =
                 courseScheduleMapper.findByTeacherIdAndDateRange(teacher.getId(), startDate, endDate);
         return schedules.stream()
-                .map(cs -> {
-                    ScheduleVO vo = new ScheduleVO();
-                    vo.setId(cs.getId());
-                    // 兼容前端：补充常用关联字段
-                    vo.setTeacherId(cs.getTeacherId());
-                    vo.setStudentId(cs.getStudentId());
-                    vo.setCourseId(cs.getCourseId());
-                    vo.setScheduledDate(cs.getScheduledDate());
-                    vo.setStartTime(cs.getStartTime());
-                    vo.setEndTime(cs.getEndTime());
-                    vo.setStatus(mapScheduleStatusToLegacy(cs.getScheduleStatus()));
-                    return vo;
-                })
+                .map(this::convertToScheduleVO)
                 .collect(Collectors.toList());
     }
 
@@ -736,30 +724,34 @@ public class BookingServiceImpl implements BookingService {
             vo.setDurationMinutes((int) durationMinutes);
         }
 
-        // 获取教师信息
-        if (cs.getTeacherId() != null) {
+        // 优先使用JOIN结果，减少额外查询
+        if (cs.getTeacherName() != null) {
+            vo.setTeacherName(cs.getTeacherName());
+        } else if (cs.getTeacherId() != null) {
             Teacher teacher = teacherMapper.selectById(cs.getTeacherId());
             if (teacher != null) {
                 vo.setTeacherName(teacher.getRealName());
             }
         }
 
-        // 获取学生信息
-        if (cs.getStudentId() != null) {
+        if (cs.getStudentName() != null) {
+            vo.setStudentName(cs.getStudentName());
+        } else if (cs.getStudentId() != null) {
             Student student = studentMapper.selectById(cs.getStudentId());
             if (student != null) {
                 vo.setStudentName(student.getRealName());
             }
         }
 
-        // 获取课程信息（大班课/有课程ID时）
-        if (cs.getCourseId() != null) {
+        if (cs.getCourseTitle() != null) {
+            vo.setCourseTitle(cs.getCourseTitle());
+            if (cs.getCourseType() != null) vo.setCourseType(cs.getCourseType());
+            if (cs.getSubjectName() != null) vo.setSubjectName(cs.getSubjectName());
+        } else if (cs.getCourseId() != null) {
             Course course = courseMapper.selectById(cs.getCourseId());
             if (course != null) {
                 vo.setCourseTitle(course.getTitle());
                 vo.setCourseType(course.getCourseType());
-
-                // 获取科目名称
                 if (course.getSubjectId() != null) {
                     Subject subject = subjectMapper.selectById(course.getSubjectId());
                     if (subject != null) {
@@ -767,6 +759,17 @@ public class BookingServiceImpl implements BookingService {
                     }
                 }
             }
+        }
+
+        // JOIN 已提供时长/试听/类型时，优先使用
+        if (cs.getDurationMinutes() != null) {
+            vo.setDurationMinutes(cs.getDurationMinutes());
+        }
+        if (vo.getTrial() == null && cs.getTrial() != null) {
+            vo.setTrial(cs.getTrial());
+        }
+        if (cs.getCourseType() != null) {
+            vo.setCourseType(cs.getCourseType());
         }
 
         // 获取报名信息（并补全一对一课程默认标题）
@@ -819,7 +822,8 @@ public class BookingServiceImpl implements BookingService {
             }
             if (subjectName == null) subjectName = "";
 
-            // 生成并设置标题（空字段不拼接空格，直接相连以符合示例样式：Jack小学数学P4一对一课程）
+
+            // 生成并设置标题（严格使用库中年级，不做学段识别）：姓名+科目+年级+一对一课程
             if (vo.getCourseTitle() == null || vo.getCourseTitle().isEmpty()) {
                 StringBuilder titleBuilder = new StringBuilder();
                 titleBuilder.append(studentName);

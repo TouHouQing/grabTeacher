@@ -36,25 +36,52 @@ public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
                               @Param("startTime") LocalTime startTime,
                               @Param("endTime") LocalTime endTime);
 
-    @Select("SELECT cs.*, ce.teacher_id AS teacherId, ce.student_id AS studentId, ce.course_id AS courseId, ce.booking_request_id AS bookingRequestId, cs.enrollment_id AS enrollmentId FROM course_schedules cs \n" +
-            "JOIN course_enrollments ce ON cs.enrollment_id = ce.id \n" +
-            "WHERE ce.teacher_id = #{teacherId} AND cs.scheduled_date BETWEEN #{startDate} AND #{endDate} \n" +
+    @Select("SELECT cs.*, " +
+            "ce.teacher_id AS teacherId, ce.student_id AS studentId, ce.course_id AS courseId, ce.booking_request_id AS bookingRequestId, cs.enrollment_id AS enrollmentId, " +
+            "ce.duration_minutes AS durationMinutes, ce.is_trial AS trial, ce.enrollment_type AS courseType, ce.grade AS grade, " +
+            "s.real_name AS studentName, t.real_name AS teacherName, " +
+            "c.title AS courseTitle, sub.name AS subjectName " +
+            "FROM course_schedules cs " +
+            "JOIN course_enrollments ce ON cs.enrollment_id = ce.id " +
+            "JOIN students s ON ce.student_id = s.id " +
+            "JOIN teachers t ON ce.teacher_id = t.id " +
+            "LEFT JOIN courses c ON ce.course_id = c.id " +
+            "LEFT JOIN subjects sub ON c.subject_id = sub.id " +
+            "WHERE ce.teacher_id = #{teacherId} AND cs.scheduled_date BETWEEN #{startDate} AND #{endDate} " +
             "AND ce.is_deleted = 0 AND cs.is_deleted = 0 ORDER BY cs.scheduled_date ASC, cs.start_time ASC")
     List<CourseSchedule> findByTeacherIdAndDateRange(@Param("teacherId") Long teacherId,
                                                      @Param("startDate") LocalDate startDate,
                                                      @Param("endDate") LocalDate endDate);
 
-    @Select("SELECT cs.*, ce.teacher_id AS teacherId, ce.student_id AS studentId, ce.course_id AS courseId, ce.booking_request_id AS bookingRequestId, cs.enrollment_id AS enrollmentId FROM course_schedules cs \n" +
-            "JOIN course_enrollments ce ON cs.enrollment_id = ce.id \n" +
-            "WHERE ce.student_id = #{studentId} AND cs.scheduled_date BETWEEN #{startDate} AND #{endDate} \n" +
+    @Select("SELECT cs.*, " +
+            "ce.teacher_id AS teacherId, ce.student_id AS studentId, ce.course_id AS courseId, ce.booking_request_id AS bookingRequestId, cs.enrollment_id AS enrollmentId, " +
+            "ce.duration_minutes AS durationMinutes, ce.is_trial AS trial, ce.enrollment_type AS courseType, ce.grade AS grade, " +
+            "s.real_name AS studentName, t.real_name AS teacherName, " +
+            "c.title AS courseTitle, sub.name AS subjectName " +
+            "FROM course_schedules cs " +
+            "JOIN course_enrollments ce ON cs.enrollment_id = ce.id " +
+            "JOIN students s ON ce.student_id = s.id " +
+            "JOIN teachers t ON ce.teacher_id = t.id " +
+            "LEFT JOIN courses c ON ce.course_id = c.id " +
+            "LEFT JOIN subjects sub ON c.subject_id = sub.id " +
+            "WHERE ce.student_id = #{studentId} AND cs.scheduled_date BETWEEN #{startDate} AND #{endDate} " +
             "AND ce.is_deleted = 0 AND cs.is_deleted = 0 ORDER BY cs.scheduled_date ASC, cs.start_time ASC")
     List<CourseSchedule> findByStudentIdAndDateRange(@Param("studentId") Long studentId,
                                                      @Param("startDate") LocalDate startDate,
                                                      @Param("endDate") LocalDate endDate);
     
-    @Select("SELECT cs.*, ce.teacher_id AS teacherId, ce.student_id AS studentId, ce.course_id AS courseId, ce.booking_request_id AS bookingRequestId, cs.enrollment_id AS enrollmentId FROM course_schedules cs \n" +
-            "JOIN course_enrollments ce ON cs.enrollment_id = ce.id \n" +
-            "WHERE ce.student_id = #{studentId} \n" +
+    @Select("SELECT cs.*, " +
+            "ce.teacher_id AS teacherId, ce.student_id AS studentId, ce.course_id AS courseId, ce.booking_request_id AS bookingRequestId, cs.enrollment_id AS enrollmentId, " +
+            "ce.duration_minutes AS durationMinutes, ce.is_trial AS trial, ce.enrollment_type AS courseType, ce.grade AS grade, " +
+            "s.real_name AS studentName, t.real_name AS teacherName, " +
+            "c.title AS courseTitle, sub.name AS subjectName " +
+            "FROM course_schedules cs " +
+            "JOIN course_enrollments ce ON cs.enrollment_id = ce.id " +
+            "JOIN students s ON ce.student_id = s.id " +
+            "JOIN teachers t ON ce.teacher_id = t.id " +
+            "LEFT JOIN courses c ON ce.course_id = c.id " +
+            "LEFT JOIN subjects sub ON c.subject_id = sub.id " +
+            "WHERE ce.student_id = #{studentId} " +
             "AND ce.is_deleted = 0 AND cs.is_deleted = 0 ORDER BY cs.scheduled_date ASC, cs.start_time ASC")
     List<CourseSchedule> findByStudentId(@Param("studentId") Long studentId);
 

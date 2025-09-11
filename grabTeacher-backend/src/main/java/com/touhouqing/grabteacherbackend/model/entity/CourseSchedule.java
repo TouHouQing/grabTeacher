@@ -91,6 +91,32 @@ public class CourseSchedule {
 
     @Schema(description = "预约申请ID（来自course_enrollments）")
     private Long bookingRequestId;
+
+    // 便捷展示用的非持久化字段（JOIN 或 关联派生）
+    @Schema(description = "教师姓名（JOIN）")
+    private String teacherName;
+
+    @Schema(description = "学生姓名（JOIN）")
+    private String studentName;
+
+    @Schema(description = "课程标题（JOIN）")
+    private String courseTitle;
+
+    @Schema(description = "科目名称（JOIN）")
+    private String subjectName;
+
+    @Schema(description = "年级（报名信息）")
+    private String grade;
+
+    @Schema(description = "是否试听（报名信息）")
+    private Boolean trial;
+
+    @Schema(description = "课程类型（报名信息）")
+    private String courseType;
+
+    @Schema(description = "单次时长（分钟，报名信息）")
+    private Integer durationMinutes;
+
 }
 
 

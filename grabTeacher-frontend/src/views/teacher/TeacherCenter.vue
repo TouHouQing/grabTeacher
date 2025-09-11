@@ -48,18 +48,15 @@ interface ScheduleItem {
 
 
 
-// 1v1 标题：学生姓名+科目(+年级)+一对一课程（若 subjectName 已含年级则不重复）
+// 课程标题：学生姓名+科目+年级+一对一课程
 const buildOneToOneTitle = (s: ScheduleItem): string | null => {
-  const type = (s.courseType || '').toLowerCase()
-  const isOneToOne = type.includes('one') || type.includes('1v1') || type.includes('one_to_one') || type.includes('one-on-one')
-  if (!isOneToOne) return null
   const student = (s.studentName || '').trim()
-  let subjectWithGrade = (s.subjectName || '').trim()
+  const subject = (s.subjectName || '').trim()
   const grade = (s.grade || '').trim()
-  if (grade && subjectWithGrade && !subjectWithGrade.includes(grade)) {
-    subjectWithGrade = `${subjectWithGrade}${grade}`
-  }
-  if (student && subjectWithGrade) {
+
+  if (student && subject) {
+    // 组合科目和年级
+    const subjectWithGrade = grade ? `${subject}${grade}` : subject
     return `${student}${subjectWithGrade}一对一课程`
   }
   return null
@@ -70,8 +67,8 @@ const route = useRoute()
 const activeMenu = ref('dashboard')
 const todayCourses = ref<ScheduleItem[]>([])
 const loading = ref(false)
-// 即将开始筛选范围（周）
-const upcomingWeeks = ref(2)
+// 即将开始筛选范围（天）
+const upcomingDays = ref(14)
 
 // 当月日历数据
 const calendarLoading = ref(false)
@@ -139,34 +136,43 @@ watch(() => route.path, (path: string) => {
   }
 }, { immediate: true })
 
-// 获取即将开始的课程
+// 获取即将开始的课程（优先复用当月课表，避免重复请求）
 const fetchUpcomingCourses = async () => {
   try {
     loading.value = true
-    const today = new Date().toISOString().split('T')[0]
-    const rangeDays = upcomingWeeks.value * 7
-    const nextDate = new Date(Date.now() + rangeDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const today = new Date()
+    const rangeDays = upcomingDays.value
+    const end = new Date(today.getTime() + rangeDays * 24 * 60 * 60 * 1000)
 
-    const response = await bookingAPI.getTeacherSchedules({
-      startDate: today,
-      endDate: nextDate
-    })
+    const d = new Date(monthDate.value)
+    const monthStart = new Date(d.getFullYear(), d.getMonth(), 1)
+    const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0)
 
-    if (response.success && response.data) {
-      // 过滤即将开始的课程并按时间排序
-      const upcoming_schedules = response.data.filter((schedule: ScheduleItem) =>
-        schedule.status === 'progressing'
-      ).sort((a: ScheduleItem, b: ScheduleItem) => {
-        // 先按日期排序，再按时间排序
-        const dateCompare = a.scheduledDate.localeCompare(b.scheduledDate)
-        if (dateCompare !== 0) return dateCompare
-        return a.startTime.localeCompare(b.startTime)
-      }).slice(0, 10) // 只显示最近的10个课程
+    const inSameMonthRange = (today >= monthStart) && (end <= monthEnd)
 
-      todayCourses.value = upcoming_schedules
+    let source: ScheduleItem[] = []
+    if (inSameMonthRange) {
+      // 当月范围足够，直接使用已加载的当月课表
+      source = monthSchedules.value || []
     } else {
-      ElMessage.error(response.message || '获取即将开始课程失败')
+      // 跨月时再按需请求一次较小范围
+      const todayStr = today.toISOString().split('T')[0]
+      const endStr = end.toISOString().split('T')[0]
+      const response = await bookingAPI.getTeacherSchedules({ startDate: todayStr, endDate: endStr })
+      source = (response.success && Array.isArray(response.data)) ? response.data : []
+      if (!response.success) {
+        ElMessage.error(response.message || '获取即将开始课程失败')
+      }
     }
+
+    const upcoming = source.filter((s: ScheduleItem) => s.status === 'progressing')
+      .sort((a: ScheduleItem, b: ScheduleItem) => {
+        const d = a.scheduledDate.localeCompare(b.scheduledDate)
+        if (d !== 0) return d
+        return a.startTime.localeCompare(b.startTime)
+      }).slice(0, 10)
+
+    todayCourses.value = upcoming
   } catch (error) {
     console.error('获取即将开始课程失败:', error)
     ElMessage.error('获取即将开始课程失败，请稍后重试')
@@ -219,20 +225,38 @@ const getScheduleStatusTag = (status?: string) => {
   }
 }
 
-// 加载当月课表（用于日历渲染）
+// 加载两周内课表（用于日历渲染）
 const loadMonthSchedules = async () => {
   try {
     calendarLoading.value = true
     const d = new Date(monthDate.value)
-    const start = new Date(d.getFullYear(), d.getMonth(), 1)
-    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+    const now = new Date()
+    const isCurrentMonth = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+
+    let start: Date
+    let end: Date
+
+    if (isCurrentMonth) {
+      // 当前月：从今天起两周
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      end = new Date(start)
+      end.setDate(start.getDate() + 13)
+    } else {
+      // 非当前月：从该月第一天起两周，最多到该月末
+      start = new Date(d.getFullYear(), d.getMonth(), 1)
+      end = new Date(start)
+      end.setDate(start.getDate() + 13)
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+      if (end.getTime() > monthEnd.getTime()) end = monthEnd
+    }
+
     const startStr = start.toISOString().split('T')[0]
     const endStr = end.toISOString().split('T')[0]
     const res = await bookingAPI.getTeacherSchedules({ startDate: startStr, endDate: endStr })
     if (res.success && res.data) {
       monthSchedules.value = res.data
     } else {
-      ElMessage.error(res.message || '获取当月课表失败')
+      ElMessage.error(res.message || '获取课表失败')
     }
   } catch (e) {
 //      load all schedules for current teacher (very wide range)
@@ -481,15 +505,14 @@ const loadHourDetails = async () => {
   }
 }
 
-// 组件挂载时获取数据
+// 组件挂载时获取数据（先加载当月课表，再计算即将开始，避免首屏重复请求）
 onMounted(async () => {
-  // 确保用户头像已加载
   if (userStore.user && !userStore.user.avatarUrl) {
     await userStore.loadUserAvatar()
   }
-  fetchUpcomingCourses()
+  await loadMonthSchedules()
+  await fetchUpcomingCourses()
   loadStatistics()
-  loadMonthSchedules()
 })
 </script>
 
@@ -647,10 +670,9 @@ onMounted(async () => {
       </template>
     </el-dialog>
 
-                <el-select v-model="upcomingWeeks" style="width: 140px;" @change="fetchUpcomingCourses">
-                  <el-option :value="1" label="1周内" />
-                  <el-option :value="2" label="2周内" />
-                  <el-option :value="4" label="4周内" />
+                <el-select v-model="upcomingDays" style="width: 140px;" @change="fetchUpcomingCourses">
+                  <el-option :value="14" label="14天内" />
+                  <el-option :value="30" label="30天内" />
                 </el-select>
               </div>
             </div>
@@ -724,7 +746,7 @@ onMounted(async () => {
     >
       <div v-if="selectedSchedule" class="schedule-detail">
         <div class="detail-header">
-          <div class="course-title">{{ (selectedSchedule && buildOneToOneTitle(selectedSchedule)) || selectedSchedule.courseTitle || selectedSchedule.courseName }}</div>
+          <div class="course-title">{{ buildOneToOneTitle(selectedSchedule) || selectedSchedule.courseTitle || selectedSchedule.courseName }}</div>
           <div class="chips">
             <el-tag type="info" size="small">{{ selectedSchedule.scheduledDate }}</el-tag>
             <el-tag type="success" size="small">{{ formatTimeRange(selectedSchedule.startTime, selectedSchedule.endTime) }}</el-tag>

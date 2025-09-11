@@ -63,15 +63,19 @@ interface Course {
   durationMinutes?: number; // 课程时长（分钟）
 }
 
-// 生成 1v1 课程显示标题：姓名+科目(+年级)+一对一课程
+// 生成 1v1 课程显示标题：姓名+科目+年级+一对一课程（若subject已含年级则不重复）
 const buildOneToOneTitle = (s: CourseSchedule): string | null => {
   const type = (s.courseType || '').toLowerCase()
   const isOneToOne = type.includes('one') || type.includes('1v1') || type.includes('one_to_one') || type.includes('one-on-one')
   if (!isOneToOne) return null
   const studentName = (s.studentName || '').trim()
-  const subject = (s.subjectName || '').trim()
-  if (studentName && subject) {
-    return `${studentName}${subject}一对一课程`
+  let subjectWithGrade = (s.subjectName || '').trim()
+  const grade = (s as any)?.grade ? String((s as any).grade).trim() : ''
+  if (grade && subjectWithGrade && !subjectWithGrade.includes(grade)) {
+    subjectWithGrade = `${subjectWithGrade}${grade}`
+  }
+  if (studentName && subjectWithGrade) {
+    return `${studentName}${subjectWithGrade}一对一课程`
   }
   return null
 }
