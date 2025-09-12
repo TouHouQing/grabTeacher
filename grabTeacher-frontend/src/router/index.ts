@@ -95,7 +95,8 @@ const router = createRouter({
           name: 'TeacherGradeEntry',
           component: () => import('../views/teacher/GradeEntry.vue'),
           meta: { requiresAuth: true, role: 'teacher', title: '成绩录入' }
-        }
+        },
+
       ]
     },
     // 管理员中心
@@ -104,6 +105,12 @@ const router = createRouter({
       name: 'AdminCenter',
       component: () => import('../views/admin/AdminCenterNew.vue'),
       meta: { requiresAuth: true, role: 'admin' }
+    },
+    {
+      path: '/admin-center/teacher-availability',
+      name: 'AdminTeacherAvailability',
+      component: () => import('../views/admin/AdminTeacherAvailability.vue'),
+      meta: { requiresAuth: true, role: 'admin', title: '教师可上课时间（日历）' }
     },
     // 其他现有路由...
     {

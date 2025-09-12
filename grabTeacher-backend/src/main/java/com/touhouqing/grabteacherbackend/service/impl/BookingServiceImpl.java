@@ -80,6 +80,10 @@ public class BookingServiceImpl implements BookingService {
     @Autowired
     private RescheduleRequestMapper rescheduleRequestMapper;
 
+    @Autowired
+    private com.touhouqing.grabteacherbackend.mapper.TeacherDailyAvailabilityMapper teacherDailyAvailabilityMapper;
+
+
     @Override
     @Transactional
     public BookingVO createBookingRequest(BookingApplyDTO request, Long studentUserId) {
@@ -184,6 +188,7 @@ public class BookingServiceImpl implements BookingService {
                 .teachingLocationId(chosenLocationId)
                 .teachingLocation(chosenLocationName)
                 .grade(request.getGrade())
+                .selectedSessionsJson(sessionsToJson(request.getSelectedSessions()))
                 .isTrial(isTrial)
                 .trialDurationMinutes(request.getTrialDurationMinutes())
                 .status(isTrial ? "approved" : "pending")
@@ -322,8 +327,10 @@ public class BookingServiceImpl implements BookingService {
                 // 生成课程安排
                 if ("single".equals(bookingRequest.getBookingType())) {
                     generateSingleSchedule(bookingRequest);
+                } else if ("calendar".equals(bookingRequest.getBookingType())) {
+                    generateCalendarSchedules(bookingRequest);
                 } else if ("recurring".equals(bookingRequest.getBookingType())) {
-                    generateRecurringSchedules(bookingRequest);
+                    throw new RuntimeException("系统已不支持按星期的周期性预约，请让用户改用“日历预约”");
                 }
                 // 审批通过后：若绑定了课程ID且为一对一课程，则报名人数+1并视人数限制置满
                 if (bookingRequest.getCourseId() != null) {
@@ -1390,19 +1397,17 @@ public class BookingServiceImpl implements BookingService {
                 }
             }
         } else if ("recurring".equals(request.getBookingType())) {
-            // 周期性预约验证
-            if (request.getRecurringWeekdays() == null || request.getRecurringWeekdays().isEmpty() ||
-                request.getRecurringTimeSlots() == null || request.getRecurringTimeSlots().isEmpty() ||
-                request.getStartDate() == null || request.getEndDate() == null) {
-                throw new RuntimeException("周期性预约的星期、时间段、开始日期和结束日期不能为空");
+            // 已移除按星期的周期性预约，请使用按日历预约
+            throw new RuntimeException("系统已改为按月日历预约，不再支持按星期的周期性预约，请改用“日历预约”方式");
+        } else if ("calendar".equals(request.getBookingType())) {
+            // 日历多次预约验证
+            if (request.getIsTrial() != null && request.getIsTrial()) {
+                throw new RuntimeException("试听课不支持日历批量预约，请使用单次预约并选择30分钟段");
             }
-
-            if (request.getStartDate().isAfter(request.getEndDate())) {
-                throw new RuntimeException("开始日期不能晚于结束日期");
+            if (request.getSelectedSessions() == null || request.getSelectedSessions().isEmpty()) {
+                throw new RuntimeException("calendar预约缺少会话列表");
             }
-
-            // 验证周期性预约时间是否在教师可预约时间范围内
-            validateRecurringBookingTime(request, teacherId);
+            validateCalendarBookingTime(request, studentId, teacherId);
         }
     }
 
@@ -1488,6 +1493,75 @@ public class BookingServiceImpl implements BookingService {
             log.info("单次课程安排生成完成，安排ID: {}", cs.getId());
         }
     }
+
+    /**
+     * 生成按日历选择的多个课程安排
+     */
+    private int generateCalendarSchedules(BookingRequest bookingRequest) {
+        if (!"calendar".equals(bookingRequest.getBookingType())) {
+            throw new RuntimeException("只能为calendar预约生成课程安排");
+        }
+        java.util.List<CalendarSession> sessions = parseSelectedSessions(bookingRequest.getSelectedSessionsJson());
+        if (sessions == null || sessions.isEmpty()) {
+            throw new RuntimeException("calendar预约为空，无法生成课程安排");
+        }
+        // 按日期+开始时间排序
+        sessions.sort(java.util.Comparator.comparing((CalendarSession s) -> s.date).thenComparing(s -> s.start));
+
+        // 获取课程时长信息
+        Integer courseDurationMinutes = null;
+        if (bookingRequest.getCourseId() != null) {
+            Course course = courseMapper.selectById(bookingRequest.getCourseId());
+            if (course != null) courseDurationMinutes = course.getDurationMinutes();
+        }
+        if (courseDurationMinutes == null || courseDurationMinutes <= 0) {
+            // 以第一个会话时长为准
+            CalendarSession first = sessions.get(0);
+            courseDurationMinutes = (int) java.time.Duration.between(first.start, first.end).toMinutes();
+        }
+
+        // 创建报名关系
+        LocalDate startDate = sessions.get(0).date;
+        LocalDate endDate = sessions.get(sessions.size() - 1).date;
+        CourseEnrollment enrollment = CourseEnrollment.builder()
+                .studentId(bookingRequest.getStudentId())
+                .teacherId(bookingRequest.getTeacherId())
+                .courseId(bookingRequest.getCourseId())
+                .enrollmentType(bookingRequest.getCourseId() == null ? "one_on_one" : "large_class")
+                .totalSessions(sessions.size())
+                .completedSessions(0)
+                .enrollmentStatus("active")
+                .enrollmentDate(java.time.LocalDate.now())
+                .startDate(startDate)
+                .endDate(endDate)
+                .trial(Boolean.TRUE.equals(bookingRequest.getIsTrial()))
+                .durationMinutes(courseDurationMinutes)
+                .teachingLocationId(bookingRequest.getTeachingLocationId())
+                .teachingLocation(bookingRequest.getTeachingLocation())
+                .grade(bookingRequest.getGrade())
+                .bookingRequestId(bookingRequest.getId())
+                .deleted(false)
+                .build();
+        courseEnrollmentMapper.insert(enrollment);
+
+        int sessionNumber = 1;
+        for (CalendarSession s : sessions) {
+            CourseSchedule cs = CourseSchedule.builder()
+                    .enrollmentId(enrollment.getId())
+                    .scheduledDate(s.date)
+                    .startTime(s.start)
+                    .endTime(s.end)
+                    .sessionNumber(sessionNumber++)
+                    .scheduleStatus("scheduled")
+                    .deleted(false)
+                    .build();
+            courseScheduleMapper.insert(cs);
+        }
+
+        log.info("calendar课程安排生成完成，预约ID:{}，共{}节，日期范围:{}~{}", bookingRequest.getId(), sessions.size(), startDate, endDate);
+        return sessions.size();
+    }
+
 
     /**
      * 将List转换为逗号分隔的字符串
@@ -1636,33 +1710,28 @@ public class BookingServiceImpl implements BookingService {
             throw new RuntimeException("教师信息不存在");
         }
 
-        // 如果教师没有设置可预约时间，则默认所有时间都可以预约
-        if (teacher.getAvailableTimeSlots() == null || teacher.getAvailableTimeSlots().trim().isEmpty()) {
-            log.info("教师未设置可预约时间限制，允许所有时间预约，教师ID: {}", teacherId);
-            return;
-        }
-
-        List<TimeSlotDTO> teacherAvailableSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
-        if (teacherAvailableSlots == null || teacherAvailableSlots.isEmpty()) {
-            log.info("教师可预约时间为空，允许所有时间预约，教师ID: {}", teacherId);
-            return;
-        }
-
-        // 获取预约日期对应的星期几 (1=周一, 7=周日)
-        int weekday = request.getRequestedDate().getDayOfWeek().getValue();
+        // 先检查“按日历设置”的可用性（若该日已设置，则以日历为准）
         String requestedTimeSlot = request.getRequestedStartTime() + "-" + request.getRequestedEndTime();
-
-        // 检查该星期几是否有可预约时间
-        boolean isAvailable = teacherAvailableSlots.stream()
-                .anyMatch(slot -> weekday == slot.getWeekday() &&
-                         slot.getTimeSlots() != null &&
-                         slot.getTimeSlots().stream().anyMatch(time ->
-                             isTimeSlotContained(requestedTimeSlot, time)));
-
-        if (!isAvailable) {
-            String weekdayName = getWeekdayName(weekday);
-            throw new RuntimeException(String.format("教师在%s %s时间段不可预约，请选择其他时间",
-                    weekdayName, requestedTimeSlot));
+        com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.touhouqing.grabteacherbackend.model.entity.TeacherDailyAvailability> dq =
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<>();
+        dq.eq("teacher_id", teacherId).eq("available_date", request.getRequestedDate());
+        com.touhouqing.grabteacherbackend.model.entity.TeacherDailyAvailability daily =
+                teacherDailyAvailabilityMapper.selectOne(dq);
+        if (daily != null) {
+            try {
+                java.util.List<String> slots = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(daily.getTimeSlotsJson(), new com.fasterxml.jackson.core.type.TypeReference<java.util.List<String>>(){});
+                boolean ok = slots != null && slots.stream().anyMatch(av -> isTimeSlotContained(requestedTimeSlot, av));
+                if (!ok) {
+                    throw new RuntimeException("该日期的时间段不在教师可预约范围内，请选择其他时间");
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("教师日历可预约数据异常，请稍后再试");
+            }
+            // 日历校验通过，直接进入“待处理预约占用”校验
+        } else {
+            // 不再回退到按周模板：若该日未设置日历可预约，则视为不可预约
+            throw new RuntimeException("教师未在该日开放可预约时间，请选择其他日期或联系教师");
         }
 
         // 额外校验：该时间段是否已被其他学生的“待处理”预约占用
@@ -1699,120 +1768,16 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        log.info("单次预约时间验证通过，教师ID: {}, 时间: {} {}", teacherId, getWeekdayName(weekday), requestedTimeSlot);
+        int _wd = request.getRequestedDate().getDayOfWeek().getValue();
+        log.info("单次预约时间验证通过，教师ID: {}, 时间: {} {}", teacherId, getWeekdayName(_wd), requestedTimeSlot);
     }
 
     /**
      * 验证周期性预约时间是否在教师可预约时间范围内
      */
     private void validateRecurringBookingTime(BookingApplyDTO request, Long teacherId) {
-        Teacher teacher = teacherMapper.selectById(teacherId);
-        if (teacher == null) {
-            throw new RuntimeException("教师信息不存在");
-        }
-
-        // 如果教师没有设置可预约时间，则默认所有时间都可以预约
-        if (teacher.getAvailableTimeSlots() == null || teacher.getAvailableTimeSlots().trim().isEmpty()) {
-            log.info("教师未设置可预约时间限制，允许所有时间预约，教师ID: {}", teacherId);
-            return;
-        }
-
-        List<TimeSlotDTO> teacherAvailableSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
-        if (teacherAvailableSlots == null || teacherAvailableSlots.isEmpty()) {
-            log.info("教师可预约时间为空，允许所有时间预约，教师ID: {}", teacherId);
-            return;
-        }
-
-        List<String> invalidCombinations = new ArrayList<>();
-
-        // 验证每个星期几和时间段的组合
-        for (Integer weekday : request.getRecurringWeekdays()) {
-            for (String timeSlot : request.getRecurringTimeSlots()) {
-                boolean isAvailable = false;
-
-                // 如果学生选择了1.5小时课程，需要检查时间段是否在教师可预约的2小时时间段内
-                if (request.getSelectedDurationMinutes() != null && request.getSelectedDurationMinutes() == 90) {
-                    isAvailable = teacherAvailableSlots.stream()
-                            .anyMatch(slot -> weekday.equals(slot.getWeekday()) &&
-                                     slot.getTimeSlots() != null &&
-                                     slot.getTimeSlots().stream().anyMatch(availableSlot ->
-                                         isTimeSlotContained(timeSlot, availableSlot)));
-                } else {
-                    // 直接匹配时间段
-                    isAvailable = teacherAvailableSlots.stream()
-                            .anyMatch(slot -> weekday.equals(slot.getWeekday()) &&
-                                     slot.getTimeSlots() != null &&
-                                     slot.getTimeSlots().contains(timeSlot));
-                }
-
-                if (!isAvailable) {
-                    String weekdayName = getWeekdayName(weekday);
-                    invalidCombinations.add(String.format("%s %s", weekdayName, timeSlot));
-                }
-            }
-        }
-
-        if (!invalidCombinations.isEmpty()) {
-            throw new RuntimeException(String.format("以下时间段教师不可预约：%s，请重新选择时间",
-                    String.join("、", invalidCombinations)));
-        }
-
-        // 额外校验：与其他“待处理”预约占用冲突（日期区间内）
-        java.time.LocalDate start = request.getStartDate();
-        java.time.LocalDate end = request.getEndDate();
-        java.util.List<BookingRequest> pendings = bookingRequestMapper.findPendingByTeacherAndDateRange(teacherId, start, end);
-        if (pendings != null && !pendings.isEmpty()) {
-            for (BookingRequest br : pendings) {
-                if ("single".equals(br.getBookingType())) {
-                    // 若单次在区间内，则比对其对应weekday与时间段
-                    if (br.getRequestedDate() != null && !br.getRequestedDate().isBefore(start) && !br.getRequestedDate().isAfter(end)) {
-                        int wd = br.getRequestedDate().getDayOfWeek().getValue();
-                        int weekdayValue = wd == 7 ? 0 : wd;
-                        if (request.getRecurringWeekdays().contains(weekdayValue)) {
-                            for (String slot : request.getRecurringTimeSlots()) {
-                                String[] times = slot.split("-");
-                                if (times.length == 2) {
-                                    java.time.LocalTime reqStart = java.time.LocalTime.parse(times[0]);
-                                    java.time.LocalTime reqEnd = java.time.LocalTime.parse(times[1]);
-                                    if (isOverlap(reqStart, reqEnd, br.getRequestedStartTime(), br.getRequestedEndTime())) {
-                                        throw new RuntimeException("所选周期时间内部分时段已被待处理预约占用，请调整");
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else if ("recurring".equals(br.getBookingType())) {
-                    java.util.List<Integer> brWeekdays = convertStringToIntegerList(br.getRecurringWeekdays());
-                    java.util.List<String> brSlots = convertStringToList(br.getRecurringTimeSlots());
-                    if (brWeekdays != null && brSlots != null) {
-                        for (Integer wd : request.getRecurringWeekdays()) {
-                            if (brWeekdays.contains(wd)) {
-                                for (String slotReq : request.getRecurringTimeSlots()) {
-                                    String[] a = slotReq.split("-");
-                                    if (a.length == 2) {
-                                        java.time.LocalTime reqStart = java.time.LocalTime.parse(a[0]);
-                                        java.time.LocalTime reqEnd = java.time.LocalTime.parse(a[1]);
-                                        for (String slotBr : brSlots) {
-                                            String[] b = slotBr.split("-");
-                                            if (b.length == 2) {
-                                                java.time.LocalTime brStart = java.time.LocalTime.parse(b[0]);
-                                                java.time.LocalTime brEnd = java.time.LocalTime.parse(b[1]);
-                                                if (isOverlap(reqStart, reqEnd, brStart, brEnd)) {
-                                                    throw new RuntimeException("所选周期时间内部分时段已被待处理预约占用，请调整");
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        log.info("周期性预约时间验证通过，教师ID: {}, 星期: {}, 时间段: {}",
-                teacherId, request.getRecurringWeekdays(), request.getRecurringTimeSlots());
+        // 已全面改为按日历预约，不再支持“按星期”的周期性预约
+        throw new RuntimeException("系统已不支持按星期的周期性预约，请改用\u201c日历预约\u201d");
     }
 
     /**
@@ -1822,6 +1787,51 @@ public class BookingServiceImpl implements BookingService {
         String[] weekdays = {"", "周一", "周二", "周三", "周四", "周五", "周六", "周日"};
         return weekday >= 1 && weekday <= 7 ? weekdays[weekday] : "未知";
     }
+
+    /**
+     * 验证按日历选择的多个会话是否可用且无冲突
+     */
+    private void validateCalendarBookingTime(BookingApplyDTO request, Long studentId, Long teacherId) {
+        for (var ses : request.getSelectedSessions()) {
+            if (ses.getDate() == null || ses.getStartTime() == null || ses.getEndTime() == null) {
+                throw new RuntimeException("calendar预约存在无效的时间配置");
+            }
+            int minutes = (int) java.time.Duration.between(ses.getStartTime(), ses.getEndTime()).toMinutes();
+            if (minutes != 90 && minutes != 120) {
+                throw new RuntimeException("calendar预约仅支持1.5小时或2小时");
+            }
+
+            // 使用单次预约校验，复用“日历优先/周模板兜底”的可预约范围检查
+            BookingApplyDTO singleReq = new BookingApplyDTO();
+            singleReq.setBookingType("single");
+            singleReq.setRequestedDate(ses.getDate());
+            singleReq.setRequestedStartTime(ses.getStartTime());
+            singleReq.setRequestedEndTime(ses.getEndTime());
+            singleReq.setIsTrial(false);
+            validateSingleBookingTime(singleReq, teacherId);
+
+            String startStr = ses.getStartTime().toString();
+            String endStr = ses.getEndTime().toString();
+            if (hasTeacherTimeConflict(teacherId, ses.getDate(), startStr, endStr)) {
+                throw new RuntimeException("教师在" + ses.getDate() + " " + startStr + "-" + endStr + "已有其他安排");
+            }
+            if (hasStudentTimeConflict(studentId, ses.getDate(), startStr, endStr)) {
+                throw new RuntimeException("学生在" + ses.getDate() + " " + startStr + "-" + endStr + "已有其他安排");
+            }
+
+            // 待处理单次调课占用检查
+            java.util.List<RescheduleRequest> pendingReschedules =
+                    rescheduleRequestMapper.findPendingSingleByTeacherAndDate(teacherId, ses.getDate());
+            if (pendingReschedules != null && !pendingReschedules.isEmpty()) {
+                for (RescheduleRequest rr : pendingReschedules) {
+                    if (isOverlap(ses.getStartTime(), ses.getEndTime(), rr.getNewStartTime(), rr.getNewEndTime())) {
+                        throw new RuntimeException("教师该时间段已有待处理调课占用，暂不可选择");
+                    }
+                }
+            }
+        }
+    }
+
 
     /**
      * 检查请求的时间段是否在教师可预约时间段内
@@ -1901,23 +1911,51 @@ public class BookingServiceImpl implements BookingService {
 
             // 根据预约类型计算总费用
             BigDecimal totalCost = BigDecimal.ZERO;
+            int times = 1;
             if ("single".equals(request.getBookingType())) {
-                // 单次预约
                 totalCost = pricePerSession;
+                times = 1;
             } else if ("recurring".equals(request.getBookingType())) {
-                // 周期性预约
                 Integer totalTimes = request.getTotalTimes();
                 if (totalTimes == null || totalTimes <= 0) {
                     throw new RuntimeException("周期性预约次数设置异常");
                 }
-                totalCost = pricePerSession.multiply(BigDecimal.valueOf(totalTimes));
+                times = totalTimes;
+                totalCost = pricePerSession.multiply(BigDecimal.valueOf(times));
+            } else if ("calendar".equals(request.getBookingType())) {
+                if (request.getSelectedSessions() == null || request.getSelectedSessions().isEmpty()) {
+                    throw new RuntimeException("calendar预约缺少会话列表");
+                }
+                // 以第一个会话的时长为准，并校验一致性
+                java.time.LocalTime s0 = request.getSelectedSessions().get(0).getStartTime();
+                java.time.LocalTime e0 = request.getSelectedSessions().get(0).getEndTime();
+                int d0 = (int) java.time.Duration.between(s0, e0).toMinutes();
+                if (d0 != 90 && d0 != 120) {
+                    throw new RuntimeException("calendar预约仅支持1.5小时或2小时");
+                }
+                // 若课程未设置时长，以上述d0为准
+                if (course.getDurationMinutes() == null || course.getDurationMinutes() <= 0) {
+                    durationMinutes = d0;
+                    hoursPerSession = BigDecimal.valueOf(durationMinutes).divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
+                    pricePerSession = pricePerHour.multiply(hoursPerSession);
+                }
+                for (var ses : request.getSelectedSessions()) {
+                    int d = (int) java.time.Duration.between(ses.getStartTime(), ses.getEndTime()).toMinutes();
+                    if (d != d0) {
+                        throw new RuntimeException("calendar预约内的所有会话时长必须一致");
+                    }
+                }
+                times = request.getSelectedSessions().size();
+                totalCost = pricePerSession.multiply(BigDecimal.valueOf(times));
             } else {
                 throw new RuntimeException("不支持的预约类型：" + request.getBookingType());
+
+
             }
 
             log.info("计算预约费用: 课程ID={}, 每小时价格={}M豆, 每次课时长={}分钟, 预约次数={}, 总费用={}M豆",
                     request.getCourseId(), pricePerHour, durationMinutes,
-                    "single".equals(request.getBookingType()) ? 1 : request.getTotalTimes(),
+                    times,
                     totalCost);
 
             return totalCost;
@@ -1939,4 +1977,52 @@ public class BookingServiceImpl implements BookingService {
         refundRequest.setTotalTimes(bookingRequest.getTotalTimes());
         return refundRequest;
     }
+
+    // ==== Calendar sessions helpers ====
+    private String sessionsToJson(java.util.List<com.touhouqing.grabteacherbackend.model.dto.SelectedSessionDTO> sessions) {
+        if (sessions == null || sessions.isEmpty()) return null;
+        try {
+            java.util.List<java.util.Map<String, String>> arr = new java.util.ArrayList<>();
+            for (var s : sessions) {
+                if (s == null || s.getDate() == null || s.getStartTime() == null || s.getEndTime() == null) continue;
+                java.util.Map<String, String> m = new java.util.HashMap<>();
+                m.put("date", s.getDate().toString());
+                m.put("start", s.getStartTime().toString());
+                m.put("end", s.getEndTime().toString());
+                arr.add(m);
+            }
+            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(arr);
+        } catch (Exception e) {
+            throw new RuntimeException("所选时段序列化失败");
+        }
+    }
+
+    private static class CalendarSession {
+        java.time.LocalDate date;
+        java.time.LocalTime start;
+        java.time.LocalTime end;
+    }
+
+    private java.util.List<CalendarSession> parseSelectedSessions(String json) {
+        java.util.List<CalendarSession> list = new java.util.ArrayList<>();
+        if (json == null || json.isEmpty()) return list;
+        try {
+            var om = new com.fasterxml.jackson.databind.ObjectMapper();
+            java.util.List<java.util.Map<String, String>> arr = om.readValue(json,
+                    new com.fasterxml.jackson.core.type.TypeReference<java.util.List<java.util.Map<String, String>>>(){});
+            if (arr != null) {
+                for (var m : arr) {
+                    CalendarSession cs = new CalendarSession();
+                    cs.date = java.time.LocalDate.parse(m.get("date"));
+                    cs.start = java.time.LocalTime.parse(m.get("start"));
+                    cs.end = java.time.LocalTime.parse(m.get("end"));
+                    list.add(cs);
+                }
+            }
+            return list;
+        } catch (Exception e) {
+            throw new RuntimeException("预约记录解析失败，请稍后重试");
+        }
+    }
+
 }

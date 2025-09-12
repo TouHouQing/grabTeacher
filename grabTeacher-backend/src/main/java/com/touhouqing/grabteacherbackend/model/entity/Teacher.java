@@ -67,9 +67,11 @@ public class Teacher {
     @Schema(description = "授课地点ID列表，逗号分隔；为空代表无线下地点")
     private String teachingLocations;
 
-    @TableField("available_time_slots")
-    @Schema(description = "可上课时间安排", example = "[{\"weekday\":1,\"timeSlots\":[\"17:00-19:00\",\"19:00-21:00\"]},{\"weekday\":6,\"timeSlots\":[\"08:00-10:00\",\"10:00-12:00\"]}]")
+    // 兼容旧字段：周模板可用时间，已废弃；为避免无列导致SQL错误，标记为非持久化
+    @TableField(exist = false)
+    @Schema(description = "[Deprecated] 周模板可上课时间，仅用于向后兼容前端旧接口", example = "[{\"weekday\":1,\"timeSlots\":[\"17:00-19:00\",\"19:00-21:00\"]}]")
     private String availableTimeSlots;
+
 
     @TableField("is_verified")
     @Builder.Default

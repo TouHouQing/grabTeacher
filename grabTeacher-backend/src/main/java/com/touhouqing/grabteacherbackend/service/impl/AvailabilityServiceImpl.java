@@ -2,14 +2,16 @@ package com.touhouqing.grabteacherbackend.service.impl;
 
 import com.touhouqing.grabteacherbackend.mapper.BookingRequestMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper;
-import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
-import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
+
+
 import com.touhouqing.grabteacherbackend.model.entity.CourseSchedule;
-import com.touhouqing.grabteacherbackend.model.entity.Teacher;
+
 import com.touhouqing.grabteacherbackend.model.vo.DayAvailabilityVO;
 import com.touhouqing.grabteacherbackend.service.AvailabilityService;
-import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
+
 import lombok.RequiredArgsConstructor;
+import com.touhouqing.grabteacherbackend.service.TeacherDailyAvailabilityService;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +27,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
 
     private final CourseScheduleMapper courseScheduleMapper;
     private final BookingRequestMapper bookingRequestMapper;
-    private final TeacherMapper teacherMapper;
+    private final TeacherDailyAvailabilityService dailyService;
 
     @Override
     public DayAvailabilityVO getDayAvailability(Long teacherId, LocalDate date, String segment) {
@@ -38,14 +40,10 @@ public class AvailabilityServiceImpl implements AvailabilityService {
                 .map(s -> s.getStartTime().toString() + "-" + s.getEndTime().toString())
                 .collect(Collectors.toSet());
 
-        // 3) 取教师可预约设置，限定试课生成范围
-        Teacher teacher = teacherMapper.selectById(teacherId);
-        List<TimeSlotDTO> available = TimeSlotUtil.fromJsonString(teacher != null ? teacher.getAvailableTimeSlots() : null);
+        // 3) 取教师该日的“按日历”可预约设置
         int weekday = date.getDayOfWeek().getValue();
-        List<String> teacherDaySlots = available == null ? Collections.emptyList() : available.stream()
-                .filter(ts -> ts.getWeekday() != null && ts.getWeekday() == weekday)
-                .flatMap(ts -> (ts.getTimeSlots() == null ? Collections.<String>emptyList().stream() : ts.getTimeSlots().stream()))
-                .collect(Collectors.toList());
+        Map<LocalDate, List<String>> daily = dailyService.getDailyAvailability(teacherId, date, date);
+        List<String> teacherDaySlots = daily.getOrDefault(date, Collections.emptyList());
 
         // 4) 计算基础2小时段可用性（正式课）：
         List<DayAvailabilityVO.BaseSlot> base = new ArrayList<>();
@@ -63,7 +61,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             if (hasScheduledTrialInBase(teacherId, date, bStart, bEnd)) reasons.add("scheduledTrial");
             // 该基础段内存在 pending 试听（包括30分钟试听课映射到2小时基础区间）
             if (bookingRequestMapper.countPendingTrialConflictsInBaseSlot(teacherId, date, bStart, bEnd) > 0) reasons.add("pendingTrial");
-            
+
             // 该基础段内存在待处理的正式课预约
             if (bookingRequestMapper.countPendingFormalConflictsInBaseSlot(teacherId, date, bStart, bEnd, weekday) > 0) reasons.add("pendingFormal");
 
@@ -97,7 +95,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
                 boolean exactScheduled = isExactScheduledTrial(schedules, st, ed);
                 boolean exactPending = bookingRequestMapper.countPendingExactTrialSlot(teacherId, date, st, ed) > 0;
                 if (exactScheduled || exactPending) reasons.add("duplicateTrialSlot");
-                
+
                 // 检查是否有待处理的预约冲突（包括正式课和试听课）
                 boolean hasPendingBooking = bookingRequestMapper.countPendingConflictsInTimeSlot(teacherId, date, st, ed, weekday) > 0;
                 if (hasPendingBooking) reasons.add("pendingBooking");
@@ -110,11 +108,11 @@ public class AvailabilityServiceImpl implements AvailabilityService {
                     String[] baseTimes = baseSlot.split("-");
                     LocalTime baseStart = LocalTime.parse(baseTimes[0]);
                     LocalTime baseEnd = LocalTime.parse(baseTimes[1]);
-                    
+
                     // 检查该基础区间是否已经被试听课占用
-                    boolean hasTrialInBase = hasScheduledTrialInBase(teacherId, date, baseStart, baseEnd) || 
+                    boolean hasTrialInBase = hasScheduledTrialInBase(teacherId, date, baseStart, baseEnd) ||
                                            bookingRequestMapper.countPendingTrialConflictsInBaseSlot(teacherId, date, baseStart, baseEnd) > 0;
-                    
+
                     if (hasTrialInBase) {
                         // 如果基础区间已被试听课占用，检查当前30分钟段是否在占用范围内
                         if (isTrialSlotInOccupiedBase(s, baseSlot)) {
@@ -203,25 +201,25 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         String[] times = trialSlot.split("-");
         LocalTime start = LocalTime.parse(times[0]);
         LocalTime end = LocalTime.parse(times[1]);
-        
+
         // 基础2小时时间段：08:00-10:00, 10:00-12:00, 13:00-15:00, 15:00-17:00, 17:00-19:00, 19:00-21:00
         String[] baseSlots = {
             "08:00-10:00", "10:00-12:00", "13:00-15:00",
             "15:00-17:00", "17:00-19:00", "19:00-21:00"
         };
-        
+
         for (String baseSlot : baseSlots) {
             String[] baseTimes = baseSlot.split("-");
             LocalTime baseStart = LocalTime.parse(baseTimes[0]);
             LocalTime baseEnd = LocalTime.parse(baseTimes[1]);
-            
+
             // 检查30分钟试听课是否在基础区间内
             if ((start.isAfter(baseStart) || start.equals(baseStart)) &&
                 (end.isBefore(baseEnd) || end.equals(baseEnd))) {
                 return baseSlot;
             }
         }
-        
+
         return null;
     }
 
@@ -233,16 +231,16 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     private boolean isTrialSlotInOccupiedBase(String trialSlot, String baseSlot) {
         String[] trialTimes = trialSlot.split("-");
         String[] baseTimes = baseSlot.split("-");
-        
+
         LocalTime trialStart = LocalTime.parse(trialTimes[0]);
         LocalTime baseStart = LocalTime.parse(baseTimes[0]);
-        
+
         // 如果试听课的开始时间等于基础区间的开始时间，则认为该基础区间被占用
         // 例如：8:00-8:30的试听课会占用8:00-10:00的基础区间
         if (trialStart.equals(baseStart)) {
             return true;
         }
-        
+
         return false;
     }
 }

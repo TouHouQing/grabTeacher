@@ -185,14 +185,12 @@ const teacherCourses = ref([]) // 教师可选课程列表
 const selectedCourse = ref(null) // 选中的课程
 const loadingCourses = ref(false)
 const scheduleForm = ref({
-  bookingType: 'recurring', // 预约类型：trial(试听课) 或 recurring(正式课)
+  bookingType: 'calendar', // 预约类型：calendar(按日历选择正式课/试听课)
   selectedCourse: null,
   selectedDurationMinutes: 90, // 课程时长（分钟）
   startDate: '',
   endDate: '',
   sessionCount: 10,
-  selectedTimeSlots: [], // 选中的时间段
-  selectedWeekdays: [], // 选中的星期几
   trialDate: '',
   trialStartTime: '',
   trialEndTime: ''
@@ -1054,28 +1052,7 @@ const loadCourseTimeSlots = async () => {
   }
 }
 
-// 选择时间段
-const selectTimeSlotForCourse = (timeSlot: string) => {
-  if (scheduleForm.value.selectedTimeSlots.includes(timeSlot)) {
-    scheduleForm.value.selectedTimeSlots = scheduleForm.value.selectedTimeSlots.filter(t => t !== timeSlot)
-  } else {
-    scheduleForm.value.selectedTimeSlots.push(timeSlot)
-  }
-  // 清空已选择的星期，让用户重新选择
-  scheduleForm.value.selectedWeekdays = []
-}
 
-// 获取星期几名称
-const getWeekdayName = (weekday: number) => {
-  const names = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
-  return names[weekday] || '未知'
-}
-
-// 判断某个星期几的时间段是否可用
-const isTimeSlotAvailable = (weekday: number, time: string) => {
-  const slot = availableTimeSlotsForCourse.value.find(s => s.weekday === weekday && s.timeSlot === time)
-  return slot ? slot.available : false
-}
 
 // 确认课程预约
 const openCalendarBooking = () => {
@@ -1143,113 +1120,11 @@ const onCalendarConfirm = async (sessions: Array<{ date: string; startTime: stri
   }
 }
 
-const confirmCourseBooking = async () => {
-  if (!selectedCourse.value || scheduleForm.value.selectedWeekdays.length === 0 || scheduleForm.value.selectedTimeSlots.length === 0) {
-    ElMessage.warning('请完整选择课程和时间安排')
-    return
-  }
-
-  if (!selectedTeachingLocation.value) {
-    ElMessage.warning('请选择授课地点')
-    return
-  }
-  if (!selectedGrade.value) {
-    ElMessage.warning('请选择年级')
-    return
-  }
-
-
-  try {
-    // 构建正式课预约请求数据
-    const bookingData: any = {
-      teacherId: teacherId,
-      courseId: selectedCourse.value.id,
-      grade: String(selectedGrade.value),
-
-      bookingType: 'recurring' as const,
-      studentRequirements: `希望预约${teacher.value?.name}老师的《${selectedCourse.value.title}》课程`,
-      isTrial: false,
-      selectedDurationMinutes: selectedCourse.value.durationMinutes || scheduleForm.value.selectedDurationMinutes,
-      recurringWeekdays: scheduleForm.value.selectedWeekdays,
-      recurringTimeSlots: scheduleForm.value.selectedTimeSlots,
-      startDate: scheduleForm.value.startDate,
-      endDate: scheduleForm.value.endDate,
-      totalTimes: scheduleForm.value.sessionCount
-    }
-
-    // 选择授课地点
-    if (selectedTeachingLocation.value === 'online') {
-      bookingData.teachingLocation = '线上'
-    } else {
-      bookingData.teachingLocationId = Number(selectedTeachingLocation.value)
-    }
-
-    // 调用后端API创建正式课预约申请
-    const result = await bookingAPI.createRequest(bookingData)
-
-    if (result.success && result.data) {
-      const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-      const selectedDays = scheduleForm.value.selectedWeekdays.map(day => weekdayNames[day]).join('、')
-      const selectedTimes = scheduleForm.value.selectedTimeSlots.join('、')
-      const successMessage = `预约申请提交成功！${teacher.value?.name} - 每周${selectedDays} ${selectedTimes}，共${scheduleForm.value.sessionCount}次课`
-
-      ElMessage.success({
-        message: successMessage,
-        duration: 5000
-      })
-
-      showCourseScheduleModal.value = false
-      resetCourseForm()
-
-      // 跳转到学生预约管理页面
-      setTimeout(() => {
-        ElMessage.info('即将跳转到预约管理页面...')
-        // router.push('/student/bookings') // 暂时注释，因为这个页面可能还不存在
-      }, 2000)
-    } else {
-      // 显示后端返回的具体错误信息
-      const errorMessage = result.message || '课程预约申请提交失败'
-      ElMessage.error({
-        message: errorMessage,
-        duration: 8000,
-        showClose: true
-      })
-
-      // 如果是余额不足，显示特殊提示
-      if (errorMessage.includes('余额不足')) {
-        ElMessage.warning({
-          message: '您的账户余额不足，请联系管理员充值或选择其他课程',
-          duration: 10000,
-          showClose: true
-        })
-      }
-    }
-  } catch (error) {
-    console.error('课程预约失败:', error)
-
-    // 尝试从错误对象中提取更详细的错误信息
-    let errorMessage = '课程预约申请提交失败，请稍后重试'
-
-    if (error.response?.data?.message) {
-      errorMessage = error.response.data.message
-    } else if (error.message) {
-      errorMessage = error.message
-    }
-
-    ElMessage.error({
-      message: errorMessage,
-      duration: 8000,
-      showClose: true
-    })
-  }
-}
 
 // 重置课程表单
 const resetCourseForm = () => {
   selectedCourse.value = null
   scheduleForm.value.selectedCourse = null
-  scheduleForm.value.selectedTimeSlots = []
-  scheduleForm.value.selectedWeekdays = []
   availableTimeSlotsForCourse.value = []
   selectedGrade.value = ''
 }
@@ -1260,20 +1135,6 @@ const closeCourseScheduleModal = () => {
   resetCourseForm()
 }
 
-// 计算结束日期
-const calculateEndDate = () => {
-  if (!scheduleForm.value.startDate || scheduleForm.value.selectedWeekdays.length === 0 || scheduleForm.value.selectedTimeSlots.length === 0) return
-
-  const startDate = new Date(scheduleForm.value.startDate)
-  // 每周课程次数 = 星期几数量 × 每天时间段数量
-  const sessionsPerWeek = scheduleForm.value.selectedWeekdays.length * scheduleForm.value.selectedTimeSlots.length
-  const totalWeeks = Math.ceil(scheduleForm.value.sessionCount / sessionsPerWeek)
-
-  const endDate = new Date(startDate)
-  endDate.setDate(startDate.getDate() + (totalWeeks - 1) * 7)
-
-  scheduleForm.value.endDate = endDate.toISOString().split('T')[0]
-}
 
 // 获取可用时间段
 const getAvailableTimeSlots = () => {
@@ -1302,20 +1163,7 @@ watch(selectedCourse, (newCourse) => {
   }
 })
 
-// 监听星期几选择变化，自动重新计算结束日期
-watch(() => scheduleForm.value.selectedWeekdays, () => {
-  calculateEndDate()
-}, { deep: true })
 
-// 监听时间段选择变化，自动重新计算结束日期
-watch(() => scheduleForm.value.selectedTimeSlots, () => {
-  calculateEndDate()
-}, { deep: true })
-
-// 监听课程次数变化，自动重新计算结束日期
-watch(() => scheduleForm.value.sessionCount, () => {
-  calculateEndDate()
-})
 
 
 </script>

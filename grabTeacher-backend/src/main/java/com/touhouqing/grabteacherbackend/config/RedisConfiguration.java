@@ -254,6 +254,14 @@ public class RedisConfiguration {
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .computePrefixWith(cacheName -> "grabTeacher:teacherSchedule:"));
 
+        // 教师月度基础段状态缓存 - 基础 5 分钟 TTL + 0~10% 抖动
+        configs.put("teacherMonthlyCalendar", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(jitter(Duration.ofMinutes(5)))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(stringSerializer))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
+                .computePrefixWith(cacheName -> "grabTeacher:teacherMonthlyCalendar:"));
+
+
         // 教师可用性缓存 - 基础 3 分钟 TTL + 0~10% 抖动
         configs.put("teacherAvailability", RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(jitter(Duration.ofMinutes(3)))

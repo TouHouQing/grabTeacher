@@ -5,7 +5,6 @@ import { Plus, Edit, Delete, Search, Refresh, Check, Close } from '@element-plus
 import { teacherAPI, fileAPI, teacherLevelAPI, teachingLocationAPI } from '../../../utils/api'
 import { getApiBaseUrl } from '../../../utils/env'
 import AvatarUploader from '../../../components/AvatarUploader.vue'
-import WideTimeSlotSelector from '../../../components/WideTimeSlotSelector.vue'
 
 // 学历枚举与归一化
 const EDUCATION_ALLOWED = ['专科及以下', '本科', '硕士', '博士'] as const
@@ -406,27 +405,8 @@ const handleEditTeacher = async (teacher: any) => {
     teacherForm.subjectIds = []
   }
 
-  // 获取教师的可上课时间
-  try {
-    const response = await fetch(`${getApiBaseUrl()}/api/available-time/teacher/${teacher.id}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    })
-    const result = await response.json()
-    if (result.success && result.data && result.data.availableTimeSlots) {
-      availableTimeSlots.value = [...result.data.availableTimeSlots]
-      console.log('AdminTeacherManagement: 加载教师可上课时间成功:', result.data.availableTimeSlots)
-      console.log('AdminTeacherManagement: 设置到availableTimeSlots.value:', availableTimeSlots.value)
-    } else {
-      // 如果没有设置可上课时间，清空数组（表示所有时间都可以）
-      availableTimeSlots.value = []
-      console.log('AdminTeacherManagement: 教师未设置可上课时间，默认所有时间可用')
-    }
-  } catch (error) {
-    console.error('获取教师可上课时间失败:', error)
-    availableTimeSlots.value = []
-  }
+  // 按月日历管理教师可上课时间：此处不再拉取按星期模板，改由“教师可用时间日历”页面集中管理
+  availableTimeSlots.value = []
 
   // 编辑时清空密码字段，避免显示敏感信息
   teacherForm.password = ''
@@ -454,7 +434,6 @@ const saveTeacher = async () => {
       gender: teacherForm.gender,
       level: teacherForm.level,
       isVerified: teacherForm.isVerified,
-      availableTimeSlots: availableTimeSlots.value,
       adjustmentTimes: teacherForm.adjustmentTimes,
       currentHours: teacherForm.currentHours,
       lastHours: teacherForm.lastHours,
@@ -935,12 +914,6 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="可上课时间">
-          <WideTimeSlotSelector
-            v-model="availableTimeSlots"
-            title="设置可上课时间"
-          />
-        </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">

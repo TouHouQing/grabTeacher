@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useUserStore, type TeacherInfo } from '../../stores/user'
 import { ElMessage } from 'element-plus'
-import WideTimeSlotSelector from '../../components/WideTimeSlotSelector.vue'
+import TeacherAvailabilityEditor from '@/components/scheduler/TeacherAvailabilityEditor.vue'
 import { fileAPI } from '../../utils/api'
 import defaultAvatar from '../../assets/pictures/teacherBoy2.jpeg'
 
@@ -55,22 +55,19 @@ onUnmounted(() => {
   }
 })
 
-// 时间段接口
-interface TimeSlot {
-  weekday: number
-  timeSlots: string[]
-}
-
-
 // 教师信息表单（仅保留需要在教师端编辑/展示的字段）
 const teacherForm = reactive<TeacherInfo>({
-  introduction: ''
+  realName: '',
+  introduction: '',
+  teachingLocationIds: [],
+  supportsOnline: false
 })
 
-// 可上课时间
-const availableTimeSlots = ref<TimeSlot[]>([])
 
 
+// 科目和授课地点数据
+const subjects = ref<{id: number, name: string}[]>([])
+const teachingLocations = ref<{id: number, name: string}[]>([])
 
 // 加载状态
 const loading = ref(false)
@@ -85,16 +82,11 @@ const fetchTeacherProfile = async () => {
     const response = await userStore.getTeacherProfile()
     if (response.success && response.data) {
       Object.assign(teacherForm, response.data)
-      // 设置可上课时间
-      if (response.data.availableTimeSlots) {
-        availableTimeSlots.value = [...response.data.availableTimeSlots]
-      } else {
-        availableTimeSlots.value = []
-      }
+
     } else {
       ElMessage.warning(response.message || '获取教师信息失败')
     }
-  } catch (error) {
+  } catch {
     ElMessage.error('获取教师信息失败')
   } finally {
     loading.value = false
@@ -109,10 +101,12 @@ const saveProfile = async () => {
     // 1) 若选择了新头像，先上传至OSS，拿到最终URL
     const uploadedAvatarUrl = await uploadAvatarIfNeeded()
 
-    // 提交教师端可修改字段（移除邮箱、姓名、出生年月、性别、学历、经验、科目、授课地点、特长、时薪）
+    // 提交教师端可修改字段（包括姓名、个人介绍、授课地点、线上授课支持和头像；可上课时间改为“日历”页单独保存）
     const formData = {
+      realName: teacherForm.realName,
       introduction: teacherForm.introduction,
-      availableTimeSlots: availableTimeSlots.value,
+      teachingLocationIds: teacherForm.teachingLocationIds,
+      supportsOnline: teacherForm.supportsOnline,
       ...(uploadedAvatarUrl && { avatarUrl: uploadedAvatarUrl })
     }
 
@@ -136,7 +130,7 @@ const saveProfile = async () => {
     } else {
       ElMessage.error(response.message || '保存失败')
     }
-  } catch (error) {
+  } catch {
     ElMessage.error('保存失败')
   } finally {
     formLoading.value = false
@@ -146,10 +140,46 @@ const saveProfile = async () => {
 
 
 
+// 获取科目名称
+const getSubjectNames = (subjectIds: number[]): string => {
+  if (!subjectIds || subjectIds.length === 0) return '未设置'
+  return subjectIds.map(id => {
+    const subject = subjects.value.find(s => s.id === id)
+    return subject ? subject.name : `科目${id}`
+  }).join('、')
+}
+
+
+// 加载基础数据
+const loadBasicData = async () => {
+  try {
+    // 并行加载科目和授课地点数据
+    const [subjectsResponse, locationsResponse] = await Promise.all([
+      userStore.getSubjects(),
+      userStore.getTeachingLocations()
+    ])
+
+    if (subjectsResponse.success && subjectsResponse.data) {
+      subjects.value = subjectsResponse.data
+    }
+
+    if (locationsResponse.success && locationsResponse.data) {
+      teachingLocations.value = locationsResponse.data
+    }
+  } catch (error) {
+    console.error('加载基础数据失败:', error)
+  }
+}
+
 // 页面加载时获取数据
-onMounted(() => {
-  fetchTeacherProfile()
+onMounted(async () => {
+  await Promise.all([
+    fetchTeacherProfile(),
+    loadBasicData()
+  ])
 })
+
+
 </script>
 
 <template>
@@ -175,6 +205,55 @@ onMounted(() => {
                 <el-input :value="userStore.user?.username" disabled></el-input>
               </el-form-item>
 
+              <el-form-item label="教师姓名">
+                <el-input
+                  v-model="teacherForm.realName"
+                  placeholder="请输入真实姓名"
+                  maxlength="20"
+                  show-word-limit
+                ></el-input>
+              </el-form-item>
+
+              <el-form-item label="教授科目">
+                <el-input :value="getSubjectNames(teacherForm.subjectIds || [])" disabled></el-input>
+              </el-form-item>
+
+              <el-form-item label="性别">
+                <el-input :value="teacherForm.gender || '未设置'" disabled></el-input>
+              </el-form-item>
+
+              <el-form-item label="时薪">
+                <el-input :value="teacherForm.hourlyRate ? `$${teacherForm.hourlyRate}/小时` : '未设置'" disabled></el-input>
+              </el-form-item>
+
+              <el-form-item label="级别">
+                <el-input :value="teacherForm.level || '未设置'" disabled></el-input>
+              </el-form-item>
+
+              <el-form-item label="授课地点">
+                <el-select
+                  v-model="teacherForm.teachingLocationIds"
+                  multiple
+                  placeholder="请选择授课地点"
+                  style="width: 100%"
+                  clearable
+                >
+                  <el-option
+                    v-for="location in teachingLocations"
+                    :key="location.id"
+                    :label="location.name"
+                    :value="location.id"
+                  />
+                </el-select>
+              </el-form-item>
+
+              <el-form-item label="是否支持线上授课">
+                <el-radio-group v-model="teacherForm.supportsOnline">
+                  <el-radio :label="true">支持</el-radio>
+                  <el-radio :label="false">不支持</el-radio>
+                </el-radio-group>
+              </el-form-item>
+
               <el-form-item label="个人介绍">
                 <el-input
                   v-model="teacherForm.introduction"
@@ -183,12 +262,7 @@ onMounted(() => {
                   placeholder="请简要介绍您的教学风格、经验和专长"
                 ></el-input>
               </el-form-item>
-              <el-form-item label="可上课时间">
-                <WideTimeSlotSelector
-                  v-model="availableTimeSlots"
-                  title="设置可上课时间"
-                />
-              </el-form-item>
+
               <el-form-item>
                 <el-button type="primary" @click="saveProfile" :loading="formLoading">
                   保存信息
@@ -198,6 +272,14 @@ onMounted(() => {
           </div>
         </div>
       </el-tab-pane>
+
+  <el-tab-pane label="可上课时间">
+    <div class="profile-container">
+      <div class="form-section">
+        <TeacherAvailabilityEditor v-if="teacherForm.id" :teacher-id="Number(teacherForm.id)" :months="6" />
+      </div>
+    </div>
+  </el-tab-pane>
 
     </el-tabs>
 

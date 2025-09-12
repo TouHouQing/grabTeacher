@@ -6,11 +6,11 @@ import com.touhouqing.grabteacherbackend.mapper.*;
 import com.touhouqing.grabteacherbackend.model.entity.*;
 import com.touhouqing.grabteacherbackend.model.dto.StudentInfoDTO;
 import com.touhouqing.grabteacherbackend.model.dto.TeacherInfoDTO;
-import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
+
 import com.touhouqing.grabteacherbackend.model.vo.AdminStudentDetailVO;
 import com.touhouqing.grabteacherbackend.model.vo.AdminTeacherDetailVO;
 import com.touhouqing.grabteacherbackend.util.AliyunOssUtil;
-import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
+
 import com.touhouqing.grabteacherbackend.model.entity.Admin;
 
 import com.touhouqing.grabteacherbackend.service.AdminService;
@@ -506,16 +506,7 @@ public class AdminServiceImpl implements AdminService {
         User user = userMapper.selectById(teacher.getUserId());
         List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacherId);
 
-        // 解析可上课时间
-        List<TimeSlotDTO> availableTimeSlots = null;
-        if (teacher.getAvailableTimeSlots() != null) {
-            try {
-                availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
-            } catch (Exception e) {
-                log.warn("解析教师可上课时间失败: teacherId={}, error={}", teacherId, e.getMessage());
-                availableTimeSlots = null;
-            }
-        }
+        // 按星期字段已废弃：管理端不再回显 weekly availableTimeSlots
 
         // 授课地点回显：supportsOnline 独立，线下为ID列表（从CSV解析，保持兼容）
         java.util.List<Long> offlineIds;
@@ -548,7 +539,7 @@ public class AdminServiceImpl implements AdminService {
                 .introduction(teacher.getIntroduction())
                 .gender(teacher.getGender())
                 .level(teacher.getLevel())
-                .availableTimeSlots(availableTimeSlots)
+
                 .verified(teacher.getVerified())
                 .featured(teacher.getFeatured())
                 .adjustmentTimes(user != null ? user.getAdjustmentTimes() : null)
@@ -611,25 +602,7 @@ public class AdminServiceImpl implements AdminService {
         userMapper.insert(user);
         log.info("管理员创建教师用户账号成功: {}, ID: {}", user.getEmail(), user.getId());
 
-        // 处理可上课时间
-        String availableTimeSlotsJson = null;
-        if (request.getAvailableTimeSlots() != null && !request.getAvailableTimeSlots().isEmpty()) {
-            if (TimeSlotUtil.isValidTimeSlots(request.getAvailableTimeSlots())) {
-                availableTimeSlotsJson = TimeSlotUtil.toJsonString(request.getAvailableTimeSlots());
-                log.info("管理员为教师设置了可上课时间，时间段数量: {}",
-                        request.getAvailableTimeSlots().stream()
-                                .mapToInt(slot -> slot.getTimeSlots() != null ? slot.getTimeSlots().size() : 0)
-                                .sum());
-            } else {
-                // 如果格式不正确，设置为null（表示所有时间都可以）
-                availableTimeSlotsJson = null;
-                log.warn("管理员提供的可上课时间格式不正确，将设置为所有时间可用");
-            }
-        } else {
-            // 如果没有提供可上课时间，设置为null（表示所有时间都可以）
-            availableTimeSlotsJson = null;
-            log.info("管理员未为教师设置可上课时间，默认所有时间都可以");
-        }
+        // 按星期字段已废弃：创建教师不再接受 weekly availableTimeSlots
 
         // 级别校验与默认（从教师级别表选择）
         String resolvedLevelName;
@@ -681,7 +654,7 @@ public class AdminServiceImpl implements AdminService {
                 .level(resolvedLevelName)
                 .supportsOnline(supportsOnline)
                 .teachingLocations(teachingLocationsCsv)
-                .availableTimeSlots(availableTimeSlotsJson)
+
                 .rating(request.getRating() != null ? request.getRating() : BigDecimal.valueOf(5.0)) // 默认评分5.0
                 .verified(true) // 管理员添加的教师默认已审核
                 .build();
@@ -796,7 +769,7 @@ public class AdminServiceImpl implements AdminService {
                 q.in("id", ids).eq("is_active", true);
                 Long cnt = teachingLocationMapper.selectCount(q);
                 if (cnt == null || cnt.intValue() != ids.size()) {
-                    throw new RuntimeException("");
+                    throw new RuntimeException("存在无效或未启用的授课地点");
                 }
                 teacher.setTeachingLocations(ids.stream().map(String::valueOf).collect(Collectors.joining(",")));
             }
@@ -832,19 +805,7 @@ public class AdminServiceImpl implements AdminService {
             teacher.setLastHours(request.getLastHours());
         }
 
-        // 更新可上课时间
-        if (request.getAvailableTimeSlots() != null) {
-            try {
-                // 使用sanitizeTimeSlots方法来清理和验证时间数据
-                List<TimeSlotDTO> sanitizedTimeSlots = TimeSlotUtil.sanitizeTimeSlots(request.getAvailableTimeSlots());
-                teacher.setAvailableTimeSlots(TimeSlotUtil.toJsonString(sanitizedTimeSlots));
-                log.debug("成功更新教师时间安排: teacherId={}", teacherId);
-            } catch (Exception e) {
-                log.error("处理可上课时间时发生错误: teacherId={}, error={}", teacherId, e.getMessage());
-                // 如果出现异常，使用默认时间安排
-                teacher.setAvailableTimeSlots(TimeSlotUtil.toJsonString(TimeSlotUtil.getDefaultTimeSlots()));
-            }
-        }
+        // 按星期字段已废弃：更新教师不再处理 weekly availableTimeSlots
 
         teacherMapper.updateById(teacher);
 

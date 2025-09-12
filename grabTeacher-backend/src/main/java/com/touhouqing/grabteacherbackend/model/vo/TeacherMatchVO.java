@@ -1,7 +1,7 @@
 package com.touhouqing.grabteacherbackend.model.vo;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -111,10 +111,6 @@ public class TeacherMatchVO {
      */
     private String gender;
 
-    /**
-     * 可上课时间安排详情
-     */
-    private List<TimeSlotDTO> availableTimeSlots;
 
     /**
      * 时间匹配度 (0-100)

@@ -9,7 +9,6 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   HomeFilled,
   DocumentChecked,
-  Calendar,
   Reading,
   Money,
   Setting,
@@ -545,7 +544,6 @@ onMounted(async () => {
               <el-icon><DocumentChecked /></el-icon>
               <span>调课记录</span>
             </el-menu-item>
-
 
             <el-menu-item index="my-hour-details">
               <el-icon><List /></el-icon>

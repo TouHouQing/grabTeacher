@@ -104,17 +104,34 @@ const reload = async () => {
     for (const day of days.value) {
       const slots = grouped[day.date] || []
       const statusBy = Object.fromEntries(slots.map((s: any)=> [s.slot, s]))
-      day.slots = BASE_SLOTS.map(s => statusBy[s] || { slot: s, status: 'available' })
+      // 默认无数据时按“不可用”呈现，避免后端未返回时误判为全可预约
+      day.slots = BASE_SLOTS.map(s => statusBy[s] || { slot: s, status: 'unavailable' })
     }
     if (props.mode === 'teacher') {
+    // 当 getDailyAvailability 返回空时，使用月历可用状态作为回显兜底
+    const fallbackSelected: Record<string, string[]> = {}
+    for (const day of days.value) {
+      const list = (grouped[day.date] || []) as Array<{slot:string; status:string}>
+      const avail = list.filter(s=> s.status==='available').map(s=> s.slot)
+      if (avail.length) fallbackSelected[day.date] = avail
+    }
+
       // seed teacher selection from daily availability
       const start = `${localYear.value}-${String(localMonth.value).padStart(2,'0')}-01`
       const end = dayjs(start).endOf('month').format('YYYY-MM-DD')
       const avail = await teacherAPI.getDailyAvailability(props.teacherId, start, end)
       Object.keys(teacherSelected).forEach(k=> delete teacherSelected[k])
-      if (avail?.data) {
+      let used = false
+      if (avail?.data && Object.keys(avail.data as any).length > 0) {
         for (const [date, slots] of Object.entries(avail.data as Record<string, string[]>)) {
           teacherSelected[date] = [...(slots as string[])]
+        }
+        used = true
+      }
+      if (!used) {
+        // 兜底：以月历接口返回的“available”状态作为回显
+        for (const [date, slots] of Object.entries(fallbackSelected)) {
+          teacherSelected[date] = [...slots]
         }
       }
       emit('change-teacher-selection', teacherSelected)
@@ -126,6 +143,22 @@ const reload = async () => {
 
 onMounted(reload)
 watch(() => [props.teacherId, props.mode], reload)
+
+function applySelectionPatch(patch: Record<string, string[]>, overwrite: boolean) {
+  // 仅在教师模式下生效
+  if (props.mode !== 'teacher') return
+  for (const [date, slots] of Object.entries(patch || {})) {
+    if (overwrite) {
+      teacherSelected[date] = [...(slots || [])]
+    } else {
+      const set = new Set([...(teacherSelected[date] || []), ...(slots || [])])
+      teacherSelected[date] = Array.from(set)
+    }
+  }
+  emit('change-teacher-selection', teacherSelected)
+}
+// @ts-ignore
+defineExpose({ reload, applySelectionPatch })
 
 const onClickSlot = (day: any, slot: string) => {
   const item = day.slots.find((s: any)=> s.slot === slot)

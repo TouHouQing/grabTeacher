@@ -1,6 +1,6 @@
 package com.touhouqing.grabteacherbackend.model.vo;
 
-import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -60,8 +60,6 @@ public class TeacherProfileVO {
     @Schema(description = "头像URL")
     private String avatarUrl;
 
-    @Schema(description = "可上课时间安排")
-    private List<TimeSlotDTO> availableTimeSlots;
 
 
     @Schema(description = "是否支持线上授课", example = "true")

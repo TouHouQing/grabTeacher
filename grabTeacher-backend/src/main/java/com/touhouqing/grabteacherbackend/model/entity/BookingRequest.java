@@ -68,6 +68,11 @@ public class BookingRequest {
     @Schema(description = "周期性预约的时间段，逗号分隔", example = "14:00-16:00,18:00-20:00")
     private String recurringTimeSlots;
 
+    // 新增：calendar 模式下选择的具体日历会话 JSON
+    @TableField("selected_sessions_json")
+    //@Schema(description = "calendar预约选择的具体会话JSON", example = "[{\\"date\\":\\"2025-09-20\\",\\"start\\":\\"17:00\\",\\"end\\":\\"19:00\\"}]")
+    private String selectedSessionsJson;
+
     @TableField("start_date")
     @Schema(description = "周期性预约开始日期", example = "2024-01-15")
     private LocalDate startDate;

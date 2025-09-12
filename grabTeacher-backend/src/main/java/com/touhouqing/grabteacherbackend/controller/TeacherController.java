@@ -9,12 +9,9 @@ import com.touhouqing.grabteacherbackend.model.vo.TeacherMatchVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherProfileVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherScheduleVO;
 import com.touhouqing.grabteacherbackend.model.vo.ClassRecordVO;
-import com.touhouqing.grabteacherbackend.model.dto.TimeSlotAvailabilityDTO;
-import com.touhouqing.grabteacherbackend.model.dto.TimeValidationResultDTO;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.TeacherService;
-import com.touhouqing.grabteacherbackend.service.TimeValidationService;
 import com.touhouqing.grabteacherbackend.service.MessageService;
 import com.touhouqing.grabteacherbackend.model.vo.MessageVO;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -53,8 +50,6 @@ public class TeacherController {
     @Autowired
     private TeacherService teacherService;
 
-    @Autowired
-    private TimeValidationService timeValidationService;
 
     @Autowired
     private MessageService messageService;
@@ -353,24 +348,6 @@ public class TeacherController {
         }
     }
 
-    /**
-     * 检查教师时间段可用性（供学生预约时查看）
-     */
-    @GetMapping("/{teacherId}/availability")
-    public ResponseEntity<CommonResult<List<TimeSlotAvailabilityDTO>>> checkTeacherAvailability(
-            @PathVariable Long teacherId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) List<String> timeSlots) {
-        try {
-            List<TimeSlotAvailabilityDTO> availability = teacherService.checkTeacherAvailability(teacherId, startDate, endDate, timeSlots);
-            return ResponseEntity.ok(CommonResult.success("获取时间段可用性成功", availability));
-        } catch (Exception e) {
-            logger.error("检查教师时间段可用性异常: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResult.error("获取失败"));
-        }
-    }
 
     /**
      * 获取教师控制台统计数据
@@ -390,48 +367,6 @@ public class TeacherController {
         }
     }
 
-    /**
-     * 验证学生预约时间匹配度（供学生预约时使用）
-     */
-    @PostMapping("/{teacherId}/validate-booking-time")
-    public ResponseEntity<CommonResult<TimeValidationResultDTO>> validateStudentBookingTime(
-            @PathVariable Long teacherId,
-            @RequestBody Map<String, Object> request) {
-        try {
-            @SuppressWarnings("unchecked")
-            List<Integer> weekdays = (List<Integer>) request.get("weekdays");
-            @SuppressWarnings("unchecked")
-            List<String> timeSlots = (List<String>) request.get("timeSlots");
-            String startDateStr = (String) request.get("startDate");
-            String endDateStr = (String) request.get("endDate");
-            Integer totalTimes = (Integer) request.get("totalTimes");
-
-            if (weekdays == null || timeSlots == null) {
-                return ResponseEntity.badRequest()
-                        .body(CommonResult.error("星期几和时间段不能为空"));
-            }
-
-            TimeValidationResultDTO result;
-
-            // 如果提供了日期范围，使用更准确的周期性预约验证
-            if (startDateStr != null && endDateStr != null) {
-                LocalDate startDate = LocalDate.parse(startDateStr);
-                LocalDate endDate = LocalDate.parse(endDateStr);
-                result = timeValidationService.validateRecurringBookingTime(
-                        teacherId, weekdays, timeSlots, startDate, endDate, totalTimes);
-            } else {
-                // 否则使用简单的时间匹配验证
-                result = timeValidationService.validateStudentBookingTime(
-                        teacherId, weekdays, timeSlots);
-            }
-
-            return ResponseEntity.ok(CommonResult.success("验证完成", result));
-        } catch (Exception e) {
-            logger.error("验证学生预约时间异常: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(CommonResult.error("验证失败"));
-        }
-    }
 
     // 参数归一化：去首尾空白；空串->null，减少缓存键碎片
     private String normalizeParam(String v) {

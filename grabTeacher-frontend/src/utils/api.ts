@@ -294,6 +294,27 @@ export const studentAPI = {
 
 // 教师管理 API
 export const teacherAPI = {
+  // 获取教师某月基础段状态矩阵（含忙碌/试听/不可用等）
+  getMonthlyCalendar: (teacherId: number, year: number, month: number) =>
+    apiRequest(`/api/calendar/teacher/${teacherId}/month?year=${year}&month=${month}`),
+
+  // 教师按日历设置可上课时间（仅允许选择6个基础段）
+  setDailyAvailability: (data: { teacherId?: number; overwrite?: boolean; items: Array<{ date: string; timeSlots: string[] }> }) =>
+    apiRequest('/api/available-time/daily/teacher/set', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  // 管理员按日历设置某教师可上课时间
+  setDailyAvailabilityByAdmin: (data: { teacherId: number; overwrite?: boolean; items: Array<{ date: string; timeSlots: string[] }> }) =>
+    apiRequest('/api/available-time/daily/admin/set', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  // 查询某教师在日期范围内的日历可上课时间
+  getDailyAvailability: (teacherId: number, startDate: string, endDate: string) =>
+    apiRequest(`/api/available-time/daily/teacher/${teacherId}?startDate=${startDate}&endDate=${endDate}`),
   // 获取教师个人资料
   getProfile: () => apiRequest('/api/teacher/profile'),
   // 获取教师列表
@@ -446,33 +467,6 @@ export const teacherAPI = {
     return apiRequest(`/api/teacher/${teacherId}/schedule?${searchParams}`)
   },
 
-  // 检查教师时间段可用性（供学生预约时查看）
-  checkAvailability: (teacherId: number, params: {
-    startDate: string
-    endDate: string
-    timeSlots?: string[]
-  }) => {
-    const searchParams = new URLSearchParams()
-    Object.keys(params).forEach(key => {
-      if (params[key] !== undefined && params[key] !== null) {
-        if (key === 'timeSlots' && Array.isArray(params[key])) {
-          params[key].forEach(slot => searchParams.append('timeSlots', slot))
-        } else {
-          searchParams.append(key, params[key].toString())
-        }
-      }
-    })
-    return apiRequest(`/api/teacher/${teacherId}/availability?${searchParams}`)
-  },
-
-  // 获取教师的可预约时间设置（供学生查看）
-  getAvailableTime: (teacherId: number) => apiRequest(`/api/available-time/teacher/${teacherId}`),
-
-  // 批量获取教师的可预约时间设置（供学生查看）
-  getAvailableTimeBatch: (teacherIds: number[]) => apiRequest(`/api/available-time/teacher/batch`, {
-    method: 'POST',
-    body: JSON.stringify(teacherIds)
-  }),
 
   // 获取某日的可用性信息（包括试听课和正式课）
   getDayAvailability: (teacherId: number, date: string, segment?: string) => {
@@ -544,17 +538,6 @@ export const teacherAPI = {
     return apiRequest(`/api/teacher/class-records${query ? `?${query}` : ''}`)
   },
 
-  // 验证学生预约时间匹配度
-  validateBookingTime: (teacherId: number, data: {
-    weekdays: number[]
-    timeSlots: string[]
-    startDate?: string
-    endDate?: string
-    totalTimes?: number
-  }) => apiRequest(`/api/teacher/${teacherId}/validate-booking-time`, {
-    method: 'POST',
-    body: JSON.stringify(data)
-  })
 }
 
 // 管理员统计 API
@@ -569,7 +552,7 @@ export const bookingAPI = {
   createRequest: (data: {
     teacherId: number
     courseId?: number
-    bookingType: 'single' | 'recurring'
+    bookingType: 'single' | 'recurring' | 'calendar'
     requestedDate?: string
     requestedStartTime?: string
     requestedEndTime?: string
@@ -587,6 +570,8 @@ export const bookingAPI = {
     isTrial?: boolean // 后端DTO字段名
     trialDurationMinutes?: number
     selectedDurationMinutes?: number
+    // 日历预约所需：每次会话明确的日期+时间
+    selectedSessions?: Array<{ date: string; startTime: string; endTime: string }>
   }) => apiRequest('/api/booking/request', {
     method: 'POST',
     body: JSON.stringify(data)

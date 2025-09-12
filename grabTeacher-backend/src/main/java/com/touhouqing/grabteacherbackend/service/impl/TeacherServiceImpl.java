@@ -11,7 +11,7 @@ import com.touhouqing.grabteacherbackend.model.vo.TeacherMatchVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherProfileVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherScheduleVO;
 import com.touhouqing.grabteacherbackend.model.vo.ClassRecordVO;
-import com.touhouqing.grabteacherbackend.model.dto.TimeSlotAvailabilityDTO;
+
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
 // import removed: Schedule replaced by CourseSchedule in services
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
@@ -32,6 +32,7 @@ import com.touhouqing.grabteacherbackend.service.TeacherService;
 import com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService;
 import com.touhouqing.grabteacherbackend.util.AliyunOssUtil;
 
+import com.touhouqing.grabteacherbackend.service.TeacherDailyAvailabilityService;
 import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,6 +72,7 @@ public class TeacherServiceImpl implements TeacherService {
     private final TeacherScheduleCacheService teacherScheduleCacheService;
     private final SubjectMapper subjectMapper;
     private final AliyunOssUtil ossUtil;
+    private final TeacherDailyAvailabilityService teacherDailyAvailabilityService;
 
     private final com.touhouqing.grabteacherbackend.service.CacheKeyEvictor cacheKeyEvictor;
 
@@ -133,11 +135,6 @@ public class TeacherServiceImpl implements TeacherService {
             }
         }
 
-        // 解析可上课时间
-        List<TimeSlotDTO> availableTimeSlots = null;
-        if (teacher.getAvailableTimeSlots() != null) {
-            availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
-        }
 
         // 支持线上与线下地点ID集合
         Boolean supportsOnline = Boolean.TRUE.equals(teacher.getSupportsOnline());
@@ -169,7 +166,6 @@ public class TeacherServiceImpl implements TeacherService {
                 .level(teacher.getLevel())
                 .supportsOnline(supportsOnline)
                 .teachingLocationIds(locationIds)
-                .availableTimeSlots(availableTimeSlots)
                 .verified(teacher.getVerified())
                 .deleted(teacher.getDeleted())
                 .deletedAt(teacher.getDeletedAt())
@@ -188,11 +184,6 @@ public class TeacherServiceImpl implements TeacherService {
         // 获取教师的科目ID列表
         List<Long> subjectIds = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
 
-        // 解析可上课时间
-        List<TimeSlotDTO> availableTimeSlots = null;
-        if (teacher.getAvailableTimeSlots() != null) {
-            availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
-        }
 
         // 获取用户的出生年月和头像
         User user = userMapper.selectById(teacher.getUserId());
@@ -225,8 +216,7 @@ public class TeacherServiceImpl implements TeacherService {
                 .introduction(teacher.getIntroduction())
                 .gender(teacher.getGender())
                 .avatarUrl(avatarUrl)
-                .availableTimeSlots(availableTimeSlots)
-                .supportsOnline(supportsOnline)
+                                .supportsOnline(supportsOnline)
                 .teachingLocationIds(offlineLocationIds)
                 .teachingLocations(teacher.getTeachingLocations())
                 .verified(teacher.getVerified())
@@ -490,11 +480,11 @@ public class TeacherServiceImpl implements TeacherService {
         if (teacher == null) {
             throw new RuntimeException("教师信息不存在");
         }
-        String oldAvailableTimeSlots = teacher.getAvailableTimeSlots();
 
-        // 教师不可修改真实姓名（仅管理员可改）
+
+        // 更新教师真实姓名
         if (request.getRealName() != null) {
-            log.warn("教师尝试修改真实姓名被忽略, userId={}", userId);
+            teacher.setRealName(request.getRealName());
         }
 
         // 更新用户表中的出生年月/头像
@@ -569,38 +559,12 @@ public class TeacherServiceImpl implements TeacherService {
             log.warn("教师尝试修改性别被忽略, userId={}", userId);
         }
 
-        // 处理可上课时间更新
-        if (request.getAvailableTimeSlots() != null) {
-            if (request.getAvailableTimeSlots().isEmpty()) {
-                // 如果传入空列表，表示清空可上课时间，设置为null（表示所有时间都可以）
-                teacher.setAvailableTimeSlots(null);
-                log.info("教师清空可上课时间设置，默认所有时间可用: userId={}", userId);
-            } else {
-                // 验证时间安排格式
-                if (TimeSlotUtil.isValidTimeSlots(request.getAvailableTimeSlots())) {
-                    String timeSlotsJson = TimeSlotUtil.toJsonString(request.getAvailableTimeSlots());
-                    teacher.setAvailableTimeSlots(timeSlotsJson);
-                    log.info("教师更新可上课时间成功: userId={}, totalSlots={}", userId,
-                            request.getAvailableTimeSlots().stream()
-                                    .mapToInt(slot -> slot.getTimeSlots() != null ? slot.getTimeSlots().size() : 0)
-                                    .sum());
-                } else {
-                    throw new RuntimeException("可上课时间格式不正确");
-                }
-            }
-        }
 
         teacherMapper.updateById(teacher);
         log.info("教师更新个人信息成功: userId={}", userId);
 
-        try {
-            if (!Objects.equals(oldAvailableTimeSlots, teacher.getAvailableTimeSlots())) {
-                cacheKeyEvictor.evictTeacherScheduleAndAvailability(teacher.getId());
-                log.info("已清理教师课表/可用性相关缓存，teacherId={}", teacher.getId());
-            }
-        } catch (Exception e) {
-            log.warn("清理教师课表/可用性缓存失败 teacherId={}", teacher.getId(), e);
-        }
+        //  weekly availableTimeSlots 6       
+
 
         return teacher;
     }
@@ -672,11 +636,8 @@ public class TeacherServiceImpl implements TeacherService {
      * 将Teacher实体转换为TeacherMatchResponse并计算匹配分数
      */
     private TeacherMatchVO convertToMatchResponse(Teacher teacher, TeacherMatchDTO request) {
-        // 解析教师的可上课时间
-        List<TimeSlotDTO> availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
-
-        // 生成可读的时间安排描述
-        List<String> scheduleDescriptions = generateScheduleDescriptions(availableTimeSlots);
+        // 日历化后不再返回按星期的可上课时间；卡片仅展示基础信息
+        List<String> scheduleDescriptions = java.util.Collections.emptyList();
 
         // 构建科目名称列表（避免N+1：已在上层查询优化过，这里仅按ID映射名称）
         java.util.List<Long> subjectIdsForMatch = teacherSubjectMapper.getSubjectIdsByTeacherId(teacher.getId());
@@ -716,13 +677,12 @@ public class TeacherServiceImpl implements TeacherService {
                 .specialties(teacher.getSpecialties())
                 .isVerified(teacher.getVerified())
                 .gender(teacher.getGender())
-                .availableTimeSlots(availableTimeSlots)
                 .build();
 
         // 计算推荐度和时间匹配度
         log.info("正在计算教师 {} (ID: {}) 的推荐度", teacher.getRealName(), teacher.getId());
         int recommendationScore = calculateRecommendationScore(teacher);
-        int timeMatchScore = calculateTimeMatchScore(availableTimeSlots, request);
+        int timeMatchScore = 0; // 已移除按星期时间匹配度
         log.info("教师 {} 的推荐度: 总分={}, 时间匹配度={}", teacher.getRealName(), recommendationScore, timeMatchScore);
 
         response.setRecommendationScore(recommendationScore);
@@ -742,9 +702,8 @@ public class TeacherServiceImpl implements TeacherService {
         // 1. 科目匹配 (30分) - 最重要的匹配因素
         totalScore += calculateSubjectMatchScore(teacher, request);
 
-        // 2. 时间匹配 (25分) - 基于学生的时间偏好
-        List<TimeSlotDTO> availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
-        totalScore += calculateTimeMatchScore(availableTimeSlots, request) * 25 / 100;
+        // 2. 时间匹配 (25分) - 已改为按日历选择，卡片不再计算时间匹配度
+        totalScore += 0;
 
         // 4. 性别匹配 (10分) - 基于学生的性别偏好
         totalScore += calculateGenderMatchScore(teacher, request);
@@ -1020,71 +979,6 @@ public class TeacherServiceImpl implements TeacherService {
                 .build();
     }
 
-    @Override
-    @Cacheable(cacheNames = "teacherAvailability",
-               keyGenerator = "teacherCacheKeyGenerator",
-               sync = true)
-    public List<TimeSlotAvailabilityDTO> checkTeacherAvailability(Long teacherId, LocalDate startDate, LocalDate endDate, List<String> timeSlots) {
-        List<TimeSlotAvailabilityDTO> availabilities = new ArrayList<>();
-
-        // 获取教师设置的可上课时间
-        Teacher teacher = teacherMapper.selectById(teacherId);
-        if (teacher == null) {
-            return availabilities;
-        }
-
-        List<TimeSlotDTO> teacherAvailableSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
-
-        // 如果教师没有设置可上课时间，返回所有时间段为不可用
-        if (teacherAvailableSlots.isEmpty()) {
-            if (timeSlots == null || timeSlots.isEmpty()) {
-                timeSlots = getDefaultTimeSlots();
-            }
-            for (int weekday = 1; weekday <= 7; weekday++) {
-                for (String timeSlot : timeSlots) {
-                    TimeSlotAvailabilityDTO availability = TimeSlotAvailabilityDTO.builder()
-                            .weekday(TimeSlotUtil.convertBackendWeekdayToFrontend(weekday))
-                            .timeSlot(timeSlot)
-                            .available(false)
-                            .availabilityRate(0.0)
-                            .conflictDates(new ArrayList<>())
-                            .conflictReason("教师未设置可上课时间")
-                            .description("教师未设置该时间段为可上课时间")
-                            .build();
-                    availabilities.add(availability);
-                }
-            }
-        } else {
-            // 一次性加载范围内所有课程，构建 busyMap 并批量回填 Redis，避免每个 timeSlot 再次访问 DB
-            Map<LocalDate, List<String>> busyMap = new HashMap<>();
-            List<CourseSchedule> range =
-                    courseScheduleMapper.findByTeacherIdAndDateRange(teacherId, startDate, endDate);
-            for (CourseSchedule s : range) {
-                LocalDate d = s.getScheduledDate();
-                String slot = s.getStartTime().toString() + "-" + s.getEndTime().toString();
-                busyMap.computeIfAbsent(d, k -> new ArrayList<>()).add(slot);
-            }
-            LocalDate fill = startDate;
-            while (!fill.isAfter(endDate)) { busyMap.putIfAbsent(fill, new ArrayList<>()); fill = fill.plusDays(1); }
-            try { teacherScheduleCacheService.putBusySlotsBatch(teacherId, busyMap); } catch (Exception ignore) {}
-
-            // 只检查教师设置的可上课时间段（使用内存 busyMap 判断冲突）
-            for (TimeSlotDTO teacherSlot : teacherAvailableSlots) {
-                int weekday = teacherSlot.getWeekday();
-                List<String> slotTimes = teacherSlot.getTimeSlots();
-                if (slotTimes != null) {
-                    for (String timeSlot : slotTimes) {
-                        TimeSlotAvailabilityDTO availability = checkWeekdayTimeSlotAvailabilityFromBusyMap(
-                            teacherId, weekday, timeSlot, startDate, endDate, busyMap);
-                        availability.setWeekday(TimeSlotUtil.convertBackendWeekdayToFrontend(weekday));
-                        availabilities.add(availability);
-                    }
-                }
-            }
-        }
-
-        return availabilities;
-    }
 
     /**
      * 生成时间段信息 - 根据教师设置的可上课时间和实际课表安排
@@ -1093,10 +987,9 @@ public class TeacherServiceImpl implements TeacherService {
         // 获取该日期对应的星期几（ISO标准：1=周一, 7=周日）
         int weekday = date.getDayOfWeek().getValue();
 
-        // 获取教师设置的可上课时间段
-        List<String> availableTimeSlots = getTeacherAvailableTimeSlotsForWeekday(teacherId, weekday);
-
-        // 如果教师没有设置可上课时间，返回空列表（不显示任何时间段）
+        // 获取教师在该具体日期的可上课时间段（按日历）
+        Map<LocalDate, List<String>> daily = teacherDailyAvailabilityService.getDailyAvailability(teacherId, date, date);
+        List<String> availableTimeSlots = daily.getOrDefault(date, Collections.emptyList());
         if (availableTimeSlots.isEmpty()) {
             return new ArrayList<>();
         }
@@ -1117,7 +1010,7 @@ public class TeacherServiceImpl implements TeacherService {
             LocalTime endTime = LocalTime.parse(times[1]);
 
             boolean isBooked = (busySlots != null && !busySlots.isEmpty())
-                    ? busySlots.stream().anyMatch(slot -> TimeSlotUtil.hasTimeConflict(timeSlot, slot))
+                    ? busySlots.contains(timeSlot)
                     : scheduleByTimeSlot.containsKey(timeSlot);
 
             TeacherScheduleVO.TimeSlotInfo timeSlotInfo = TeacherScheduleVO.TimeSlotInfo.builder()
@@ -1136,63 +1029,6 @@ public class TeacherServiceImpl implements TeacherService {
         return timeSlots;
     }
 
-    /**
-     * 检查特定星期几和时间段的可用性
-     */
-    private TimeSlotAvailabilityDTO checkWeekdayTimeSlotAvailabilityFromBusyMap(Long teacherId, int weekday, String timeSlot,
-                                                                                LocalDate startDate, LocalDate endDate,
-                                                                                Map<LocalDate, List<String>> busyMap) {
-        // 检查教师是否设置了该时间段为可上课时间
-        List<String> teacherAvailableSlots = getTeacherAvailableTimeSlotsForWeekday(teacherId, weekday);
-        boolean isTeacherAvailable = teacherAvailableSlots.isEmpty() || teacherAvailableSlots.contains(timeSlot);
-        if (!isTeacherAvailable) {
-            return TimeSlotAvailabilityDTO.builder()
-                    .weekday(weekday)
-                    .timeSlot(timeSlot)
-                    .available(false)
-                    .availabilityRate(0.0)
-                    .conflictDates(new ArrayList<>())
-                    .conflictReason("教师未设置该时间段为可上课时间")
-                    .description("教师未在该时间段设置为可上课时间")
-                    .build();
-        }
-
-        // 预解析目标时间段到分钟，减少解析开销
-        int[] target = parseSlotToMinutes(timeSlot);
-        List<String> conflictDates = new ArrayList<>();
-        LocalDate cur = startDate;
-        int totalWeeks = 0;
-        int conflictWeeks = 0;
-        while (!cur.isAfter(endDate)) {
-            int wd = cur.getDayOfWeek().getValue();
-            if (wd == weekday) {
-                totalWeeks++;
-                List<String> dayBusy = busyMap.getOrDefault(cur, Collections.emptyList());
-                boolean conflict = false;
-                if (target != null && !dayBusy.isEmpty()) {
-                    for (String b : dayBusy) {
-                        int[] bb = parseSlotToMinutes(b);
-                        if (bb != null && bb[1] > target[0] && bb[0] < target[1]) { conflict = true; break; }
-                    }
-                }
-                if (conflict) { conflictWeeks++; conflictDates.add(cur.toString()); }
-            }
-            cur = cur.plusDays(1);
-        }
-        double availabilityRate = totalWeeks > 0 ? (double) (totalWeeks - conflictWeeks) / totalWeeks : 1.0;
-        boolean available = availabilityRate >= 0.5;
-        String availabilityLevel = calculateAvailabilityLevel(availabilityRate);
-        return TimeSlotAvailabilityDTO.builder()
-                .weekday(weekday)
-                .timeSlot(timeSlot)
-                .available(available)
-                .availabilityRate(availabilityRate)
-                .conflictDates(conflictDates)
-                .conflictReason(conflictDates.isEmpty() ? null : "已有其他学生预约")
-                .description(String.format("该时间段在查询范围内有%d个日期冲突，可用率%.1f%%（%s）",
-                        conflictDates.size(), availabilityRate * 100, availabilityLevel))
-                .build();
-    }
 
     // 解析 "HH:mm-HH:mm" 到 [startMin, endMin]
     private int[] parseSlotToMinutes(String slot) {
@@ -1219,34 +1055,7 @@ public class TeacherServiceImpl implements TeacherService {
         );
     }
 
-    /**
-     * 获取教师在指定星期几的可上课时间段
-     * @param teacherId 教师ID
-     * @param weekday 星期几（ISO标准：1=周一, 7=周日）
-     * @return 该星期几的可上课时间段列表
-     */
-    private List<String> getTeacherAvailableTimeSlotsForWeekday(Long teacherId, int weekday) {
-        if (teacherId == null) {
-            return new ArrayList<>();
-        }
-
-        Teacher teacher = teacherMapper.selectById(teacherId);
-        if (teacher == null || teacher.getAvailableTimeSlots() == null) {
-            return new ArrayList<>();
-        }
-
-        // 解析教师的可上课时间设置
-        List<TimeSlotDTO> availableTimeSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
-
-        // 查找指定星期几的时间段
-        for (TimeSlotDTO timeSlotDTO : availableTimeSlots) {
-            if (timeSlotDTO.getWeekday() != null && timeSlotDTO.getWeekday() == weekday) {
-                return timeSlotDTO.getTimeSlots() != null ? timeSlotDTO.getTimeSlots() : new ArrayList<>();
-            }
-        }
-
-        return new ArrayList<>();
-    }
+    // 已移除：按星期 weekly 可上课时间查询（统一改为按日历 daily）
 
     /**
      * 生成可读的时间安排描述

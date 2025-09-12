@@ -8,7 +8,7 @@ import com.touhouqing.grabteacherbackend.model.vo.TeacherMatchVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherProfileVO;
 import com.touhouqing.grabteacherbackend.model.vo.TeacherScheduleVO;
 import com.touhouqing.grabteacherbackend.model.vo.ClassRecordVO;
-import com.touhouqing.grabteacherbackend.model.dto.TimeSlotAvailabilityDTO;
+
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 
 import java.time.LocalDate;
@@ -97,15 +97,6 @@ public interface TeacherService {
      */
     TeacherScheduleVO getTeacherPublicSchedule(Long teacherId, LocalDate startDate, LocalDate endDate);
 
-    /**
-     * 检查教师时间段可用性（供学生预约时查看）
-     * @param teacherId 教师ID
-     * @param startDate 开始日期
-     * @param endDate 结束日期
-     * @param timeSlots 要检查的时间段列表（可选）
-     * @return 时间段可用性列表
-     */
-    List<TimeSlotAvailabilityDTO> checkTeacherAvailability(Long teacherId, LocalDate startDate, LocalDate endDate, List<String> timeSlots);
 
     /**
      * 获取教师控制台统计数据

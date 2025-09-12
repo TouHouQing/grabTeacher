@@ -4,7 +4,7 @@ import com.touhouqing.grabteacherbackend.model.vo.AuthVO;
 import com.touhouqing.grabteacherbackend.model.dto.LoginDTO;
 import com.touhouqing.grabteacherbackend.model.dto.RegisterDTO;
 import com.touhouqing.grabteacherbackend.model.dto.UserUpdateDTO;
-import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
+
 import com.touhouqing.grabteacherbackend.model.entity.Student;
 import com.touhouqing.grabteacherbackend.model.entity.Teacher;
 import com.touhouqing.grabteacherbackend.model.entity.User;
@@ -113,24 +113,7 @@ public class AuthServiceImpl implements AuthService {
                 }
                 
             } else if ("teacher".equals(registerDTO.getUserType().name())) {
-                // 处理可上课时间
-                String availableTimeSlotsJson = null;
-                if (registerDTO.getAvailableTimeSlots() != null && !registerDTO.getAvailableTimeSlots().isEmpty()) {
-                    if (TimeSlotUtil.isValidTimeSlots(registerDTO.getAvailableTimeSlots())) {
-                        availableTimeSlotsJson = TimeSlotUtil.toJsonString(registerDTO.getAvailableTimeSlots());
-                        log.info("教师注册时设置了可上课时间，时间段数量: {}",
-                                registerDTO.getAvailableTimeSlots().stream()
-                                        .mapToInt(slot -> slot.getTimeSlots() != null ? slot.getTimeSlots().size() : 0)
-                                        .sum());
-                    } else {
-                        log.warn("教师注册时提供的可上课时间格式不正确，将设置为所有时间可用");
-                        availableTimeSlotsJson = null; // 格式不正确时设置为null，表示所有时间都可以
-                    }
-                } else {
-                    // 如果没有提供可上课时间，设置为null（表示所有时间都可以）
-                    availableTimeSlotsJson = null;
-                    log.info("教师注册时未设置可上课时间，默认所有时间都可以");
-                }
+                // 已切换至“按日历”模式：注册不再接收 weekly availableTimeSlots；教师后续在日历页面维护可用性
 
                 Teacher teacher = Teacher.builder()
                         .userId(user.getId())
@@ -142,7 +125,6 @@ public class AuthServiceImpl implements AuthService {
                         .hourlyRate(null)
                         .introduction(StringUtils.hasText(registerDTO.getIntroduction()) ? registerDTO.getIntroduction() : null)
                         .gender(StringUtils.hasText(registerDTO.getGender()) ? registerDTO.getGender() : "不愿透露")
-                        .availableTimeSlots(availableTimeSlotsJson)
                         .verified(false)
                         .deleted(false)
                         .build();

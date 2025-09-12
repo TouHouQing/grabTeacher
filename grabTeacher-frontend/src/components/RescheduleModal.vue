@@ -536,19 +536,10 @@ const loadCurrentUserAdjustmentTimes = async () => {
   }
 }
 
-// 加载教师可用时间
-const loadTeacherAvailableTime = async (teacherId: number) => {
-  try {
-    const result = await teacherAPI.getAvailableTime(teacherId)
-    if (result.success && result.data?.availableTimeSlots) {
-      teacherAvailableTimeSlots.value = result.data.availableTimeSlots
-    } else {
-      teacherAvailableTimeSlots.value = []
-    }
-  } catch (error) {
-    console.error('获取教师可用时间失败:', error)
-    teacherAvailableTimeSlots.value = []
-  }
+// 加载教师可用时间（周模板已移除，按日历选择）
+const loadTeacherAvailableTime = async (_teacherId: number) => {
+  console.info('[RescheduleModal] 已切换按日历调课，周模板可用时间已移除')
+  teacherAvailableTimeSlots.value = []
 }
 
 // 切换调课类型

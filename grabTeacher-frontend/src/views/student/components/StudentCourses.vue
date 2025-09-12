@@ -609,19 +609,10 @@ interface TeacherTimeSlot {
 
 const teacherAvailableTimeSlots = ref<TeacherTimeSlot[]>([])
 
-// 获取教师可用时间
-const loadTeacherAvailableTime = async (teacherId: number) => {
-  try {
-    const result = await teacherAPI.getAvailableTime(teacherId)
-    if (result.success && result.data?.availableTimeSlots) {
-      teacherAvailableTimeSlots.value = result.data.availableTimeSlots
-    } else {
-      teacherAvailableTimeSlots.value = []
-    }
-  } catch (error) {
-    console.error('获取教师可用时间失败:', error)
-    teacherAvailableTimeSlots.value = []
-  }
+// 获取教师可用时间（周模板已移除，按日历选择）
+const loadTeacherAvailableTime = async (_teacherId: number) => {
+  console.info('[StudentCourses] 已切换按日历预约，周模板可用时间已移除')
+  teacherAvailableTimeSlots.value = []
 }
 
 // 找到1.5小时时间段对应的基础2小时时间段

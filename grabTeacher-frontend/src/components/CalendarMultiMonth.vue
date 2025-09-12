@@ -18,6 +18,8 @@
     </div>
 
     <CalendarMonth
+      :key="monthList[activeIdx].key"
+      ref="monthRef"
       :teacher-id="teacherId"
       :year="monthList[activeIdx].year"
       :month="monthList[activeIdx].month"
@@ -33,7 +35,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import dayjs from 'dayjs'
-import CalendarMonth from './CalendarMonthClean.vue'
+import CalendarMonth from './CalendarMonth.vue'
 
 const props = defineProps<{
   teacherId: number
@@ -53,6 +55,8 @@ const emit = defineEmits<{
 const base = dayjs(`${props.startYear || dayjs().year()}-${String(props.startMonth || (dayjs().month()+1)).padStart(2,'0')}-01`)
 const monthsCount = ref(props.months || 3)
 const activeIdx = ref(0)
+const monthRef = ref<InstanceType<typeof CalendarMonth> | null>(null)
+
 
 const monthList = computed(() => {
   const arr: Array<{ year: number; month: number; key: string; label: string }> = []
@@ -106,8 +110,18 @@ const flattenSessions = () => {
 // 暴露方法给父组件：获取聚合选择
 function getTeacherSelectionAll() { return flattenTeacherSelection() }
 function getStudentSessionsAll() { return flattenSessions() }
+function refreshActiveMonth() { (monthRef.value as any)?.reload?.() }
+function applySelectionPatch(patch: Record<string, string[]>, overwrite: boolean) {
+  const active = monthList.value[activeIdx.value]
+  if (!active) return
+  const filtered: Record<string, string[]> = {}
+  for (const [date, slots] of Object.entries(patch || {})) {
+    if (date.startsWith(active.key)) filtered[date] = slots
+  }
+  ;(monthRef.value as any)?.applySelectionPatch?.(filtered, overwrite)
+}
 // @ts-ignore
-defineExpose({ getTeacherSelectionAll, getStudentSessionsAll })
+defineExpose({ getTeacherSelectionAll, getStudentSessionsAll, refreshActiveMonth, applySelectionPatch })
 
 watch(monthsCount, () => {
   // 切换月份数量时，重置活跃索引

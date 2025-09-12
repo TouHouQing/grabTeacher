@@ -14,8 +14,8 @@ import com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseEnrollmentMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
-import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
-import com.touhouqing.grabteacherbackend.util.TimeSlotUtil;
+
+
 import com.touhouqing.grabteacherbackend.security.UserPrincipal;
 import com.touhouqing.grabteacherbackend.service.RescheduleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -61,6 +61,9 @@ public class RescheduleController {
 
     @Autowired
     private TeacherMapper teacherMapper;
+
+    @Autowired
+    private com.touhouqing.grabteacherbackend.service.TeacherDailyAvailabilityService dailyService;
 
     /**
      * 创建调课申请（学生操作）
@@ -311,41 +314,18 @@ public class RescheduleController {
      * 参考预约试听课的逻辑
      */
     private void validateSingleRescheduleTime(Long teacherId, LocalDate date, String startTime, String endTime) {
-        Teacher teacher = teacherMapper.selectById(teacherId);
-        if (teacher == null) {
-            throw new RuntimeException("教师信息不存在");
-        }
-
-        // 如果教师没有设置可预约时间，则默认所有时间都可以预约
-        if (teacher.getAvailableTimeSlots() == null || teacher.getAvailableTimeSlots().trim().isEmpty()) {
-            logger.info("教师未设置可预约时间限制，允许所有时间调课，教师ID: {}", teacherId);
-            return;
-        }
-
-        List<TimeSlotDTO> teacherAvailableSlots = TimeSlotUtil.fromJsonString(teacher.getAvailableTimeSlots());
-        if (teacherAvailableSlots == null || teacherAvailableSlots.isEmpty()) {
-            logger.info("教师可预约时间为空，允许所有时间调课，教师ID: {}", teacherId);
-            return;
-        }
-
-        // 获取调课日期对应的星期几 (1=周一, 7=周日)
-        int weekday = date.getDayOfWeek().getValue();
+        // 严格按“日历”可用性校验：当日未开放则不可调课；时间段需被某个当日可用段完全包含
         String requestedTimeSlot = startTime + "-" + endTime;
-
-        // 检查该星期几是否有可预约时间
-        boolean isAvailable = teacherAvailableSlots.stream()
-                .anyMatch(slot -> weekday == slot.getWeekday() &&
-                         slot.getTimeSlots() != null &&
-                         slot.getTimeSlots().stream().anyMatch(time ->
-                             isTimeSlotContained(requestedTimeSlot, time)));
-
-        if (!isAvailable) {
-            String weekdayName = getWeekdayName(weekday);
-            throw new RuntimeException(String.format("教师在%s %s时间段不可预约，请选择其他时间",
-                    weekdayName, requestedTimeSlot));
+        var daily = dailyService.getDailyAvailability(teacherId, date, date);
+        var daySlots = daily.getOrDefault(date, java.util.Collections.emptyList());
+        if (daySlots.isEmpty()) {
+            throw new RuntimeException("教师未在该日开放可预约时间");
         }
-
-        logger.info("单次调课时间验证通过，教师ID: {}, 时间: {} {}", teacherId, getWeekdayName(weekday), requestedTimeSlot);
+        boolean ok = daySlots.stream().anyMatch(available -> isTimeSlotContained(requestedTimeSlot, available));
+        if (!ok) {
+            throw new RuntimeException("该时间不在教师该日开放的可预约时间内");
+        }
+        logger.info("单次调课时间验证通过，教师ID: {}, 日期: {}, 时间: {}", teacherId, date, requestedTimeSlot);
     }
 
     /**

@@ -33,7 +33,7 @@ public class BookingApplyDTO {
     private Long subjectId;
 
     @NotBlank(message = "预约类型不能为空")
-    @Schema(description = "预约类型", example = "single", allowableValues = {"single", "recurring"})
+    @Schema(description = "预约类型", example = "single", allowableValues = {"single", "recurring", "calendar"})
     private String bookingType;
 
     // 单次预约相关字段（包括试听课）
@@ -84,6 +84,11 @@ public class BookingApplyDTO {
 
     @Schema(description = "关联的报名ID（用于恢复课程时识别原报名）", example = "1001")
     private Long enrollmentId;
+
+    // 新增：按日历选择的多个具体时间段（用于替代 recurring 模式）
+    @Schema(description = "按日历选择的具体时间段列表，用于calendar预约类型",
+            example = "[{\"date\":\"2025-09-20\",\"startTime\":\"17:00\",\"endTime\":\"19:00\"},{\"date\":\"2025-09-21\",\"startTime\":\"13:00\",\"endTime\":\"14:30\"}]")
+    private List<SelectedSessionDTO> selectedSessions;
 
     // 授课地点选择
     @Schema(description = "线下授课地点ID（教师配置的地点之一）", example = "101")

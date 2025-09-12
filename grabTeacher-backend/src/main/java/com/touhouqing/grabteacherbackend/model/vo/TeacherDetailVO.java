@@ -1,6 +1,6 @@
 package com.touhouqing.grabteacherbackend.model.vo;
 
-import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -75,8 +75,6 @@ public class TeacherDetailVO {
     @Schema(description = "线下授课地点ID列表（来自teaching_locations）")
     private List<Long> teachingLocationIds;
 
-    @Schema(description = "可上课时间安排")
-    private List<TimeSlotDTO> availableTimeSlots;
 
     @Schema(description = "是否已认证", example = "true")
     private Boolean verified;
