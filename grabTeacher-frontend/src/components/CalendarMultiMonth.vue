@@ -117,6 +117,15 @@ const flattenSessions = () => {
 function getTeacherSelectionAll() { return flattenTeacherSelection() }
 function getStudentSessionsAll() { return flattenSessions() }
 function refreshActiveMonth() { (monthRef.value as any)?.reload?.() }
+function clear() { (monthRef.value as any)?.clearStudentSessions?.() }
+
+// 清空所有月份的学生选择（用于切换1.5h/2h时刷新）
+function clearAllStudentSessions() {
+  sessionsByMonth.value = {}
+  ;(monthRef.value as any)?.clearStudentSessions?.()
+  emit('change-student-sessions', [])
+}
+
 function applySelectionPatch(patch: Record<string, string[]>, overwrite: boolean) {
   const active = monthList.value[activeIdx.value]
   if (!active) return
@@ -127,7 +136,7 @@ function applySelectionPatch(patch: Record<string, string[]>, overwrite: boolean
   ;(monthRef.value as any)?.applySelectionPatch?.(filtered, overwrite)
 }
 // @ts-ignore
-defineExpose({ getTeacherSelectionAll, getStudentSessionsAll, refreshActiveMonth, applySelectionPatch })
+defineExpose({ getTeacherSelectionAll, getStudentSessionsAll, refreshActiveMonth, clear, clearAllStudentSessions, applySelectionPatch })
 
 watch(monthsCount, () => {
   // 切换月份数量时，重置活跃索引

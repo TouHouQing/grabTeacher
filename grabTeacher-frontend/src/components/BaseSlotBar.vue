@@ -1,20 +1,44 @@
 <template>
   <div class="base-slot-bar">
     <div class="slot-cell" v-for="s in slots" :key="s.slot">
-      <el-tooltip
-        :content="s.tips || statusText(s.status)"
-        placement="top"
-        :disabled="!s.tips && !statusText(s.status)"
-      >
-        <el-button
-          size="small"
-          :class="['slot-btn', `status-${s.status}`, { selected: selectedSet.has(s.slot) } ]"
-          :disabled="disabledInMode(s)"
-          @click="$emit('click-slot', s.slot, s)"
-        >
-          {{ shortSlot(s.slot) }}
-        </el-button>
-      </el-tooltip>
+      <!-- 学生 + 1.5h：在每个2小时基础段内提供“前90/后90”可选按钮 -->
+      <template v-if="mode==='student' && durationMinutes === 90">
+        <div class="half-group">
+          <el-tooltip :content="s.tips || statusText(s.status)" placement="top" :disabled="!s.tips && !statusText(s.status)">
+            <el-button
+              size="small"
+              :class="['slot-btn', `status-${s.status}`, { selected: selectedSet.has(s.slot + '|EARLY90') } ]"
+              :disabled="disabledEarly(s)"
+              @click="$emit('click-slot', s.slot + '|EARLY90', s)"
+            >
+              {{ halfLabels(s.slot).early }}
+            </el-button>
+          </el-tooltip>
+          <el-tooltip :content="s.tips || statusText(s.status)" placement="top" :disabled="!s.tips && !statusText(s.status)">
+            <el-button
+              size="small"
+              :class="['slot-btn', `status-${s.status}`, { selected: selectedSet.has(s.slot + '|LATE90') } ]"
+              :disabled="disabledLate(s)"
+              @click="$emit('click-slot', s.slot + '|LATE90', s)"
+            >
+              {{ halfLabels(s.slot).late }}
+            </el-button>
+          </el-tooltip>
+        </div>
+      </template>
+      <!-- 其他情况（教师端或2小时）：仍使用基础段按钮 -->
+      <template v-else>
+        <el-tooltip :content="s.tips || statusText(s.status)" placement="top" :disabled="!s.tips && !statusText(s.status)">
+          <el-button
+            size="small"
+            :class="['slot-btn', `status-${s.status}`, { selected: selectedSet.has(s.slot) } ]"
+            :disabled="disabledInMode(s)"
+            @click="$emit('click-slot', s.slot, s)"
+          >
+            {{ shortSlot(s.slot) }}
+          </el-button>
+        </el-tooltip>
+      </template>
     </div>
   </div>
 </template>
@@ -28,6 +52,7 @@ const props = defineProps<{
   slots: SlotItem[]
   mode: 'teacher' | 'student'
   selected?: string[]
+  durationMinutes?: 90 | 120
 }>()
 
 const emit = defineEmits<{
@@ -44,9 +69,36 @@ const disabledInMode = (s: SlotItem) => {
   return false
 }
 
+// 1.5h
+const parseToMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+const minToStr = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
+function halfLabels(slot: string): { early: string; late: string } {
+  const [s, e] = slot.split('-')
+  const sMin = parseToMin(s); const eMin = parseToMin(e)
+  return { early: `${s}-${minToStr(sMin + 90)}`, late: `${minToStr(eMin - 90)}-${e}` }
+}
+function disabledEarly(s: SlotItem): boolean {
+  // 已有其它学生正式课/教师未开放：禁用
+  if (s.status === 'busy_formal' || s.status === 'unavailable') return true
+  // 段起点有试听：前90禁用
+  if (s.status === 'busy_trial_base') return true
+  // 同一基础段若已选择“后90”，则禁用“前90”
+  if (selectedSet.value.has(s.slot + '|LATE90')) return true
+  return false
+}
+function disabledLate(s: SlotItem): boolean {
+  // 已有其它学生正式课/教师未开放：禁用
+  if (s.status === 'busy_formal' || s.status === 'unavailable') return true
+  // 同一基础段若已选择“前90”，则禁用“后90”
+  if (selectedSet.value.has(s.slot + '|EARLY90')) return true
+  return false
+}
+
+
 const shortSlot = (slot: string) => slot
 
 const statusText = (status?: string) => {
+
   switch (status) {
     case 'available': return '可预约'
     case 'busy_formal': return '已有正式课'
@@ -74,5 +126,9 @@ const statusText = (status?: string) => {
 .status-unavailable.slot-btn { border-color: #c0c4cc; color: #909399; background-color: #f5f7fa; }
 .slot-btn.selected { background-color: #e8f3ff; border-color: #409eff; color: #1f6fd8; position: relative; }
 .slot-btn.selected::after { content: '✓'; position: absolute; right: 6px; top: 2px; font-size: 11px; color: #409eff; }
+
+.half-group { display: flex; gap: 6px; }
+.half-group .slot-btn { flex: 1; }
+
 </style>
 

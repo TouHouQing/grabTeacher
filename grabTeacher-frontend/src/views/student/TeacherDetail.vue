@@ -713,10 +713,10 @@ const showBookingTypeSelection = () => {
     type: 'info',
     center: true,
     distinguishCancelAndClose: true
-  }).then(() => {
-    // 选择试听课
+  }).then(async () => {
+    // 选择试听课：弹出科目/年级/地点选择窗口
     bookingType.value = 'trial'
-    openTrialCalendar()
+    await showTrialBookingModal()
   }).catch((action) => {
     if (action === 'cancel') {
       // 选择正式课
@@ -729,13 +729,15 @@ const showBookingTypeSelection = () => {
 // 显示试听课预约弹窗（切换为日历预约）
 const showTrialBookingModal = async () => {
   await Promise.all([loadSubjects(), loadGrades()])
-  openTrialCalendar()
+  showBookingModal.value = true
 }
 
 const openTrialCalendar = () => {
   if (!selectedSubject.value) { ElMessage.warning('请先选择科目'); return }
   if (!selectedGrade.value) { ElMessage.warning('请先选择年级'); return }
   if (!selectedTeachingLocation.value) { ElMessage.warning('请先选择授课地点'); return }
+  // 关闭当前信息收集弹窗，打开日历
+  showBookingModal.value = false
   trialDlg.value?.open()
 }
 

@@ -29,7 +29,8 @@
             v-if="!cell.isOtherMonth"
             :slots="cell.slots"
             :mode="mode"
-            :selected="mode==='teacher' ? (teacherSelected[cell.date] || []) : (selectedBaseSlots[cell.date] || [])"
+            :selected="mode==='teacher' ? (teacherSelected[cell.date] || []) : ((props.durationMinutes===90) ? (selectedHalfSlots[cell.date] || []) : (selectedBaseSlots[cell.date] || []))"
+            :duration-minutes="mode==='student' ? (props.durationMinutes || 90) : undefined"
             @click-slot="onClickSlot(cell, $event)"
           />
         </div>
@@ -144,6 +145,28 @@ const selectedBaseSlots = computed<Record<string, string[]>>(()=>{
   }
   return map
 })
+
+// 1.5h
+//
+const selectedHalfSlots = computed<Record<string, string[]>>(()=>{
+  const map: Record<string, string[]> = {}
+  for (const sess of studentSessions.value) {
+    const base = inferBaseSlot(sess.startTime, sess.endTime)
+    if (!base) continue
+    const s = toMin(sess.startTime); const e = toMin(sess.endTime)
+    const [bs, be] = base.split('-'); const bsMin = toMin(bs); const beMin = toMin(be)
+    let flag: 'EARLY90' | 'LATE90' | null = null
+    if ((e - s) === 90) {
+      if (s === bsMin) flag = 'EARLY90'
+      else if (e === beMin) flag = 'LATE90'
+    }
+    const key = flag ? `${base}|${flag}` : base
+    if (!map[sess.date]) map[sess.date] = []
+    if (!map[sess.date].includes(key)) map[sess.date].push(key)
+  }
+  return map
+})
+
 
 const yearOptions = Array.from({length: 4}).map((_,i)=> dayjs().year() -1 + i)
 
@@ -300,44 +323,58 @@ function applySelectionPatch(patch: Record<string, string[]>, overwrite: boolean
   }
   emit('change-teacher-selection', teacherSelected)
 }
+function clearStudentSessions() {
+  studentSessions.value = []
+  emit('change-student-sessions', studentSessions.value)
+}
 // @ts-ignore
-defineExpose({ reload, applySelectionPatch })
+defineExpose({ reload, applySelectionPatch, clearStudentSessions })
 
 const onClickSlot = (day: any, slot: string) => {
-  const item = day.slots.find((s: any)=> s.slot === slot)
+  // 支持 1.5h 半段标记：slot 可能为 "08:00-10:00|EARLY90" 或 "08:00-10:00|LATE90"
+  const [rawSlot, halfFlag] = (slot || '').split('|')
+  const item = day.slots.find((s: any)=> s.slot === rawSlot)
   if (!item) return
   if (props.mode === 'teacher') {
     const arr = teacherSelected[day.date] || []
-    const idx = arr.indexOf(slot)
+    const idx = arr.indexOf(rawSlot)
     if (idx >= 0) {
       arr.splice(idx, 1)
     } else {
-      arr.push(slot)
+      arr.push(rawSlot)
     }
     teacherSelected[day.date] = [...arr]
     emit('change-teacher-selection', teacherSelected)
   } else {
     // student: build concrete session by duration rule
     const duration = props.durationMinutes || 90
-    const [startStr, endStr] = slot.split('-')
+    const [startStr, endStr] = (rawSlot || '').split('-')
     let startTime = startStr
     let endTime = endStr
     if (duration === 120) {
       // 2h:  must be whole base slot; block when busy_trial_base
       if (item.status === 'busy_trial_base' || item.status === 'busy_formal' || item.status === 'unavailable') return
     } else {
-      // 1.5h: if busy_trial_base -> choose later 90m; else choose earlier 90m
+      // 1.5h: user can pick EARLY90/LATE90; when base has trial at start, EARLY90 is forbidden
       if (item.status === 'busy_formal' || item.status === 'unavailable') return
       const start = dayjs(`${day.date} ${startStr}`)
       const end = dayjs(`${day.date} ${endStr}`)
-      if (item.status === 'busy_trial_base') {
-        // later: end aligned 90m
+      if (halfFlag === 'EARLY90') {
+        if (item.status === 'busy_trial_base') return // 段起点有试听，禁止前90
+        startTime = start.format('HH:mm')
+        endTime = start.add(90, 'minute').format('HH:mm')
+      } else if (halfFlag === 'LATE90') {
         endTime = end.format('HH:mm')
         startTime = end.subtract(90, 'minute').format('HH:mm')
       } else {
-        // earlier: start aligned 90m
-        startTime = start.format('HH:mm')
-        endTime = start.add(90, 'minute').format('HH:mm')
+        // 兼容：未带标记则沿用旧逻辑（有试听在段起点则选后90，否则选前90）
+        if (item.status === 'busy_trial_base') {
+          endTime = end.format('HH:mm')
+          startTime = end.subtract(90, 'minute').format('HH:mm')
+        } else {
+          startTime = start.format('HH:mm')
+          endTime = start.add(90, 'minute').format('HH:mm')
+        }
       }
     }
     const key = `${day.date}_${startTime}_${endTime}`

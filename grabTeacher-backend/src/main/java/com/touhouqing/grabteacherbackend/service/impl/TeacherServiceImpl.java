@@ -751,7 +751,7 @@ public class TeacherServiceImpl implements TeacherService {
         // 计算推荐度和时间匹配度
         log.info("正在计算教师 {} (ID: {}) 的推荐度", teacher.getRealName(), teacher.getId());
         int recommendationScore = calculateRecommendationScore(teacher);
-        int timeMatchScore = 0; // 已移除按星期时间匹配度
+        int timeMatchScore = calculateDailyTimeMatchScore(teacher.getId(), request);
         log.info("教师 {} 的推荐度: 总分={}, 时间匹配度={}", teacher.getRealName(), recommendationScore, timeMatchScore);
 
         response.setRecommendationScore(recommendationScore);
@@ -1167,27 +1167,29 @@ public class TeacherServiceImpl implements TeacherService {
             return 0;
         }
 
-        // 如果学生没有时间偏好，认为所有时间都匹配，给予满分
-        if ((request.getPreferredWeekdays() == null || request.getPreferredWeekdays().isEmpty()) &&
-            (request.getPreferredTimeSlots() == null || request.getPreferredTimeSlots().isEmpty())) {
-            log.info("学生没有时间偏好，返回满分100");
-            return 100;
+        // 标准化学生偏好时间段：若未选择，则默认采用上午/下午/晚上六个基础段
+        java.util.List<String> preferredTimeSlots = request.getPreferredTimeSlots();
+        if (preferredTimeSlots == null || preferredTimeSlots.isEmpty()) {
+            preferredTimeSlots = java.util.Arrays.asList(
+                "08:00-10:00", "10:00-12:00",
+                "13:00-15:00", "15:00-17:00",
+                "17:00-19:00", "19:00-21:00"
+            );
+            log.info("学生未选择偏好上课时间，默认使用上午/下午/晚上六个基础段: {}", preferredTimeSlots);
         }
-
-
 
         int totalScore = 0;
         int maxPossibleScore = 0;
 
         // 处理时间段匹配 - 必须同时匹配星期几和时间段
-        if (request.getPreferredTimeSlots() != null && !request.getPreferredTimeSlots().isEmpty()) {
+        if (preferredTimeSlots != null && !preferredTimeSlots.isEmpty()) {
             // 获取学生偏好的星期几
             Set<Integer> studentPreferredWeekdays = new HashSet<>();
             if (request.getPreferredWeekdays() != null && !request.getPreferredWeekdays().isEmpty()) {
                 studentPreferredWeekdays.addAll(request.getPreferredWeekdays());
             }
 
-            for (String preferredTimeSlot : request.getPreferredTimeSlots()) {
+            for (String preferredTimeSlot : preferredTimeSlots) {
                 maxPossibleScore += 100; // 每个偏好时间段最高100分
                 int bestMatchScore = 0;
 
@@ -1268,6 +1270,105 @@ public class TeacherServiceImpl implements TeacherService {
             return "基本不可用";
         }
     }
+
+    /**
+     * 基于“日历每天”计算时间匹配度：在指定日期范围内，按学生偏好基础时段逐日校验教师是否可上课且无已排程冲突
+     * 评分=可用(无冲突)的(日期×时段)组合 / 总组合 × 100
+     */
+    private int calculateDailyTimeMatchScore(Long teacherId, TeacherMatchDTO request) {
+        try {
+            String ds = request.getPreferredDateStart();
+            String de = request.getPreferredDateEnd();
+
+            // 若学生未选择开始/结束日期，则默认使用“今天起未来三个月”
+            java.time.LocalDate today = java.time.LocalDate.now();
+            java.time.LocalDate start = org.springframework.util.StringUtils.hasText(ds) ? java.time.LocalDate.parse(ds) : today;
+            java.time.LocalDate end = org.springframework.util.StringUtils.hasText(de) ? java.time.LocalDate.parse(de) : start.plusMonths(3);
+
+            if (end.isBefore(start)) {
+                // 若传入非法（结束早于开始），兜底为从开始起三个月
+                end = start.plusMonths(3);
+            }
+            // 限制最大评估跨度，避免性能问题（最多约三个月）
+            java.time.LocalDate maxEnd = start.plusMonths(3);
+            if (end.isAfter(maxEnd)) end = maxEnd;
+
+            java.util.List<String> wanted = request.getPreferredTimeSlots();
+            if (wanted == null || wanted.isEmpty()) {
+                // 未指定则默认使用6个基础段
+                wanted = java.util.Arrays.asList("08:00-10:00", "10:00-12:00", "13:00-15:00", "15:00-17:00", "17:00-19:00", "19:00-21:00");
+            }
+
+            // 读取教师在日期范围内的“日历可上课基础段”设置
+            java.util.Map<java.time.LocalDate, java.util.List<String>> daily = teacherDailyAvailabilityService.getDailyAvailability(teacherId, start, end);
+            // 读取该教师在范围内的已排程课程（含试听/正式）
+            java.util.List<CourseSchedule> schedules = courseScheduleMapper.findByTeacherIdAndDateRange(teacherId, start, end);
+            java.util.Map<java.time.LocalDate, java.util.List<CourseSchedule>> schByDate = schedules.stream()
+                    .collect(java.util.stream.Collectors.groupingBy(CourseSchedule::getScheduledDate));
+
+            // 按周聚合：一周内只要有任意一天存在“开放且无冲突”的任一偏好时间段，即记为该周命中
+            java.util.Set<Integer> weekKeys = new java.util.LinkedHashSet<>();
+            java.util.Set<Integer> matchedWeeks = new java.util.HashSet<>();
+
+            java.time.LocalDate cur = start;
+            while (!cur.isAfter(end)) {
+                // 计算 ISO 周：year-week 作为 key
+                java.time.temporal.WeekFields wf = java.time.temporal.WeekFields.ISO;
+                int week = cur.get(wf.weekOfWeekBasedYear());
+                int weekYear = cur.get(wf.weekBasedYear());
+                int weekKey = weekYear * 100 + week;
+                weekKeys.add(weekKey);
+
+                java.util.List<String> allow = daily.getOrDefault(cur, java.util.Collections.emptyList());
+                if (allow != null && !allow.isEmpty()) {
+                    java.util.List<CourseSchedule> daySch = schByDate.getOrDefault(cur, java.util.Collections.emptyList());
+                    // 只要当天有任一偏好基础段开放且无排程冲突，就标记该周命中
+                    outer:
+                    for (String slot : wanted) {
+                        if (!allow.contains(slot)) continue;
+                        java.time.LocalTime[] tt = parseBaseSlot(slot);
+                        if (tt == null) continue;
+                        java.time.LocalTime baseStart = tt[0];
+                        java.time.LocalTime baseEnd = tt[1];
+                        boolean conflict = false;
+                        for (CourseSchedule cs : daySch) {
+                            if (cs.getStartTime() != null && cs.getEndTime() != null &&
+                                    cs.getStartTime().isBefore(baseEnd) && baseStart.isBefore(cs.getEndTime())) {
+                                conflict = true; break;
+                            }
+                        }
+                        if (!conflict) { matchedWeeks.add(weekKey); break outer; }
+                    }
+                }
+                cur = cur.plusDays(1);
+            }
+
+            int totalWeeks = weekKeys.size();
+            if (totalWeeks <= 0) return 0;
+            int score = (int) Math.round((matchedWeeks.size() * 100.0) / totalWeeks);
+            return Math.max(0, Math.min(100, score));
+        } catch (Exception e) {
+            log.warn("calculateDailyTimeMatchScore 失败: {}", e.getMessage());
+            return 0;
+        }
+    }
+
+    // 解析基础时间段 "HH:mm-HH:mm"
+    private static java.time.LocalTime[] parseBaseSlot(String slot) {
+        if (slot == null) return null;
+        String[] arr = slot.split("-");
+        if (arr.length != 2) return null;
+        try {
+            java.time.LocalTime s = java.time.LocalTime.parse(arr[0].trim());
+            java.time.LocalTime e = java.time.LocalTime.parse(arr[1].trim());
+            if (!s.isBefore(e)) return null;
+            return new java.time.LocalTime[]{s, e};
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
+
 
     /**
      * 检查教师是否匹配性别偏好
@@ -1494,26 +1595,26 @@ public class TeacherServiceImpl implements TeacherService {
 
         // 执行查询
         List<ClassRecordVO> records = courseScheduleMapper.selectClassRecords(
-                teacher.getId(), 
-                year, 
-                month, 
+                teacher.getId(),
+                year,
+                month,
                 StringUtils.hasText(studentName) ? studentName : null,
                 StringUtils.hasText(courseName) ? courseName : null
         );
-        
+
         // 手动分页
         int total = records.size();
         int start = (page - 1) * size;
         int end = Math.min(start + size, total);
-        
+
         List<ClassRecordVO> pageRecords = records.subList(start, end);
-        
+
         // 构建分页结果
         Page<ClassRecordVO> result = new Page<>(page, size);
         result.setRecords(pageRecords);
         result.setTotal(total);
         result.setPages((long) Math.ceil((double) total / size));
-        
+
         return result;
     }
 }
