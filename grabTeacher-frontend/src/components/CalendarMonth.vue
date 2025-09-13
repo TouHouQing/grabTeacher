@@ -46,6 +46,9 @@ const props = defineProps<{
   month: number // 1-12
   mode: Mode
   durationMinutes?: 90 | 120 // student only
+  allowedPeriods?: Array<'morning'|'afternoon'|'evening'>
+  dateRangeStart?: string // 'YYYY-MM-DD'
+  dateRangeEnd?: string   // 'YYYY-MM-DD'
 }>()
 
 const emit = defineEmits<{
@@ -60,6 +63,8 @@ const loading = ref(false)
 
 // month days collection
 const days = ref<Array<{ key:string; date: string; label: string; slots: Array<{slot: string; status: string; tips?: string}> }>>([])
+// 保留未过滤的原始slots，便于根据偏好动态二次过滤而无需重新请求
+const rawSlotsByDate = ref<Record<string, Array<{slot: string; status: string; tips?: string}>>>({})
 
 // teacher mode selection map
 const teacherSelected = reactive<Record<string, string[]>>({})
@@ -85,6 +90,32 @@ const buildMonthDays = (y: number, m: number) => {
   days.value = res
 }
 
+const applyStudentFilters = () => {
+  if (props.mode !== 'student') return
+  for (const day of days.value) {
+    const original = rawSlotsByDate.value[day.date] || []
+    // 日期范围过滤
+    if ((props.dateRangeStart && day.date < props.dateRangeStart) || (props.dateRangeEnd && day.date > props.dateRangeEnd)) {
+      day.slots = []
+      continue
+    }
+    // 时间段过滤
+    if (props.allowedPeriods && props.allowedPeriods.length > 0) {
+      day.slots = original.filter((it: any) => {
+        const start = String(it.slot || '').split('-')[0]
+        const h = parseInt((start || '00').split(':')[0], 10)
+        let p: 'morning' | 'afternoon' | 'evening' | '' = ''
+        if (h >= 8 && h < 12) p = 'morning'
+        else if (h >= 13 && h < 17) p = 'afternoon'
+        else if (h >= 17 && h < 21) p = 'evening'
+        return p ? (props.allowedPeriods as any).includes(p) : false
+      })
+    } else {
+      day.slots = [...original]
+    }
+  }
+}
+
 const reload = async () => {
   loading.value = true
   buildMonthDays(localYear.value, localMonth.value)
@@ -101,12 +132,19 @@ const reload = async () => {
     } else if (cal?.data?.dates && Array.isArray((cal as any).data.dates)) {
       for (const d of (cal as any).data.dates as Array<any>) grouped[d.date] = d.slots
     }
+    // 每次重载重置原始状态
+    rawSlotsByDate.value = {}
     for (const day of days.value) {
       const slots = grouped[day.date] || []
       const statusBy = Object.fromEntries(slots.map((s: any)=> [s.slot, s]))
       // 默认无数据时按“不可用”呈现，避免后端未返回时误判为全可预约
-      day.slots = BASE_SLOTS.map(s => statusBy[s] || { slot: s, status: 'unavailable' })
+      const computed = BASE_SLOTS.map(s => statusBy[s] || { slot: s, status: 'unavailable' })
+      rawSlotsByDate.value[day.date] = computed
+      day.slots = [...computed]
     }
+    // 学生模式：二次应用偏好过滤
+    applyStudentFilters()
+
     if (props.mode === 'teacher') {
     // 当 getDailyAvailability 返回空时，使用月历可用状态作为回显兜底
     const fallbackSelected: Record<string, string[]> = {}
@@ -143,6 +181,10 @@ const reload = async () => {
 
 onMounted(reload)
 watch(() => [props.teacherId, props.mode], reload)
+// 偏好变化时仅进行本地过滤应用，避免不必要的网络请求
+watch(() => [props.allowedPeriods?.join(','), props.dateRangeStart, props.dateRangeEnd], () => {
+  applyStudentFilters()
+})
 
 function applySelectionPatch(patch: Record<string, string[]>, overwrite: boolean) {
   // 仅在教师模式下生效

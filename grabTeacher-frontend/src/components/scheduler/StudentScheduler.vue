@@ -16,6 +16,9 @@
           :months="months"
           mode="student"
           :duration-minutes="duration"
+          :allowed-periods="allowedPeriods"
+          :date-range-start="dateRangeStart"
+          :date-range-end="dateRangeEnd"
           @change-student-sessions="onChangeSessions"
         />
       </div>
@@ -47,6 +50,9 @@ const title = ref(props.title || '选择上课时间（按日历）')
 const duration = ref<90 | 120>(90)
 const months = props.months || 6
 const sessions = ref<Array<{ date: string; startTime: string; endTime: string }>>([])
+const allowedPeriods = ref<Array<'morning'|'afternoon'|'evening'> | undefined>(undefined)
+const dateRangeStart = ref<string | undefined>(undefined)
+const dateRangeEnd = ref<string | undefined>(undefined)
 
 const emit = defineEmits<{ (e:'confirm', sessions: Array<{ date: string; startTime: string; endTime: string }>, duration: 90|120): void }>()
 
@@ -54,8 +60,11 @@ function onChangeSessions(list: Array<{ date: string; startTime: string; endTime
   sessions.value = list
 }
 
-const open = (opts?: { defaultDuration?: 90|120 }) => {
+const open = (opts?: { defaultDuration?: 90|120; allowedPeriods?: Array<'morning'|'afternoon'|'evening'>; dateStart?: string; dateEnd?: string }) => {
   if (opts?.defaultDuration) duration.value = opts.defaultDuration
+  allowedPeriods.value = opts?.allowedPeriods
+  dateRangeStart.value = opts?.dateStart
+  dateRangeEnd.value = opts?.dateEnd
   visible.value = true
 }
 const confirm = () => {

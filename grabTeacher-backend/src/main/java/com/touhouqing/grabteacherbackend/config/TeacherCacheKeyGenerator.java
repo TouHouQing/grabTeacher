@@ -94,6 +94,7 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
             String preferredGender = getFieldValue(request, "preferredGender");
             String preferredDateStart = getFieldValue(request, "preferredDateStart");
             String preferredDateEnd = getFieldValue(request, "preferredDateEnd");
+            String teacherLevel = getFieldValue(request, "teacherLevel");
             Integer limit = getIntFieldValue(request, "limit");
 
             // 列表字段（星期几与时间段）
@@ -103,6 +104,7 @@ public class TeacherCacheKeyGenerator implements KeyGenerator {
             if (StringUtils.hasText(subject)) key.append("subject_").append(subject).append(":");
             if (StringUtils.hasText(grade)) key.append("grade_").append(grade).append(":");
             if (StringUtils.hasText(preferredGender)) key.append("gender_").append(preferredGender).append(":");
+            if (StringUtils.hasText(teacherLevel)) key.append("level_").append(teacherLevel.trim()).append(":");
             if (StringUtils.hasText(weekdays)) key.append("wd_").append(weekdays).append(":");
             if (StringUtils.hasText(timeSlots)) key.append("ts_").append(timeSlots).append(":");
             if (StringUtils.hasText(preferredDateStart)) key.append("ds_").append(preferredDateStart).append(":");

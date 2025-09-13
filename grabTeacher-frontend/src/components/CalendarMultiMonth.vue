@@ -25,6 +25,9 @@
       :month="monthList[activeIdx].month"
       :mode="mode"
       :duration-minutes="durationMinutes"
+      :allowed-periods="allowedPeriods"
+      :date-range-start="dateRangeStart"
+      :date-range-end="dateRangeEnd"
       @change-teacher-selection="onMonthTeacherSelection(monthList[activeIdx].key, $event)"
       @change-student-sessions="onMonthStudentSessions(monthList[activeIdx].key, $event)"
       @clicked-date="(d)=>emit('last-clicked-date', d)"
@@ -44,6 +47,9 @@ const props = defineProps<{
   months?: number
   mode: 'teacher' | 'student'
   durationMinutes?: 90 | 120
+  allowedPeriods?: Array<'morning'|'afternoon'|'evening'>
+  dateRangeStart?: string
+  dateRangeEnd?: string
 }>()
 
 const emit = defineEmits<{

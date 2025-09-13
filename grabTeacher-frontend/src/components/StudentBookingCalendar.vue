@@ -19,7 +19,7 @@ function confirmProxy(sessions: Array<{ date: string; startTime: string; endTime
   emit('confirm', sessions, duration)
 }
 
-const open = (opts?: { defaultDuration?: 90|120 }) => dlg.value?.open(opts)
+const open = (opts?: { defaultDuration?: 90|120; allowedPeriods?: Array<'morning'|'afternoon'|'evening'>; dateStart?: string; dateEnd?: string }) => dlg.value?.open(opts)
 // @ts-ignore
 defineExpose({ open })
 </script>

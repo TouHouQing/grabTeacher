@@ -5,7 +5,6 @@ import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, 
 import { useRouter, useRoute } from 'vue-router'
 import { teacherAPI, subjectAPI, bookingAPI, publicTeacherLevelAPI, publicGradeAPI, publicTeachingLocationAPI } from '../../utils/api'
 import StudentBookingCalendar from '@/components/StudentBookingCalendar.vue'
-import StudentTrialCalendar from '@/components/StudentTrialCalendar.vue'
 const route = useRoute()
 const isTrialMode = computed(() => route.path.includes('/student-center/trial'))
 const isRecurringMode = computed(() => route.path.includes('/student-center/match'))
@@ -95,6 +94,9 @@ const matchForm = reactive({
 
 // 三段时间偏好：morning/afternoon/evening
 const selectedPeriods = ref<string[]>([])
+// 新增：正式课偏好“开始/结束日期”
+const preferredStartDate = ref<string>('')
+const preferredEndDate = ref<string>('')
 
 watch(selectedPeriods, (periods) => {
   const slots: string[] = []
@@ -220,7 +222,6 @@ const showScheduleModal = ref(false)
 const currentTeacher = ref<Teacher | null>(null)
 const currentTeacherSchedule = ref<TeacherSchedule | null>(null)
 const calendarDlg = ref<any>(null)
-const trialDlg = ref<any>(null)
 
 // 授课地点选择
 const activeTeachingLocations = ref<any[]>([])
@@ -382,6 +383,18 @@ const handleMatch = async () => {
       preferredTimeSlots = segSlots
       preferredDateStart = trialSearchDate.value
       preferredDateEnd = trialSearchDate.value
+    } else {
+      // 正式课：将偏好日期范围同步到后端匹配
+      preferredDateStart = preferredStartDate.value || undefined
+      preferredDateEnd = preferredEndDate.value || undefined
+      // 可选：若选择了上午/下午/晚上，则也同步对应基础时段到后端，提升匹配精度
+      if (selectedPeriods.value && selectedPeriods.value.length > 0) {
+        const segSlots: string[] = []
+        if (selectedPeriods.value.includes('morning')) segSlots.push('08:00-10:00', '10:00-12:00')
+        if (selectedPeriods.value.includes('afternoon')) segSlots.push('13:00-15:00', '15:00-17:00')
+        if (selectedPeriods.value.includes('evening')) segSlots.push('17:00-19:00', '19:00-21:00')
+        preferredTimeSlots = segSlots
+      }
     }
 
     const matchRequest = {
@@ -495,6 +508,8 @@ const resetForm = () => {
   matchForm.teacherLevel = ''
   matchForm.grade = ''
   trialSearchDate.value = ''
+  preferredStartDate.value = ''
+  preferredEndDate.value = ''
 
   // 重置匹配结果和状态
   showResults.value = false
@@ -938,33 +953,33 @@ const getAvailableTrialTimeSlots = (): string[] => {
   return filtered
 }
 
-// 根据时间段类型获取对应的可用时间段
+// 根据时间段类型获取对应的30分钟起点（不按可用性过滤，统一展示，禁用状态由校验函数决定）
 const getTrialTimeSlotsByPeriod = (period: string): string[] => {
   if (!scheduleForm.trialDate) return []
 
-  // 优先使用后端返回的试听可用性数据（更准确）
-  if (trialAvailabilityData.value?.trialSlots) {
-    return getTrialOptionsByPeriod(period as 'morning' | 'afternoon' | 'evening')
+  const makeRange = (start: string, end: string): string[] => {
+    const [sH, sM] = start.split(':').map(Number)
+    const [eH, eM] = end.split(':').map(Number)
+    const startMin = sH * 60 + sM
+    const endMin = eH * 60 + eM
+    const slots: string[] = []
+    for (let m = startMin; m + 30 <= endMin; m += 30) {
+      const h1 = Math.floor(m / 60).toString().padStart(2, '0')
+      const mm1 = (m % 60).toString().padStart(2, '0')
+      const h2 = Math.floor((m + 30) / 60).toString().padStart(2, '0')
+      const mm2 = ((m + 30) % 60).toString().padStart(2, '0')
+      slots.push(`${h1}:${mm1}-${h2}:${mm2}`)
+    }
+    return slots
   }
 
-  // 兼容旧逻辑（基于教师可用时间段推导）
-  const allSlots = getAvailableTrialTimeSlots()
   switch (period) {
     case 'morning':
-      return allSlots.filter(slot => {
-        const startHour = parseInt(slot.split('-')[0].split(':')[0])
-        return startHour >= 8 && startHour < 10
-      })
+      return makeRange('08:00', '12:00')
     case 'afternoon':
-      return allSlots.filter(slot => {
-        const startHour = parseInt(slot.split('-')[0].split(':')[0])
-        return startHour >= 13 && startHour < 17
-      })
+      return makeRange('13:00', '17:00')
     case 'evening':
-      return allSlots.filter(slot => {
-        const startHour = parseInt(slot.split('-')[0].split(':')[0])
-        return startHour >= 17 && startHour < 21
-      })
+      return makeRange('17:00', '21:00')
     default:
       return []
   }
@@ -1390,13 +1405,6 @@ const createBookingRequest = async () => {
 // 保持向后兼容
 const createRecurringSchedule = createBookingRequest
 
-// 试听：打开日历弹窗
-const openTrialCalendar = () => {
-  if (!currentTeacher.value) { ElMessage.warning('请先选择教师'); return }
-  if (!matchForm.grade) { ElMessage.warning('请先选择年级'); return }
-  if (!selectedTeachingLocation.value) { ElMessage.warning('请选择授课地点'); return }
-  trialDlg.value?.open()
-}
 
 // 使用日历预约：打开日历弹窗
 const openCalendarBooking = () => {
@@ -1404,9 +1412,17 @@ const openCalendarBooking = () => {
   if (!selectedCourse.value) { ElMessage.warning('请先选择课程'); return }
   if (!matchForm.grade) { ElMessage.warning('请先选择年级'); return }
   if (!selectedTeachingLocation.value) { ElMessage.warning('请选择授课地点'); return }
+  // 校验偏好日期范围（可选）
+  if (preferredStartDate.value && preferredEndDate.value && preferredStartDate.value > preferredEndDate.value) {
+    ElMessage.warning('结束日期不能早于开始日期')
+    return
+  }
   const defaultDuration = selectedCourse.value.durationMinutes || scheduleForm.selectedDurationMinutes || 120
+  const periods = selectedPeriods.value && selectedPeriods.value.length > 0 ? [...selectedPeriods.value] as Array<'morning'|'afternoon'|'evening'> : undefined
+  const dateStart = preferredStartDate.value || undefined
+  const dateEnd = preferredEndDate.value || undefined
   // @ts-ignore
-  calendarDlg.value?.open({ defaultDuration: defaultDuration === 90 ? 90 : 120 })
+  calendarDlg.value?.open({ defaultDuration: defaultDuration === 90 ? 90 : 120, allowedPeriods: periods, dateStart, dateEnd })
 }
 
 // 日历确认：按具体日期+时间段提交
@@ -1433,38 +1449,10 @@ const onCalendarConfirm = async (sessions: Array<{ date: string; startTime: stri
     }
   } catch (e:any) {
     ElMessage.error(e?.message || '预约提交失败')
-
-// 试听日历确认：提交单次试听预约
-const onTrialConfirm = async (payload: { date: string; startTime: string; endTime: string }) => {
-  try {
-    const bookingData: any = {
-      teacherId: currentTeacher.value!.id,
-      bookingType: 'single' as const,
-      studentRequirements: `申请与${currentTeacher.value?.name}老师进行${matchForm.subject}科目试听`,
-      grade: matchForm.grade || undefined,
-      isTrial: true,
-      trialDurationMinutes: 30,
-      requestedDate: payload.date,
-      requestedStartTime: payload.startTime,
-      requestedEndTime: payload.endTime
-    }
-    if (selectedTeachingLocation.value === 'online') bookingData.teachingLocation = '线上'
-    else if (selectedTeachingLocation.value) bookingData.teachingLocationId = Number(selectedTeachingLocation.value)
-
-    const result = await bookingAPI.createRequest(bookingData)
-    if (result.success && result.data) {
-      ElMessage.success(`试听课申请提交成功！${currentTeacher.value?.name} - ${payload.date} ${payload.startTime}-${payload.endTime}`)
-      showScheduleModal.value = false
-    } else {
-      ElMessage.error(result.message || '试听课预约申请提交失败')
-    }
-  } catch (e:any) {
-    ElMessage.error(e?.message || '试听课预约申请提交失败，请稍后重试')
   }
 }
 
-  }
-}
+
 
 // 计算课程结束日期
 const calculateEndDate = () => {
@@ -2793,6 +2781,8 @@ watch(selectedCourse, (newCourse) => {
                 <div class="time-preference-row">
                   <el-checkbox label="evening">晚上（17-21点）</el-checkbox>
                 </div>
+
+
               </el-checkbox-group>
             </div>
           </el-form-item>
@@ -2803,12 +2793,21 @@ watch(selectedCourse, (newCourse) => {
                 <div class="time-preference-row">
                   <el-checkbox label="morning">上午（8-12点）</el-checkbox>
                   <el-checkbox label="afternoon">下午（13-17点）</el-checkbox>
+
+
                 </div>
                 <div class="time-preference-row">
                   <el-checkbox label="evening">晚上（17-21点）</el-checkbox>
                 </div>
               </el-checkbox-group>
             </div>
+                      <!-- 新增：偏好开始/结束日期（正式课） -->
+          <el-form-item v-if="!isTrialMode" label="开始上课日期">
+            <el-date-picker v-model="preferredStartDate" type="date" placeholder="请选择开始日期" format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
+          </el-form-item>
+          <el-form-item v-if="!isTrialMode" label="结束上课日期">
+            <el-date-picker v-model="preferredEndDate" type="date" placeholder="请选择结束日期" format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
+          </el-form-item>
           </el-form-item>
           <el-form-item label="教师级别 Teacher Level">
             <el-select v-model="matchForm.teacherLevel" placeholder="不限级别（可选）" clearable :loading="loadingOptions">
@@ -3075,12 +3074,6 @@ watch(selectedCourse, (newCourse) => {
 
           <!-- 试听课表单 -->
           <!-- 试听按日历预约（推荐） -->
-          <el-form-item v-if="scheduleForm.bookingType === 'trial'" label="按日历选择试听（推荐）">
-            <el-button type="primary" text @click="openTrialCalendar">
-              <el-icon><Calendar /></el-icon>
-              按日历选择试听（推荐）
-            </el-button>
-          </el-form-item>
 
           <template v-if="scheduleForm.bookingType === 'trial'">
             <el-alert
@@ -3113,6 +3106,43 @@ watch(selectedCourse, (newCourse) => {
 
                 </div>
               </template>
+            </el-form-item>
+
+            <!-- 试听：时间段选择与30分钟起点（始终渲染，禁用态配合提示） -->
+            <el-form-item label="选择时间段" v-if="scheduleForm.trialDate">
+              <div class="trial-time-container">
+                <div class="time-periods-header">
+                  <div class="periods-actions">
+                    <el-button
+                      v-for="p in trialPeriodOptions"
+                      :key="p"
+                      size="small"
+                      :class="['period-button', { 'is-active': selectedTimePeriod === p }]"
+                      @click="selectTimePeriod(p)"
+                    >
+                      {{ p === 'morning' ? '上午' : p === 'afternoon' ? '下午' : '晚上' }}
+                    </el-button>
+                  </div>
+                </div>
+
+                <div class="trial-time-unified-grid" v-if="selectedTimePeriod">
+                  <div
+                    v-for="slot in availableTrialSlotsByPeriod"
+                    :key="slot"
+                    :class="[
+                      'trial-time-card-unified',
+                      `${selectedTimePeriod}-slot`,
+                      { 'selected': getTrialTimeSlot() === slot, 'disabled': !isTrialTimeSlotAvailable(slot) }
+                    ]"
+                    :title="!isTrialTimeSlotAvailable(slot) ? getTrialTimeSlotUnavailableReason(slot) : '可预约'"
+                    @click="isTrialTimeSlotAvailable(slot) && selectTrialTimeSlot(slot)"
+                  >
+                    <div class="time-display">{{ slot }}</div>
+                    <div class="time-duration">30 分钟试听</div>
+                    <div class="status-text">{{ isTrialTimeSlotAvailable(slot) ? '可预约' : '不可预约' }}</div>
+                  </div>
+                </div>
+              </div>
             </el-form-item>
 
           </template>
@@ -3190,7 +3220,11 @@ watch(selectedCourse, (newCourse) => {
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="showScheduleModal = false">取消</el-button>
-
+          <el-button type="primary"
+                     :disabled="scheduleForm.bookingType === 'trial' && (!scheduleForm.trialDate || !scheduleForm.trialStartTime)"
+                     @click="createBookingRequest">
+            {{ scheduleForm.bookingType === 'trial' ? '提交试听预约' : '提交预约' }}
+          </el-button>
         </span>
       </template>
     </el-dialog>
@@ -3326,14 +3360,6 @@ watch(selectedCourse, (newCourse) => {
       @confirm="onCalendarConfirm"
     />
 
-    <!-- 学生试听按日历选择弹窗组件 -->
-    <StudentTrialCalendar
-      ref="trialDlg"
-      v-if="currentTeacher"
-      :teacher-id="currentTeacher ? currentTeacher.id : 0"
-      title="选择试听日期与30分钟起点"
-      @confirm="onTrialConfirm"
-    />
 
   </div>
 </template>
@@ -5774,11 +5800,27 @@ h2 {
 }
 
 .time-periods-header {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
   padding: 0 10px;
+}
+
+.periods-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.periods-actions .period-button {
+  min-width: 68px;
+  height: 30px;
+  padding: 4px 10px;
+  font-size: 13px;
+  border-radius: 6px;
 }
 
 .period-header {
@@ -5957,8 +5999,8 @@ h2 {
   }
 
   .time-periods-header {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    justify-content: flex-start;
+    gap: 8px;
   }
 
   .trial-time-card-unified {

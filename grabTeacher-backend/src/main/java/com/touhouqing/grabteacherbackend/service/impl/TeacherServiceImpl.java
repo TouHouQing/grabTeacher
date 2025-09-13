@@ -15,7 +15,6 @@ import com.touhouqing.grabteacherbackend.model.vo.ClassRecordVO;
 import com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO;
 // import removed: Schedule replaced by CourseSchedule in services
 import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
-import com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.StudentMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherSubjectMapper;
@@ -587,10 +586,77 @@ public class TeacherServiceImpl implements TeacherService {
         // 使用优化的查询方法
         List<Teacher> teachers = matchTeachersOptimized(request);
 
-        // 若严格筛选结果为空，降级为全部一对一教师，避免“无匹配教师”场景
+        // 优先：按学生偏好日期范围进行可用性过滤（仅在有日期范围时生效）
+        if (org.springframework.util.StringUtils.hasText(request.getPreferredDateStart())
+                && org.springframework.util.StringUtils.hasText(request.getPreferredDateEnd())) {
+            try {
+                java.time.LocalDate start = java.time.LocalDate.parse(request.getPreferredDateStart());
+                java.time.LocalDate end = java.time.LocalDate.parse(request.getPreferredDateEnd());
+                if (!end.isBefore(start)) {
+                    final java.util.Set<String> preferredSlots = request.getPreferredTimeSlots() != null
+                            ? new java.util.HashSet<>(request.getPreferredTimeSlots())
+                            : java.util.Collections.emptySet();
+                    java.util.List<Teacher> filtered = teachers.stream().filter(t -> {
+                        try {
+                            java.util.Map<java.time.LocalDate, java.util.List<String>> avail = teacherDailyAvailabilityService.getDailyAvailability(t.getId(), start, end);
+                            if (avail == null || avail.isEmpty()) return false;
+                            if (preferredSlots.isEmpty()) {
+                                // 只要有任意一天有任意基础段可用即可
+                                return avail.values().stream().anyMatch(list -> list != null && !list.isEmpty());
+                            } else {
+                                // 需要与学生偏好基础段有交集
+                                return avail.values().stream().filter(list -> list != null && !list.isEmpty())
+                                        .anyMatch(list -> list.stream().anyMatch(preferredSlots::contains));
+                            }
+                        } catch (Exception ex) {
+                            return false;
+                        }
+                    }).collect(java.util.stream.Collectors.toList());
+                    if (!filtered.isEmpty()) {
+                        teachers = filtered;
+                        log.info("按日期范围({}~{})与时段{}过滤后剩余教师数: {}", start, end,
+                                preferredSlots.isEmpty() ? "(不限)" : preferredSlots, teachers.size());
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("偏好日期范围解析/过滤失败，忽略日期过滤: {}", e.getMessage());
+            }
+        }
+
+        // 统一在此强制执行“教师级别”硬过滤（若学生指定了级别，则不允许返回其他级别）
+        if (org.springframework.util.StringUtils.hasText(request.getTeacherLevel())) {
+            final String reqLevel = request.getTeacherLevel().trim();
+            teachers = teachers.stream()
+                    .filter(t -> t.getLevel() != null && reqLevel.equals(t.getLevel().trim()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+
+        // 若严格筛选结果为空，进行有约束的降级：
+        // - 若指定了教师级别：仍然保留级别约束，不返回其他级别
+        // - 若指定了科目：优先按科目放宽（无级别时）
         if (teachers == null || teachers.isEmpty()) {
-            log.info("严格筛选无结果，降级到全部一对一教师进行智能排序（提供最优筛选结果）");
-            teachers = teacherMapper.findAllOneOnOneTeachers();
+            boolean hasSubject = org.springframework.util.StringUtils.hasText(request.getSubject());
+            boolean hasLevel = org.springframework.util.StringUtils.hasText(request.getTeacherLevel());
+            if (hasLevel) {
+                if (hasSubject) {
+                    // 放宽为“科目+级别过滤”，防止联表约束过严导致0结果
+                    teachers = teacherMapper.findOneOnOneTeachersBySubject(request.getSubject())
+                            .stream().filter(t -> t.getLevel() != null && request.getTeacherLevel().trim().equals(t.getLevel().trim()))
+                            .collect(java.util.stream.Collectors.toList());
+                } else {
+                    // 无科目，仅按级别过滤
+                    teachers = teacherMapper.findAllOneOnOneTeachers()
+                            .stream().filter(t -> t.getLevel() != null && request.getTeacherLevel().trim().equals(t.getLevel().trim()))
+                            .collect(java.util.stream.Collectors.toList());
+                }
+            } else {
+                // 未指定级别时的原有回退逻辑
+                if (hasSubject) {
+                    teachers = teacherMapper.findOneOnOneTeachersBySubject(request.getSubject());
+                } else {
+                    teachers = teacherMapper.findAllOneOnOneTeachers();
+                }
+            }
         }
 
         // 转换为响应DTO并计算匹配分数；同分随机展示
@@ -602,6 +668,9 @@ public class TeacherServiceImpl implements TeacherService {
         List<TeacherMatchVO> responses = teachers.stream()
                 .filter(teacher -> matchesGenderPreference(teacher, request)) // 添加性别过滤
                 .map(teacher -> convertToMatchResponse(teacher, request))
+                // 再次按级别做最终兜底过滤，防止任何回退路径带入非指定级别
+                .filter(vo -> !org.springframework.util.StringUtils.hasText(request.getTeacherLevel())
+                        || (vo.getLevel() != null && request.getTeacherLevel().trim().equals(vo.getLevel().trim())))
                 .sorted(cmp)
                 .limit(request.getLimit() != null ? Math.max(request.getLimit(), 5) : 5)
                 .collect(java.util.stream.Collectors.toList());
