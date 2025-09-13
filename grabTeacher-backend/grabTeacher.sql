@@ -17,6 +17,11 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+
+-- Ensure database exists and select it (MySQL 5.7 compatible)
+CREATE DATABASE IF NOT EXISTS `grabteacher` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `grabteacher`;
+
 -- ----------------------------
 -- Table structure for admins
 -- ----------------------------
@@ -787,7 +792,7 @@ CREATE TABLE `teacher_daily_availability` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_teacher_date` (`teacher_id`,`available_date`),
   KEY `idx_teacher_date` (`teacher_id`,`available_date`)
-) ENGINE=InnoDB AUTO_INCREMENT=16384 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16384 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of teacher_daily_availability
