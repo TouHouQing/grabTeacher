@@ -103,6 +103,16 @@ public class CourseServiceImpl implements CourseService {
             throw new RuntimeException("只有教师和管理员可以创建课程");
         }
 
+        // 业务约束：每位教师仅允许一个课程（未删除）
+        {
+            QueryWrapper<Course> q = new QueryWrapper<>();
+            q.eq("teacher_id", teacherId).eq("is_deleted", false);
+            Long exist = courseMapper.selectCount(q);
+            if (exist != null && exist > 0) {
+                throw new RuntimeException("该教师已存在课程，每位教师仅允许一个课程。如需变更请先删除或下架原课程");
+            }
+        }
+
         // 验证课程类型
         if (!isValidCourseType(request.getCourseType())) {
             throw new RuntimeException("无效的课程类型");
@@ -116,13 +126,17 @@ public class CourseServiceImpl implements CourseService {
         // 验证大班课专用字段
         validateLargeClassFields(request);
 
-        // 验证课程时长 - 现在必须选择90分钟或120分钟
-        Integer durationMinutes = request.getDurationMinutes();
-        if (durationMinutes == null) {
-            throw new RuntimeException("课程时长不能为空，必须选择90分钟或120分钟");
-        }
-        if (durationMinutes != 90 && durationMinutes != 120) {
-            throw new RuntimeException("课程时长只能选择90分钟（一个半小时）或120分钟（俩小时）");
+        // 课程时长：仅大班课需要；一对一不需要，预约时由学生选择
+        Integer finalDuration = null;
+        if ("large_class".equals(request.getCourseType())) {
+            Integer durationMinutes = request.getDurationMinutes();
+            if (durationMinutes == null) {
+                throw new RuntimeException("大班课必须设置课程时长（90或120分钟）");
+            }
+            if (durationMinutes != 90 && durationMinutes != 120) {
+                throw new RuntimeException("课程时长只能选择90分钟（一个半小时）或120分钟（俩小时）");
+            }
+            finalDuration = durationMinutes;
         }
 
         // 确定课程状态：教师创建的课程默认为pending，管理员创建的课程可以直接设置状态
@@ -173,7 +187,7 @@ public class CourseServiceImpl implements CourseService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .courseType(request.getCourseType())
-                .durationMinutes(request.getDurationMinutes())
+                .durationMinutes(finalDuration)
                 .status(courseStatus)
                 .deleted(false)
                 .imageUrl(request.getImageUrl())
@@ -233,6 +247,16 @@ public class CourseServiceImpl implements CourseService {
             throw new RuntimeException("没有权限操作此课程");
         }
 
+            // 业务约束：每位教师仅允许一个课程（排除当前课程）
+            {
+                QueryWrapper<Course> q = new QueryWrapper<>();
+                q.eq("teacher_id", course.getTeacherId()).eq("is_deleted", false).ne("id", course.getId());
+                Long exist = courseMapper.selectCount(q);
+                if (exist != null && exist > 0) {
+                    throw new RuntimeException("该教师已存在其他课程，每位教师仅允许一个课程");
+                }
+            }
+
         // 验证科目是否存在
         Subject subject = subjectMapper.selectById(request.getSubjectId());
         if (subject == null || subject.getDeleted()) {
@@ -259,20 +283,24 @@ public class CourseServiceImpl implements CourseService {
         // 验证大班课专用字段
         validateLargeClassFields(request);
 
-        // 验证课程时长 - 现在必须选择90分钟或120分钟
-        Integer durationMinutes = request.getDurationMinutes();
-        if (durationMinutes == null) {
-            throw new RuntimeException("课程时长不能为空，必须选择90分钟或120分钟");
-        }
-        if (durationMinutes != 90 && durationMinutes != 120) {
-            throw new RuntimeException("课程时长只能选择90分钟（一个半小时）或120分钟（俩小时）");
+        // 课程时长：仅大班课需要；一对一不需要
+        Integer finalDuration = null;
+        if ("large_class".equals(request.getCourseType())) {
+            Integer durationMinutes = request.getDurationMinutes();
+            if (durationMinutes == null) {
+                throw new RuntimeException("大班课必须设置课程时长（90或120分钟）");
+            }
+            if (durationMinutes != 90 && durationMinutes != 120) {
+                throw new RuntimeException("课程时长只能选择90分钟（一个半小时）或120分钟（俩小时）");
+            }
+            finalDuration = durationMinutes;
         }
 
         course.setSubjectId(request.getSubjectId());
         course.setTitle(request.getTitle());
         course.setDescription(request.getDescription());
         course.setCourseType(request.getCourseType());
-        course.setDurationMinutes(request.getDurationMinutes());
+        course.setDurationMinutes(finalDuration);
 
         // 课程地点/授课方式：一对一不设置；大班课二选一（线上 或 线下并指定地点）
         if ("one_on_one".equals(request.getCourseType())) {

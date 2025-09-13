@@ -814,17 +814,25 @@ public class BookingServiceImpl implements BookingService {
             }
             grade = grade == null ? "" : grade;
 
-            // 科目名称（优先已有 subjectName；否则尝试从预约备注中解析，仅在必要时做一次查询）
+            // 科目名称（优先已有 subjectName；否则尝试从预约记录补齐：subjectId 或 解析学生需求）
             String subjectName = vo.getSubjectName();
             if ((subjectName == null || subjectName.isEmpty()) && cs.getBookingRequestId() != null) {
                 BookingRequest br = bookingRequestMapper.selectById(cs.getBookingRequestId());
-                if (br != null && br.getStudentRequirements() != null) {
-                    String req = br.getStudentRequirements();
-                    int idx1 = req.indexOf("进行");
-                    int idx2 = req.indexOf("科目", idx1 + 2);
-                    if (idx1 >= 0 && idx2 > idx1) {
-                        String sub = req.substring(idx1 + 2, idx2).trim();
-                        if (!sub.isEmpty()) subjectName = sub;
+                if (br != null) {
+                    // 1) 先用明确的 subjectId
+                    if (br.getSubjectId() != null) {
+                        Subject subj = subjectMapper.selectById(br.getSubjectId());
+                        if (subj != null) subjectName = subj.getName();
+                    }
+                    // 2) 仍为空则尝试从“学生需求”解析（兼容历史数据）
+                    if ((subjectName == null || subjectName.isEmpty()) && br.getStudentRequirements() != null) {
+                        String req = br.getStudentRequirements();
+                        int idx1 = req.indexOf("进行");
+                        int idx2 = req.indexOf("科目", idx1 + 2);
+                        if (idx1 >= 0 && idx2 > idx1) {
+                            String sub = req.substring(idx1 + 2, idx2).trim();
+                            if (!sub.isEmpty()) subjectName = sub;
+                        }
                     }
                 }
             }
@@ -1664,6 +1672,60 @@ public class BookingServiceImpl implements BookingService {
             courseTitle = sb.toString();
         }
 
+        // calendar 类型：提取仅时间段列表、会话数量及“按周几聚合”的时段
+        java.util.List<String> calendarSlots = null;
+        java.lang.Integer calendarCount = null;
+        java.time.LocalDate calendarStartDate = null;
+        java.time.LocalDate calendarEndDate = null;
+        java.util.Map<Integer, java.util.List<String>> calendarWeekdaySlots = null;
+        if ("calendar".equals(bookingRequest.getBookingType())) {
+            java.util.List<CalendarSession> sessions = parseSelectedSessions(bookingRequest.getSelectedSessionsJson());
+            if (sessions != null && !sessions.isEmpty()) {
+                // 稳定排序：按日期、开始时间
+                sessions.sort(java.util.Comparator.comparing((CalendarSession s) -> s.date).thenComparing(s -> s.start));
+
+                calendarCount = sessions.size();
+                calendarSlots = sessions.stream()
+                        .map(s -> {
+                            String st = s.start != null ? s.start.toString() : "";
+                            String et = s.end != null ? s.end.toString() : "";
+                            String s5 = st.length() >= 5 ? st.substring(0, 5) : st;
+                            String e5 = et.length() >= 5 ? et.substring(0, 5) : et;
+                            return s5 + "-" + e5;
+                        })
+                        .distinct()
+                        .collect(java.util.stream.Collectors.toList());
+
+                // 计算开始/结束日期
+                java.time.LocalDate calStart = sessions.stream().map(s -> s.date).min(java.time.LocalDate::compareTo).orElse(null);
+                java.time.LocalDate calEnd = sessions.stream().map(s -> s.date).max(java.time.LocalDate::compareTo).orElse(null);
+                calendarStartDate = calStart;
+                calendarEndDate = calEnd;
+
+                // 构建“周几 -> 时段列表”映射（1=周一, 7=周日）
+                java.util.Map<Integer, java.util.LinkedHashSet<String>> tmp = new java.util.LinkedHashMap<>();
+                for (CalendarSession s : sessions) {
+                    int dow = s.date.getDayOfWeek().getValue(); // 1..7
+                    String st = s.start != null ? s.start.toString() : "";
+                    String et = s.end != null ? s.end.toString() : "";
+                    String s5 = st.length() >= 5 ? st.substring(0, 5) : st;
+                    String e5 = et.length() >= 5 ? et.substring(0, 5) : et;
+                    String slot = s5 + "-" + e5;
+                    tmp.computeIfAbsent(dow, k -> new java.util.LinkedHashSet<>()).add(slot);
+                }
+                // 输出为 List，保持插入顺序；仅包含存在数据的周几
+                calendarWeekdaySlots = new java.util.LinkedHashMap<>();
+                for (java.util.Map.Entry<Integer, java.util.LinkedHashSet<String>> e : tmp.entrySet()) {
+                    calendarWeekdaySlots.put(e.getKey(), new java.util.ArrayList<>(e.getValue()));
+                }
+            } else {
+                calendarCount = 0;
+                calendarSlots = java.util.Collections.emptyList();
+                calendarStartDate = null;
+                calendarEndDate = null;
+                calendarWeekdaySlots = java.util.Collections.emptyMap();
+            }
+        }
 
         return BookingVO.builder()
                 .id(bookingRequest.getId())
@@ -1696,6 +1758,11 @@ public class BookingServiceImpl implements BookingService {
                 .approvedAt(bookingRequest.getApprovedAt())
                 .trial(bookingRequest.getIsTrial())
                 .trialDurationMinutes(bookingRequest.getTrialDurationMinutes())
+                .calendarTimeSlots(calendarSlots)
+                .calendarSessionsCount(calendarCount)
+                .calendarStartDate(calendarStartDate)
+                .calendarEndDate(calendarEndDate)
+                .calendarWeekdayTimeSlots(calendarWeekdaySlots)
                 .build();
     }
 
@@ -1975,6 +2042,21 @@ public class BookingServiceImpl implements BookingService {
         refundRequest.setCourseId(bookingRequest.getCourseId());
         refundRequest.setBookingType(bookingRequest.getBookingType());
         refundRequest.setTotalTimes(bookingRequest.getTotalTimes());
+        // 对于 calendar 预约，需根据原始所选会话计算费用，避免退款金额为0
+        if ("calendar".equals(bookingRequest.getBookingType())) {
+            java.util.List<CalendarSession> sessions = parseSelectedSessions(bookingRequest.getSelectedSessionsJson());
+            if (sessions != null && !sessions.isEmpty()) {
+                java.util.List<com.touhouqing.grabteacherbackend.model.dto.SelectedSessionDTO> dtoList = new java.util.ArrayList<>();
+                for (CalendarSession s : sessions) {
+                    dtoList.add(com.touhouqing.grabteacherbackend.model.dto.SelectedSessionDTO.builder()
+                            .date(s.date)
+                            .startTime(s.start)
+                            .endTime(s.end)
+                            .build());
+                }
+                refundRequest.setSelectedSessions(dtoList);
+            }
+        }
         return refundRequest;
     }
 

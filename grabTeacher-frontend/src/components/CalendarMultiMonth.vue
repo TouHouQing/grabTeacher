@@ -137,7 +137,10 @@ watch(monthsCount, () => {
 
 <style scoped>
 .calendar-multi { display: flex; flex-direction: column; gap: 8px; }
-.toolbar { display: flex; align-items: center; gap: 8px; }
+.toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .toolbar .spacer { flex: 1; }
+.months { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+.months :deep(.el-button-group) { flex-wrap: nowrap; }
+@media (max-width: 480px) { .toolbar { gap: 6px; } }
 </style>
 

@@ -51,7 +51,7 @@ public class BookingVO {
     @Schema(description = "课程时长（分钟）", example = "120")
     private Integer courseDurationMinutes;
 
-    @Schema(description = "预约类型", example = "single", allowableValues = {"single", "recurring"})
+    @Schema(description = "预约类型", example = "calendar", allowableValues = {"single", "recurring", "calendar"})
     private String bookingType;
 
     @Schema(description = "请求的上课日期(单次预约)", example = "2024-01-15")
@@ -111,4 +111,22 @@ public class BookingVO {
 
     @Schema(description = "试听课时长（分钟）", example = "30")
     private Integer trialDurationMinutes;
+
+    // 日历预约的时间段列表（仅时间，HH:mm-HH:mm）
+    @Schema(description = "日历预约的时间段列表，仅时间: HH:mm-HH:mm", example = "[\"17:00-19:00\",\"18:00-20:00\"]")
+    private java.util.List<String> calendarTimeSlots;
+
+    @Schema(description = "日历预约的会话数量", example = "3")
+    private Integer calendarSessionsCount;
+
+
+    @Schema(description = "日历预约的开始日期")
+    private java.time.LocalDate calendarStartDate;
+
+    @Schema(description = "日历预约的结束日期")
+    private java.time.LocalDate calendarEndDate;
+
+    @Schema(description = "日历预约：按周几聚合的时段列表（1=周一 … 7=周日）")
+    private java.util.Map<Integer, java.util.List<String>> calendarWeekdayTimeSlots;
+
 }

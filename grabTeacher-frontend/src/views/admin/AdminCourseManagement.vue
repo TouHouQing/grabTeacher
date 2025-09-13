@@ -16,7 +16,7 @@ interface Course {
   description?: string
   courseType: string
   courseTypeDisplay: string
-  durationMinutes: number
+  durationMinutes: number | null
   status: string
   statusDisplay: string
   createdAt: string
@@ -87,7 +87,7 @@ const courseForm = reactive({
   title: '',
   description: '',
   courseType: 'one_on_one',
-  durationMinutes: 120 as number,
+  durationMinutes: null as number | null,
   status: 'active',
   price: null as number | null,
   startDate: '',
@@ -165,14 +165,12 @@ const formRules = {
     { required: true, message: '请选择课程类型', trigger: 'change' }
   ],
   durationMinutes: [
-    { required: true, message: '请选择课程时长', trigger: 'change' },
     {
       validator: (_rule: any, value: any, callback: any) => {
-        if (value !== 90 && value !== 120) {
-          callback(new Error('课程时长只能选择90分钟或120分钟'))
-        } else {
-          callback()
-        }
+        const need = courseForm.courseType === 'large_class'
+        if (!need) return callback()
+        if (value !== 90 && value !== 120) return callback(new Error('大班课课程时长只能选择90分钟或120分钟'))
+        return callback()
       },
       trigger: 'change'
     }
@@ -384,7 +382,7 @@ const resetForm = () => {
   courseForm.title = ''
   courseForm.description = ''
   courseForm.courseType = 'one_on_one'
-  courseForm.durationMinutes = 120
+  courseForm.durationMinutes = null
   courseForm.status = 'active'
   courseForm.price = null
   courseForm.startDate = ''
@@ -417,7 +415,7 @@ const openEditDialog = async (course: Course) => {
   courseForm.title = course.title
   courseForm.description = course.description || ''
   courseForm.courseType = course.courseType
-  courseForm.durationMinutes = course.durationMinutes ?? 120
+  courseForm.durationMinutes = course.durationMinutes ?? null
   courseForm.status = course.status
   courseForm.price = course.price || null
   courseForm.startDate = course.startDate || ''
@@ -512,6 +510,21 @@ const saveCourse = async () => {
         loading.value = false
         return
       }
+      // 业务约束：每位教师仅允许一个课程（前端预校验，后端仍会强校验）
+      if (!isEditing.value) {
+        try {
+          const listResp: any = await courseAPI.getTeacherCourses(courseForm.teacherId!)
+          const list = Array.isArray(listResp?.data) ? listResp.data : (Array.isArray(listResp?.data?.records) ? listResp.data.records : [])
+          if (Array.isArray(list) && list.length > 0) {
+            ElMessage.error('该教师已存在课程，每位教师仅允许一个课程')
+            loading.value = false
+            return
+          }
+        } catch (e) {
+          // 忽略预检异常，交由后端兜底
+        }
+      }
+
     }
 
     // 若选择了新封面，先上传获取 URL
@@ -531,13 +544,15 @@ const saveCourse = async () => {
       title: courseForm.title,
       description: courseForm.description,
       courseType: courseForm.courseType,
-      durationMinutes: courseForm.durationMinutes,
+      // durationMinutes: handled in type-specific block
       status: courseForm.status,
       price: courseForm.price, // 所有课程类型都可以设置价格
       ...(coverUrl ? { imageUrl: coverUrl } : {})
     }
 
     if (courseForm.courseType === 'large_class') {
+      courseData.durationMinutes = courseForm.durationMinutes
+
       courseData.startDate = courseForm.startDate
       courseData.endDate = courseForm.endDate
       courseData.personLimit = courseForm.personLimit
@@ -838,7 +853,7 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
         <el-table-column prop="courseTypeDisplay" label="类型" width="80" />
         <el-table-column prop="durationMinutes" label="时长" width="90">
           <template #default="{ row }">
-            {{ row.durationMinutes }}分钟
+            {{ row.durationMinutes ? (row.durationMinutes + '分钟') : '-' }}
           </template>
         </el-table-column>
         <el-table-column label="价格" width="120">
@@ -1050,7 +1065,7 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="课程时长" prop="durationMinutes" required>
+        <el-form-item v-if="courseForm.courseType==='large_class'" label="课程时长" prop="durationMinutes">
           <el-select
             v-model="courseForm.durationMinutes"
             placeholder="请选择课程时长"

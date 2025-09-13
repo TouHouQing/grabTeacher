@@ -47,22 +47,26 @@ public interface BookingRequestMapper extends BaseMapper<BookingRequest> {
      * 查询指定时间范围内的预约申请
      */
     @Select("SELECT * FROM booking_requests WHERE " +
-            "((booking_type = 'single' AND requested_date BETWEEN #{startDate} AND #{endDate}) OR " +
-            "(booking_type = 'recurring' AND start_date <= #{endDate} AND end_date >= #{startDate})) " +
-            "AND is_deleted = 0 ORDER BY created_at DESC")
+            "(" +
+            " (booking_type = 'single' AND requested_date BETWEEN #{startDate} AND #{endDate}) OR " +
+            " (booking_type = 'recurring' AND start_date <= #{endDate} AND end_date >= #{startDate}) OR " +
+            " (booking_type = 'calendar' AND EXISTS (SELECT 1 FROM JSON_TABLE(selected_sessions_json, '$[*]' COLUMNS (d DATE PATH '$.date')) jt WHERE jt.d BETWEEN #{startDate} AND #{endDate}))" +
+            ") AND is_deleted = 0 ORDER BY created_at DESC")
     List<BookingRequest> findByDateRange(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
-    
+
     /**
      * 查询指定教师在指定时间范围内的预约申请
      */
     @Select("SELECT * FROM booking_requests WHERE teacher_id = #{teacherId} AND " +
-            "((booking_type = 'single' AND requested_date BETWEEN #{startDate} AND #{endDate}) OR " +
-            "(booking_type = 'recurring' AND start_date <= #{endDate} AND end_date >= #{startDate})) " +
-            "AND is_deleted = 0 ORDER BY created_at DESC")
-    List<BookingRequest> findByTeacherIdAndDateRange(@Param("teacherId") Long teacherId, 
-                                                    @Param("startDate") LocalDate startDate, 
+            "(" +
+            " (booking_type = 'single' AND requested_date BETWEEN #{startDate} AND #{endDate}) OR " +
+            " (booking_type = 'recurring' AND start_date <= #{endDate} AND end_date >= #{startDate}) OR " +
+            " (booking_type = 'calendar' AND EXISTS (SELECT 1 FROM JSON_TABLE(selected_sessions_json, '$[*]' COLUMNS (d DATE PATH '$.date')) jt WHERE jt.d BETWEEN #{startDate} AND #{endDate}))" +
+            ") AND is_deleted = 0 ORDER BY created_at DESC")
+    List<BookingRequest> findByTeacherIdAndDateRange(@Param("teacherId") Long teacherId,
+                                                    @Param("startDate") LocalDate startDate,
                                                     @Param("endDate") LocalDate endDate);
-    
+
     /**
      * 查询指定学生的试听课申请
      */
@@ -110,7 +114,11 @@ public interface BookingRequestMapper extends BaseMapper<BookingRequest> {
      *  - 单次预约：requested_date 在范围内
      *  - 周期预约：与范围有日期重叠）
      */
-    @Select("SELECT * FROM booking_requests WHERE teacher_id = #{teacherId} AND status = 'pending' AND is_deleted = 0 AND ((booking_type = 'single' AND requested_date BETWEEN #{startDate} AND #{endDate}) OR (booking_type = 'recurring' AND start_date <= #{endDate} AND end_date >= #{startDate})) ORDER BY created_at DESC")
+    @Select("SELECT * FROM booking_requests WHERE teacher_id = #{teacherId} AND status = 'pending' AND is_deleted = 0 AND (" +
+            "(booking_type = 'single' AND requested_date BETWEEN #{startDate} AND #{endDate}) OR " +
+            "(booking_type = 'recurring' AND start_date <= #{endDate} AND end_date >= #{startDate}) OR " +
+            "(booking_type = 'calendar' AND EXISTS (SELECT 1 FROM JSON_TABLE(selected_sessions_json, '$[*]' COLUMNS (d DATE PATH '$.date')) jt WHERE jt.d BETWEEN #{startDate} AND #{endDate}))" +
+            ") ORDER BY created_at DESC")
     List<BookingRequest> findPendingByTeacherAndDateRange(@Param("teacherId") Long teacherId,
                                                           @Param("startDate") java.time.LocalDate startDate,
                                                           @Param("endDate") java.time.LocalDate endDate);

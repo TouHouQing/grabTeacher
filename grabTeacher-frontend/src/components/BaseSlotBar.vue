@@ -60,16 +60,19 @@ const statusText = (status?: string) => {
 </script>
 
 <style scoped>
-.base-slot-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-@media (max-width: 768px) { .base-slot-bar { grid-template-columns: repeat(2, 1fr); } }
+.base-slot-bar { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px; }
+@media (max-width: 768px) { .base-slot-bar { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); } }
+@media (max-width: 400px) { .base-slot-bar { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); } }
 .slot-cell { width: 100%; }
-.slot-btn { width: 100%; min-width: auto; padding: 6px 8px; font-size: 12px; line-height: 18px; }
+.slot-btn { width: 100%; min-width: 0; padding: 6px 8px; font-size: 12px; line-height: 18px; box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+@media (max-width: 480px) { .slot-btn { padding: 5px 6px; font-size: 11px; } }
 .status-available.slot-btn { border-color: #67c23a; color: #2f8a1a; background-color: rgba(103, 194, 58, 0.12); }
 .status-busy_formal.slot-btn { border-color: #f56c6c; color: #a93a3a; background-color: rgba(245, 108, 108, 0.12); }
 .status-busy_trial_base.slot-btn { border-color: #e6a23c; color: #a87122; background-color: rgba(230, 162, 60, 0.12); }
 .status-partial_trial.slot-btn { border-color: #eebe77; color: #9c7b2c; background-color: rgba(238, 190, 119, 0.12); }
 .status-pending_trial.slot-btn { border-style: dashed; border-color: #e6a23c; color: #a87122; background-color: rgba(230, 162, 60, 0.08); }
 .status-unavailable.slot-btn { border-color: #c0c4cc; color: #909399; background-color: #f5f7fa; }
-.selected { box-shadow: inset 0 0 0 1px #409eff; }
+.slot-btn.selected { background-color: #e8f3ff; border-color: #409eff; color: #1f6fd8; position: relative; }
+.slot-btn.selected::after { content: '✓'; position: absolute; right: 6px; top: 2px; font-size: 11px; color: #409eff; }
 </style>
 

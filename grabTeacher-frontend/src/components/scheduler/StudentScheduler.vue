@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" :title="title" width="960px">
+  <el-dialog v-model="visible" :title="title" width="min(1120px, 96vw)">
     <div class="toolbar">
       <el-radio-group v-model="duration" size="small">
         <el-radio-button :label="90">1.5 小时</el-radio-button>
@@ -26,7 +26,7 @@
         <div class="summary-title">已选择 ({{ sessions.length }})</div>
         <div class="session-list">
           <div v-for="(s, idx) in sessions" :key="idx" class="item">
-            <div class="t">{{ s.date }} {{ s.startTime }}-{{ s.endTime }}</div>
+            <div class="t">{{ formatSession(s) }}</div>
           </div>
         </div>
       </div>
@@ -41,6 +41,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
+dayjs.locale('zh-cn')
 import CalendarMultiMonth from '@/components/CalendarMultiMonth.vue'
 
 const props = defineProps<{ teacherId: number; title?: string; months?: number }>()
@@ -50,6 +53,10 @@ const title = ref(props.title || '选择上课时间（按日历）')
 const duration = ref<90 | 120>(90)
 const months = props.months || 6
 const sessions = ref<Array<{ date: string; startTime: string; endTime: string }>>([])
+
+function formatSession(s: { date: string; startTime: string; endTime: string }) {
+  return `${dayjs(s.date).format('MM-DD（ddd）')} ${s.startTime}-${s.endTime}`
+}
 const allowedPeriods = ref<Array<'morning'|'afternoon'|'evening'> | undefined>(undefined)
 const dateRangeStart = ref<string | undefined>(undefined)
 const dateRangeEnd = ref<string | undefined>(undefined)
@@ -80,10 +87,12 @@ defineExpose({ open })
 .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .toolbar .spacer { flex: 1; }
 .hint { color: #909399; font-size: 12px; }
-.content { display: grid; grid-template-columns: 1fr 260px; gap: 12px; }
-.right { border-left: 1px dashed #ebeef5; padding-left: 12px; }
+.content { display: grid; grid-template-columns: 1fr 200px; gap: 12px; height: calc(100vh - 200px); overflow: hidden; }
+.left { min-height: 0; overflow: auto; }
+
+.right { border-left: 1px dashed #ebeef5; padding-left: 12px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .summary-title { font-weight: 600; margin-bottom: 8px; }
-.session-list { max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
-.item { font-size: 13px; color: #606266; padding: 6px 8px; background: #f7f9fb; border-radius: 6px; }
+.session-list { flex: 1; min-height: 0; overflow: auto; display: grid; grid-auto-rows: 32px; row-gap: 6px; padding-right: 0; }
+.item { font-size: 12px; color: #606266; padding: 0 10px; background: #f7f9fb; border-radius: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 32px; height: 32px; box-sizing: border-box; max-width: 100%; }
 </style>
 

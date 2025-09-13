@@ -45,7 +45,7 @@ public class BookingRequest {
 
     @NotNull(message = "预约类型不能为空")
     @TableField("booking_type")
-    @Schema(description = "预约类型", example = "single", allowableValues = {"single", "recurring"}, required = true)
+    @Schema(description = "预约类型", example = "calendar", allowableValues = {"single", "recurring", "calendar"}, required = true)
     private String bookingType;
 
     @TableField("requested_date")

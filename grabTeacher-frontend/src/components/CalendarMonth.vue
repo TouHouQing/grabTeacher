@@ -16,22 +16,30 @@
 
     <div v-if="loading" class="loading"><el-skeleton :rows="5" animated /></div>
 
-    <div v-else class="days">
-      <div v-for="day in days" :key="day.key" class="day-card">
-        <div class="date">{{ day.label }}</div>
-        <BaseSlotBar
-          :slots="day.slots"
-          :mode="mode"
-          :selected="(teacherSelected[day.date] || [])"
-          @click-slot="onClickSlot(day, $event)"
-        />
+    <div v-else class="calendar-grid-wrapper">
+      <div class="week-header">
+        <div v-for="(w, idx) in 7" :key="idx" class="week-head-cell">{{ weekLabels[idx] }}</div>
+      </div>
+      <div class="month-grid">
+        <div v-for="cell in calendarCells" :key="cell.key" class="day-card" :class="{ 'is-other': cell.isOtherMonth }">
+          <div class="date">
+            <span class="date-number">{{ dayjs(cell.date).date() }}</span>
+          </div>
+          <BaseSlotBar
+            v-if="!cell.isOtherMonth"
+            :slots="cell.slots"
+            :mode="mode"
+            :selected="mode==='teacher' ? (teacherSelected[cell.date] || []) : (selectedBaseSlots[cell.date] || [])"
+            @click-slot="onClickSlot(cell, $event)"
+          />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { onMounted, reactive, ref, watch, computed } from 'vue'
 import dayjs from 'dayjs'
 import BaseSlotBar from './BaseSlotBar.vue'
 import { teacherAPI } from '@/utils/api'
@@ -70,7 +78,72 @@ const rawSlotsByDate = ref<Record<string, Array<{slot: string; status: string; t
 const teacherSelected = reactive<Record<string, string[]>>({})
 
 // student mode selected sessions
+
+// 周几显示与格式化（中文）
+const weekdayName = (dateStr: string) => {
+  const w = dayjs(dateStr).day() // 0=周日
+  const map = ['周日','周一','周二','周三','周四','周五','周六']
+  return map[w]
+}
+const weekdayClass = (dateStr: string) => {
+  const w = dayjs(dateStr).day()
+  return (w === 0 || w === 6) ? 'is-weekend' : 'is-weekday'
+}
+const formatDate = (dateStr: string) => dayjs(dateStr).format('MM-DD')
+
+// 周视图头部与对齐填充
+const weekLabels = ['周一','周二','周三','周四','周五','周六','周日']
+
+const calendarCells = computed(() => {
+  const y = localYear.value
+  const m = localMonth.value
+  const start = dayjs(`${y}-${String(m).padStart(2,'0')}-01`)
+  const end = start.endOf('month')
+  const leading = (start.day() + 6) % 7 // 以周一为一周起点
+  const trailing = (7 - ((leading + end.date()) % 7)) % 7
+
+  const arr: Array<{ key: string; date: string; isOtherMonth: boolean; slots?: Array<{slot: string; status: string; tips?: string}> }> = []
+  for (let i = leading; i > 0; i--) {
+    const d = start.subtract(i, 'day')
+    arr.push({ key: `prev-${d.format('YYYY-MM-DD')}`, date: d.format('YYYY-MM-DD'), isOtherMonth: true })
+  }
+  for (const d of days.value) {
+    arr.push({ key: d.key, date: d.date, isOtherMonth: false, slots: d.slots })
+  }
+  for (let i = 1; i <= trailing; i++) {
+    const d = end.add(i, 'day')
+    arr.push({ key: `next-${d.format('YYYY-MM-DD')}`, date: d.format('YYYY-MM-DD'), isOtherMonth: true })
+  }
+  return arr
+})
+
+
 const studentSessions = ref<Array<{ date: string; startTime: string; endTime: string }>>([])
+
+
+// 学生模式下：将已选 sessions 映射为按天的基础段，用于高亮显示
+const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+const inferBaseSlot = (startTime: string, endTime: string): string | null => {
+  const s = toMin(startTime); const e = toMin(endTime)
+  for (const base of BASE_SLOTS) {
+    const [bs, be] = base.split('-'); const bsMin = toMin(bs); const beMin = toMin(be)
+    // 2小时完整覆盖
+    if (s === bsMin && e === beMin) return base
+    // 1.5小时：与基础段首/尾对齐其一
+    if ((e - s) === 90 && s >= bsMin && e <= beMin && (s === bsMin || e === beMin)) return base
+  }
+  return null
+}
+const selectedBaseSlots = computed<Record<string, string[]>>(()=>{
+  const map: Record<string, string[]> = {}
+  for (const sess of studentSessions.value) {
+    const base = inferBaseSlot(sess.startTime, sess.endTime)
+    if (!base) continue
+    if (!map[sess.date]) map[sess.date] = []
+    if (!map[sess.date].includes(base)) map[sess.date].push(base)
+  }
+  return map
+})
 
 const yearOptions = Array.from({length: 4}).map((_,i)=> dayjs().year() -1 + i)
 
@@ -122,7 +195,7 @@ const reload = async () => {
   try {
     const cal = await teacherAPI.getMonthlyCalendar(props.teacherId, localYear.value, localMonth.value)
     // group API results by date
-    const grouped: Record<string, Array<{ slot: string; status: string; tips?: string }>> = {}
+    let grouped: Record<string, Array<{ slot: string; status: string; tips?: string }>> = {}
     if (cal?.data?.slots && Array.isArray((cal as any).data.slots)) {
       for (const s of (cal as any).data.slots as Array<any>) {
         const dateStr = typeof s.date === 'string' ? s.date : (s.date?.toString?.() || '')
@@ -131,6 +204,34 @@ const reload = async () => {
       }
     } else if (cal?.data?.dates && Array.isArray((cal as any).data.dates)) {
       for (const d of (cal as any).data.dates as Array<any>) grouped[d.date] = d.slots
+    }
+
+    // Fallback: 月历接口无数据时，使用公开课表构建本月基础段状态
+    if (Object.keys(grouped).length === 0) {
+      const start = dayjs(`${localYear.value}-${String(localMonth.value).padStart(2,'0')}-01`)
+      const end = start.endOf('month')
+      try {
+        const ps = await teacherAPI.getPublicSchedule(props.teacherId, { startDate: start.format('YYYY-MM-DD'), endDate: end.format('YYYY-MM-DD') })
+        if (ps?.success && ps.data && Array.isArray(ps.data.daySchedules)) {
+          grouped = {}
+          for (const day of ps.data.daySchedules as Array<any>) {
+            const dateStr = day.date
+            const arr: Array<{ slot: string; status: string; tips?: string }> = []
+            for (const t of (day.timeSlots || [])) {
+              const slot = t.timeSlot
+              if (!slot || !BASE_SLOTS.includes(slot)) continue
+              let status = 'unavailable'
+              if (t.available === true) status = 'available'
+              else if (t.booked === true) status = 'busy_formal'
+              arr.push({ slot, status })
+            }
+            if (arr.length > 0) grouped[dateStr] = arr
+          }
+          console.log('[CalendarMonth][FallbackPublicSchedule] grouped keys:', Object.keys(grouped).length)
+        }
+      } catch (e) {
+        console.warn('[CalendarMonth] Fallback to public schedule failed:', e)
+      }
     }
     // 每次重载重置原始状态
     rawSlotsByDate.value = {}
@@ -255,12 +356,16 @@ const onClickSlot = (day: any, slot: string) => {
 
 <style scoped>
 .calendar-month { display: flex; flex-direction: column; gap: 12px; }
-.header { display: flex; align-items: center; gap: 8px; }
+.header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .header .spacer { flex: 1; }
-.days { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-@media (min-width: 992px) { .days { grid-template-columns: repeat(3, 1fr); } }
-.day-card { border: 1px solid #ebeef5; border-radius: 8px; padding: 10px; }
-.date { font-weight: 600; margin-bottom: 6px; }
+.calendar-grid-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.week-header, .month-grid { display: grid; grid-template-columns: repeat(7, minmax(112px, 1fr)); gap: 8px; }
+@media (max-width: 480px) { .week-header, .month-grid { grid-template-columns: repeat(7, minmax(96px, 1fr)); } }
+.week-head-cell { text-align: center; font-weight: 600; color: #606266; padding: 6px 4px; }
+.day-card { border: 1px solid #ebeef5; border-radius: 8px; padding: 10px; box-sizing: border-box; background: #fff; overflow: visible; }
+.day-card.is-other { background: #fafafa; color: #c0c4cc; pointer-events: none; }
+.date { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; margin-bottom: 6px; }
+.date-number { font-variant-numeric: tabular-nums; }
 .loading { padding: 12px; }
 </style>
 

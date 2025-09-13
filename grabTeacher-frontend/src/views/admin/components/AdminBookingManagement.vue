@@ -96,22 +96,294 @@
               <div class="booking-details">
                 <div class="detail-row">
                   <span class="label">预约类型：</span>
-                  <span class="value">{{ booking.bookingType === 'single' ? '单次预约' : '周期性预约' }}</span>
+                  <span class="value">
+                    {{ booking.bookingType === 'single' ? '试听课预约' : (booking.bookingType === 'calendar' ? '正式课预约' : '周期性预约') }}
+                  </span>
                 </div>
 
                 <div v-if="booking.bookingType === 'single'" class="detail-row">
                   <span class="label">上课时间：</span>
                   <span class="value">
-                    {{ booking.requestedDate }} {{ booking.requestedStartTime }}-{{ booking.requestedEndTime }}
+                    {{ formatTimeOnly(booking.requestedStartTime) }}-{{ formatTimeOnly(booking.requestedEndTime) }}
                   </span>
                 </div>
 
-                <div v-else class="detail-row">
-                  <span class="label">上课时间：</span>
+                <div v-if="booking.bookingType === 'single'" class="detail-row">
+                  <span class="label">上课日期：</span>
                   <span class="value">
-                    {{ formatRecurringTime(booking.recurringWeekdays, booking.recurringTimeSlots) || '未设置' }}
+                    {{ booking.requestedDate ? (booking.requestedDate + ' 至 ' + booking.requestedDate) : '未设置' }}
                   </span>
                 </div>
+
+
+                <div v-else-if="booking.bookingType === 'recurring'" class="detail-row">
+                  <span class="label">上课时间：</span>
+                  <span class="value">
+                    {{ formatRecurringTimeOnly(booking.recurringTimeSlots) || '未设置' }}
+                  </span>
+                </div>
+
+
+                <!-- 日历预约：日期+时间 -->
+                <div v-if="booking.bookingType === 'calendar'">
+                  <div class="detail-row">
+                    <span class="label">上课日期：</span>
+                    <span class="value">
+                      {{ (booking.calendarStartDate && booking.calendarEndDate)
+                          ? (booking.calendarStartDate + ' 至 ' + booking.calendarEndDate)
+                          : '未设置' }}
+                    </span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="label">上课时间：</span>
+                    <span class="value">
+                      {{ (booking.calendarWeekdayTimeSlots && Object.keys(booking.calendarWeekdayTimeSlots).length)
+                          ? formatCalendarWeekdaySlotsLimited(booking.calendarWeekdayTimeSlots, 3)
+                          : ((booking.calendarTimeSlots && booking.calendarTimeSlots.length)
+                              ? booking.calendarTimeSlots.join('、')
+                              : '未设置') }}
+                    </span>
+                  </div>
+                </div>
+
+                <div v-if="false && booking.bookingType === 'calendar'" class="detail-row">
+                  <span class="label">上课日期：</span>
+                  <span class="value">
+                    {{ (booking.calendarStartDate && booking.calendarEndDate) ? (booking.calendarStartDate + ' 至 ' + booking.calendarEndDate) : '未设置' }}
+                  </span>
+                </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
                 <div v-if="booking.bookingType === 'recurring'" class="detail-row">
                   <span class="label">课程周期：</span>
@@ -233,13 +505,45 @@
           <div class="detail-grid">
             <div class="detail-item">
               <label>预约类型：</label>
-              <span>{{ selectedBooking.bookingType === 'single' ? '单次预约' : '周期性预约' }}</span>
+              <span>{{ selectedBooking.bookingType === 'single' ? '试听课预约' : (selectedBooking.bookingType === 'calendar' ? '正式课预约' : '周期性预约') }}</span>
             </div>
             <div v-if="selectedBooking.isTrial" class="detail-item">
               <label>试听课：</label>
               <el-tag type="warning" size="small">是</el-tag>
             </div>
           </div>
+            <!-- 同步显示：上课日期/上课时间 -->
+            <div v-if="selectedBooking.bookingType === 'single'" class="detail-item">
+              <label>上课日期：</label>
+              <span>{{ selectedBooking.requestedDate ? (selectedBooking.requestedDate + ' 至 ' + selectedBooking.requestedDate) : '未设置' }}</span>
+            </div>
+            <div v-if="selectedBooking.bookingType === 'single'" class="detail-item">
+              <label>上课时间：</label>
+              <span>{{ formatTimeOnly(selectedBooking.requestedStartTime) }}-{{ formatTimeOnly(selectedBooking.requestedEndTime) }}</span>
+            </div>
+
+            <div v-if="selectedBooking.bookingType === 'calendar'" class="detail-item">
+              <label>上课日期：</label>
+              <span>{{ (selectedBooking.calendarStartDate && selectedBooking.calendarEndDate)
+                ? (selectedBooking.calendarStartDate + ' 至 ' + selectedBooking.calendarEndDate)
+                : '未设置' }}</span>
+            </div>
+            <div v-if="selectedBooking.bookingType === 'calendar'" class="detail-item">
+              <label>上课时间：</label>
+              <span>
+                {{ (selectedBooking.calendarWeekdayTimeSlots && Object.keys(selectedBooking.calendarWeekdayTimeSlots).length)
+                  ? formatCalendarWeekdaySlots(selectedBooking.calendarWeekdayTimeSlots)
+                  : ((selectedBooking.calendarTimeSlots && selectedBooking.calendarTimeSlots.length)
+                      ? selectedBooking.calendarTimeSlots.join('、')
+                      : '未设置') }}
+              </span>
+            </div>
+
+            <div v-if="selectedBooking.bookingType === 'recurring'" class="detail-item">
+              <label>上课时间：</label>
+              <span>{{ formatRecurringTimeOnly(selectedBooking.recurringTimeSlots) || '未设置' }}</span>
+            </div>
+
         </div>
 
         <div v-if="selectedBooking.studentRequirements" class="detail-section">
@@ -520,6 +824,69 @@ const formatRecurringTime = (weekdays: any, timeSlots: any) => {
 
   return `${weekdayList.join('、')} ${timeSlotList.join('、')}`
 }
+
+// 仅格式化时间范围：返回 HH:mm-HH:mm（不显示日期/星期）
+const formatTimeOnly = (timeStr: string) => {
+  if (!timeStr) return ''
+  const s = String(timeStr)
+  return s.length >= 5 ? s.slice(0, 5) : s
+}
+
+// 周期预约仅显示时间段，多段用顿号连接
+const formatRecurringTimeOnly = (timeSlots: any) => {
+  if (!timeSlots) return ''
+  let list: string[] = []
+  if (Array.isArray(timeSlots)) {
+    list = timeSlots
+  } else if (typeof timeSlots === 'string') {
+    list = timeSlots.split(',')
+  }
+  return list
+    .map(slot => {
+      const parts = String(slot).split('-')
+      if (parts.length === 2) {
+        return `${formatTimeOnly(parts[0])}-${formatTimeOnly(parts[1])}`
+      }
+      return slot
+    })
+    .join('、')
+}
+
+// 正式课预约（calendar）：按周几聚合渲染，顺序：周一…周日
+const weekdayName = (i: number) => {
+  const names = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  return names[i] || `周${i}`
+}
+
+const formatCalendarWeekdaySlots = (m: Record<string | number, string[]>) => {
+  if (!m) return ''
+  const order = [1, 2, 3, 4, 5, 6, 7]
+  const parts: string[] = []
+  for (const i of order) {
+    const times = (m as any)[i] || (m as any)[String(i)]
+    if (times && Array.isArray(times) && times.length) {
+      parts.push(`${weekdayName(i)}：${times.join('、')}`)
+    }
+  }
+  return parts.join('；')
+}
+
+// 列表页：仅展示前 limit 个“周X：…”分组，后缀“等N个”
+const formatCalendarWeekdaySlotsLimited = (m: Record<string | number, string[]>, limit = 3) => {
+  if (!m) return ''
+  const order = [1, 2, 3, 4, 5, 6, 7]
+  const groups: string[] = []
+  for (const i of order) {
+    const times = (m as any)[i] || (m as any)[String(i)]
+    if (times && Array.isArray(times) && times.length) {
+      groups.push(`${weekdayName(i)}：${times.join('、')}`)
+    }
+  }
+  if (groups.length <= limit) return groups.join('；')
+  const rest = groups.length - limit
+  return groups.slice(0, limit).join('；') + ` 等${rest}个`
+}
+
 
 const getStatusTagType = (status: string) => {
   switch (status) {

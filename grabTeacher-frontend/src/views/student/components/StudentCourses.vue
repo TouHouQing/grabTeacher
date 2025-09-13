@@ -315,6 +315,20 @@ const generateScheduleText = (schedules: CourseSchedule[]): string => {
 
   return `${first.startTime}-${first.endTime}`
 }
+// 工具：按周几聚合的时间段，限显展示（最多3个分组）
+const weekdayName = (i: number) => ['','周一','周二','周三','周四','周五','周六','周日'][i] || `周${i}`
+const formatCalendarWeekdaySlotsLimited = (m: Record<string | number, string[]>, limit = 3): string => {
+  const order = [1, 2, 3, 4, 5, 6, 7]
+  const groups: string[] = []
+  for (const i of order) {
+    const t = (m as any)[i] || (m as any)[String(i)]
+    if (t?.length) groups.push(`${weekdayName(i)}：${t.join('、')}`)
+  }
+  return groups.length <= limit
+    ? groups.join('；')
+    : groups.slice(0, limit).join('；') + ` 等${groups.length - limit}个`
+}
+
 
 // 根据科目获取图片
 const getSubjectImage = (subject: string): string => {
@@ -363,14 +377,22 @@ interface BookingRequest {
   courseType?: string
   studentName?: string
   courseDurationMinutes?: number
-  bookingType: 'single' | 'recurring'
+  bookingType: 'single' | 'recurring' | 'calendar'
+  // single
   requestedDate?: string
   requestedStartTime?: string
   requestedEndTime?: string
+  // recurring（历史兼容）
   recurringWeekdays?: number[]
   recurringTimeSlots?: string[]
   startDate?: string
   endDate?: string
+  // calendar
+  calendarStartDate?: string
+  calendarEndDate?: string
+  calendarTimeSlots?: string[]
+  calendarWeekdayTimeSlots?: Record<number | string, string[]>
+  calendarSessionsCount?: number
   totalTimes?: number
   studentRequirements?: string
   teacherReply?: string
@@ -437,6 +459,10 @@ const isBookingNotStartedYet = (b: BookingRequest): boolean => {
       const start = new Date(`${b.startDate}T00:00:00+08:00`)
       return start.getTime() > now.getTime()
     }
+    if (b.bookingType === 'calendar' && b.calendarStartDate) {
+      const start = new Date(`${b.calendarStartDate}T00:00:00+08:00`)
+      return start.getTime() > now.getTime()
+    }
     return false
   } catch {
     return false
@@ -451,12 +477,19 @@ const approvedUpcomingBookingsInActive = computed(() =>
 const mapApprovedBookingToCourse = (b: BookingRequest): Course => {
   const subject = (b.subjectName || '未知科目').trim()
   const isSingle = b.bookingType === 'single'
-  const timeText = isSingle && b.requestedStartTime && b.requestedEndTime
-    ? `${b.requestedStartTime}-${b.requestedEndTime}`
-    : formatRecurringTime(b.recurringWeekdays || [], b.recurringTimeSlots || [])
-  const nextText = isSingle && b.requestedDate && b.requestedStartTime && b.requestedEndTime
-    ? `${b.requestedDate} ${b.requestedStartTime}-${b.requestedEndTime}`
-    : (b.startDate ? `${b.startDate} 起` : '待定')
+  const isCalendar = b.bookingType === 'calendar'
+  const timeText = isSingle
+    ? ((b.requestedStartTime && b.requestedEndTime) ? `${b.requestedStartTime}-${b.requestedEndTime}` : '时间待定')
+    : (isCalendar
+        ? (b.calendarWeekdayTimeSlots ? formatCalendarWeekdaySlotsLimited(b.calendarWeekdayTimeSlots, 3) : (b.calendarTimeSlots?.join('、') || '时间待定'))
+        : formatRecurringTime(b.recurringWeekdays || [], b.recurringTimeSlots || [])
+      )
+  const nextText = isSingle
+    ? ((b.requestedDate && b.requestedStartTime && b.requestedEndTime) ? `${b.requestedDate} ${b.requestedStartTime}-${b.requestedEndTime}` : (b.requestedDate || '待定'))
+    : (isCalendar
+        ? (b.calendarStartDate ? `${b.calendarStartDate} 起` : '待定')
+        : (b.startDate ? `${b.startDate} 起` : '待定')
+      )
   const totalTimes = Number(b.totalTimes || 1)
 
   // 1v1 预约命名：姓名+科目(+年级)+一对一课程
