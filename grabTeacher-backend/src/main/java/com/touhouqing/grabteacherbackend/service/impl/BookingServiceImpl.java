@@ -706,6 +706,164 @@ public class BookingServiceImpl implements BookingService {
         return result;
     }
 
+
+    @Override
+    public java.util.List<com.touhouqing.grabteacherbackend.model.vo.StudentCourseCardV2VO> getStudentCoursesV2(Long studentUserId) {
+        Student student = studentMapper.findByUserId(studentUserId);
+        if (student == null) {
+            throw new RuntimeException("学生信息不存在");
+        }
+        java.util.List<CourseSchedule> all = courseScheduleMapper.findByStudentId(student.getId());
+        java.util.Map<String, java.util.List<CourseSchedule>> groups = new java.util.LinkedHashMap<>();
+        for (CourseSchedule cs : all) {
+            String key;
+            if (cs.getEnrollmentId() != null) key = "e:" + cs.getEnrollmentId();
+            else if (cs.getBookingRequestId() != null) key = "b:" + cs.getBookingRequestId();
+            else key = "s:" + cs.getId();
+            groups.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(cs);
+        }
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalTime now = java.time.LocalTime.now();
+        java.util.List<com.touhouqing.grabteacherbackend.model.vo.StudentCourseCardV2VO> cards = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<String, java.util.List<CourseSchedule>> e : groups.entrySet()) {
+            java.util.List<CourseSchedule> list = e.getValue();
+            list.sort(java.util.Comparator
+                    .comparing(CourseSchedule::getScheduledDate)
+                    .thenComparing(CourseSchedule::getStartTime, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())));
+            CourseSchedule head = list.get(0);
+            Long enrollmentId = head.getEnrollmentId();
+            com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment enrollment = null;
+            if (enrollmentId != null) {
+                enrollment = courseEnrollmentMapper.selectById(enrollmentId);
+            }
+            // 统计
+            java.util.List<CourseSchedule> notCancelled = new java.util.ArrayList<>();
+            int completed = 0;
+            for (CourseSchedule cs : list) {
+                String st = cs.getScheduleStatus();
+                if (!"cancelled".equals(st)) notCancelled.add(cs);
+                if ("completed".equals(st)) completed++;
+            }
+            java.time.LocalDate startDate = notCancelled.isEmpty() ? null : notCancelled.get(0).getScheduledDate();
+            java.time.LocalDate endDate = notCancelled.isEmpty() ? null : notCancelled.get(notCancelled.size() - 1).getScheduledDate();
+            Integer totalLessons = null;
+            if (enrollment != null && enrollment.getTotalSessions() != null) {
+                totalLessons = enrollment.getTotalSessions();
+            } else {
+                totalLessons = notCancelled.size();
+            }
+            // 下一节
+            CourseSchedule next = null;
+            for (CourseSchedule cs : notCancelled) {
+                java.time.LocalDate d = cs.getScheduledDate();
+                java.time.LocalTime st = cs.getStartTime();
+                if (d == null || st == null) continue;
+                if (d.isAfter(today) || (d.equals(today) && st.isAfter(now))) {
+                    next = cs; break;
+                }
+            }
+            // 日历预约范围覆盖
+            java.time.LocalDate calStart = null, calEnd = null;
+            if (head.getBookingRequestId() != null) {
+                BookingRequest br = bookingRequestMapper.selectById(head.getBookingRequestId());
+                if (br != null && "calendar".equals(br.getBookingType())) {
+                    if (!notCancelled.isEmpty()) {
+                        calStart = notCancelled.get(0).getScheduledDate();
+                        calEnd = notCancelled.get(notCancelled.size()-1).getScheduledDate();
+                    }
+                }
+            }
+            // 课程标题与基础信息
+            String title;
+            if (head.getCourseTitle() != null && !head.getCourseTitle().isEmpty()) {
+                title = head.getCourseTitle();
+            } else {
+                // 一对一自动生成：姓名+科目+年级+一对一课程
+                String studentName = head.getStudentName();
+                if ((studentName == null || studentName.isEmpty()) && head.getStudentId() != null) {
+                    Student s = studentMapper.selectById(head.getStudentId());
+                    if (s != null) studentName = s.getRealName();
+                }
+                String subjectName = head.getSubjectName();
+                if ((subjectName == null || subjectName.isEmpty()) && head.getBookingRequestId() != null) {
+                    BookingRequest br = bookingRequestMapper.selectById(head.getBookingRequestId());
+                    if (br != null && br.getSubjectId() != null) {
+                        Subject subj = subjectMapper.selectById(br.getSubjectId());
+                        if (subj != null) subjectName = subj.getName();
+                    }
+                }
+                String grade = head.getGrade();
+                if (enrollment != null && (grade == null || grade.isEmpty())) grade = enrollment.getGrade();
+                StringBuilder sb = new StringBuilder();
+                if (studentName != null) sb.append(studentName);
+                if (subjectName != null) sb.append(subjectName);
+                if (grade != null) sb.append(grade);
+                sb.append("一对一课程");
+                title = sb.toString();
+            }
+            // 计算课程默认时长（分钟）
+            Integer defaultDurationMinutes = null;
+            if (head.getStartTime() != null && head.getEndTime() != null) {
+                defaultDurationMinutes = (int) java.time.Duration.between(head.getStartTime(), head.getEndTime()).toMinutes();
+            }
+
+            // schedules 列表
+            java.util.List<com.touhouqing.grabteacherbackend.model.vo.StudentCourseScheduleV2VO> scheduleVOs = new java.util.ArrayList<>();
+            for (CourseSchedule cs : list) {
+                Integer dur = null;
+                if (cs.getStartTime() != null && cs.getEndTime() != null) {
+                    dur = (int) java.time.Duration.between(cs.getStartTime(), cs.getEndTime()).toMinutes();
+                } else {
+                    dur = defaultDurationMinutes;
+                }
+                scheduleVOs.add(com.touhouqing.grabteacherbackend.model.vo.StudentCourseScheduleV2VO.builder()
+                        .id(cs.getId())
+                        .scheduledDate(cs.getScheduledDate())
+                        .startTime(cs.getStartTime())
+                        .endTime(cs.getEndTime())
+                        .sessionNumber(cs.getSessionNumber())
+                        .status(mapScheduleStatusToLegacy(cs.getScheduleStatus()))
+                        .teacherId(cs.getTeacherId())
+                        .studentId(cs.getStudentId())
+                        .courseId(cs.getCourseId())
+                        .enrollmentId(cs.getEnrollmentId())
+                        .bookingRequestId(cs.getBookingRequestId())
+                        .durationMinutes(dur)
+                        .build());
+            }
+            com.touhouqing.grabteacherbackend.model.vo.StudentCourseCardV2VO card = com.touhouqing.grabteacherbackend.model.vo.StudentCourseCardV2VO.builder()
+                    .enrollmentId(head.getEnrollmentId())
+                    .bookingRequestId(head.getBookingRequestId())
+                    .courseId(head.getCourseId())
+                    .title(title)
+                    .teacherName(head.getTeacherName())
+                    .subjectName(head.getSubjectName())
+                    .grade(head.getGrade())
+                    .courseType(head.getCourseType())
+                    .totalLessons(totalLessons)
+                    .completedLessons(completed)
+                    .startDate(startDate)
+                    .endDate(endDate)
+                    .calendarStartDate(calStart)
+                    .calendarEndDate(calEnd)
+                    .durationMinutes(defaultDurationMinutes)
+                    .schedules(scheduleVOs)
+                    .build();
+            if (next != null) {
+                card.setNextSchedule(com.touhouqing.grabteacherbackend.model.vo.StudentCourseScheduleV2VO.builder()
+                        .id(next.getId())
+                        .scheduledDate(next.getScheduledDate())
+                        .startTime(next.getStartTime())
+                        .endTime(next.getEndTime())
+                        .sessionNumber(next.getSessionNumber())
+                        .status(mapScheduleStatusToLegacy(next.getScheduleStatus()))
+                        .build());
+            }
+            cards.add(card);
+        }
+        return cards;
+    }
+
     /**
      * 将CourseSchedule实体转换为ScheduleVO
      */
@@ -882,6 +1040,7 @@ public class BookingServiceImpl implements BookingService {
         User user = userMapper.selectById(userId);
         if (user != null && user.getTrialTimes() != null && user.getTrialTimes() > 0) {
             // 记录原始次数，用于后续可能的恢复
+
             user.setTrialTimes(user.getTrialTimes() - 1);
             userMapper.updateById(user);
             log.info("标记用户已使用免费试听，用户ID: {}, 剩余次数: {}", userId, user.getTrialTimes());
@@ -1085,7 +1244,15 @@ public class BookingServiceImpl implements BookingService {
                         .studentId(bookingRequest.getStudentId())
                         .teacherId(bookingRequest.getTeacherId())
                         .courseId(bookingRequest.getCourseId())
-                        .enrollmentType(bookingRequest.getCourseId() == null ? "one_on_one" : "large_class")
+                        .enrollmentType(
+                            Boolean.TRUE.equals(bookingRequest.getIsTrial()) ? "one_on_one"
+                            : (bookingRequest.getCourseId() != null
+                                ? java.util.Optional.ofNullable(courseMapper.selectById(bookingRequest.getCourseId()))
+                                    .map(c -> c.getCourseType())
+                                    .filter(ct -> ct != null && !ct.isEmpty())
+                                    .orElse("one_on_one")
+                                : "one_on_one")
+                        )
                         .totalSessions(bookingRequest.getTotalTimes())
                         .completedSessions(0)
                         .enrollmentStatus("active")
@@ -1216,7 +1383,15 @@ public class BookingServiceImpl implements BookingService {
                         .studentId(bookingRequest.getStudentId())
                         .teacherId(bookingRequest.getTeacherId())
                         .courseId(bookingRequest.getCourseId())
-                        .enrollmentType(bookingRequest.getCourseId() == null ? "one_on_one" : "large_class")
+                        .enrollmentType(
+                            Boolean.TRUE.equals(bookingRequest.getIsTrial()) ? "one_on_one"
+                            : (bookingRequest.getCourseId() != null
+                                ? java.util.Optional.ofNullable(courseMapper.selectById(bookingRequest.getCourseId()))
+                                    .map(c -> c.getCourseType())
+                                    .filter(ct -> ct != null && !ct.isEmpty())
+                                    .orElse("one_on_one")
+                                : "one_on_one")
+                        )
                         .totalSessions(null)
                         .completedSessions(0)
                         .enrollmentStatus("active")
@@ -1461,7 +1636,15 @@ public class BookingServiceImpl implements BookingService {
                         .studentId(bookingRequest.getStudentId())
                         .teacherId(bookingRequest.getTeacherId())
                         .courseId(bookingRequest.getCourseId())
-                        .enrollmentType(bookingRequest.getCourseId() == null ? "one_on_one" : "large_class")
+                        .enrollmentType(
+                            Boolean.TRUE.equals(bookingRequest.getIsTrial()) ? "one_on_one"
+                            : (bookingRequest.getCourseId() != null
+                                ? java.util.Optional.ofNullable(courseMapper.selectById(bookingRequest.getCourseId()))
+                                    .map(c -> c.getCourseType())
+                                    .filter(ct -> ct != null && !ct.isEmpty())
+                                    .orElse("one_on_one")
+                                : "one_on_one")
+                        )
                         .totalSessions(1)
                         .completedSessions(0)
                         .enrollmentStatus("active")
@@ -1535,7 +1718,15 @@ public class BookingServiceImpl implements BookingService {
                 .studentId(bookingRequest.getStudentId())
                 .teacherId(bookingRequest.getTeacherId())
                 .courseId(bookingRequest.getCourseId())
-                .enrollmentType(bookingRequest.getCourseId() == null ? "one_on_one" : "large_class")
+                .enrollmentType(
+                    Boolean.TRUE.equals(bookingRequest.getIsTrial()) ? "one_on_one"
+                    : (bookingRequest.getCourseId() != null
+                        ? java.util.Optional.ofNullable(courseMapper.selectById(bookingRequest.getCourseId()))
+                            .map(c -> c.getCourseType())
+                            .filter(ct -> ct != null && !ct.isEmpty())
+                            .orElse("one_on_one")
+                        : "one_on_one")
+                )
                 .totalSessions(sessions.size())
                 .completedSessions(0)
                 .enrollmentStatus("active")
@@ -1726,6 +1917,32 @@ public class BookingServiceImpl implements BookingService {
                 calendarWeekdaySlots = java.util.Collections.emptyMap();
             }
         }
+        // 如果该预约已生成真实课表，则以真实课表的最早/最晚日期为准，覆盖 calendarStartDate/calendarEndDate
+        if ("calendar".equals(bookingRequest.getBookingType())) {
+            try {
+                java.util.List<com.touhouqing.grabteacherbackend.model.entity.CourseSchedule> real = courseScheduleMapper.findByBookingRequestId(bookingRequest.getId());
+                if (real != null && !real.isEmpty()) {
+                    java.util.List<com.touhouqing.grabteacherbackend.model.entity.CourseSchedule> valid = new java.util.ArrayList<>();
+                    for (com.touhouqing.grabteacherbackend.model.entity.CourseSchedule cs : real) {
+                        String st = cs.getScheduleStatus();
+                        if (cs.getScheduledDate() != null && (st == null || !"cancelled".equals(st))) {
+                            valid.add(cs);
+                        }
+                    }
+                    if (!valid.isEmpty()) {
+                        java.time.LocalDate minD = valid.stream().map(com.touhouqing.grabteacherbackend.model.entity.CourseSchedule::getScheduledDate).min(java.time.LocalDate::compareTo).orElse(null);
+                        java.time.LocalDate maxD = valid.stream().map(com.touhouqing.grabteacherbackend.model.entity.CourseSchedule::getScheduledDate).max(java.time.LocalDate::compareTo).orElse(null);
+                        if (minD != null) calendarStartDate = minD;
+                        if (maxD != null) calendarEndDate = maxD;
+                        // 若需要，也可用真实课表数量覆盖会话数量
+                        // calendarCount = valid.size();
+                    }
+                }
+            } catch (Exception ex) {
+                log.warn("按真实课表覆盖 calendarStartDate/calendarEndDate 失败，不影响主流程", ex);
+            }
+        }
+
 
         return BookingVO.builder()
                 .id(bookingRequest.getId())

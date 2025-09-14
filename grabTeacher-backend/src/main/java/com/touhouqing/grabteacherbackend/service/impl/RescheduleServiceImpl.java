@@ -77,6 +77,17 @@ public  class RescheduleServiceImpl implements RescheduleService {
     @Autowired
     private HourDetailMapper hourDetailMapper;
 
+    // 统一处理 requestType：前端传入 reschedule 映射为 single，DB/VO 使用 single
+    private static boolean isSingleType(String t) {
+        return t != null && ("reschedule".equalsIgnoreCase(t) || "single".equalsIgnoreCase(t));
+    }
+
+    private static String normalizeRequestType(String t) {
+        if (t == null) return "single";
+        if ("reschedule".equalsIgnoreCase(t)) return "single";
+        return t.toLowerCase();
+    }
+
     @Override
     @Transactional
     public RescheduleVO createRescheduleRequest(RescheduleApplyDTO request, Long studentUserId) {
@@ -132,9 +143,9 @@ public  class RescheduleServiceImpl implements RescheduleService {
         // 4小时窗口校验（统一按北京时间）
         ZonedDateTime nowBj = ZonedDateTime.now(ZoneId.of("Asia/Shanghai"));
         ZonedDateTime scheduleBj = ZonedDateTime.of(LocalDateTime.of(schedule.getScheduledDate(), schedule.getStartTime()), ZoneId.of("Asia/Shanghai"));
-        if ("single".equals(request.getRequestType())) {
+        if ("reschedule".equals(request.getRequestType())) {
             if (!scheduleBj.isAfter(nowBj.plusHours(4))) {
-                throw new RuntimeException("单次调课需在开课前4小时之外发起");
+                throw new RuntimeException("调课需在开课前4小时之外发起");
             }
             // 额外：对新请求的时间进行“待处理占用”检查
             if (request.getNewDate() != null && request.getNewStartTime() != null && request.getNewEndTime() != null) {
@@ -178,20 +189,17 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 .scheduleId(request.getScheduleId())
                 .applicantId(student.getId())
                 .applicantType("student")
-                .requestType(request.getRequestType())
+                .requestType(normalizeRequestType(request.getRequestType()))
                 .originalDate(schedule.getScheduledDate())
                 .originalStartTime(schedule.getStartTime())
                 .originalEndTime(schedule.getEndTime())
                 .newDate(request.getNewDate())
                 .newStartTime(request.getNewStartTime())
                 .newEndTime(request.getNewEndTime())
-                .newWeeklySchedule(buildWeeklyScheduleString(request.getNewRecurringWeekdays(), request.getNewRecurringTimeSlots()))
                 .reason(request.getReason())
                 .urgencyLevel(request.getUrgencyLevel())
                 .advanceNoticeHours(advanceNoticeHours)
-                .affectsFutureSessions(request.getAffectsFutureSessions())
                 .status("pending")
-
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .deleted(false)
@@ -219,7 +227,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
 
         // 获取课程安排信息
         CourseSchedule schedule = courseScheduleMapper.findById(request.getScheduleId());
-        if (schedule == null || schedule.getDeleted()) {
+        if (schedule == null || Boolean.TRUE.equals(schedule.getDeleted())) {
             throw new RuntimeException("课程安排不存在");
         }
 
@@ -253,9 +261,9 @@ public  class RescheduleServiceImpl implements RescheduleService {
         // 4小时窗口校验（统一按北京时间）：单次调课/取消均需在4小时之外
         ZonedDateTime nowBj2 = ZonedDateTime.now(ZoneId.of("Asia/Shanghai"));
         ZonedDateTime scheduleBj2 = ZonedDateTime.of(LocalDateTime.of(schedule.getScheduledDate(), schedule.getStartTime()), ZoneId.of("Asia/Shanghai"));
-        if ("single".equals(request.getRequestType())) {
+        if ("reschedule".equals(request.getRequestType())) {
             if (!scheduleBj2.isAfter(nowBj2.plusHours(4))) {
-                throw new RuntimeException("单次调课需在开课前4小时之外发起");
+                throw new RuntimeException("调课需在开课前4小时之外发起");
             }
         } else if ("cancel".equals(request.getRequestType())) {
             if (!scheduleBj2.isAfter(nowBj2.plusHours(4))) {
@@ -271,18 +279,16 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 .scheduleId(request.getScheduleId())
                 .applicantId(teacher.getId())
                 .applicantType("teacher")
-                .requestType(request.getRequestType())
+                .requestType(normalizeRequestType(request.getRequestType()))
                 .originalDate(schedule.getScheduledDate())
                 .originalStartTime(schedule.getStartTime())
                 .originalEndTime(schedule.getEndTime())
                 .newDate(request.getNewDate())
                 .newStartTime(request.getNewStartTime())
                 .newEndTime(request.getNewEndTime())
-                .newWeeklySchedule(buildWeeklyScheduleString(request.getNewRecurringWeekdays(), request.getNewRecurringTimeSlots()))
                 .reason(request.getReason())
                 .urgencyLevel(request.getUrgencyLevel())
                 .advanceNoticeHours(advanceNoticeHours)
-                .affectsFutureSessions(request.getAffectsFutureSessions())
                 .status("pending")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -305,7 +311,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
         log.info("教师审批调课申请，申请ID: {}, 教师用户ID: {}, 状态: {}", rescheduleId, teacherUserId, approval.getStatus());
 
         RescheduleRequest rescheduleRequest = rescheduleRequestMapper.selectById(rescheduleId);
-        if (rescheduleRequest == null || rescheduleRequest.getDeleted()) {
+        if (rescheduleRequest == null || Boolean.TRUE.equals(rescheduleRequest.getDeleted())) {
             throw new RuntimeException("调课申请不存在");
         }
 
@@ -334,7 +340,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
         }
 
         // 如果是同意申请，需要检查时间冲突
-        if ("approved".equals(approval.getStatus()) && "single".equals(rescheduleRequest.getRequestType())) {
+        if ("approved".equals(approval.getStatus()) && isSingleType(rescheduleRequest.getRequestType())) {
             boolean hasConflict = hasTimeConflict(
                 teacher.getId(),
                 schedule.getStudentId(),
@@ -372,7 +378,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
             try {
                 Long teacherId = schedule.getTeacherId();
                 Set<LocalDate> affectedDates = new HashSet<>();
-                if ("single".equals(rescheduleRequest.getRequestType())) {
+                if (isSingleType(rescheduleRequest.getRequestType())) {
                     if (rescheduleRequest.getOriginalDate() != null) affectedDates.add(rescheduleRequest.getOriginalDate());
                     if (rescheduleRequest.getNewDate() != null) affectedDates.add(rescheduleRequest.getNewDate());
                 } else if ("cancel".equals(rescheduleRequest.getRequestType())) {
@@ -405,7 +411,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
         log.info("取消调课申请，申请ID: {}, 学生用户ID: {}", rescheduleId, studentUserId);
 
         RescheduleRequest rescheduleRequest = rescheduleRequestMapper.selectById(rescheduleId);
-        if (rescheduleRequest == null || rescheduleRequest.getDeleted()) {
+        if (rescheduleRequest == null || Boolean.TRUE.equals(rescheduleRequest.getDeleted())) {
             throw new RuntimeException("调课申请不存在");
         }
 
@@ -440,7 +446,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
         log.info("管理员审批调课申请，申请ID: {}, 管理员用户ID: {}, 状态: {}", rescheduleId, adminUserId, approval.getStatus());
 
         RescheduleRequest rescheduleRequest = rescheduleRequestMapper.selectById(rescheduleId);
-        if (rescheduleRequest == null || rescheduleRequest.getDeleted()) {
+        if (rescheduleRequest == null || Boolean.TRUE.equals(rescheduleRequest.getDeleted())) {
             throw new RuntimeException("调课申请不存在");
         }
 
@@ -463,7 +469,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
         }
 
         // 如果是同意申请，需要检查时间冲突
-        if ("approved".equals(approval.getStatus()) && "single".equals(rescheduleRequest.getRequestType())) {
+        if ("approved".equals(approval.getStatus()) && isSingleType(rescheduleRequest.getRequestType())) {
             boolean hasConflict = hasTimeConflict(
                 schedule.getTeacherId(),
                 schedule.getStudentId(),
@@ -515,7 +521,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
             try {
                 Long teacherId = schedule.getTeacherId();
                 Set<LocalDate> affectedDates = new HashSet<>();
-                if ("single".equals(rescheduleRequest.getRequestType())) {
+                if (isSingleType(rescheduleRequest.getRequestType())) {
                     if (rescheduleRequest.getOriginalDate() != null) affectedDates.add(rescheduleRequest.getOriginalDate());
                     if (rescheduleRequest.getNewDate() != null) affectedDates.add(rescheduleRequest.getNewDate());
                 } else if ("cancel".equals(rescheduleRequest.getRequestType())) {
@@ -943,7 +949,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
         log.info("获取调课申请详情，申请ID: {}, 用户ID: {}, 用户类型: {}", rescheduleId, currentUserId, userType);
 
         RescheduleRequest rescheduleRequest = rescheduleRequestMapper.selectById(rescheduleId);
-        if (rescheduleRequest == null || rescheduleRequest.getDeleted()) {
+        if (rescheduleRequest == null || Boolean.TRUE.equals(rescheduleRequest.getDeleted())) {
             throw new RuntimeException("调课申请不存在");
         }
 
@@ -967,7 +973,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
     @Override
     public boolean canApplyReschedule(Long scheduleId, Long studentUserId) {
         CourseSchedule schedule = courseScheduleMapper.findById(scheduleId);
-        if (schedule == null || schedule.getDeleted()) {
+        if (schedule == null || Boolean.TRUE.equals(schedule.getDeleted())) {
             return false;
         }
 
@@ -985,7 +991,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
         // 放宽：允许次数为0时也可申请（超额将触发扣补规则；若余额不足则不允许）
         try {
             User user = userMapper.selectById(studentUserId);
-            if (user == null || user.getDeleted()) {
+            if (user == null || Boolean.TRUE.equals(user.getDeleted())) {
                 return false;
             }
             // 余额校验：当本月调课次数为0时，需有足够余额承担0.5h对应M豆
@@ -1115,59 +1121,40 @@ public  class RescheduleServiceImpl implements RescheduleService {
      * 审批通过后更新课程安排
      */
     private void updateScheduleAfterApproval(RescheduleRequest rescheduleRequest, CourseSchedule schedule) {
-        if ("single".equals(rescheduleRequest.getRequestType())) {
-            // 单次调课：更新课程安排时间
-            schedule.setScheduledDate(rescheduleRequest.getNewDate());
-            schedule.setStartTime(rescheduleRequest.getNewStartTime());
-            schedule.setEndTime(rescheduleRequest.getNewEndTime());
+        if (isSingleType(rescheduleRequest.getRequestType())) {
+            // 单次调课：更新课程安排时间（直接修改该节次的日期与时间，不取消本节）
             UpdateWrapper<CourseSchedule> uw1 = new UpdateWrapper<>();
-            uw1.eq("id", schedule.getId()).set("schedule_status", "cancelled");
-            courseScheduleMapper.update(null, uw1);
+            uw1.eq("id", schedule.getId())
+              .set("scheduled_date", rescheduleRequest.getNewDate())
+              .set("start_time", rescheduleRequest.getNewStartTime())
+              .set("end_time", rescheduleRequest.getNewEndTime());
+            int rows = courseScheduleMapper.update(null, uw1);
+            log.info("单次调课更新课表行数: {}, scheduleId={}, newDate={}, newStart={}, newEnd={}", rows, schedule.getId(), rescheduleRequest.getNewDate(), rescheduleRequest.getNewStartTime(), rescheduleRequest.getNewEndTime());
+            // 读取数据库确认
+            try {
+                CourseSchedule fresh = courseScheduleMapper.selectById(schedule.getId());
+                if (fresh != null) {
+                    log.info("审批后课表确认: id={}, date={} -> {}, time={} - {} -> {} - {}",
+                            schedule.getId(),
+                            schedule.getScheduledDate(), fresh.getScheduledDate(),
+                            schedule.getStartTime(), schedule.getEndTime(),
+                            fresh.getStartTime(), fresh.getEndTime());
+                    // 同步内存对象，便于后续缓存清理/日志使用
+                    schedule.setScheduledDate(fresh.getScheduledDate());
+                    schedule.setStartTime(fresh.getStartTime());
+                    schedule.setEndTime(fresh.getEndTime());
+                }
+            } catch (Exception e) {
+                log.warn("审批后读取课表确认失败 scheduleId={}", schedule.getId(), e);
+                // 回退到使用请求值同步
+                schedule.setScheduledDate(rescheduleRequest.getNewDate());
+                schedule.setStartTime(rescheduleRequest.getNewStartTime());
+                schedule.setEndTime(rescheduleRequest.getNewEndTime());
+            }
 
             // 重新计算同一预约申请下所有课程的session_number
             if (schedule.getBookingRequestId() != null) {
                 recalculateSessionNumbers(schedule.getBookingRequestId());
-            }
-        } else if ("recurring".equals(rescheduleRequest.getRequestType())) {
-            // 周期性调课：需要更新后续所有课程安排（迁移至新表）
-            log.info("周期性调课审批通过，开始更新后续课程安排");
-
-            try {
-                // 获取同一预约申请下的所有未来课程安排（新表）
-                List<CourseSchedule> all =
-                        courseScheduleMapper.findByBookingRequestId(schedule.getBookingRequestId());
-                List<CourseSchedule> futureSchedules = new ArrayList<>();
-                LocalDate nowDate = LocalDate.now();
-                for (CourseSchedule cs : all) {
-                    if (cs.getScheduledDate() != null && cs.getScheduledDate().isAfter(nowDate) &&
-                        (cs.getScheduleStatus() == null || !"cancelled".equals(cs.getScheduleStatus()))) {
-                        futureSchedules.add(cs);
-                    }
-                }
-
-                if (futureSchedules.isEmpty()) {
-                    log.warn("没有找到需要更新的未来课程安排");
-                    return;
-                }
-
-                log.info("找到 {} 个未来课程安排需要更新", futureSchedules.size());
-
-                // 更新所有未来课程的周期性安排字段：写入reschedule_request_id/reschedule_reason
-                for (CourseSchedule cs : futureSchedules) {
-                    UpdateWrapper<CourseSchedule> uw = new UpdateWrapper<>();
-                    uw.eq("id", cs.getId())
-                      .set("reschedule_request_id", rescheduleRequest.getId())
-                      .set("reschedule_reason", rescheduleRequest.getReason());
-                    courseScheduleMapper.update(null, uw);
-                }
-
-                // TODO: 同步缓存（按新表日期聚合回填）
-
-                log.info("周期性调课更新完成，共更新 {} 个课程安排", futureSchedules.size());
-
-            } catch (Exception e) {
-                log.error("周期性调课更新失败", e);
-                throw new RuntimeException("周期性调课更新失败: " + e.getMessage());
             }
         } else if ("cancel".equals(rescheduleRequest.getRequestType())) {
             // 取消课程：更新课程状态 + 结算退款/工时 + 减少课程总节次

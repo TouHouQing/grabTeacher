@@ -27,7 +27,7 @@ interface CourseSchedule {
   endTime: string;
   durationMinutes: number;
   totalTimes: number;
-  status: 'progressing' | 'completed' | 'cancelled' | 'rescheduled';
+  status: 'scheduled' | 'progressing' | 'completed' | 'cancelled' | 'rescheduled';
   teacherNotes?: string;
   studentFeedback?: string;
   createdAt: string;
@@ -174,6 +174,102 @@ const loadStudentSchedules = async () => {
   }
 }
 
+// 直接使用后端 V2 聚合接口（单一真相源）
+const loadStudentCoursesV2 = async () => {
+  try {
+    loading.value = true
+    const result = await bookingAPI.getStudentCoursesV2()
+    if (!result.success) {
+      ElMessage.error(result.message || '获取课程失败')
+      courses.value = []
+      schedules.value = []
+      return
+    }
+    const cards = Array.isArray(result.data) ? result.data : []
+
+    // 将 V2 卡片转换为前端 Course 结构，尽量复用现有渲染逻辑
+    const mappedCourses: Course[] = cards.map((card: any) => {
+      const total = Number(card.totalLessons || 0)
+      const completed = Number(card.completedLessons || 0)
+      const progress = total > 0 ? Math.round((completed / total) * 100) : 0
+
+      const fmtTime = (t?: string) => t ? (t.length >= 5 ? t.slice(0, 5) : t) : ''
+      const next = card.nextSchedule
+        ? `${card.nextSchedule.scheduledDate} ${fmtTime(String(card.nextSchedule.startTime))}-${fmtTime(String(card.nextSchedule.endTime))}`
+        : '暂无安排'
+
+      const status: 'active' | 'completed' | 'upcoming' = progress === 100 ? 'completed' : 'active'
+
+      // 映射节次
+      const mappedSchedules: CourseSchedule[] = (card.schedules || []).map((s: any) => ({
+        id: Number(s.id),
+        teacherId: Number(s.teacherId || 0),
+        teacherName: String(card.teacherName || ''),
+        studentId: Number(s.studentId || 0),
+        studentName: String(userStore.user?.realName || ''),
+        courseId: Number(s.courseId || card.courseId || 0),
+        courseTitle: String(card.title || ''),
+        courseName: String(card.title || ''),
+        subjectName: String(card.subjectName || ''),
+        scheduledDate: String(s.scheduledDate || ''),
+        startTime: fmtTime(String(s.startTime || '')),
+        endTime: fmtTime(String(s.endTime || '')),
+        durationMinutes: Number(s.durationMinutes || card.durationMinutes || 0) || undefined,
+        totalTimes: Number(card.totalLessons || 0),
+        status: String(s.status || 'scheduled') as any,
+        teacherNotes: '',
+        studentFeedback: '',
+        createdAt: '',
+        bookingRequestId: card.bookingRequestId ? Number(card.bookingRequestId) : (s.bookingRequestId ? Number(s.bookingRequestId) : undefined),
+        enrollmentId: card.enrollmentId ? Number(card.enrollmentId) : (s.enrollmentId ? Number(s.enrollmentId) : undefined),
+        trial: false,
+        sessionNumber: s.sessionNumber ? Number(s.sessionNumber) : undefined,
+        courseType: String(card.courseType || '')
+      }))
+
+      // 课程首尾日期
+      const startDate = String(card.startDate || (mappedSchedules[0]?.scheduledDate || ''))
+      const endDate = String(card.endDate || (mappedSchedules[mappedSchedules.length - 1]?.scheduledDate || ''))
+
+      return {
+        id: Number(card.enrollmentId || card.bookingRequestId || card.courseId || Date.now()),
+        title: String(card.title || '未指定课程'),
+        teacher: String(card.teacherName || '未知教师'),
+        teacherAvatar: '@/assets/pictures/teacherBoy1.jpeg',
+        subject: String(card.subjectName || '未知科目'),
+        schedule: card.nextSchedule ? `${fmtTime(String(card.nextSchedule.startTime))}-${fmtTime(String(card.nextSchedule.endTime))}` : (mappedSchedules[0] ? `${fmtTime(mappedSchedules[0].startTime)}-${fmtTime(mappedSchedules[0].endTime)}` : '时间待定'),
+        progress,
+        nextClass: next,
+        startDate,
+        endDate,
+        totalLessons: total,
+        completedLessons: completed,
+        remainingLessons: Math.max(0, total - completed),
+        weeklySchedule: [],
+        image: getSubjectImage(String(card.subjectName || '')),
+        description: `${String(card.title || '')} - ${String(card.subjectName || '')}课程`,
+        status,
+        schedules: mappedSchedules,
+        hasEvaluation: false,
+        durationMinutes: Number(card.durationMinutes || 0) || undefined,
+        bookingRequestId: card.bookingRequestId ? Number(card.bookingRequestId) : undefined
+      }
+    })
+
+    courses.value = mappedCourses
+    // 扁平化 schedules，供部分功能（如调课回退匹配、成绩加载）使用
+    schedules.value = mappedCourses.flatMap(c => c.schedules || [])
+  } catch (e) {
+    console.error('获取课程失败:', e)
+    ElMessage.error('获取课程失败，请稍后重试')
+    courses.value = []
+    schedules.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+
 // 将课程安排转换为课程列表
 const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => {
   console.log('开始转换课程安排数据，总数:', scheduleList.length)
@@ -223,29 +319,42 @@ const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => 
       return
     }
 
-    // 过滤掉已取消的节次，只统计有效的节次
+    // 过滤掉已取消的节次（仅用于已完成计数和“下次课”）
     const effectiveSchedules = scheduleGroup.filter(s => s.status !== 'cancelled')
     const completedCount = effectiveSchedules.filter(s => s.status === 'completed').length
 
-    // 以实际有效节次数为准，兼容报名总节次未及时同步的情况：取“报名总节次”和“有效节次数”的较小值
-    const reportedTotals = effectiveSchedules
-      .map(s => Number.isFinite(Number(s.totalTimes)) ? Number(s.totalTimes) : null)
-      .filter((n): n is number => n !== null)
-    const enrollmentTotal = reportedTotals.length > 0 ? Math.max(...reportedTotals) : null
-    const totalCount = Math.min(
-      enrollmentTotal ?? Number.POSITIVE_INFINITY,
-      effectiveSchedules.length
-    )
+    // 计算总课时：优先使用 enrollment/预约规划的总课时(totalTimes)
+    // 其次使用课节编号(sessionNumber)的最大值；若编号异常（一直为1等），则退化为计划条目数
+    const maxTotalTimes = Math.max(0, ...scheduleGroup.map(s => Number(s.totalTimes || 0)))
+    const maxSession = Math.max(0, ...scheduleGroup.map(s => Number(s.sessionNumber || 0)))
+    // 计划条目数包含已取消的节次，用于更接近真实规划
+    const plannedEntryCount = scheduleGroup.length
+    let totalCount = 0
+    if (isFinite(maxTotalTimes) && maxTotalTimes > 0) {
+      totalCount = maxTotalTimes
+    } else {
+      totalCount = Math.max(maxSession, plannedEntryCount, effectiveSchedules.length)
+    }
     const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
     // 找到下一次课程
     const upcomingSchedules = scheduleGroup
-      .filter(s => s.status === 'progressing' && new Date(s.scheduledDate) >= new Date())
-      .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
+      .filter(s => {
+        if (s.status === 'cancelled') return false
+        const startStr = (s.startTime && s.startTime.length === 5) ? `${s.startTime}:00` : (s.startTime || '00:00:00')
+        const start = new Date(`${s.scheduledDate}T${startStr}`)
+        return start.getTime() > Date.now()
+      })
+      .sort((a, b) => {
+        const aStart = new Date(`${a.scheduledDate}T${(a.startTime && a.startTime.length === 5) ? `${a.startTime}:00` : (a.startTime || '00:00:00')}`).getTime()
+        const bStart = new Date(`${b.scheduledDate}T${(b.startTime && b.startTime.length === 5) ? `${b.startTime}:00` : (b.startTime || '00:00:00')}`).getTime()
+        return aStart - bStart
+      })
 
     const nextSchedule = upcomingSchedules[0]
+    const fmtTime = (t?: string) => t ? (t.length === 5 ? t : t.slice(0, 5)) : ''
     const nextClass = nextSchedule
-      ? `${nextSchedule.scheduledDate} ${nextSchedule.startTime}-${nextSchedule.endTime}`
+      ? `${nextSchedule.scheduledDate} ${fmtTime(nextSchedule.startTime)}-${fmtTime(nextSchedule.endTime)}`
       : '暂无安排'
 
     // 确定课程状态
@@ -281,7 +390,7 @@ const convertSchedulesToCourses = (scheduleList: CourseSchedule[]): Course[] => 
       teacher: teacherName,
       teacherAvatar: '@/assets/pictures/teacherBoy1.jpeg', // 默认头像
       subject: subjectName,
-      schedule: generateScheduleText(scheduleGroup),
+      schedule: nextSchedule ? `${fmtTime(nextSchedule.startTime)}-${fmtTime(nextSchedule.endTime)}` : generateScheduleText(scheduleGroup),
       progress,
       nextClass,
       startDate: scheduleGroup[0]?.scheduledDate || '',
@@ -346,7 +455,7 @@ const getSubjectImage = (subject: string): string => {
 
 
 onMounted(() => {
-  loadStudentSchedules()
+  loadStudentCoursesV2()
   loadBookings()
   // 延迟并行加载非关键数据，避免首屏并发四个请求
   setTimeout(async () => {
@@ -428,11 +537,11 @@ const bookingStats = computed(() => {
   return { total, pending, approved, trial }
 })
 
-// 根据标签筛选课程
+// 根据标签筛选课程（V2：直接使用后端聚合结果，不再合并占位课程）
 const filteredCourses = computed(() => {
   if (activeTab.value === 'suspended') return []
   if (activeTab.value === 'pending' || activeTab.value === 'approved') return []
-  if (activeTab.value === 'active') return mergedActiveCourses.value
+  if (activeTab.value === 'active') return courses.value.filter(course => course.status === 'active')
   return courses.value.filter(course => course.status === activeTab.value)
 })
 
@@ -473,6 +582,96 @@ const approvedUpcomingBookingsInActive = computed(() =>
   bookings.value.filter(b => b.status === 'approved' && isBookingNotStartedYet(b))
 )
 
+// 工具：解析时间段字符串 "HH:mm-HH:mm"
+const parseTimeRange = (timeRange?: string): { start: string; end: string } | null => {
+  if (!timeRange || !timeRange.includes('-')) return null
+  const [start, end] = timeRange.split('-')
+  const norm = (s: string) => (s.length === 5 ? `${s}:00` : s)
+  return { start: norm(start), end: norm(end) }
+}
+
+// 生成“已审核未开始”的计划课时（占位节次），用于前端展示与选择
+const generatePlannedSchedulesFromBooking = (b: BookingRequest): CourseSchedule[] => {
+  const result: CourseSchedule[] = []
+  const total = Number(b.calendarSessionsCount || b.totalTimes || 1)
+  const subject = (b.subjectName || '').trim()
+  const duration = Number(b.courseDurationMinutes || (b.isTrial ? b.trialDurationMinutes : 120) || 120)
+  const baseId = Number(b.id || 0)
+
+  const pushItem = (date: string, timeRange?: string, idx?: number) => {
+    const t = parseTimeRange(timeRange || '')
+    const startTime = t?.start ? t.start.slice(0, 5) : ''
+    const endTime = t?.end ? t.end.slice(0, 5) : ''
+    result.push({
+      id: -1000000 - baseId * 1000 - (idx ?? result.length),
+      teacherId: 0,
+      teacherName: b.teacherName || '未知教师',
+      studentId: 0,
+      studentName: b.studentName || (userStore.user?.realName || ''),
+      courseId: 0,
+      courseTitle: b.courseTitle,
+      courseName: b.courseTitle,
+      subjectName: subject || '未知科目',
+      scheduledDate: date,
+      startTime: startTime,
+      endTime: endTime,
+      durationMinutes: duration,
+      totalTimes: total,
+      status: 'scheduled',
+      sessionNumber: (idx ?? result.length) + 1
+    } as unknown as CourseSchedule)
+  }
+
+  const dateStr = (d: Date) => {
+    const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const dd = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${dd}`
+  }
+
+  if (b.bookingType === 'single') {
+    const date = b.requestedDate || ''
+    const tr = (b.requestedStartTime && b.requestedEndTime) ? `${b.requestedStartTime}-${b.requestedEndTime}` : ''
+    pushItem(date, tr, 0)
+    return result
+  }
+
+  // 生成多节次（calendar/recurring）
+  const weekdaySlots: Record<string, string[]> = {}
+  if (b.bookingType === 'calendar') {
+    if (b.calendarWeekdayTimeSlots) {
+      Object.keys(b.calendarWeekdayTimeSlots).forEach(k => {
+        const arr = (b.calendarWeekdayTimeSlots as any)[k] || []
+        weekdaySlots[String(k)] = Array.isArray(arr) ? arr as string[] : []
+      })
+    } else if (b.calendarTimeSlots && b.calendarTimeSlots.length) {
+      // 没有按周分布，则默认周一到周日都用同一批时段
+      for (let i = 1; i <= 7; i++) weekdaySlots[String(i)] = [...b.calendarTimeSlots]
+    }
+  } else if (b.bookingType === 'recurring') {
+    const days = b.recurringWeekdays || []
+    const slots = b.recurringTimeSlots || []
+    days.forEach(d => { weekdaySlots[String(d)] = [...slots] })
+  }
+
+  const startDateStr = b.calendarStartDate || b.startDate || ''
+  if (!startDateStr) return result
+  const cursor = new Date(`${startDateStr}T00:00:00`)
+
+  while (result.length < total) {
+    const wd = cursor.getDay() // 0=周日 ... 6=周六
+    const weekday = wd === 0 ? 7 : wd
+    const key = String(weekday)
+    const slots = weekdaySlots[key]
+    if (slots && slots.length) {
+      for (const slot of slots) {
+        if (result.length >= total) break
+        pushItem(dateStr(cursor), slot)
+      }
+    }
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return result
+}
+
 // 将“已审核未开始的预约”映射为占位课程，合并到“进行中”列表
 const mapApprovedBookingToCourse = (b: BookingRequest): Course => {
   const subject = (b.subjectName || '未知科目').trim()
@@ -507,6 +706,15 @@ const mapApprovedBookingToCourse = (b: BookingRequest): Course => {
 
   const title = generatedTitle
 
+  // 生成占位节次（显示所有课时）
+  const plannedSchedules = generatePlannedSchedulesFromBooking(b)
+  const nextFromPlanned = plannedSchedules[0]
+    ? `${plannedSchedules[0].scheduledDate} ${plannedSchedules[0].startTime}-${plannedSchedules[0].endTime}`
+    : nextText
+
+  // 优先用可推导的计划节次数作为总课时，避免缺失 totalTimes 时退化为 1
+  const derivedTotal = plannedSchedules.length > 0 ? plannedSchedules.length : totalTimes
+
   return {
     id: -1000000 - Number(b.id || 0),
     title,
@@ -515,17 +723,17 @@ const mapApprovedBookingToCourse = (b: BookingRequest): Course => {
     subject: subjectWithGrade,
     schedule: timeText || '时间待定',
     progress: 0,
-    nextClass: nextText,
-    startDate: isSingle ? (b.requestedDate || '') : (b.startDate || ''),
+    nextClass: nextFromPlanned,
+    startDate: isSingle ? (b.requestedDate || '') : (b.startDate || b.calendarStartDate || ''),
     endDate: isSingle ? (b.requestedDate || '') : (b.endDate || ''),
-    totalLessons: totalTimes,
+    totalLessons: derivedTotal,
     completedLessons: 0,
-    remainingLessons: totalTimes,
+    remainingLessons: derivedTotal,
     weeklySchedule: [],
     image: getSubjectImage(subjectWithGrade),
     description: `${title} - ${subjectWithGrade}课程`,
     status: 'active',
-    schedules: [],
+    schedules: plannedSchedules,
     hasEvaluation: false,
     durationMinutes: b.courseDurationMinutes || undefined,
     bookingRequestId: b.id
@@ -534,7 +742,16 @@ const mapApprovedBookingToCourse = (b: BookingRequest): Course => {
 
 const mergedActiveCourses = computed(() => {
   const base = courses.value.filter(c => c.status === 'active')
-  const placeholders = approvedUpcomingBookingsInActive.value.map(mapApprovedBookingToCourse)
+  // 仅在“该预约尚未生成真实课表”时，才加入占位课程，避免重复
+  const realBookingIds = new Set<number>()
+  base.forEach(c => {
+    (c.schedules || []).forEach(s => {
+      if (s.bookingRequestId) realBookingIds.add(Number(s.bookingRequestId))
+    })
+  })
+  const placeholders = approvedUpcomingBookingsInActive.value
+    .filter(b => !realBookingIds.has(Number(b.id)))
+    .map(mapApprovedBookingToCourse)
   return [...base, ...placeholders]
 })
 
@@ -770,12 +987,12 @@ const isWeekdaySelectable = (weekday: number): boolean => {
 const getNextSchedule = (schedules?: CourseSchedule[]): CourseSchedule | undefined => {
   if (!schedules) return undefined
 
-  const now = new Date()
-  now.setSeconds(0, 0)
+  const nowTs = Date.now()
   return schedules.find(s => {
+    if (s.status === 'cancelled') return false
     const startTime = (s.startTime && s.startTime.length === 5) ? `${s.startTime}:00` : (s.startTime || '00:00:00')
     const start = new Date(`${s.scheduledDate}T${startTime}`)
-    return s.status === 'progressing' && start > now
+    return start.getTime() > nowTs
   })
 }
 
@@ -846,7 +1063,7 @@ const submitCourseEvaluation = async () => {
         currentCourseForEvaluation.value.hasEvaluation = true
       }
       // 刷新课程列表
-      await loadStudentSchedules()
+      await loadStudentCoursesV2()
     } else {
       ElMessage.error(result.message || '评价提交失败')
     }
@@ -862,19 +1079,85 @@ const submitCourseEvaluation = async () => {
 const showReschedule = async (course: Course) => {
   currentRescheduleCourse.value = course
   rescheduleType.value = 'single'
+  // 
+  // V2 
+  // 
+  if ((course.id <= 0 || (course.schedules || []).every(s => Number(s.id) <= 0)) && course.bookingRequestId) {
+    const real = courses.value.find(c => Number(c.bookingRequestId) === Number(course.bookingRequestId)
+      && Array.isArray(c.schedules) && c.schedules.some(s => Number(s.id) > 0))
+    if (real) {
+      currentRescheduleCourse.value = real
+      course = real
+    }
+  }
 
-  // 找到下次课程（最近的未来课程）
-  const nextSchedule = getNextSchedule(course.schedules)
+
+  // 先取当前卡片的“下一节”
+  let nextSchedule = getNextSchedule(course.schedules)
+
+  // 如果下一节是占位（id<=0），尝试从全量真实课表中映射到真实节次
+  if (!nextSchedule || !nextSchedule.id || Number(nextSchedule.id) <= 0) {
+    const targetDate = nextSchedule?.scheduledDate || ''
+    const targetStart = nextSchedule?.startTime || ''
+    const targetEnd = nextSchedule?.endTime || ''
+    const teacherId = nextSchedule?.teacherId || course.schedules?.[0]?.teacherId
+
+    const realCandidates = schedules.value.filter(s => s.id && Number(s.id) > 0)
+
+    // 先按“日期+时间段(+教师)”精确匹配
+    const exact = realCandidates.find(s =>
+      s.scheduledDate === targetDate &&
+      s.startTime === targetStart &&
+      s.endTime === targetEnd &&
+      (!teacherId || s.teacherId === teacherId)
+    )
+    if (exact) {
+      nextSchedule = exact as unknown as CourseSchedule
+      // 确保传入弹窗的课程对象包含该真实节次，避免弹窗内仍选中占位节次
+      if (Array.isArray(course.schedules)) {
+        const exists = course.schedules.some(s => Number(s.id) === Number((exact as any).id))
+        if (!exists) {
+          course.schedules.push(exact as any)
+        }
+      }
+    } else {
+      // 回退：选择最近的未来节次（同教师优先）
+      const future = realCandidates
+        .filter(s => (!teacherId || s.teacherId === teacherId))
+        .filter(s => {
+          const startStr = (s.startTime && s.startTime.length === 5) ? `${s.startTime}:00` : (s.startTime || '00:00:00')
+          const ts = new Date(`${s.scheduledDate}T${startStr}`).getTime()
+          return ts > Date.now()
+        })
+        .sort((a, b) => {
+          const aStr = (a.startTime && a.startTime.length === 5) ? `${a.startTime}:00` : (a.startTime || '00:00:00')
+          const bStr = (b.startTime && b.startTime.length === 5) ? `${b.startTime}:00` : (b.startTime || '00:00:00')
+          return new Date(`${a.scheduledDate}T${aStr}`).getTime() - new Date(`${b.scheduledDate}T${bStr}`).getTime()
+        })[0]
+      if (future) {
+        nextSchedule = future as unknown as CourseSchedule
+        if (Array.isArray(course.schedules)) {
+          const exists = course.schedules.some(s => Number(s.id) === Number((future as any).id))
+          if (!exists) {
+            course.schedules.push(future as any)
+          }
+        }
+      }
+    }
+  }
 
   let originalDate = ''
   let originalTime = ''
 
-  if (nextSchedule) {
+  if (nextSchedule && nextSchedule.id && Number(nextSchedule.id) > 0) {
     originalDate = nextSchedule.scheduledDate
     originalTime = `${nextSchedule.startTime}-${nextSchedule.endTime}`
 
     // 加载教师可用时间
     await loadTeacherAvailableTime(nextSchedule.teacherId)
+  } else {
+    ElMessage.warning('没有找到可调课的真实课表，请稍后刷新重试')
+    return
   }
 
   // 重置表单并设置原定课程信息
@@ -983,6 +1266,29 @@ const checkRescheduleTimeConflict = async () => {
   try {
     timeConflictChecking.value = true
 
+    // 若下一节课程ID无效（<=0），尝试从全量真实课表中映射
+    if (!nextSchedule.id || Number(nextSchedule.id) <= 0) {
+      const targetDate = nextSchedule.scheduledDate
+      const targetStart = nextSchedule.startTime
+      const targetEnd = nextSchedule.endTime
+      const teacherId = nextSchedule.teacherId || currentRescheduleCourse.value?.schedules?.[0]?.teacherId
+
+      const realCandidates = schedules.value.filter(s => s.id && Number(s.id) > 0)
+      const exact = realCandidates.find(s =>
+        s.scheduledDate === targetDate &&
+        s.startTime === targetStart &&
+        s.endTime === targetEnd &&
+        (!teacherId || s.teacherId === teacherId)
+      )
+      if (exact) {
+        // 用真实节次ID进行冲突检查
+        nextSchedule.id = exact.id
+      } else {
+        timeConflictResult.value = { hasConflict: false, message: '未找到对应的真实课表，请稍后重试' }
+        return
+      }
+    }
+
     // 解析时间段
     const [startTime, endTime] = rescheduleForm.value.newTime.split('-')
 
@@ -1016,10 +1322,15 @@ const getWeekdayName = (weekday: number): string => {
   return names[weekday] || '未知'
 }
 
-// 课程详情中的课程安排（过滤掉已取消的节次，后端已排序）
+// 课程详情中的课程安排（过滤掉已取消的节次，且在前端再次按日期+开始时间稳定排序，避免编号混乱）
 const sortedSchedules = computed(() => {
   if (!currentCourse.value?.schedules) return []
-  return currentCourse.value.schedules.filter(s => s.status !== 'cancelled')
+  const list = currentCourse.value.schedules.filter(s => s.status !== 'cancelled')
+  return list.slice().sort((a, b) => {
+    const aStart = new Date(`${a.scheduledDate}T${(a.startTime && a.startTime.length === 5) ? `${a.startTime}:00` : (a.startTime || '00:00:00')}`).getTime()
+    const bStart = new Date(`${b.scheduledDate}T${(b.startTime && b.startTime.length === 5) ? `${b.startTime}:00` : (b.startTime || '00:00:00')}`).getTime()
+    return aStart - bStart
+  })
 })
 
 // 为有效节次生成正确的编号（排除已取消的节次）
@@ -1091,11 +1402,19 @@ const submitReschedule = async () => {
     }
 
     // 构建调课申请数据
-    const requestData = {
+    const requestData: {
+      scheduleId: number;
+      requestType: 'reschedule';
+      reason: string;
+      urgencyLevel: 'low' | 'medium' | 'high';
+      newDate?: string;
+      newStartTime?: string;
+      newEndTime?: string;
+    } = {
       scheduleId: nextSchedule.id,
-      requestType: rescheduleType.value,
+      requestType: 'reschedule',
       reason: rescheduleForm.value.reason,
-      urgencyLevel: 'medium' as const
+      urgencyLevel: 'medium'
     }
 
     if (rescheduleType.value === 'single') {
@@ -1119,7 +1438,7 @@ const submitReschedule = async () => {
       showRescheduleModal.value = false
 
       // 刷新课程列表以更新状态
-      await loadStudentSchedules()
+      await loadStudentCoursesV2()
     } else {
       ElMessage.error(result.message || '提交调课申请失败')
     }
@@ -1280,7 +1599,7 @@ const submitSuspension = async () => {
     if (result.success) {
       ElMessage.success('停课申请已提交，等待管理员审批')
       suspensionDialogVisible.value = false
-      await loadStudentSchedules()
+      await loadStudentCoursesV2()
     } else {
       ElMessage.error(result.message || '提交停课申请失败')
     }
@@ -1399,9 +1718,12 @@ const getScheduleStatusText = (status: string): string => {
       return '已取消'
     case 'rescheduled':
       return '已调课'
+    case 'scheduled':
+      return '未开始'
     case 'progressing':
-    default:
       return '进行中'
+    default:
+      return '未知'
   }
 }
 
@@ -1825,16 +2147,8 @@ export default {
                   </div>
                   <div class="course-schedule">
                     <div class="schedule-item">
-                      <el-icon><Calendar /></el-icon>
-                      <span>{{ course.schedule }}</span>
-                    </div>
-                    <div class="schedule-item">
                       <el-icon><Timer /></el-icon>
                       <span>下次课程: {{ course.nextClass }}</span>
-                    </div>
-                    <div class="schedule-item" v-if="course.durationMinutes">
-                      <el-icon><Clock /></el-icon>
-                      <span>课程时长: {{ course.durationMinutes === 90 ? '1.5小时' : '2小时' }}</span>
                     </div>
                   </div>
                   <div class="course-actions">
@@ -1891,10 +2205,6 @@ export default {
                     <el-progress :percentage="course.progress" status="success"></el-progress>
                   </div>
                   <div class="course-schedule">
-                    <div class="schedule-item">
-                      <el-icon><Calendar /></el-icon>
-                      <span>{{ course.schedule }}</span>
-                    </div>
                     <div class="schedule-item">
                       <el-icon><Timer /></el-icon>
                       <span>已完成</span>
@@ -2222,6 +2532,7 @@ export default {
       v-model="showRescheduleModal"
       :course="currentRescheduleCourse"
       :isTeacher="false"
+      :all-schedules="schedules"
       @success="loadStudentSchedules"
     />
 

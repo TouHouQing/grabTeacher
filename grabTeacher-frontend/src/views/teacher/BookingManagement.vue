@@ -311,7 +311,7 @@ const loadBookings = async () => {
       status: statusFilter.value,
       year: yearFilter.value || undefined,
       month: monthFilter.value || undefined,
-      requestType: requestTypeFilter.value || undefined,
+      requestType: requestTypeFilter.value ? (requestTypeFilter.value === 'cancel' ? 'cancel' : 'reschedule') : undefined,
       applicantType: applicantTypeFilter.value || undefined,
       applicantName: applicantNameFilter.value || undefined,
       courseName: courseNameFilter.value || undefined

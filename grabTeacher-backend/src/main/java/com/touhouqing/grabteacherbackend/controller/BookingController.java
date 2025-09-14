@@ -295,6 +295,27 @@ public class BookingController {
                     .body(CommonResult.error("系统异常，请稍后重试"));
         }
     }
+    /**
+     * 学生端“我的课程”V2：完全以真实课表为准
+     */
+    @GetMapping("/student/my-courses/v2")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "学生端我的课程V2", description = "以 course_schedules 为唯一真相源，后端聚合返回课程卡片")
+    public ResponseEntity<CommonResult<java.util.List<com.touhouqing.grabteacherbackend.model.vo.StudentCourseCardV2VO>>> getStudentCoursesV2(
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        try {
+            java.util.List<com.touhouqing.grabteacherbackend.model.vo.StudentCourseCardV2VO> response = bookingService.getStudentCoursesV2(currentUser.getId());
+            return ResponseEntity.ok(CommonResult.success("获取成功", response));
+        } catch (RuntimeException e) {
+            logger.warn("获取我的课程V2失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("获取我的课程V2异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("获取失败"));
+        }
+    }
+
+
 
     /**
      * 检查用户是否可以使用免费试听

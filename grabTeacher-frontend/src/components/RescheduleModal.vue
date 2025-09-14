@@ -12,7 +12,7 @@
       <div class="reschedule-info">
         <el-alert
           title="调课须知"
-          description="单次调课须在开课前4小时之外发起，老师确认后生效。剩余课时不变。"
+          description="调课须在开课前4小时之外发起，管理员审批同意后生效。"
           type="info"
           show-icon
           :closable="false"
@@ -64,37 +64,23 @@
         </div>
       </div>
 
-      <div class="reschedule-type-selection">
-        <el-radio-group v-model="rescheduleType" @change="switchRescheduleType">
-          <el-radio-button :value="'single'">
-            <el-icon><Calendar /></el-icon>
-            单次调课
-          </el-radio-button>
-          <el-radio-button :value="'recurring'">
-            <el-icon><Timer /></el-icon>
-            周期性调课
-          </el-radio-button>
-        </el-radio-group>
-      </div>
+      <div class="reschedule-type-selection"></div>
 
-      <!-- 单次调课表单 -->
-      <div v-if="rescheduleType === 'single'" class="single-reschedule-form">
+      <!-- 调课表单（仅单次，按具体节次与时间） -->
+      <div class="single-reschedule-form">
         <el-form :model="rescheduleForm" label-width="120px">
           <el-form-item label="原定课程">
             <div class="original-schedule-display">
-              <div class="schedule-info">
-                <el-tag type="info" size="large">
-                  <el-icon><Calendar /></el-icon>
-                  {{ rescheduleForm.originalDate ? new Date(rescheduleForm.originalDate).toLocaleDateString('zh-CN') : '未选择日期' }}
-                </el-tag>
-                <el-tag type="info" size="large">
-                  <el-icon><Timer /></el-icon>
-                  {{ rescheduleForm.originalTime || '未选择时间' }}
-                </el-tag>
-              </div>
-              <div class="schedule-note">
-                <el-text type="info" size="small">* 将调整下次即将到来的课程</el-text>
-              </div>
+              <el-select v-model="selectedScheduleId" placeholder="选择要调整的节次" style="width: 360px; margin-bottom: 8px;">
+                <el-option
+                  v-for="(s, idx) in futureSchedules"
+                  :key="s.id"
+                  :label="`第${idx + 1}节 ${s.scheduledDate} ${s.startTime}-${s.endTime}${!isScheduleAdjustable(s) ? '（4小时内不可调）' : ''}`"
+                  :value="s.id"
+                  :disabled="!isScheduleAdjustable(s)"
+                />
+              </el-select>
+
             </div>
           </el-form-item>
 
@@ -170,95 +156,7 @@
         </el-form>
       </div>
 
-      <!-- 周期性调课表单 -->
-      <div v-if="rescheduleType === 'recurring'" class="recurring-reschedule-form">
-        <el-form :model="rescheduleForm" label-width="120px">
-          <el-form-item label="选择时间段">
-            <div class="time-slot-selection">
-              <div
-                v-for="time in getCurrentRescheduleTimeSlots"
-                :key="time"
-                :class="[
-                  'time-slot-card',
-                  {
-                    'selected': rescheduleForm.selectedTimeSlots.includes(time),
-                    'disabled': !isTimeSlotSelectable(time) && !rescheduleForm.selectedTimeSlots.includes(time),
-                    'conflicted': rescheduleForm.selectedTimeSlots.includes(time) && !isTimeSlotSelectable(time)
-                  }
-                ]"
-                @click="() => {
-                  // 如果时间段已经被选中，允许取消选择
-                  if (rescheduleForm.selectedTimeSlots.includes(time)) {
-                    rescheduleForm.selectedTimeSlots = rescheduleForm.selectedTimeSlots.filter(t => t !== time)
-                    // 清空不再可用的星期选择
-                    rescheduleForm.selectedWeekdays = rescheduleForm.selectedWeekdays.filter(weekday =>
-                      isWeekdaySelectable(weekday)
-                    )
-                    return
-                  }
 
-                  // 如果时间段不可选择且未被选中，不允许选择
-                  if (!isTimeSlotSelectable(time)) {
-                    return
-                  }
-
-                  // 添加新的时间段
-                  rescheduleForm.selectedTimeSlots.push(time)
-                }"
-              >
-                <div class="slot-time">{{ time }}</div>
-                <div v-if="!isTimeSlotSelectable(time) && !rescheduleForm.selectedTimeSlots.includes(time)" class="unavailable-overlay">
-                  <span class="unavailable-text">不可用</span>
-                </div>
-              </div>
-            </div>
-          </el-form-item>
-
-          <el-form-item label="选择星期" v-if="rescheduleForm.selectedTimeSlots.length > 0">
-            <div class="weekday-selection">
-              <el-checkbox-group v-model="rescheduleForm.selectedWeekdays">
-                <el-checkbox
-                  v-for="weekday in [1, 2, 3, 4, 5, 6, 7]"
-                  :key="weekday"
-                  :label="weekday"
-                  :disabled="!isWeekdaySelectable(weekday)"
-                >
-                  <span class="weekday-label" :class="{ 'disabled': !isWeekdaySelectable(weekday) }">
-                    {{ getWeekdayName(weekday) }}
-                    <span v-if="!isWeekdaySelectable(weekday)" class="unavailable-hint">（不可用）</span>
-                  </span>
-                </el-checkbox>
-              </el-checkbox-group>
-            </div>
-            <div v-if="getAvailableWeekdays.length === 0" class="no-available-weekdays">
-              <el-text type="warning">所选时间段在任何星期都不可用，请重新选择时间段</el-text>
-            </div>
-          </el-form-item>
-
-          <el-form-item label="新的安排" v-if="rescheduleForm.selectedWeekdays.length > 0 && rescheduleForm.selectedTimeSlots.length > 0">
-            <div class="schedule-preview">
-              <div class="preview-content">
-                <span class="preview-label">每周：</span>
-                <div class="preview-tags">
-                  <el-tag type="success" size="large">
-                    {{ rescheduleForm.selectedWeekdays.map(day => getWeekdayName(day)).join('、') }}
-                  </el-tag>
-                  <div class="time-tags">
-                    <el-tag
-                      v-for="timeSlot in rescheduleForm.selectedTimeSlots"
-                      :key="timeSlot"
-                      type="primary"
-                      size="large"
-                    >
-                      {{ timeSlot }}
-                    </el-tag>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </el-form-item>
-        </el-form>
-      </div>
 
       <el-form :model="rescheduleForm" label-width="120px">
         <el-form-item label="调课原因" required>
@@ -280,9 +178,7 @@
         <el-button
           type="primary"
           @click="submitReschedule"
-          :disabled="rescheduleType === 'single' ?
-            (!rescheduleForm.originalDate || !rescheduleForm.originalTime || !rescheduleForm.newDate || !rescheduleForm.newTime) :
-            (rescheduleForm.selectedWeekdays.length === 0 || rescheduleForm.selectedTimeSlots.length === 0)"
+          :disabled="!(rescheduleForm.originalDate && rescheduleForm.originalTime && rescheduleForm.newDate && rescheduleForm.newTime && selectedSchedule && isScheduleAdjustable(selectedSchedule) && Number(selectedSchedule.id) > 0)"
         >
           <el-icon><Check /></el-icon>
           提交申请
@@ -295,7 +191,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, Timer, Check, Loading } from '@element-plus/icons-vue'
+import { Check, Loading } from '@element-plus/icons-vue'
 import { rescheduleAPI, teacherAPI, studentAPI } from '../utils/api'
 
 // 课程接口
@@ -354,6 +250,7 @@ interface Props {
   modelValue: boolean;
   course: Course | null;
   isTeacher?: boolean; // 是否为教师端使用
+  allSchedules?: CourseSchedule[]; // 全量真实课表（用于占位→真实映射）
 }
 
 // Emits
@@ -373,17 +270,100 @@ const updateVisible = (value: boolean) => {
   emit('update:modelValue', value)
 }
 
-const rescheduleType = ref<'single' | 'recurring'>('single')
 const rescheduleForm = ref({
   originalDate: '',
   originalTime: '',
   newDate: '',
   newTime: '',
-  selectedWeekdays: [] as number[],
-  selectedTimeSlots: [] as string[],
-  reason: '',
-  type: 'single' as 'single' | 'recurring'
+  reason: ''
 })
+
+// 选择的原定节次ID
+const selectedScheduleId = ref<number | null>(null)
+
+// 未来可选的节次列表（仅保留“当前时间之后”的 scheduled/progressing 节次）
+const futureSchedules = computed<CourseSchedule[]>(() => {
+  const schedules = props.course?.schedules ?? []
+  const nowTs = Date.now()
+  const norm = (t?: string) => (t && t.length === 5 ? `${t}:00` : (t || '00:00:00'))
+
+  // 1) 先按id去重：若同一id出现多条，保留“时间更新后”的那条（较新的日期+开始时间）
+  const byId = new Map<number, CourseSchedule>()
+  for (const s of schedules as CourseSchedule[]) {
+    const id = Number((s as CourseSchedule).id)
+    if (!id || isNaN(id)) continue
+    const prev = byId.get(id)
+    if (!prev) {
+      byId.set(id, s)
+    } else {
+      const prevTs = new Date(`${prev.scheduledDate}T${norm(prev.startTime)}`).getTime()
+      const currTs = new Date(`${s.scheduledDate}T${norm(s.startTime)}`).getTime()
+      if (currTs >= prevTs) byId.set(id, s)
+    }
+  }
+
+  const unique = Array.from(byId.values())
+
+  // 2) 仅保留未来可调课的有效节次，并按时间升序
+  return unique
+    .filter((s: CourseSchedule) => {
+      if (s.status === 'cancelled') return false
+      const ts = new Date(`${s.scheduledDate}T${norm(s.startTime)}`).getTime()
+      return ts > nowTs
+    })
+    .sort((a: CourseSchedule, b: CourseSchedule) => {
+      const ta = new Date(`${a.scheduledDate}T${norm(a.startTime)}`).getTime()
+      const tb = new Date(`${b.scheduledDate}T${norm(b.startTime)}`).getTime()
+      return ta - tb
+    })
+})
+
+// 当前选中的节次对象
+const selectedSchedule = computed<CourseSchedule | undefined>(() => {
+  if (!futureSchedules.value.length) return undefined
+  if (selectedScheduleId.value != null) {
+    return futureSchedules.value.find(s => s.id === selectedScheduleId.value) || futureSchedules.value[0]
+  }
+  return futureSchedules.value[0]
+})
+
+// 当切换选中节次时，同步原定课程显示与可用时间
+watch(selectedScheduleId, async () => {
+  let s = selectedSchedule.value
+  // 若选择的是占位节次，尝试映射到当前课程中的真实节次（按日期+时间(+教师)）
+  if (s && (!s.id || Number(s.id) <= 0) && Array.isArray(props.course?.schedules)) {
+    const realCandidates = (props.course!.schedules! as CourseSchedule[]).filter((x: CourseSchedule) => x.id && Number(x.id) > 0)
+    const norm = (t: string | undefined | null) => t ? (t.length === 5 ? `${t}:00` : t) : ''
+    const exact = realCandidates.find((x: CourseSchedule) =>
+      x.scheduledDate === s!.scheduledDate &&
+      norm(x.startTime) === norm(s!.startTime) &&
+      norm(x.endTime) === norm(s!.endTime) &&
+      (!s!.teacherId || x.teacherId === s!.teacherId)
+    )
+    if (exact) {
+      // 确保该真实节次出现在选项中
+      if (Array.isArray(props.course?.schedules)) {
+        const exists = (props.course!.schedules! as CourseSchedule[]).some(x => Number(x.id) === Number(exact.id))
+        if (!exists) {
+          (props.course!.schedules! as CourseSchedule[]).push(exact as CourseSchedule)
+        }
+      }
+      selectedScheduleId.value = exact.id
+      s = exact
+    }
+  }
+
+  if (s) {
+    rescheduleForm.value.originalDate = s.scheduledDate
+    rescheduleForm.value.originalTime = `${s.startTime}-${s.endTime}`
+    timeConflictResult.value = null
+    await loadTeacherAvailableTime()
+  } else {
+    rescheduleForm.value.originalDate = ''
+    rescheduleForm.value.originalTime = ''
+  }
+})
+
 
 // 教师可用时间
 const teacherAvailableTimeSlots = ref<TeacherAvailableTime[]>([])
@@ -459,21 +439,14 @@ const getAvailableTimeSlotsByDuration = (durationMinutes?: number): string[] => 
   return availableTimeSlots.value
 }
 
-// 获取当前调课可用的时间段（根据课程时长动态生成）
+// 获取当前调课可用的时间段（根据所选节次的课程时长动态生成）
 const getCurrentRescheduleTimeSlots = computed(() => {
-  if (!props.course?.schedules || props.course.schedules.length === 0) {
-    return availableTimeSlots.value
-  }
-
-  // 获取第一个课程安排的时长信息
-  const firstSchedule = props.course.schedules[0]
-  const durationMinutes = firstSchedule.durationMinutes
-
-  return getAvailableTimeSlotsByDuration(durationMinutes)
+  const s = selectedSchedule.value
+  return getAvailableTimeSlotsByDuration(s?.durationMinutes)
 })
 
 // 监听弹窗显示状态
-watch(() => props.modelValue, async (newVal) => {
+watch(() => props.modelValue, async (newVal: boolean) => {
   if (newVal && props.course) {
     await initializeReschedule()
     await loadCurrentUserAdjustmentTimes()
@@ -484,32 +457,28 @@ watch(() => props.modelValue, async (newVal) => {
 const initializeReschedule = async () => {
   if (!props.course) return
 
-  rescheduleType.value = 'single'
-
-  // 找到下次课程（最近的未来课程）
-  const nextSchedule = getNextSchedule(props.course.schedules)
-
-  let originalDate = ''
-  let originalTime = ''
-
-  if (nextSchedule) {
-    originalDate = nextSchedule.scheduledDate
-    originalTime = `${nextSchedule.startTime}-${nextSchedule.endTime}`
-
-    // 加载教师可用时间
-    await loadTeacherAvailableTime(nextSchedule.teacherId)
+  // 默认选中最近的一节未来课程
+  if (futureSchedules.value.length > 0) {
+    const first = futureSchedules.value.find(s => isScheduleAdjustable(s))
+    selectedScheduleId.value = first ? first.id : null
+  } else {
+    selectedScheduleId.value = null
   }
+
+  const s = selectedSchedule.value
 
   // 重置表单并设置原定课程信息
   rescheduleForm.value = {
-    originalDate,
-    originalTime,
+    originalDate: s ? s.scheduledDate : '',
+    originalTime: s ? `${s.startTime}-${s.endTime}` : '',
     newDate: '',
     newTime: '',
-    selectedWeekdays: [],
-    selectedTimeSlots: [],
-    reason: '',
-    type: 'single'
+    reason: ''
+  }
+
+  // 加载教师可用时间
+  if (s) {
+    await loadTeacherAvailableTime()
   }
 
   // 重置时间冲突检查结果
@@ -520,57 +489,29 @@ const initializeReschedule = async () => {
 const loadCurrentUserAdjustmentTimes = async () => {
   try {
     if (props.isTeacher) {
-      const p: any = await teacherAPI.getProfile()
+      const p = await teacherAPI.getProfile()
       if (p?.success && p?.data?.adjustmentTimes !== undefined) {
         userAdjustmentTimes.value = Number(p.data.adjustmentTimes)
       }
     } else {
-      const p: any = await studentAPI.getProfile()
+      const p = await studentAPI.getProfile()
       if (p?.success && p?.data?.adjustmentTimes !== undefined) {
         userAdjustmentTimes.value = Number(p.data.adjustmentTimes)
       }
     }
-  } catch (e) {
+  } catch {
     // 忽略读取失败，不阻塞弹窗
     userAdjustmentTimes.value = userAdjustmentTimes.value ?? null
   }
 }
 
 // 加载教师可用时间（周模板已移除，按日历选择）
-const loadTeacherAvailableTime = async (_teacherId: number) => {
+const loadTeacherAvailableTime = async () => {
   console.info('[RescheduleModal] 已切换按日历调课，周模板可用时间已移除')
   teacherAvailableTimeSlots.value = []
 }
 
-// 切换调课类型
-const switchRescheduleType = (type: 'single' | 'recurring') => {
-  rescheduleType.value = type
-  rescheduleForm.value.type = type
 
-  // 保留原定课程信息，只清空新的安排
-  if (type === 'single') {
-    // 切换到单次调课时，保留原定课程信息，清空周期性调课的选择
-    rescheduleForm.value.selectedWeekdays = []
-    rescheduleForm.value.selectedTimeSlots = []
-    rescheduleForm.value.newDate = ''
-    rescheduleForm.value.newTime = ''
-
-    // 重新设置原定课程信息（如果之前被清空了）
-    if (!rescheduleForm.value.originalDate || !rescheduleForm.value.originalTime) {
-      const nextSchedule = getNextSchedule(props.course?.schedules)
-      if (nextSchedule) {
-        rescheduleForm.value.originalDate = nextSchedule.scheduledDate
-        rescheduleForm.value.originalTime = `${nextSchedule.startTime}-${nextSchedule.endTime}`
-      }
-    }
-  } else {
-    // 切换到周期性调课时，清空单次调课的选择
-    rescheduleForm.value.selectedWeekdays = []
-    rescheduleForm.value.selectedTimeSlots = []
-    rescheduleForm.value.newDate = ''
-    rescheduleForm.value.newTime = ''
-  }
-}
 
 // 判断是否为过去日期（禁止选择今天之前）
 const isPastDate = (dateStr: string): boolean => {
@@ -595,6 +536,21 @@ const isAtLeastFourHoursBeforeOriginal = (): boolean => {
   }
 }
 
+// 判断某节次是否满足“距离当前时间≥4小时”
+const isScheduleAdjustable = (s: CourseSchedule): boolean => {
+  try {
+    const startRaw = s.startTime
+    const start = startRaw.length === 5 ? `${startRaw}:00` : startRaw
+    const originalStart = new Date(`${s.scheduledDate}T${start}`)
+    if (isNaN(originalStart.getTime())) return false
+    const nowPlus4 = new Date(Date.now() + 4 * 60 * 60 * 1000)
+    return originalStart.getTime() > nowPlus4.getTime()
+  } catch {
+    return false
+  }
+}
+
+
 // 检查调课时间冲突
 const checkRescheduleTimeConflict = async () => {
   if (!rescheduleForm.value.newDate || !rescheduleForm.value.newTime) {
@@ -604,15 +560,58 @@ const checkRescheduleTimeConflict = async () => {
 
   console.log('开始检查时间冲突，课程数据:', props.course)
 
-  const nextSchedule = getNextSchedule(props.course?.schedules)
-  if (!nextSchedule) {
-    console.error('无法获取下一节课信息')
-    timeConflictResult.value = { hasConflict: false, message: '无法获取课程信息' }
+  const s = selectedSchedule.value
+  if (!s) {
+    console.error('无可选择的未来课程')
+    timeConflictResult.value = { hasConflict: false, message: '无可调整的未来课程' }
     return
   }
 
   try {
     timeConflictChecking.value = true
+
+    // 若选中为占位节次，尝试在当前课程内映射到真实节次
+    let scheduleId = s.id
+    if (!scheduleId || Number(scheduleId) <= 0) {
+      if (Array.isArray(props.course?.schedules)) {
+        const merged = [
+          ...((props.course!.schedules! as CourseSchedule[]) || []),
+          ...((props.allSchedules || []) as CourseSchedule[])
+        ]
+        const seen = new Set<number>()
+        const realCandidates = merged.filter((x: CourseSchedule) => {
+          const ok = x.id && Number(x.id) > 0 && !seen.has(Number(x.id))
+          if (ok) seen.add(Number(x.id))
+          return ok
+        })
+        const norm = (t: string | undefined | null) => {
+          if (!t) return ''
+          return t.length === 5 ? `${t}:00` : t
+        }
+        const exact = realCandidates.find((x: CourseSchedule) =>
+          x.scheduledDate === s!.scheduledDate &&
+          norm(x.startTime) === norm(s!.startTime) &&
+          norm(x.endTime) === norm(s!.endTime) &&
+          (!s!.teacherId || x.teacherId === s!.teacherId)
+        )
+        if (exact) {
+          // 确保该真实节次出现在选项中
+          if (Array.isArray(props.course?.schedules)) {
+            const exists = (props.course!.schedules! as CourseSchedule[]).some(x => Number(x.id) === Number(exact.id))
+            if (!exists) {
+              (props.course!.schedules! as CourseSchedule[]).push(exact as CourseSchedule)
+            }
+          }
+          selectedScheduleId.value = exact.id
+          scheduleId = exact.id
+        }
+      }
+    }
+
+    if (!scheduleId || Number(scheduleId) <= 0) {
+      timeConflictResult.value = { hasConflict: false, message: '未找到对应的真实课表，请刷新后再试' }
+      return
+    }
 
     // 解析时间段
     const [startTime, endTime] = rescheduleForm.value.newTime.split('-')
@@ -624,18 +623,18 @@ const checkRescheduleTimeConflict = async () => {
     }
 
     console.log('检查时间冲突参数:', {
-      scheduleId: nextSchedule.id,
+      scheduleId,
       newDate: rescheduleForm.value.newDate,
       startTime,
       endTime,
-      nextSchedule
+      selected: s
     })
 
     // 教师/学生分别调用各自的API，避免权限冲突
     const apiCall = props.isTeacher ? rescheduleAPI.checkTeacherTimeConflict : rescheduleAPI.checkTimeConflict
 
     const result = await apiCall(
-      nextSchedule.id,
+      Number(scheduleId),
       rescheduleForm.value.newDate,
       startTime,
       endTime
@@ -647,8 +646,7 @@ const checkRescheduleTimeConflict = async () => {
       timeConflictResult.value = {
         hasConflict: result.data.hasConflict,
         conflictType: result.data.conflictType,
-        message: result.data.message
- || '检查完成'
+        message: result.data.message || '检查完成'
       }
     } else {
       console.error('API返回失败:', result)
@@ -662,11 +660,6 @@ const checkRescheduleTimeConflict = async () => {
   }
 }
 
-// 获取星期几的中文名称（统一使用后端格式：1-7）
-const getWeekdayName = (weekday: number): string => {
-  const names = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
-  return names[weekday] || '未知'
-}
 
 // 找到1.5小时时间段对应的基础2小时时间段
 const findBaseTimeSlotFor90Min = (timeSlot: string): string | null => {
@@ -695,61 +688,12 @@ const findBaseTimeSlotFor90Min = (timeSlot: string): string | null => {
   return null
 }
 
-// 检查时间段是否可用（基于教师设置和预约逻辑）
-const isTimeSlotAvailable = (weekday: number, timeSlot: string): boolean => {
-  if (teacherAvailableTimeSlots.value.length === 0) {
-    // 如果教师未设置可用时间，默认所有时间可用
-    return true
-  }
-
-  // 查找对应星期几的时间段（现在统一使用1-7格式）
-  const daySlot = teacherAvailableTimeSlots.value.find(slot => slot.weekday === weekday)
-  if (!daySlot || !daySlot.timeSlots) {
-    return false
-  }
-
-  // 获取当前调课课程的时长信息
-  const currentDuration = props.course?.schedules?.[0]?.durationMinutes
-
-  // 如果当前时长是90分钟（1.5小时），需要映射到基础2小时时间段
-  if (currentDuration === 90) {
-    const baseTimeSlot = findBaseTimeSlotFor90Min(timeSlot)
-    if (!baseTimeSlot) {
-      return false
-    }
-    // 使用基础时间段来判断可用性
-    return daySlot.timeSlots.includes(baseTimeSlot)
-  }
-
-  // 2小时课程，直接查找
-  return daySlot.timeSlots.includes(timeSlot)
-}
 
 // 检查时间段是否与已选择的时间段冲突（在同一基础区间内）
 const isTimeSlotConflictWithSelected = (timeSlot: string): boolean => {
-  const currentDuration = props.course?.schedules?.[0]?.durationMinutes
-
-  // 只有1.5小时课程需要检查区间冲突
-  if (currentDuration !== 90) {
-    return false
-  }
-
-  // 如果当前时间段已经被选中，则不算冲突（允许取消选择）
-  if (rescheduleForm.value.selectedTimeSlots.includes(timeSlot)) {
-    return false
-  }
-
-  // 找到当前时间段对应的基础区间
-  const currentBaseSlot = findBaseTimeSlotFor90Min(timeSlot)
-  if (!currentBaseSlot) {
-    return false
-  }
-
-  // 检查已选择的时间段中是否有与当前时间段在同一基础区间的
-  return rescheduleForm.value.selectedTimeSlots.some(selectedSlot => {
-    const selectedBaseSlot = findBaseTimeSlotFor90Min(selectedSlot)
-    return selectedBaseSlot === currentBaseSlot
-  })
+  void timeSlot
+  // 仅保留单次调课，已不涉及多选时间段的区间冲突
+  return false
 }
 
 // 检查时间段是否可选择（用于禁用不可用的时间段）
@@ -787,98 +731,41 @@ const isTimeSlotSelectable = (timeSlot: string): boolean => {
   return isAvailable
 }
 
-// 获取可选择的星期几（基于已选择的时间段）
-const getAvailableWeekdays = computed(() => {
-  if (rescheduleForm.value.selectedTimeSlots.length === 0) {
-    return []
-  }
 
-  const availableWeekdays: number[] = []
-
-  // 检查每个星期几
-  for (const weekday of [1, 2, 3, 4, 5, 6, 7]) {
-    // 检查该星期几是否有所有已选择的时间段可用
-    const hasAllTimeSlots = rescheduleForm.value.selectedTimeSlots.every(timeSlot =>
-      isTimeSlotAvailable(weekday, timeSlot)
-    )
-
-    if (hasAllTimeSlots) {
-      availableWeekdays.push(weekday)
-    }
-  }
-
-  return availableWeekdays
-})
-
-// 检查星期几是否可选择
-const isWeekdaySelectable = (weekday: number): boolean => {
-  return getAvailableWeekdays.value.includes(weekday)
-}
-
-// 获取下一节课（最近的未来课程）
-const getNextSchedule = (schedules?: CourseSchedule[]): CourseSchedule | undefined => {
-  if (!schedules) return undefined
-
-  const nextSchedule = schedules.find(s =>
-    new Date(s.scheduledDate) > new Date() && s.status === 'progressing'
-  )
-
-  console.log('获取下一节课:', {
-    schedules,
-    nextSchedule,
-    currentDate: new Date()
-  })
-
-  return nextSchedule
-}
 
 // 提交调课申请
 const submitReschedule = async () => {
   if (!props.course) return
 
   // 验证表单
-  if (rescheduleType.value === 'single') {
-    if (!rescheduleForm.value.originalDate || !rescheduleForm.value.originalTime ||
-        !rescheduleForm.value.newDate || !rescheduleForm.value.newTime) {
-      ElMessage.warning('请填写完整的调课信息')
-      return
-    }
+  if (!rescheduleForm.value.originalDate || !rescheduleForm.value.originalTime ||
+      !rescheduleForm.value.newDate || !rescheduleForm.value.newTime) {
+    ElMessage.warning('请填写完整的调课信息')
+    return
+  }
 
-    // 检查4小时限制（仅针对原定课程开始时间）
-    if (!isAtLeastFourHoursBeforeOriginal()) {
-      ElMessage.error('单次调课需在开课前4小时之外发起')
-      return
-    }
-    // 新的上课日期不得早于今天
-    if (isPastDate(rescheduleForm.value.newDate)) {
-      ElMessage.error('新的上课日期不能早于今天')
-      return
-    }
+  // 检查4小时限制（仅针对原定课程开始时间）
+  if (!isAtLeastFourHoursBeforeOriginal()) {
+    ElMessage.error('调课需在开课前4小时之外发起')
+    return
+  }
+  // 新的上课日期不得早于今天
+  if (isPastDate(rescheduleForm.value.newDate)) {
+    ElMessage.error('新的上课日期不能早于今天')
+    return
+  }
 
-    // 检查时间冲突
+  // 检查时间冲突
+  if (timeConflictResult.value?.hasConflict) {
+    ElMessage.error('所选时间与其他课程冲突，请选择其他时间')
+    return
+  }
+
+  // 如果还没有检查过时间冲突，先检查
+  if (!timeConflictResult.value) {
+    await checkRescheduleTimeConflict()
     if (timeConflictResult.value?.hasConflict) {
       ElMessage.error('所选时间与其他课程冲突，请选择其他时间')
-      return
-    }
-
-    // 如果还没有检查过时间冲突，先检查
-    if (!timeConflictResult.value) {
-      await checkRescheduleTimeConflict()
-      if (timeConflictResult.value?.hasConflict) {
-        ElMessage.error('所选时间与其他课程冲突，请选择其他时间')
-        return
-      }
-    }
-  } else {
-    if (rescheduleForm.value.selectedWeekdays.length === 0 ||
-        rescheduleForm.value.selectedTimeSlots.length === 0) {
-      ElMessage.warning('请选择新的每周上课时间')
-      return
-    }
-
-    // 验证时间格式
-    if (!validateTimeFormat(rescheduleForm.value.selectedWeekdays, rescheduleForm.value.selectedTimeSlots)) {
-      ElMessage.error('时间格式无效，请重新选择')
       return
     }
   }
@@ -889,41 +776,23 @@ const submitReschedule = async () => {
   }
 
   try {
-    // 获取最近的课程安排ID（用于调课申请）
-    const nextSchedule = getNextSchedule(props.course.schedules)
+    // 使用用户选择的未来节次ID
+    const s = selectedSchedule.value
 
-    if (!nextSchedule) {
+    if (!s) {
       ElMessage.error('没有找到可调课的课程安排')
       return
     }
 
-    // 构建调课申请数据
+    // 构建调课申请数据（仅单次、按具体节次与时间）
     const requestData = {
-      scheduleId: nextSchedule.id,
-      requestType: rescheduleType.value,
+      scheduleId: s.id,
+      requestType: 'reschedule' as const,
       reason: rescheduleForm.value.reason,
-      urgencyLevel: 'medium' as const
-    }
-
-    if (rescheduleType.value === 'single') {
-      Object.assign(requestData, {
-        newDate: rescheduleForm.value.newDate,
-        newStartTime: rescheduleForm.value.newTime.split('-')[0],
-        newEndTime: rescheduleForm.value.newTime.split('-')[1]
-      })
-    } else {
-      // 周期性调课：构建更规范的数据格式
-      const weekdays = rescheduleForm.value.selectedWeekdays.sort((a, b) => a - b)
-      const timeSlots = rescheduleForm.value.selectedTimeSlots.sort()
-
-      console.log('周期性调课数据:', { weekdays, timeSlots });
-
-      Object.assign(requestData, {
-        newRecurringWeekdays: weekdays,
-        newRecurringTimeSlots: timeSlots,
-        // 添加格式化的每周安排字符串，便于后端处理和显示
-        newWeeklySchedule: formatWeeklyScheduleString(weekdays, timeSlots)
-      })
+      urgencyLevel: 'medium' as const,
+      newDate: rescheduleForm.value.newDate,
+      newStartTime: rescheduleForm.value.newTime.split('-')[0],
+      newEndTime: rescheduleForm.value.newTime.split('-')[1]
     }
 
     // 根据用户类型选择API
@@ -931,7 +800,7 @@ const submitReschedule = async () => {
 
     // 学生端在提交前额外校验一次后端 canApply（用于余额不足等前置阻断）
     if (!props.isTeacher) {
-      const can = await rescheduleAPI.canApply(nextSchedule.id)
+      const can = await rescheduleAPI.canApply(s.id)
       if (can && can.success === true && can.data === false) {
         ElMessage.error('当前无法申请调课（可能因余额不足或时间限制）')
         return
@@ -963,62 +832,12 @@ const handleClose = () => {
     originalTime: '',
     newDate: '',
     newTime: '',
-    selectedWeekdays: [],
-    selectedTimeSlots: [],
-    reason: '',
-    type: 'single'
+    reason: ''
   }
   timeConflictResult.value = null
 }
 
-// 格式化每周安排字符串
-const formatWeeklyScheduleString = (weekdays: number[], timeSlots: string[]): string => {
-  if (weekdays.length === 0 || timeSlots.length === 0) {
-    return '';
-  }
 
-  const weekdayNames = weekdays.map(day => getWeekdayName(day));
-
-  // 如果只有一个时间段，使用多星期单时间段格式
-  if (timeSlots.length === 1) {
-    return `${weekdayNames.join('、')} ${timeSlots[0]}`;
-  }
-
-  // 如果多个时间段，使用单星期多时间段格式
-  // 为每个星期几分配所有时间段
-  const formattedSlots: string[] = [];
-
-  for (const weekday of weekdays) {
-    const weekdayName = getWeekdayName(weekday);
-    const timeSlotString = timeSlots.join(',');
-    formattedSlots.push(`${weekdayName} ${timeSlotString}`);
-  }
-
-  return formattedSlots.join(';');
-};
-
-// 验证时间格式（仅用于周期性调课）
-const validateTimeFormat = (weekdays: number[], timeSlots: string[]): boolean => {
-  if (weekdays.length === 0 || timeSlots.length === 0) {
-    return false;
-  }
-
-  // 检查每个星期几是否都包含至少一个时间段
-  for (const weekday of weekdays) {
-    if (!isWeekdaySelectable(weekday)) {
-      return false;
-    }
-  }
-
-  // 检查每个时间段是否都可用
-  for (const timeSlot of timeSlots) {
-    if (!isTimeSlotSelectable(timeSlot)) {
-      return false;
-    }
-  }
-
-  return true;
-};
 </script>
 
 <style scoped>

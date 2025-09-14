@@ -81,7 +81,7 @@ public interface RescheduleRequestMapper extends BaseMapper<RescheduleRequest> {
             "JOIN course_schedules cs ON rr.schedule_id = cs.id \n" +
             "JOIN course_enrollments ce ON cs.enrollment_id = ce.id \n" +
             "WHERE ce.teacher_id = #{teacherId} AND rr.status = 'pending' AND rr.is_deleted = 0 \n" +
-            "AND rr.request_type = 'single' AND rr.new_date = #{date}")
+            "AND rr.request_type = 'reschedule' AND rr.new_date = #{date}")
     List<RescheduleRequest> findPendingSingleByTeacherAndDate(@Param("teacherId") Long teacherId,
                                                              @Param("date") java.time.LocalDate date);
 }

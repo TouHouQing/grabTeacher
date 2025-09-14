@@ -683,6 +683,11 @@ export const bookingAPI = {
     if (segment) params.append('segment', segment)
     return apiRequest(`/api/booking/availability/day?${params}`)
   }
+  ,
+
+  // 学生端：我的课程 V2（后端聚合，直接读真实课表）
+  getStudentCoursesV2: () => apiRequest('/api/booking/student/my-courses/v2')
+
 }
 
 // 课程管理 API
@@ -871,17 +876,13 @@ export const rescheduleAPI = {
   // 创建调课申请（学生操作）
   createRequest: (data: {
     scheduleId: number
-    requestType: 'single' | 'recurring' | 'cancel'
+    requestType: 'reschedule' | 'cancel'
     newDate?: string
     newStartTime?: string
     newEndTime?: string
-    newRecurringWeekdays?: number[]
-    newRecurringTimeSlots?: string[]
-    newWeeklySchedule?: string
     reason: string
     urgencyLevel?: 'low' | 'medium' | 'high'
     advanceNoticeHours?: number
-    affectsFutureSessions?: boolean
     notes?: string
   }) => apiRequest('/api/reschedule/request', {
     method: 'POST',
@@ -891,17 +892,13 @@ export const rescheduleAPI = {
   // 创建调课申请（教师操作）
   createTeacherRequest: (data: {
     scheduleId: number
-    requestType: 'single' | 'recurring' | 'cancel'
+    requestType: 'reschedule' | 'cancel'
     newDate?: string
     newStartTime?: string
     newEndTime?: string
-    newRecurringWeekdays?: number[]
-    newRecurringTimeSlots?: string[]
-    newWeeklySchedule?: string
     reason: string
     urgencyLevel?: 'low' | 'medium' | 'high'
     advanceNoticeHours?: number
-    affectsFutureSessions?: boolean
     notes?: string
   }) => apiRequest('/api/reschedule/teacher/request', {
     method: 'POST',
@@ -913,7 +910,6 @@ export const rescheduleAPI = {
     status: 'approved' | 'rejected'
     reviewNotes?: string
     compensationAmount?: number
-    affectsFutureSessions?: boolean
   }) => apiRequest(`/api/reschedule/${id}/approve`, {
     method: 'PUT',
     body: JSON.stringify(data)
@@ -987,7 +983,7 @@ export const rescheduleAPI = {
     status?: string
     year?: number
     month?: number
-    requestType?: 'single' | 'recurring' | 'cancel'
+    requestType?: 'reschedule' | 'cancel'
     applicantType?: 'student' | 'teacher'
     applicantName?: string
     courseName?: string

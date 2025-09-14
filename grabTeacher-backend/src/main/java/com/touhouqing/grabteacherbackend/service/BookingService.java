@@ -88,7 +88,12 @@ public interface BookingService {
      * @return 课程安排列表
      */
     List<ScheduleVO> getAllStudentSchedules(Long studentUserId);
-    
+
+    /**
+     * 学生端“我的课程”V2卡片数据：完全以真实课表为准
+     */
+    java.util.List<com.touhouqing.grabteacherbackend.model.vo.StudentCourseCardV2VO> getStudentCoursesV2(Long studentUserId);
+
     /**
      * 检查用户是否可以使用免费试听
      * @param userId 用户ID
