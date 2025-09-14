@@ -3111,12 +3111,13 @@ watch(selectedCourse, (newCourse) => {
             <div class="teacher-info">
               <div class="teacher-header">
                 <h4>{{ teacher.name }}</h4>
-                <div class="teacher-experience">
-                  <span class="experience-text">{{ teacher.experience }}年教学经验</span>
+                <div class="teacher-education" v-if="teacher.educationBackground">
+                  <span class="education-text">
+                    								学历：{{ teacher.educationBackground }}
+                  </span>
                 </div>
               </div>
               <div class="teacher-subject">
-                <el-tag type="success" effect="dark" class="subject-tag">{{ teacher.subject }}</el-tag>
                 <el-tag v-if="teacher.level" :type="getLevelTagType(teacher.level)" effect="dark" class="level-tag">{{ teacher.level }}</el-tag>
                 <el-tag type="warning" effect="plain" class="experience-tag">{{ teacher.experience }}年教龄</el-tag>
                 <el-tag type="info" effect="plain" class="gender-tag">
@@ -3140,9 +3141,6 @@ watch(selectedCourse, (newCourse) => {
                 </el-tooltip>
               </div>
               <p class="teacher-description">{{ teacher.description }}</p>
-              <div class="teacher-tags">
-                <el-tag v-for="(tag, i) in teacher.tags" :key="i" size="small" class="teacher-tag" effect="light">{{ tag }}</el-tag>
-              </div>
 
               <div class="selected-time" v-if="matchForm.preferredWeekdays.length > 0 || matchForm.preferredTimeSlots.length > 0">
                 <div class="selected-time-title">您的预约时间：</div>
@@ -3721,6 +3719,17 @@ h2 {
 .level-tag {
   margin-left: 8px;
 }
+
+.teacher-education {
+  display: flex;
+  align-items: center;
+}
+
+.education-text {
+  color: #666;
+  font-size: 14px;
+}
+
 
 .teacher-subjects-all {
   display: flex;
