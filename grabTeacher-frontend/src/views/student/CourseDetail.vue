@@ -19,7 +19,7 @@ const loading = ref(true)
 const enrolling = ref(false)
 const enrolled = ref(false)
 // 额外教师信息
-const teacher = ref<{ avatarUrl?: string; teachingExperience?: number; educationBackground?: string; specialties?: string } | null>(null)
+const teacher = ref<{ avatarUrl?: string; teachingExperience?: number; educationBackground?: string; specialties?: string; rating?: number; level?: string } | null>(null)
 
 // 年级选择相关状态
 const showGradeModal = ref(false)
@@ -76,6 +76,8 @@ const fetchCourseDetail = async () => {
             teachingExperience: tRes.data.teachingExperience,
             educationBackground: tRes.data.educationBackground,
             specialties: tRes.data.specialties,
+            rating: tRes.data.rating,
+            level: tRes.data.level,
           }
         }
       } catch (e) { /* 静默失败，不影响课程详情 */ }
@@ -318,7 +320,7 @@ const getStatusText = (status: string) => {
               <el-icon><School /></el-icon>
               <span>{{ course.subjectName }}</span>
             </div>
-            <div class="meta-item" v-if="course.durationMinutes">
+            <div class="meta-item" v-if="course.durationMinutes && course.courseType !== 'one_on_one'">
               <el-icon><Clock /></el-icon>
               <span>{{ Math.floor(course.durationMinutes / 60) }}小时</span>
             </div>
@@ -368,7 +370,7 @@ const getStatusText = (status: string) => {
             <span class="label">人数限制：</span>
             <span class="value">{{ course.personLimit }}人</span>
           </div>
-          <div class="detail-item">
+          <div class="detail-item" v-if="course.courseType !== 'one_on_one'">
             <el-icon><Timer /></el-icon>
             <span class="label">课程时长：</span>
             <span class="value">{{ course.durationMinutes }}分钟</span>
@@ -411,6 +413,20 @@ const getStatusText = (status: string) => {
             <h3>{{ course.teacherName }}</h3>
             <p class="teacher-subject">{{ course.subjectName }}专业教师</p>
             <div class="teacher-extra-grid">
+              <div class="teacher-extra-item" v-if="teacher?.rating != null">
+                <el-icon><Trophy /></el-icon>
+                <div class="kv">
+                  <div class="label">教师评分</div>
+                  <div class="value">{{ Number(teacher?.rating || 0).toFixed(1) }} 分</div>
+                </div>
+              </div>
+              <div class="teacher-extra-item" v-if="teacher?.level">
+                <el-icon><User /></el-icon>
+                <div class="kv">
+                  <div class="label">教师级别</div>
+                  <div class="value">{{ teacher?.level }}</div>
+                </div>
+              </div>
               <div class="teacher-extra-item" v-if="teacher?.teachingExperience != null">
                 <el-icon><Timer /></el-icon>
                 <div class="kv">

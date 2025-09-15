@@ -21,12 +21,17 @@
         <div v-for="(w, idx) in 7" :key="idx" class="week-head-cell">{{ weekLabels[idx] }}</div>
       </div>
       <div class="month-grid">
-        <div v-for="cell in calendarCells" :key="cell.key" class="day-card" :class="{ 'is-other': cell.isOtherMonth }">
+        <div
+          v-for="cell in calendarCells"
+          :key="cell.key"
+          class="day-card"
+          :class="{ 'is-other': cell.isOtherMonth, 'is-past': (mode==='teacher' && dayjs(cell.date).isBefore(dayjs().startOf('day'))) }"
+        >
           <div class="date">
             <span class="date-number">{{ dayjs(cell.date).date() }}</span>
           </div>
           <BaseSlotBar
-            v-if="!cell.isOtherMonth"
+            v-if="!cell.isOtherMonth && (mode==='student' || !dayjs(cell.date).isBefore(dayjs().startOf('day')))"
             :slots="cell.slots"
             :mode="mode"
             :selected="mode==='teacher' ? (teacherSelected[cell.date] || []) : ((props.durationMinutes===90) ? (selectedHalfSlots[cell.date] || []) : (selectedBaseSlots[cell.date] || []))"
@@ -402,6 +407,8 @@ const onClickSlot = (day: any, slot: string) => {
 .week-head-cell { text-align: center; font-weight: 600; color: #606266; padding: 6px 4px; }
 .day-card { border: 1px solid #ebeef5; border-radius: 8px; padding: 10px; box-sizing: border-box; background: #fff; overflow: visible; }
 .day-card.is-other { background: #fafafa; color: #c0c4cc; pointer-events: none; }
+.day-card.is-past { background: transparent; border-color: transparent; pointer-events: none; }
+.day-card.is-past .date { display: none; }
 .date { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; margin-bottom: 6px; }
 .date-number { font-variant-numeric: tabular-nums; }
 .loading { padding: 12px; }

@@ -26,15 +26,15 @@
                 <span v-if="lastAppliedPreset==='all_full'" style="margin-left:6px">✓</span>
               </el-dropdown-item>
               <el-dropdown-item divided @click="openPreset('evening')">
-                <span>每日晚间（17-21）</span>
+                <span>每日晚上</span>
                 <span v-if="lastAppliedPreset==='evening'" style="margin-left:6px">✓</span>
               </el-dropdown-item>
               <el-dropdown-item @click="openPreset('daytime')">
-                <span>每日白天（10-17）</span>
+                <span>每日下午</span>
                 <span v-if="lastAppliedPreset==='daytime'" style="margin-left:6px">✓</span>
               </el-dropdown-item>
               <el-dropdown-item @click="openPreset('morning_evening')">
-                <span>早晚高峰（08-10,19-21）</span>
+                <span>每日上午</span>
                 <span v-if="lastAppliedPreset==='morning_evening'" style="margin-left:6px">✓</span>
               </el-dropdown-item>
               <el-dropdown-item divided @click="openPreset('clear')">
@@ -44,7 +44,7 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <el-button type="primary" size="small" :loading="saving" @click="onSave">保存可用时间</el-button>
+        <el-button type="primary" size="small" :loading="saving" @click="onSave">保存</el-button>
       </div>
     </div>
     <CalendarMultiMonth
@@ -59,7 +59,7 @@
 
     <el-dialog v-model="pasteDialog" title="粘贴到范围" width="460px">
       <div class="paste-form">
-        <el-date-picker v-model="pasteRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" />
+        <el-date-picker v-model="pasteRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" :disabled-date="(d)=> d < new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())" />
         <el-radio-group v-model="pasteScope" class="scope">
           <el-radio-button label="all">全部</el-radio-button>
           <el-radio-button label="weekday">仅工作日</el-radio-button>
@@ -74,7 +74,7 @@
 
     <el-dialog v-model="presetDialog" :title="presetTitle" width="460px">
       <div class="paste-form">
-        <el-date-picker v-model="presetRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" />
+        <el-date-picker v-model="presetRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" :disabled-date="(d)=> d < new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())" />
       </div>
       <template #footer>
         <el-button @click="presetDialog=false">取消</el-button>
@@ -100,9 +100,9 @@ const PRESETS: Record<string, { label: string; scope: 'all'|'weekday'|'weekend';
   weekday_full: { label: '工作日全开', scope: 'weekday', slots: [...BASE_SLOTS] },
   weekend_full: { label: '周末全开', scope: 'weekend', slots: [...BASE_SLOTS] },
   all_full:     { label: '整月全开', scope: 'all',     slots: [...BASE_SLOTS] },
-  evening:      { label: '每日晚间（17-21）', scope: 'all', slots: ['17:00-19:00','19:00-21:00'] },
-  daytime:      { label: '每日白天（10-17）', scope: 'all', slots: ['10:00-12:00','13:00-15:00','15:00-17:00'] },
-  morning_evening: { label: '早晚高峰（08-10,19-21）', scope: 'all', slots: ['08:00-10:00','19:00-21:00'] },
+  evening:      { label: '每日晚上', scope: 'all', slots: ['17:00-19:00','19:00-21:00'] },
+  daytime:      { label: '每日下午', scope: 'all', slots: ['13:00-15:00','15:00-17:00'] },
+  morning_evening: { label: '每日上午', scope: 'all', slots: ['08:00-10:00','10:00-12:00'] },
   clear:        { label: '清空范围', scope: 'all', slots: [] },
 }
 
