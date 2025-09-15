@@ -52,6 +52,7 @@ const loading = ref(false)
 const courses = ref<Course[]>([])
 const subjects = ref<Subject[]>([])
 const teachers = ref<Teacher[]>([])
+const filteredTeacherOptions = ref<Teacher[]>([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const isEditing = ref(false)
@@ -317,10 +318,18 @@ const fetchTeachers = async () => {
     const response = await teacherAPI.getList({ page: 1, size: 1000, isVerified: true })
     if (response.success && response.data) {
       teachers.value = response.data.records || []
+      filteredTeacherOptions.value = [...teachers.value]
     }
   } catch (error) {
     console.error('获取教师列表失败:', error)
   }
+}
+
+// 远程模糊过滤
+const filterTeacherOptions = (query: string) => {
+  const q = (query || '').trim().toLowerCase()
+  if (!q) { filteredTeacherOptions.value = [...teachers.value]; return }
+  filteredTeacherOptions.value = teachers.value.filter(t => (t.realName || '').toLowerCase().includes(q))
 }
 
 const getSelectedTeacher = (teacherId: number | null) => teachers.value.find(t => t.id === teacherId) as any
@@ -787,9 +796,18 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
           />
         </el-form-item>
         <el-form-item label="教师">
-          <el-select v-model="searchForm.teacherId" placeholder="选择教师" clearable style="width: 150px">
+          <el-select
+            v-model="searchForm.teacherId"
+            placeholder="选择教师"
+            clearable
+            filterable
+            remote
+            :remote-method="filterTeacherOptions"
+            :loading="loading"
+            style="width: 220px"
+          >
             <el-option
-              v-for="teacher in teachers"
+              v-for="teacher in filteredTeacherOptions"
               :key="teacher.id"
               :label="teacher.realName"
               :value="teacher.id"

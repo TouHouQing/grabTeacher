@@ -598,12 +598,20 @@ onMounted(async () => {
           />
         </el-form-item>
         <el-form-item label="科目">
-          <el-input
+          <el-select
             v-model="teacherSearchForm.subject"
-            placeholder="搜索科目"
+            placeholder="选择科目"
             clearable
-            style="width: 150px"
-          />
+            filterable
+            style="width: 180px"
+          >
+            <el-option
+              v-for="s in subjects"
+              :key="s.id"
+              :label="s.name"
+              :value="s.name"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="性别">
           <el-select v-model="teacherSearchForm.gender" placeholder="选择性别" clearable style="width: 120px">
