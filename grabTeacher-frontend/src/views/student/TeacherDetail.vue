@@ -1197,10 +1197,7 @@ watch(selectedCourse, (newCourse) => {
             </div>
             <div class="teacher-tags">
               <div class="tag-group">
-                <template v-for="(s, i) in teacher.subjects.slice(0, 3)" :key="'sub-'+i">
-                  <el-tag type="success" effect="dark" class="subject-tag">{{ s }}</el-tag>
-                </template>
-                <el-tag v-if="teacher.subjects.length > 3" type="info" effect="plain" class="subject-tag">+{{ teacher.subjects.length - 3 }}</el-tag>
+                <el-tag v-for="(s, i) in teacher.subjects" :key="'sub-'+i" type="success" effect="dark" class="subject-tag">{{ s }}</el-tag>
                 <el-tag type="warning" effect="plain" class="experience-tag">{{ teacher.experience }}年教龄</el-tag>
                 <el-tag type="danger" effect="plain" class="level-tag">{{ teacher.level }}</el-tag>
                 <el-tag type="info" effect="plain" class="gender-tag">

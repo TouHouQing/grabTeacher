@@ -53,13 +53,13 @@ const router = createRouter({
           path: 'trial',
           name: 'TrialBooking',
           component: () => import('../views/student/TeacherMatch.vue'),
-          meta: { requiresAuth: true, role: 'student' }
+          meta: { requiresAuth: true, role: 'student', keepAlive: true }
         },
         {
           path: 'match',
           name: 'TeacherMatch',
           component: () => import('../views/student/TeacherMatch.vue'),
-          meta: { requiresAuth: true, role: 'student' }
+          meta: { requiresAuth: true, role: 'student', keepAlive: true }
         },
       ]
     },

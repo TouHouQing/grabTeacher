@@ -77,7 +77,12 @@ function updateLangClass() {
       </div>
     </header>
     <main class="main">
-      <router-view></router-view>
+      <router-view v-slot="{ Component, route }">
+        <keep-alive>
+          <component :is="Component" v-if="route.meta && route.meta.keepAlive" />
+        </keep-alive>
+        <component :is="Component" v-if="!(route.meta && route.meta.keepAlive)" />
+      </router-view>
     </main>
 
     <!-- 移动端底部导航 -->

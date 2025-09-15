@@ -2,12 +2,18 @@
 import { ref, reactive, onMounted, nextTick, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Connection, Male, Female, Message, Loading, View, ArrowLeft, ArrowRight, InfoFilled, Refresh, Sunrise, Sunny, Moon, Lock, Check, Clock, Close, Warning, SuccessFilled, ArrowDown, Document, Star } from '@element-plus/icons-vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { teacherAPI, subjectAPI, bookingAPI, publicTeacherLevelAPI, publicGradeAPI, publicTeachingLocationAPI } from '../../utils/api'
 import StudentBookingCalendar from '@/components/StudentBookingCalendar.vue'
+import { useTeacherMatchStore } from '@/stores/teacherMatch'
+
 const route = useRoute()
 const isTrialMode = computed(() => route.path.includes('/student-center/trial'))
 const isRecurringMode = computed(() => route.path.includes('/student-center/match'))
+const matchStore = useTeacherMatchStore()
+defineOptions({ name: 'TeacherMatch' })
+
+
 
 // 声明图片相对路径，使用getImageUrl方法加载
 const teacherImages = {
@@ -279,24 +285,6 @@ const matchScoreLoading = ref(false)
 const showMatchDetails = ref(false)
 const showConflictDetails = ref(false)
 
-// 月度课表查看相关数据
-const showMonthlyModal = ref(false)
-const currentMonthTeacher = ref<Teacher | null>(null)
-const currentMonth = ref(new Date().getMonth())
-const currentYear = ref(new Date().getFullYear())
-const monthlyScheduleData = ref<Array<Array<{
-  day: number
-  date: string
-  isCurrentMonth: boolean
-  timeSlots: Array<{
-    time: string
-    available: boolean
-    booked: boolean
-    student: string | null
-  }>
-  availableCount: number
-  bookedCount: number
-}>>>([])
 // 工具：解析时间段开始小时并映射上午/下午/晚上
 const getStartHourFromTime = (timeStr: string): number | null => {
   if (!timeStr) return null
@@ -327,19 +315,79 @@ const filterTimeSlotsBySelectedPeriods = (
   })
 }
 
+// 缓存当前匹配页状态（用于从教师详情返回时恢复）
+const saveMatchState = () => {
+  try {
+    matchStore.save({
+      form: {
+        subject: matchForm.subject,
+        grade: matchForm.grade,
+        preferredWeekdays: [...matchForm.preferredWeekdays],
+        selectedPeriods: [...selectedPeriods.value],
+        gender: matchForm.gender,
+        teacherLevel: matchForm.teacherLevel,
+        trialSearchDate: trialSearchDate.value,
+        preferredStartDate: preferredStartDate.value,
+        preferredEndDate: preferredEndDate.value
+      },
+      matchedTeachers: matchedTeachers.value,
+      showResults: showResults.value,
+      scrollTop: window.scrollY || document.documentElement.scrollTop || 0
+    })
+  } catch (e) {
+    // ignore
+  }
+}
 
-// 日期详情查看相关数据
-const showDayDetailModal = ref(false)
-const selectedDayData = ref<{
-  date: string
-  day: number
-  timeSlots: Array<{
-    time: string
-    available: boolean
-    booked: boolean
-    student: string | null
-  }>
-} | null>(null)
+// 从缓存恢复匹配页状态
+const restoreMatchState = () => {
+  try {
+    const f = matchStore.form || ({} as any)
+    if (f) {
+      matchForm.subject = f.subject || ''
+      matchForm.grade = f.grade || ''
+      matchForm.preferredWeekdays.splice(0, matchForm.preferredWeekdays.length, ...((f.preferredWeekdays as number[]) || []))
+      selectedPeriods.value = [...((f.selectedPeriods as string[]) || [])]
+      matchForm.gender = f.gender || ''
+      matchForm.teacherLevel = f.teacherLevel || ''
+      trialSearchDate.value = f.trialSearchDate || ''
+      preferredStartDate.value = f.preferredStartDate || ''
+      preferredEndDate.value = f.preferredEndDate || ''
+    }
+    if (Array.isArray(matchStore.matchedTeachers) && matchStore.matchedTeachers.length > 0) {
+      matchedTeachers.value = [...matchStore.matchedTeachers]
+      showResults.value = !!matchStore.showResults
+    } else {
+      showResults.value = !!matchStore.showResults
+    }
+    nextTick(() => window.scrollTo({ top: matchStore.scrollTop || 0 }))
+  } catch (e) {
+    // ignore
+  }
+}
+
+// 进入教师详情前保存状态
+const goDetail = (teacher: any) => {
+  saveMatchState()
+  router.push(`/teacher-detail/${teacher.id}`)
+}
+
+// 首次进入页面时尝试恢复
+onMounted(() => {
+  if (matchStore.showResults || matchStore.form.subject || matchStore.form.grade) {
+    restoreMatchState()
+  }
+})
+
+// 离开到教师详情时保存
+onBeforeRouteLeave((to) => {
+  if (to.name === 'TeacherDetail' || String(to.path || '').startsWith('/teacher-detail')) {
+    saveMatchState()
+  }
+})
+
+
+
 
 const router = useRouter()
 
@@ -518,6 +566,8 @@ const resetForm = () => {
 
   // 强制重新渲染表单组件
   formResetKey.value += 1
+  // 同步清空缓存的匹配状态
+  try { matchStore.clear() } catch (e) {}
 
   console.log('表单重置完成，当前性别值:', matchForm.gender)
   ElMessage.success('表单已重置')
@@ -2455,200 +2505,8 @@ const getTimeSlotConflictSummary = (time: string): string => {
 
 
 
-// 显示月度课表
-const showMonthlySchedule = async (teacher: Teacher) => {
-  currentMonthTeacher.value = teacher
-  currentMonth.value = new Date().getMonth()
-  currentYear.value = new Date().getFullYear()
-  await generateMonthlyScheduleData()
-  showMonthlyModal.value = true
-}
-
-// 生成月度课表数据
-const generateMonthlyScheduleData = async () => {
-  if (!currentMonthTeacher.value) return
-
-  const year = currentYear.value
-  const month = currentMonth.value
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const firstDayRaw = new Date(year, month, 1).getDay() // JavaScript格式：0=周日, 1=周一...6=周六
-
-  // 头部定义是 [1, 2, 3, 4, 5, 6, 0]，对应 [周一, 周二, 周三, 周四, 周五, 周六, 周日]
-  // 需要将JavaScript的getDay()结果映射到我们的列索引
-  // JavaScript: 0=周日, 1=周一, 2=周二, 3=周三, 4=周四, 5=周五, 6=周六
-  // 我们的列:   6=周日, 0=周一, 1=周二, 2=周三, 3=周四, 4=周五, 5=周六
-  const firstDay = firstDayRaw === 0 ? 6 : firstDayRaw - 1
-
-  monthlyScheduleData.value = []
-
-  try {
-    // 计算查询时间范围
-    const startDate = new Date(year, month, 1).toISOString().split('T')[0]
-    const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0]
-
-    // 调用API获取教师课表数据
-    const result = await teacherAPI.getPublicSchedule(currentMonthTeacher.value.id, {
-      startDate,
-      endDate
-    })
-
-    const scheduleData: any = {}
-    if (result.success && result.data) {
-      // 将课表数据按日期分组，保留完整的日程信息
-      result.data.daySchedules.forEach((daySchedule: any) => {
-        scheduleData[daySchedule.date] = {
-          timeSlots: daySchedule.timeSlots,
-          availableCount: daySchedule.availableCount,
-          bookedCount: daySchedule.bookedCount,
-          dayOfWeek: daySchedule.dayOfWeek
-        }
 
 
-      })
-    }
-
-    // 生成日历数据
-    for (let week = 0; week < 6; week++) {
-      const weekData = []
-      for (let day = 0; day < 7; day++) {
-        const dayNumber = week * 7 + day - firstDay + 1
-
-        if (dayNumber > 0 && dayNumber <= daysInMonth) {
-          // 使用本地时间格式化日期，避免时区问题
-          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`
-          const date = new Date(year, month, dayNumber)
-          const actualWeekday = date.getDay() // JavaScript格式：0=周日, 1=周一...6=周六
-          const backendWeekday = actualWeekday === 0 ? 7 : actualWeekday // 转换为后端格式
-
-          // 首先检查是否有该具体日期的数据（可能包含预订信息）
-          const specificDateData = scheduleData[dateStr]
-
-          if (specificDateData) {
-            // 使用具体日期的数据（包含预订信息）
-            const filteredSlots = filterTimeSlotsBySelectedPeriods(specificDateData.timeSlots)
-            weekData.push({
-              day: dayNumber,
-              date: dateStr,
-              isCurrentMonth: true,
-              timeSlots: filteredSlots,
-              availableCount: filteredSlots.filter(slot => slot.available).length,
-              bookedCount: filteredSlots.filter(slot => slot.booked).length
-            })
-          } else {
-            // 如果没有具体日期的数据，根据星期几生成基础时间段
-            const weekdayTemplate = getWeekdayTemplate(backendWeekday, scheduleData)
-
-            if (weekdayTemplate && weekdayTemplate.length > 0) {
-              // 根据星期几模板生成可用时间段
-              const timeSlots = weekdayTemplate.map((slot: any) => ({
-                timeSlot: slot.timeSlot,
-                available: true,  // 默认可用
-                booked: false,
-                studentName: null,
-                courseTitle: null,
-                status: null,
-                isTrial: false
-              }))
-
-              const filteredSlots = filterTimeSlotsBySelectedPeriods(timeSlots)
-
-              weekData.push({
-                day: dayNumber,
-                date: dateStr,
-                isCurrentMonth: true,
-                timeSlots: filteredSlots,
-                availableCount: filteredSlots.filter(slot => slot.available).length,
-                bookedCount: filteredSlots.filter(slot => slot.booked).length
-              })
-            } else {
-              // 如果老师在这一天不排课，显示完全空的数据
-              weekData.push({
-                day: dayNumber,
-                date: dateStr,
-                isCurrentMonth: true,
-                timeSlots: [],
-                availableCount: 0,
-                bookedCount: 0
-              })
-            }
-          }
-        } else {
-          // 对于不在当月的日期，不显示或显示为空
-          weekData.push({
-            day: 0, // 设置为0表示不显示
-            date: '',
-            isCurrentMonth: false,
-            timeSlots: [],
-            availableCount: 0,
-            bookedCount: 0
-          })
-        }
-      }
-
-      // 只有当这一周至少有一个当月日期时才添加到数据中
-      if (weekData.some(day => day.isCurrentMonth)) {
-        monthlyScheduleData.value.push(weekData)
-      }
-    }
-  } catch (error) {
-    console.error('获取教师课表失败:', error)
-    // 如果API调用失败，生成默认数据
-    generateDefaultMonthlyScheduleData()
-  }
-}
-
-// 生成默认月度课表数据（作为备用）
-const generateDefaultMonthlyScheduleData = () => {
-  const year = currentYear.value
-  const month = currentMonth.value
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const firstDayRaw = new Date(year, month, 1).getDay()
-  // 转换为周一开始的格式：周日(0)变为6，周一(1)变为0，...，周六(6)变为5
-  const firstDay = firstDayRaw === 0 ? 6 : firstDayRaw - 1
-
-  monthlyScheduleData.value = []
-
-  // 生成日历数据
-  for (let week = 0; week < 6; week++) {
-    const weekData = []
-    for (let day = 0; day < 7; day++) {
-      const dayNumber = week * 7 + day - firstDay + 1
-
-      if (dayNumber > 0 && dayNumber <= daysInMonth) {
-        const date = new Date(year, month, dayNumber)
-        const dateStr = date.toISOString().split('T')[0]
-
-        // 生成该日的默认时间段数据
-        const timeSlots = generateDefaultDayTimeSlots()
-        const filteredSlots = filterTimeSlotsBySelectedPeriods(timeSlots)
-
-        weekData.push({
-          day: dayNumber,
-          date: dateStr,
-          isCurrentMonth: true,
-          timeSlots: filteredSlots,
-          availableCount: filteredSlots.filter(slot => slot.available).length,
-          bookedCount: filteredSlots.filter(slot => slot.booked).length
-        })
-      } else {
-        // 对于不在当月的日期，不显示或显示为空
-        weekData.push({
-          day: 0, // 设置为0表示不显示
-          date: '',
-          isCurrentMonth: false,
-          timeSlots: [],
-          availableCount: 0,
-          bookedCount: 0
-        })
-      }
-    }
-
-    // 只有当这一周至少有一个当月日期时才添加到数据中
-    if (weekData.some(day => day.isCurrentMonth)) {
-      monthlyScheduleData.value.push(weekData)
-    }
-  }
-}
 
 // 获取某个星期几的时间段模板
 const getWeekdayTemplate = (backendWeekday: number, scheduleData: any) => {
@@ -2680,73 +2538,10 @@ const generateDefaultDayTimeSlots = () => {
   }))
 }
 
-// 切换到上个月
-const previousMonth = () => {
-  if (currentMonth.value === 0) {
-    currentMonth.value = 11
-    currentYear.value--
-  } else {
-    currentMonth.value--
-  }
-  generateMonthlyScheduleData()
-}
 
-// 切换到下个月
-const nextMonth = () => {
-  if (currentMonth.value === 11) {
-    currentMonth.value = 0
-    currentYear.value++
-  } else {
-    currentMonth.value++
-  }
-  generateMonthlyScheduleData()
-}
 
-// 获取月份名称
-const getMonthName = (month: number): string => {
-  const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
-  return months[month]
-}
 
-// 获取星期名称
-const getDayName = (dayIndex: number): string => {
-  const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  return days[dayIndex]
-}
 
-// 点击日期查看详情
-const showDayDetail = (dayData: {
-  day: number
-  date: string
-  isCurrentMonth: boolean
-  timeSlots: Array<{
-    time: string
-    available: boolean
-    booked: boolean
-    student: string | null
-  }>
-  availableCount: number
-  bookedCount: number
-}) => {
-  if (!dayData.isCurrentMonth || !dayData.date) return
-
-  selectedDayData.value = {
-    date: dayData.date,
-    day: dayData.day,
-    timeSlots: dayData.timeSlots
-  }
-  showDayDetailModal.value = true
-}
-
-// 格式化完整日期显示
-const formatFullDate = (dateStr: string): string => {
-  const date = new Date(dateStr)
-  const year = date.getFullYear()
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  const weekday = getDayName(date.getDay())
-  return `${year}年${month}月${day}日 ${weekday}`
-}
 
 // 获取时间匹配度标签类型
 const getTimeMatchScoreType = (score: number) => {
@@ -2897,12 +2692,6 @@ onMounted(() => {
   // 如果从课程详情页带来了 teacherId/courseId，预加载并直接展示该老师
   preloadFromQuery()
 
-// 当学生勾选的上午/下午/晚上变化时，若月度课表弹窗已打开则重新生成以应用过滤
-watch(selectedPeriods, () => {
-  if (showMonthlyModal.value) {
-    generateMonthlyScheduleData()
-  }
-})
 
 })
 
@@ -3170,16 +2959,13 @@ watch(selectedCourse, (newCourse) => {
                   <el-button type="primary" @click="showTeacherSchedule(teacher)" size="large">
                     <el-icon><Calendar /></el-icon> 预约课程
                   </el-button>
-                  <el-button type="warning" @click="showMonthlySchedule(teacher)" size="large">
-                    <el-icon><Calendar /></el-icon> 查看课表
-                  </el-button>
                 </template>
                 <template v-else>
                   <el-button type="primary" @click="showTeacherSchedule(teacher)" size="large">
                     <el-icon><Calendar /></el-icon> 预约老师
                   </el-button>
                 </template>
-                <el-button type="success" plain size="large" @click="router.push(`/teacher-detail/${teacher.id}`)">
+                <el-button type="success" plain size="large" @click="goDetail(teacher)">
                   <el-icon><View /></el-icon> 查看详情
                 </el-button>
               </div>
@@ -3421,127 +3207,7 @@ watch(selectedCourse, (newCourse) => {
       </template>
     </el-dialog>
 
-    <!-- 月度课表弹窗 -->
-    <el-dialog
-      v-model="showMonthlyModal"
-      :title="`${currentMonthTeacher?.name} - ${getMonthName(currentMonth)} ${currentYear}年课表`"
-      width="900px"
-      :close-on-click-modal="false"
-      destroy-on-close
-    >
-      <div class="monthly-schedule-content">
-        <div class="monthly-header">
-          <el-button-group>
-            <el-button @click="previousMonth">
-              <el-icon><ArrowLeft /></el-icon>
-            </el-button>
-            <el-button>{{ getMonthName(currentMonth) }} {{ currentYear }}年</el-button>
-            <el-button @click="nextMonth">
-              <el-icon><ArrowRight /></el-icon>
-            </el-button>
-          </el-button-group>
-        </div>
 
-        <div class="monthly-calendar">
-          <div class="week-header">
-            <div v-for="day in [1, 2, 3, 4, 5, 6, 0]" :key="day" class="week-header-day">
-              {{ getDayName(day) }}
-            </div>
-          </div>
-
-          <div class="calendar-grid">
-            <div v-for="(week, weekIndex) in monthlyScheduleData" :key="weekIndex" class="week-row">
-              <div v-for="(day, dayIndex) in week" :key="dayIndex"
-                   :class="['day-cell', { 'other-month': !day.isCurrentMonth, 'clickable': day.isCurrentMonth, 'empty-day': day.day === 0 }]"
-                   @click="day.isCurrentMonth && day.day > 0 ? showDayDetail(day) : null">
-                <div class="day-header" v-if="day.day > 0">
-                  <span class="day-number">{{ day.day }}</span>
-                </div>
-                <div class="day-content" v-if="day.isCurrentMonth && day.day > 0">
-                  <div class="day-summary">
-                    <span class="available-count">{{ day.availableCount }}可用</span>
-                    <span class="booked-count">{{ day.bookedCount }}已订</span>
-                  </div>
-                  <div class="time-slots-preview">
-                    <div
-                      v-for="slot in day.timeSlots.slice(0, 3)"
-                      :key="slot.timeSlot || slot.time"
-                      :class="['mini-slot', { 'available': slot.available, 'booked': slot.booked }]"
-                      :title="`${slot.timeSlot || slot.time} - ${slot.booked ? '已预订' : '可用'}`"
-                    >
-                      {{ (slot.timeSlot || slot.time || '').split('-')[0] }}
-                    </div>
-                    <div v-if="day.timeSlots.length > 3" class="more-slots">
-                      +{{ day.timeSlots.length - 3 }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showMonthlyModal = false">关闭</el-button>
-        </span>
-      </template>
-    </el-dialog>
-
-    <!-- 日期详情弹窗 -->
-    <el-dialog
-      v-model="showDayDetailModal"
-      :title="selectedDayData ? `${selectedDayData.day}日 - ${formatFullDate(selectedDayData.date)}` : '日期详情'"
-      width="700px"
-      :close-on-click-modal="false"
-      destroy-on-close
-    >
-      <div class="day-detail-content" v-if="selectedDayData">
-        <div class="day-stats">
-          <div class="stat-item">
-            <span class="stat-label">可用时段：</span>
-            <span class="stat-value available">{{ selectedDayData.timeSlots.filter(slot => slot.available).length }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">已预订：</span>
-            <span class="stat-value booked">{{ selectedDayData.timeSlots.filter(slot => slot.booked).length }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">总时段：</span>
-            <span class="stat-value total">{{ selectedDayData.timeSlots.length }}</span>
-          </div>
-        </div>
-
-        <div class="time-slots-detail">
-          <h4>详细时段安排</h4>
-          <div class="slots-grid">
-            <div
-              v-for="slot in selectedDayData.timeSlots"
-              :key="slot.timeSlot || slot.time"
-              :class="['time-slot-detail', { 'available': slot.available, 'booked': slot.booked }]"
-            >
-              <div class="slot-time">{{ slot.timeSlot || slot.time }}</div>
-              <div class="slot-status">
-                <span v-if="slot.booked" class="status-booked">已预订</span>
-                <span v-else-if="slot.available" class="status-available">可预约</span>
-                <span v-else class="status-unavailable">不可用</span>
-              </div>
-              <div v-if="slot.studentName || slot.student" class="slot-student">
-                学生：{{ slot.studentName || slot.student }}
-              </div>
-              <div v-if="slot.courseTitle" class="slot-course">
-                课程：{{ slot.courseTitle }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showDayDetailModal = false">关闭</el-button>
-        </span>
-      </template>
-    </el-dialog>
 
     <!-- 学生按日历预约弹窗组件 -->
     <StudentBookingCalendar

@@ -340,8 +340,7 @@ onMounted(() => {
             <div class="teacher-info">
               <h3>{{ teacher.name }}</h3>
               <div class="teacher-tags">
-                <el-tag v-for="(s, i) in teacher.subjects.slice(0, 3)" :key="i" size="small" class="subject-tag">{{ s }}</el-tag>
-                <el-tag v-if="teacher.subjects.length > 3" size="small" class="subject-tag" type="info">+{{ teacher.subjects.length - 3 }}</el-tag>
+                <el-tag v-for="(s, i) in teacher.subjects" :key="i" size="small" class="subject-tag">{{ s }}</el-tag>
               </div>
               <p>{{ teacher.experience }}年教龄 · {{ teacher.level || '未设置' }}</p>
               <div class="teacher-tags">
