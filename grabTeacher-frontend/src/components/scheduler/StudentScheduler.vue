@@ -20,6 +20,7 @@
           :allowed-periods="allowedPeriods"
           :date-range-start="dateRangeStart"
           :date-range-end="dateRangeEnd"
+          :hide-header="true"
           @change-student-sessions="onChangeSessions"
         />
       </div>
@@ -34,8 +35,15 @@
     </div>
 
     <template #footer>
-      <el-button @click="visible=false">取消</el-button>
-      <el-button type="primary" :disabled="sessions.length===0" @click="confirm">确认 ({{ sessions.length }} 次)</el-button>
+      <div class="dlg-footer">
+        <div class="left">
+          <el-tag type="info" effect="plain">请选择日历中的日期与时间段</el-tag>
+        </div>
+        <div class="right">
+          <el-button @click="visible=false">取消</el-button>
+          <el-button type="primary" :disabled="sessions.length===0" @click="confirm">确认 ({{ sessions.length }} 次)</el-button>
+        </div>
+      </div>
     </template>
   </el-dialog>
 </template>
@@ -114,12 +122,15 @@ defineExpose({ open })
 .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .toolbar .spacer { flex: 1; }
 .hint { color: #909399; font-size: 12px; }
-.content { display: grid; grid-template-columns: 1fr 200px; gap: 12px; height: calc(100vh - 200px); overflow: hidden; }
+.content { display: grid; grid-template-columns: 1fr 200px; gap: 12px; height: calc(100vh - 220px); overflow: hidden; }
 .left { min-height: 0; overflow: auto; }
 
 .right { border-left: 1px dashed #ebeef5; padding-left: 12px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .summary-title { font-weight: 600; margin-bottom: 8px; }
 .session-list { flex: 1; min-height: 0; overflow: auto; display: grid; grid-auto-rows: 32px; row-gap: 6px; padding-right: 0; }
 .item { font-size: 12px; color: #606266; padding: 0 10px; background: #f7f9fb; border-radius: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 32px; height: 32px; box-sizing: border-box; max-width: 100%; }
+.dlg-footer { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.dlg-footer .left { display: flex; align-items: center; gap: 8px; }
+.dlg-footer .right { display: flex; gap: 10px; }
 </style>
 

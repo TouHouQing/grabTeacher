@@ -635,6 +635,7 @@ const preloadFromQuery = async () => {
   const teacherIdParam = route.query.teacherId as string | undefined
   const courseIdParam = route.query.courseId as string | undefined
   const gradeParam = route.query.grade as string | undefined
+  const openScheduleParam = route.query.openSchedule as string | undefined
   if (!teacherIdParam) return
 
   const teacherId = Number(teacherIdParam)
@@ -683,6 +684,11 @@ const preloadFromQuery = async () => {
         if (gradeItem) {
           matchForm.grade = gradeItem.name
         }
+      }
+
+      // 如要求直接打开课程安排弹窗
+      if (openScheduleParam === '1') {
+        await showTeacherSchedule(currentTeacher.value as any)
       }
     }
   } catch (e) {

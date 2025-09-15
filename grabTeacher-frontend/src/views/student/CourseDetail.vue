@@ -3,7 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, School, Trophy, ArrowLeft, Loading, Clock, User, Document, Timer } from '@element-plus/icons-vue'
-import { courseAPI, teacherAPI, enrollmentAPI, publicGradeAPI } from '../../utils/api'
+import { courseAPI, teacherAPI, enrollmentAPI, publicGradeAPI, publicTeachingLocationAPI, bookingAPI } from '../../utils/api'
+import StudentBookingCalendar from '@/components/StudentBookingCalendar.vue'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -23,6 +24,11 @@ const teacher = ref<{ avatarUrl?: string; teachingExperience?: number; education
 
 // 年级选择相关状态
 const showGradeModal = ref(false)
+// 直接在本页弹“课程安排”弹窗（用于一对一）
+const showScheduleModal = ref(false)
+const calendarDlg = ref<InstanceType<typeof StudentBookingCalendar> | null>(null)
+const selectedTeachingLocation = ref<string | number>('')
+const allowedTeachingLocations = ref<Array<{ value: string | number; label: string }>>([])
 const grades = ref<{ id: string | number; name: string }[]>([])
 const selectedGrade = ref<string | number>('')
 const loadingGrades = ref(false)
@@ -78,6 +84,22 @@ const fetchCourseDetail = async () => {
             specialties: tRes.data.specialties,
             rating: tRes.data.rating,
             level: tRes.data.level,
+          }
+          // 根据教师配置构建授课地点选项
+          try {
+            const locResp = await publicTeachingLocationAPI.getActive()
+            const list = locResp?.success ? (locResp.data || []) : []
+            const opts: Array<{ value: string | number; label: string }> = []
+            if (tRes.data.supportsOnline) opts.push({ value: 'online', label: '线上' })
+            const ids: number[] = Array.isArray(tRes.data.teachingLocationIds) ? tRes.data.teachingLocationIds : []
+            ids.forEach((id: number) => {
+              const item = list.find((x: any) => x.id === id)
+              if (item) opts.push({ value: id, label: item.name })
+            })
+            allowedTeachingLocations.value = opts
+            if (!selectedTeachingLocation.value && opts.length > 0) selectedTeachingLocation.value = opts[0].value
+          } catch {
+            allowedTeachingLocations.value = []
           }
         }
       } catch (e) { /* 静默失败，不影响课程详情 */ }
@@ -167,7 +189,8 @@ const confirmGradeSelection = () => {
     query: {
       teacherId: String(teacherId),
       courseId: String(courseId),
-      grade: gradeName
+      grade: gradeName,
+      openSchedule: '1'
     }
   })
 
@@ -187,9 +210,20 @@ const enrollCourse = async () => {
     }
     if (!course.value) return
 
-    // 一对一课程：先显示年级选择弹窗
+    // 一对一课程：直接在本页弹出课程安排（包含年级选择与授课地点）
     if (course.value.courseType === 'one_on_one') {
-      await showGradeSelection()
+      if (allowedTeachingLocations.value.length === 0) {
+        // 若尚未加载地点，尝试补载
+        try {
+          const locResp = await publicTeachingLocationAPI.getActive()
+          const list = locResp?.success ? (locResp.data || []) : []
+          const opts: Array<{ value: string | number; label: string }> = []
+          // 默认支持线上
+          opts.push({ value: 'online', label: '线上' })
+          allowedTeachingLocations.value = opts
+        } catch {}
+      }
+      showScheduleModal.value = true
       return
     }
 
@@ -235,6 +269,41 @@ const enrollCourse = async () => {
     }
   } finally {
     enrolling.value = false
+  }
+}
+
+// 详情页打开日历
+const openCalendarFromDetail = () => {
+  if (!selectedGrade.value) { ElMessage.warning('请先选择年级'); return }
+  if (!selectedTeachingLocation.value) { ElMessage.warning('请选择授课地点'); return }
+  // 一对一课程默认 90 或 120，由日历页面选择；这里不强制
+  calendarDlg.value?.open()
+}
+
+// 从日历确认后的提交
+const onCalendarConfirmFromDetail = async (sessions: Array<{ date: string; startTime: string; endTime: string }>, duration: 90|120) => {
+  try {
+    const bookingData: any = {
+      teacherId: course.value?.teacherId,
+      courseId: course.value?.id,
+      grade: String(selectedGrade.value),
+      bookingType: 'calendar' as const,
+      isTrial: false,
+      selectedDurationMinutes: duration,
+      selectedSessions: sessions
+    }
+    if (selectedTeachingLocation.value === 'online') bookingData.teachingLocation = '线上'
+    else bookingData.teachingLocationId = Number(selectedTeachingLocation.value)
+
+    const result = await bookingAPI.createRequest(bookingData)
+    if (result.success) {
+      ElMessage.success(`已提交预约申请（${sessions.length}次）`)
+      showScheduleModal.value = false
+    } else {
+      ElMessage.error(result.message || '预约提交失败')
+    }
+  } catch (e:any) {
+    ElMessage.error(e?.message || '预约提交失败')
   }
 }
 
@@ -331,7 +400,7 @@ const getStatusText = (status: string) => {
           </div>
           <div class="course-price" v-if="course.price">
             <span class="price-label">课程价格：</span>
-            <span class="price-value">{{ course.price }} M豆</span>
+            <span class="price-value">{{ course.price }} M豆/h</span>
           </div>
           <div class="course-actions">
             <el-button type="primary" size="large"
@@ -472,6 +541,44 @@ const getStatusText = (status: string) => {
           {{ course.description }}
         </div>
       </div>
+
+      <!-- 一对一课程安排弹窗 -->
+      <el-dialog
+        v-model="showScheduleModal"
+        :title="`${course.teacherName} - 课程安排`"
+        width="700px"
+        :close-on-click-modal="false"
+        destroy-on-close
+      >
+        <div class="schedule-modal-content">
+          <el-form label-width="120px">
+            <el-form-item label="选择年级" required>
+              <el-select v-model="selectedGrade" placeholder="请选择年级" style="width: 100%" :loading="loadingGrades" @visible-change="(v)=>{ if(v && grades.length===0) loadGrades() }">
+                <el-option v-for="g in grades" :key="g.id" :label="g.name" :value="g.id" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="授课地点" required>
+              <el-radio-group v-model="selectedTeachingLocation">
+                <el-radio-button v-for="opt in allowedTeachingLocations" :key="opt.value" :label="opt.value">{{ opt.label }}</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+
+            <el-alert type="info" :closable="false" title="请选择年级与授课地点后，点击下方“打开日历选择”" />
+          </el-form>
+        </div>
+
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="showScheduleModal = false">取消</el-button>
+            <el-button type="primary" @click="openCalendarFromDetail" :disabled="!selectedGrade || !selectedTeachingLocation">
+              <el-icon><Calendar /></el-icon> 打开日历选择
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
+
+      <StudentBookingCalendar ref="calendarDlg" :teacher-id="course.teacherId" @confirm="onCalendarConfirmFromDetail" />
     </div>
 
     <!-- 错误状态 -->
