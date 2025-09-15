@@ -343,6 +343,8 @@ onMounted(() => {
                 <el-tag v-for="(s, i) in teacher.subjects" :key="i" size="small" class="subject-tag">{{ s }}</el-tag>
               </div>
               <p>{{ teacher.experience }}年教龄 · {{ teacher.level || '未设置' }}</p>
+              <p v-if="teacher.education">学历：{{ teacher.education }}</p>
+              <p v-if="teacher.rating">教师评分：{{ teacher.rating }}分</p>
               <div class="teacher-tags">
                 <el-tag v-if="teacher.gender === '男'" size="small" class="teacher-tag" type="primary">
                   <el-icon style="margin-right: 4px;"><Male /></el-icon>男
