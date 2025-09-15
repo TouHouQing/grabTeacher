@@ -20,12 +20,15 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 // 禁用开发工具按钮
 // app.config.devtools = false
 
-app.use(createPinia())
-app.use(router)
-app.use(ElementPlus, {
-  locale: zhCn,
-})
+const pinia = createPinia()
+app.use(pinia)
+app.use(ElementPlus, { locale: zhCn })
 app.use(imageLoader)
 app.use(i18n)
 
+// 启动前触发认证初始化（异步进行），避免刷新后被误判为未登录
+const userStore = useUserStore(pinia)
+userStore.initializeAuth().catch(() => {})
+
+app.use(router)
 app.mount('#app')

@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, Phone, Message, Location, School, Trophy, ArrowLeft, Loading, Star, Clock, Document, InfoFilled } from '@element-plus/icons-vue'
+import { Calendar, Location, School, Trophy, ArrowLeft, Loading, Star, Clock, Document, InfoFilled } from '@element-plus/icons-vue'
 import { teacherAPI, evaluationAPI, bookingAPI, publicTeachingLocationAPI, publicGradeAPI } from '@/utils/api'
 import StudentBookingCalendar from '@/components/StudentBookingCalendar.vue'
 import StudentTrialCalendar from '@/components/StudentTrialCalendar.vue'
@@ -1218,16 +1218,7 @@ watch(selectedCourse, (newCourse) => {
                 <span>{{ teacher.location }}</span>
               </div>
             </div>
-            <div class="profile-info-row">
-              <div class="info-item">
-                <el-icon><Phone /></el-icon>
-                <span>{{ teacher.contactPhone }}</span>
-              </div>
-              <div class="info-item">
-                <el-icon><Message /></el-icon>
-                <span>{{ teacher.contactEmail }}</span>
-              </div>
-            </div>
+
             <div class="cta-row">
               <el-button type="primary" size="large" @click="handleBooking">
                 <el-icon><Calendar /></el-icon>

@@ -198,20 +198,27 @@ router.beforeEach((to, from, next) => {
 
   // 检查是否需要认证
   if (to.meta.requiresAuth) {
+    const storedToken = localStorage.getItem('token')
     if (!userStore.isLoggedIn) {
-      // 未登录，跳转到登录页
-      next('/login')
-      return
+      if (storedToken) {
+        // 允许先通行，避免刷新时被踢回登录；用户信息稍后异步补全
+        userStore.token = storedToken
+        userStore.isLoggedIn = true
+        next()
+        return
+      } else {
+        next('/login')
+        return
+      }
     }
 
-    // 检查角色权限
-    if (to.meta.role && userStore.user?.userType !== to.meta.role) {
-      // 权限不足，跳转到对应的中心页面
-      if (userStore.user?.userType === 'student') {
+    // 检查角色权限（仅当已拿到用户信息时才校验）
+    if (to.meta.role && userStore.user && userStore.user.userType !== to.meta.role) {
+      if (userStore.user.userType === 'student') {
         next('/student-center')
-      } else if (userStore.user?.userType === 'teacher') {
+      } else if (userStore.user.userType === 'teacher') {
         next('/teacher-center')
-      } else if (userStore.user?.userType === 'admin') {
+      } else if (userStore.user.userType === 'admin') {
         next('/admin-center')
       } else {
         next('/')
