@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -20,6 +22,7 @@ public class CacheKeyEvictor {
     // 与 RedisConfiguration 中 computePrefixWith 保持一致
     private static final String PREFIX_TEACHER_SCHEDULE = "grabTeacher:teacherSchedule:";
     private static final String PREFIX_TEACHER_AVAILABILITY = "grabTeacher:teacherAvailability:";
+    private static final String PREFIX_TEACHER_MONTHLY = "grabTeacher:teacherMonthlyCalendar:";
 
     // 本服务新增的忙时缓存前缀
     private static final String PREFIX_BUSY_DAY = "grabTeacher:busy:teacher:"; // busy:teacher:{id}:{yyyy-MM-dd}
@@ -48,6 +51,27 @@ public class CacheKeyEvictor {
 
     public void evictTeacherScheduleAndAvailability(Long teacherId) {
         evictTeacherScheduleAndAvailability(teacherId, null);
+    }
+
+    /**
+     * 清理教师月历缓存（按月份精确删除）
+     */
+    public void evictTeacherMonthlyCalendar(Long teacherId, Collection<LocalDate> dates) {
+        try {
+            if (dates == null || dates.isEmpty()) {
+                // 无具体日期时，按教师维度全删该教师的月历缓存
+                deleteByPattern(PREFIX_TEACHER_MONTHLY + "*t:" + teacherId + ":*");
+                log.info("已清理教师{}的整月历缓存（无具体日期）", teacherId);
+                return;
+            }
+            Set<String> ymSet = dates.stream().map(d -> d.getYear() + ":" + d.getMonthValue()).collect(Collectors.toSet());
+            for (String ym : ymSet) {
+                deleteByPattern(PREFIX_TEACHER_MONTHLY + "*t:" + teacherId + ":" + ym);
+            }
+            log.info("已清理教师{}的月历缓存，影响月份: {}", teacherId, ymSet);
+        } catch (Exception e) {
+            log.warn("清理教师月历缓存失败 teacherId={}", teacherId, e);
+        }
     }
 
     private void deleteByPattern(String pattern) {

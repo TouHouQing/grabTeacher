@@ -145,8 +145,7 @@ function onLastClickedDate(d: string) {
 const onSave = async () => {
   const agg = (calRef.value && (calRef.value as any).getTeacherSelectionAll) ? (calRef.value as any).getTeacherSelectionAll() : selection.value
   const items = Object.entries(agg)
-    .filter(([,arr]) => Array.isArray(arr) && arr.length > 0)
-    .map(([date, slots]) => ({ date, timeSlots: slots as string[] }))
+    .map(([date, slots]) => ({ date, timeSlots: Array.isArray(slots) ? (slots as string[]) : [] }))
   if (items.length === 0) {
     ElMessage.warning('未选择任何时段，已取消保存')
     return

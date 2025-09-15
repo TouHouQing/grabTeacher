@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherDailyAvailabilityMapper;
 import com.touhouqing.grabteacherbackend.model.dto.DailyTimeSlotDTO;
 import com.touhouqing.grabteacherbackend.model.entity.TeacherDailyAvailability;
+import com.touhouqing.grabteacherbackend.service.CacheKeyEvictor;
 import com.touhouqing.grabteacherbackend.service.TeacherDailyAvailabilityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 public class TeacherDailyAvailabilityServiceImpl implements TeacherDailyAvailabilityService {
 
     private final TeacherDailyAvailabilityMapper dailyMapper;
+    private final CacheKeyEvictor cacheKeyEvictor;
     private static final ObjectMapper OM = new ObjectMapper();
 
     private static final Set<String> BASE_SLOTS = new LinkedHashSet<>(Arrays.asList(
@@ -92,7 +94,7 @@ public class TeacherDailyAvailabilityServiceImpl implements TeacherDailyAvailabi
             Map<LocalDate, List<String>> existMap = new HashMap<>();
             for (TeacherDailyAvailability rec : existing) {
                 try {
-                    List<String> arr = OM.readValue(rec.getTimeSlotsJson(), new com.fasterxml.jackson.core.type.TypeReference<List<String>>(){});
+                    List<String> arr = OM.readValue(rec.getTimeSlotsJson(), new com.fasterxml.jackson.core.type.TypeReference<List<String>>(){ });
                     existMap.put(rec.getAvailableDate(), arr);
                 } catch (Exception e) {
                     existMap.put(rec.getAvailableDate(), Collections.emptyList());
@@ -100,23 +102,19 @@ public class TeacherDailyAvailabilityServiceImpl implements TeacherDailyAvailabi
             }
 
             for (DailyTimeSlotDTO it : items) {
+                // 按前端当前选择直接覆盖该日配置（允许减少、清空）
                 List<String> cur = it.getTimeSlots();
-                List<String> prev = existMap.getOrDefault(it.getDate(), Collections.emptyList());
-                // 合并并去重
-                LinkedHashSet<String> mergedSet = new LinkedHashSet<>();
-                if (prev != null) mergedSet.addAll(prev);
-                if (cur != null) mergedSet.addAll(cur);
-                // 过滤非法并按基础段顺序排序
-                List<String> merged = baseOrder.stream().filter(mergedSet::contains).collect(Collectors.toList());
+                LinkedHashSet<String> uniq = new LinkedHashSet<>(cur == null ? Collections.emptyList() : cur);
+                List<String> normalized = baseOrder.stream().filter(uniq::contains).collect(Collectors.toList());
 
                 // 先删后插（空集则仅删除代表该日不可上课）
                 QueryWrapper<TeacherDailyAvailability> delOne = new QueryWrapper<>();
                 delOne.eq("teacher_id", teacherId).eq("available_date", it.getDate());
                 dailyMapper.delete(delOne);
 
-                if (!merged.isEmpty()) {
+                if (!normalized.isEmpty()) {
                     try {
-                        String json = OM.writeValueAsString(merged);
+                        String json = OM.writeValueAsString(normalized);
                         TeacherDailyAvailability rec = TeacherDailyAvailability.builder()
                                 .teacherId(teacherId)
                                 .availableDate(it.getDate())
@@ -129,6 +127,15 @@ public class TeacherDailyAvailabilityServiceImpl implements TeacherDailyAvailabi
                     }
                 }
             }
+        }
+
+        // 精准清缓存：teacherAvailability/teacherSchedule + 月历
+        try {
+            Set<LocalDate> affected = items.stream().map(DailyTimeSlotDTO::getDate).collect(Collectors.toSet());
+            cacheKeyEvictor.evictTeacherScheduleAndAvailability(teacherId, affected);
+            cacheKeyEvictor.evictTeacherMonthlyCalendar(teacherId, affected);
+        } catch (Exception e) {
+            log.warn("设置可上课时间后清理缓存失败，但不影响主流程 teacherId={}", teacherId, e);
         }
 
         log.info("已设置教师{}在{}天的日历可上课时间 (overwrite={})", teacherId, items.size(), overwrite);
