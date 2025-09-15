@@ -107,6 +107,8 @@ const hourDetailsLoading = ref(false)
 // 调课弹窗
 const showRescheduleModal = ref(false)
 const rescheduleCourse = ref<any>(null)
+// 为调课弹窗传入教师全量课表，保障“原定课程”可选
+const rescheduleAllSchedules = ref<ScheduleItem[]>([])
 // 课程详情弹窗
 const showScheduleDetailModal = ref(false)
 
@@ -336,32 +338,61 @@ const dateScheduleStatus = (date: Date): 'none' | 'has' => {
   return dateHasSchedule(date) ? 'has' : 'none'
 }
 
-// 打开调课弹窗
-const openRescheduleModal = (schedule: ScheduleItem) => {
-  const enhancedSchedule = {
-    id: schedule.id,
-    teacherId: schedule.teacherId,
-    teacherName: schedule.teacherName || '当前教师',
-    studentId: schedule.studentId,
-    studentName: schedule.studentName,
-    courseId: schedule.courseId,
-    courseTitle: schedule.courseTitle || schedule.courseName || '自定义课程',
-    subjectName: schedule.subjectName || '未知科目',
-    scheduledDate: schedule.scheduledDate,
-    startTime: schedule.startTime,
-    endTime: schedule.endTime,
-    durationMinutes: schedule.durationMinutes || 120,
+// 打开调课弹窗（复用学生端弹窗逻辑，保证“原定课程”和“剩余课时”正确）
+const openRescheduleModal = async (schedule: ScheduleItem) => {
+  // 1) 准备全部课表（未来区间），用于弹窗内“原定课程”选择与映射
+  try {
+    const today = new Date()
+    const startStr = today.toISOString().split('T')[0]
+    const res = await bookingAPI.getTeacherSchedules({ startDate: startStr, endDate: '2099-12-31' })
+    if (res.success && Array.isArray(res.data)) {
+      rescheduleAllSchedules.value = res.data
+    } else {
+      rescheduleAllSchedules.value = []
+    }
+  } catch (e) {
+    rescheduleAllSchedules.value = []
+  }
+
+  // 2) 计算“剩余课时”：同一报名(enrollmentId)下，未取消且日期>=今天的节次数
+  const isFuture = (d: string) => d >= new Date().toISOString().split('T')[0]
+  const sameEnrollment = (list: ScheduleItem[]) => {
+    if (schedule.enrollmentId) {
+      return list.filter(s => s.enrollmentId === schedule.enrollmentId && isFuture(s.scheduledDate) && s.status !== 'cancelled' && s.status !== 'canceled')
+    }
+    // 兜底：若无报名ID，用教师+学生+课程匹配
+    return list.filter(s => s.teacherId === schedule.teacherId && s.studentId === schedule.studentId && s.courseId === schedule.courseId && isFuture(s.scheduledDate) && s.status !== 'cancelled' && s.status !== 'canceled')
+  }
+  const futureList = sameEnrollment(rescheduleAllSchedules.value)
+  const remainingLessons = Math.max(futureList.length, 1)
+
+  // 3) 构造弹窗所需课程与节次数据
+  const toCourseSchedule = (s: ScheduleItem) => ({
+    id: s.id,
+    teacherId: s.teacherId!,
+    teacherName: s.teacherName || '当前教师',
+    studentId: s.studentId!,
+    studentName: s.studentName,
+    courseId: s.courseId!,
+    courseTitle: s.courseTitle || s.courseName || '自定义课程',
+    subjectName: s.subjectName || '',
+    scheduledDate: s.scheduledDate,
+    startTime: s.startTime,
+    endTime: s.endTime,
+    durationMinutes: s.durationMinutes || 120,
     totalTimes: 1,
-    status: schedule.status || 'progressing',
+    status: (s.status as any) || 'progressing',
     teacherNotes: undefined,
     studentFeedback: undefined,
     createdAt: undefined,
     bookingRequestId: undefined,
     bookingSource: undefined,
-    isTrial: schedule.isTrial,
+    isTrial: s.isTrial,
     sessionNumber: 1,
-    courseType: 'regular'
-  }
+    courseType: s.courseType || 'regular'
+  })
+
+  const scheduleOptions = (futureList.length > 0 ? futureList : [schedule]).map(toCourseSchedule)
 
   rescheduleCourse.value = {
     id: schedule.courseId || schedule.id,
@@ -369,9 +400,9 @@ const openRescheduleModal = (schedule: ScheduleItem) => {
     teacher: schedule.teacherName || '当前教师',
     teacherId: schedule.teacherId,
     subject: schedule.subjectName || '未知科目',
-    remainingLessons: 1,
+    remainingLessons,
     weeklySchedule: [],
-    schedules: [enhancedSchedule]
+    schedules: scheduleOptions
   }
   showRescheduleModal.value = true
 }
@@ -735,6 +766,7 @@ onMounted(async () => {
       v-model="showRescheduleModal"
       :course="rescheduleCourse"
       :is-teacher="true"
+      :all-schedules="rescheduleAllSchedules"
       @success="handleRescheduleSuccess"
     />
 
