@@ -17,6 +17,11 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+
+-- MySQL 5.7 兼容：确保目标库存在，并选择该库
+CREATE DATABASE IF NOT EXISTS `grabteacher` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `grabteacher`;
+
 -- ----------------------------
 -- Table structure for admins
 -- ----------------------------
@@ -504,7 +509,7 @@ CREATE TABLE `monthly_adjustment_counters` (
   UNIQUE KEY `uk_actor_enroll_month` (`actor_type`,`actor_id`,`enrollment_id`,`month_key`),
   KEY `idx_actor_month` (`actor_type`,`month_key`),
   KEY `idx_enroll_month` (`enrollment_id`,`month_key`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of monthly_adjustment_counters
@@ -780,7 +785,7 @@ CREATE TABLE `teacher_daily_availability` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_teacher_date` (`teacher_id`,`available_date`),
   KEY `idx_teacher_date` (`teacher_id`,`available_date`)
-) ENGINE=InnoDB AUTO_INCREMENT=16384 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16384 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of teacher_daily_availability
