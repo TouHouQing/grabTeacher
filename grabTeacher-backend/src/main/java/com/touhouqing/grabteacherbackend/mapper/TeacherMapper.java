@@ -54,6 +54,26 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
             "AND c.is_deleted = 0 AND c.status = 'active' AND c.course_type = 'one_on_one' " +
             "ORDER BY t.teaching_experience DESC")
     List<Teacher> findOneOnOneTeachersBySubjectAndLevel(@Param("subject") String subject, @Param("teacherLevel") String teacherLevel);
+    /**
+     * 根据科目和教师级别查找教师（不要求已发布课程）- 用于放宽智能匹配
+     */
+    @Select("SELECT DISTINCT t.* FROM teachers t " +
+            "INNER JOIN teacher_subjects ts ON t.id = ts.teacher_id " +
+            "INNER JOIN subjects s ON ts.subject_id = s.id " +
+            "WHERE t.is_deleted = 0 AND t.is_verified = 1 " +
+            "AND s.name = #{subject} AND s.is_deleted = 0 " +
+            "AND t.level = #{teacherLevel} " +
+            "ORDER BY t.teaching_experience DESC")
+    List<Teacher> findTeachersBySubjectAndLevel(@Param("subject") String subject, @Param("teacherLevel") String teacherLevel);
+
+    /**
+     * 查找所有已认证教师（不要求已发布课程）- 用于放宽智能匹配
+     */
+    @Select("SELECT DISTINCT t.* FROM teachers t " +
+            "WHERE t.is_deleted = 0 AND t.is_verified = 1 " +
+            "ORDER BY t.teaching_experience DESC")
+    List<Teacher> findAllVerifiedTeachers();
+
 
     /**
      * 按科目分页查询教师并支持关键字过滤（SQL端分页）

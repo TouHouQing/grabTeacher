@@ -841,11 +841,11 @@ const loadTeacherCourses = async (teacherId: number) => {
       teacherCourses.value = oneOnOneCourses
 
       if (oneOnOneCourses.length === 0) {
-        ElMessage.warning('该教师暂无1对1课程可预约')
+        ElMessage.warning('该老师未发布课程')
       }
     } else {
       teacherCourses.value = []
-      ElMessage.warning('该教师暂无可预约的课程')
+      ElMessage.warning('该老师未发布课程')
     }
   } catch (error) {
     console.error('获取教师课程失败:', error)
@@ -3028,7 +3028,7 @@ watch(selectedCourse, (newCourse) => {
               <el-skeleton :rows="2" animated />
             </div>
             <div v-else-if="teacherCourses.length === 0" class="no-courses">
-              <el-empty description="该教师暂无1对1课程可预约" :image-size="80" />
+              <el-empty description="该老师未发布课程" :image-size="80" />
             </div>
             <div v-else class="course-selection">
               <el-radio-group v-model="selectedCourse" size="large" class="course-radio-group">

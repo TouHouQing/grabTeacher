@@ -639,22 +639,22 @@ public class TeacherServiceImpl implements TeacherService {
             boolean hasLevel = org.springframework.util.StringUtils.hasText(request.getTeacherLevel());
             if (hasLevel) {
                 if (hasSubject) {
-                    // 放宽为“科目+级别过滤”，防止联表约束过严导致0结果
-                    teachers = teacherMapper.findOneOnOneTeachersBySubject(request.getSubject())
+                    // 放宽为“科目+级别过滤”，不要求已发布课程
+                    teachers = teacherMapper.findTeachersBySubject(request.getSubject())
                             .stream().filter(t -> t.getLevel() != null && request.getTeacherLevel().trim().equals(t.getLevel().trim()))
                             .collect(java.util.stream.Collectors.toList());
                 } else {
-                    // 无科目，仅按级别过滤
-                    teachers = teacherMapper.findAllOneOnOneTeachers()
+                    // 无科目，仅按级别过滤（不要求已发布课程）
+                    teachers = teacherMapper.findAllVerifiedTeachers()
                             .stream().filter(t -> t.getLevel() != null && request.getTeacherLevel().trim().equals(t.getLevel().trim()))
                             .collect(java.util.stream.Collectors.toList());
                 }
             } else {
-                // 未指定级别时的原有回退逻辑
+                // 未指定级别时的回退逻辑（不要求已发布课程）
                 if (hasSubject) {
-                    teachers = teacherMapper.findOneOnOneTeachersBySubject(request.getSubject());
+                    teachers = teacherMapper.findTeachersBySubject(request.getSubject());
                 } else {
-                    teachers = teacherMapper.findAllOneOnOneTeachers();
+                    teachers = teacherMapper.findAllVerifiedTeachers();
                 }
             }
         }
@@ -686,18 +686,18 @@ public class TeacherServiceImpl implements TeacherService {
     private List<Teacher> matchTeachersOptimized(TeacherMatchDTO request) {
         // 智能匹配功能只匹配提供1对1课程的教师
 
-        // 如果指定了科目和教师级别，使用联合查询
+        // 如果指定了科目和教师级别，放宽：不要求已发布课程
         if (StringUtils.hasText(request.getSubject()) && StringUtils.hasText(request.getTeacherLevel())) {
-            return teacherMapper.findOneOnOneTeachersBySubjectAndLevel(request.getSubject(), request.getTeacherLevel());
+            return teacherMapper.findTeachersBySubjectAndLevel(request.getSubject(), request.getTeacherLevel());
         }
 
-        // 如果只指定了科目
+        // 如果只指定了科目，放宽：不要求已发布课程
         if (StringUtils.hasText(request.getSubject())) {
-            return teacherMapper.findOneOnOneTeachersBySubject(request.getSubject());
+            return teacherMapper.findTeachersBySubject(request.getSubject());
         }
 
-        // 如果都没指定，返回所有提供1对1课程的已认证教师
-        return teacherMapper.findAllOneOnOneTeachers();
+        // 如果都没指定，返回所有已认证教师（包含未发布课程）
+        return teacherMapper.findAllVerifiedTeachers();
     }
 
 
