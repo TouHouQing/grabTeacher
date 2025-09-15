@@ -1,30 +1,18 @@
 <template>
   <div class="base-slot-bar">
     <div class="slot-cell" v-for="s in slots" :key="s.slot">
-      <!-- 学生 + 1.5h：在每个2小时基础段内提供“前90/后90”可选按钮 -->
+      <!-- 学生 + 1.5h：仅允许基础2小时段的中间90分钟（如 08:15-09:45） -->
       <template v-if="mode==='student' && durationMinutes === 90">
-        <div class="half-group">
-          <el-tooltip :content="s.tips || statusText(s.status)" placement="top" :disabled="!s.tips && !statusText(s.status)">
-            <el-button
-              size="small"
-              :class="['slot-btn', `status-${s.status}`, { selected: selectedSet.has(s.slot + '|EARLY90') } ]"
-              :disabled="disabledEarly(s)"
-              @click="$emit('click-slot', s.slot + '|EARLY90', s)"
-            >
-              {{ halfLabels(s.slot).early }}
-            </el-button>
-          </el-tooltip>
-          <el-tooltip :content="s.tips || statusText(s.status)" placement="top" :disabled="!s.tips && !statusText(s.status)">
-            <el-button
-              size="small"
-              :class="['slot-btn', `status-${s.status}`, { selected: selectedSet.has(s.slot + '|LATE90') } ]"
-              :disabled="disabledLate(s)"
-              @click="$emit('click-slot', s.slot + '|LATE90', s)"
-            >
-              {{ halfLabels(s.slot).late }}
-            </el-button>
-          </el-tooltip>
-        </div>
+        <el-tooltip :content="s.tips || statusText(s.status)" placement="top" :disabled="!s.tips && !statusText(s.status)">
+          <el-button
+            size="small"
+            :class="['slot-btn', `status-${s.status}`, { selected: selectedSet.has(s.slot) } ]"
+            :disabled="disabledCenter(s)"
+            @click="$emit('click-slot', s.slot, s)"
+          >
+            {{ centerLabel(s.slot) }}
+          </el-button>
+        </el-tooltip>
       </template>
       <!-- 其他情况（教师端或2小时）：仍使用基础段按钮 -->
       <template v-else>
@@ -72,25 +60,14 @@ const disabledInMode = (s: SlotItem) => {
 // 1.5h
 const parseToMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
 const minToStr = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
-function halfLabels(slot: string): { early: string; late: string } {
+function centerLabel(slot: string): string {
   const [s, e] = slot.split('-')
   const sMin = parseToMin(s); const eMin = parseToMin(e)
-  return { early: `${s}-${minToStr(sMin + 90)}`, late: `${minToStr(eMin - 90)}-${e}` }
+  return `${minToStr(sMin + 15)}-${minToStr(eMin - 15)}`
 }
-function disabledEarly(s: SlotItem): boolean {
-  // 已有其它学生正式课/教师未开放：禁用
-  if (s.status === 'busy_formal' || s.status === 'unavailable') return true
-  // 段起点有试听：前90禁用
-  if (s.status === 'busy_trial_base') return true
-  // 同一基础段若已选择“后90”，则禁用“前90”
-  if (selectedSet.value.has(s.slot + '|LATE90')) return true
-  return false
-}
-function disabledLate(s: SlotItem): boolean {
-  // 已有其它学生正式课/教师未开放：禁用
-  if (s.status === 'busy_formal' || s.status === 'unavailable') return true
-  // 同一基础段若已选择“前90”，则禁用“后90”
-  if (selectedSet.value.has(s.slot + '|EARLY90')) return true
+function disabledCenter(s: SlotItem): boolean {
+  // 已有正式课/教师未开放/基础段内有试听（含待审批）均禁用
+  if (s.status === 'busy_formal' || s.status === 'unavailable' || s.status === 'busy_trial_base' || s.status === 'pending_trial') return true
   return false
 }
 
@@ -102,9 +79,8 @@ const statusText = (status?: string) => {
   switch (status) {
     case 'available': return '可预约'
     case 'busy_formal': return '已有正式课'
-    case 'busy_trial_base': return '段起点有试听（2h禁用, 1.5h可）'
-    case 'partial_trial': return '段内有试听（按后端最终校验）'
-    case 'pending_trial': return '待审批试听'
+    case 'busy_trial_base': return '基础段内有试听（正式课禁用）'
+    case 'pending_trial': return '待审批试听（正式课禁用）'
     case 'unavailable': return ''
     default: return ''
   }

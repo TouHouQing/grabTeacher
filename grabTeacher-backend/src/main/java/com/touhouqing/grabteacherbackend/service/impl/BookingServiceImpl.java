@@ -1071,8 +1071,8 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // 检查试听课预约是否会影响基础2小时区间的可用性
-        // 如果预约的是2小时课程，需要检查是否与试听课冲突
-        if (isTwoHourCourse(start, end)) {
+        // 如果预约的是2小时或1.5小时课程，需要检查是否与试听课冲突（任意位置的30分钟试听均阻断正式课）
+        if (isTwoHourCourse(start, end) || isNinetyMinuteCourse(start, end)) {
             // 将时间段映射到基础2小时区间
             String baseSlot = mapToBaseTimeSlot(startTime, endTime);
             if (baseSlot != null) {
@@ -1094,6 +1094,13 @@ public class BookingServiceImpl implements BookingService {
      */
     private boolean isTwoHourCourse(LocalTime start, LocalTime end) {
         return java.time.Duration.between(start, end).toMinutes() == 120;
+    }
+
+    /**
+     * 判断是否为1.5小时课程（90分钟）
+     */
+    private boolean isNinetyMinuteCourse(LocalTime start, LocalTime end) {
+        return java.time.Duration.between(start, end).toMinutes() == 90;
     }
 
     /**
@@ -2010,12 +2017,32 @@ public class BookingServiceImpl implements BookingService {
                     throw new RuntimeException("该日期的时间段不在教师可预约范围内，请选择其他时间");
                 }
             } catch (Exception e) {
+
                 throw new RuntimeException("教师日历可预约数据异常，请稍后再试");
             }
             // 日历校验通过，直接进入“待处理预约占用”校验
         } else {
             // 不再回退到按周模板：若该日未设置日历可预约，则视为不可预约
             throw new RuntimeException("教师未在该日开放可预约时间，请选择其他日期或联系教师");
+        }
+
+        // 规则增强：1.5小时正式课必须为基础2小时段的中间90分钟（baseStart+15 ~ baseEnd-15）
+        if (request.getRequestedStartTime() != null && request.getRequestedEndTime() != null) {
+            int mins = (int) java.time.Duration.between(request.getRequestedStartTime(), request.getRequestedEndTime()).toMinutes();
+            if (mins == 90) {
+                String baseSlot = mapToBaseTimeSlot(request.getRequestedStartTime().toString(), request.getRequestedEndTime().toString());
+                if (baseSlot == null) {
+                    throw new RuntimeException("1.5小时仅支持在基础2小时段内预约");
+                }
+                String[] bt = baseSlot.split("-");
+                java.time.LocalTime baseStart = java.time.LocalTime.parse(bt[0]);
+                java.time.LocalTime baseEnd = java.time.LocalTime.parse(bt[1]);
+                java.time.LocalTime expectStart = baseStart.plusMinutes(15);
+                java.time.LocalTime expectEnd = baseEnd.minusMinutes(15);
+                if (!expectStart.equals(request.getRequestedStartTime()) || !expectEnd.equals(request.getRequestedEndTime())) {
+                    throw new RuntimeException("1.5小时正式课必须固定为中间1.5小时，例如 08:15-09:45");
+                }
+            }
         }
 
         // 额外校验：该时间段是否已被其他学生的“待处理”预约占用

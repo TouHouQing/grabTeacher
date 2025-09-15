@@ -127,44 +127,29 @@ public class CalendarServiceImpl implements CalendarService {
                     status = "busy_formal"; // 该基础段内已有正式课，禁选（优先级最高）
                 }
 
-                // B. 已有试听的影响（只阻断2小时；允许1.5h在空余部分，如 08:30-10:00）
+                // B. 试听占用影响（新版规则：基础段内任意30分钟试听均阻断正式课，含1.5h与2h）
                 if ("available".equals(status)) {
-                    boolean trialAtBaseStart = daySch.stream().anyMatch(cs -> Boolean.TRUE.equals(cs.getTrial())
+                    boolean anyTrial = daySch.stream().anyMatch(cs -> Boolean.TRUE.equals(cs.getTrial())
                             && !"cancelled".equalsIgnoreCase(cs.getScheduleStatus())
-                            && cs.getStartTime().equals(baseStart)
-                            && cs.getScheduledDate().equals(day));
-                    boolean trialInside = daySch.stream().anyMatch(cs -> Boolean.TRUE.equals(cs.getTrial())
-                            && !"cancelled".equalsIgnoreCase(cs.getScheduleStatus())
-                            && cs.getStartTime().isBefore(baseEnd) && baseStart.isBefore(cs.getEndTime())
-                            && cs.getScheduledDate().equals(day));
-                    if (trialAtBaseStart) {
-                        status = "busy_trial_base"; // 2h禁用，1.5h允许（前端据此限制）
-                        tips = "该基础段起始存在试听，2小时禁用，1.5小时可选";
-                    } else if (trialInside) {
-                        status = "partial_trial"; // 存在试听但不在起点，1.5h/2h是否允许由后端校验决定
-                        tips = "该基础段内存在试听，不影响 08:30-10:00 等非重叠起点";
+                            && cs.getScheduledDate().equals(day)
+                            && cs.getStartTime().isBefore(baseEnd) && baseStart.isBefore(cs.getEndTime()));
+                    if (anyTrial) {
+                        status = "busy_trial_base"; // 基础段内有试听：正式课禁用
+                        tips = "该基础段内存在试听，正式课禁用";
                     }
                 }
 
-                // C. 待处理试听（提示态，遵循同样规则）
-                if ("available".equals(status) || "partial_trial".equals(status)) {
-                    boolean pendingTrialAtBaseStart = dayPend.stream().anyMatch(br -> Boolean.TRUE.equals(br.getIsTrial())
-                            && "pending".equalsIgnoreCase(br.getStatus())
-                            && "single".equalsIgnoreCase(br.getBookingType())
-                            && day.equals(br.getRequestedDate())
-                            && baseStart.equals(br.getRequestedStartTime()));
-                    boolean pendingTrialInside = dayPend.stream().anyMatch(br -> Boolean.TRUE.equals(br.getIsTrial())
+                // C. 待处理试听（同样阻断正式课）
+                if ("available".equals(status)) {
+                    boolean anyPendingTrial = dayPend.stream().anyMatch(br -> Boolean.TRUE.equals(br.getIsTrial())
                             && "pending".equalsIgnoreCase(br.getStatus())
                             && "single".equalsIgnoreCase(br.getBookingType())
                             && day.equals(br.getRequestedDate())
                             && br.getRequestedStartTime() != null && br.getRequestedEndTime() != null
                             && br.getRequestedStartTime().isBefore(baseEnd) && baseStart.isBefore(br.getRequestedEndTime()));
-                    if (pendingTrialAtBaseStart) {
-                        status = "pending_trial"; // 2h建议禁用；1.5h允许
-                        tips = (tips == null ? "" : tips + "; ") + "待审批试听在基础段起始";
-                    } else if (pendingTrialInside && "available".equals(status)) {
-                        status = "pending_trial";
-                        tips = (tips == null ? "" : tips + "; ") + "基础段内有待审批试听";
+                    if (anyPendingTrial) {
+                        status = "busy_trial_base";
+                        tips = (tips == null ? "" : tips + "; ") + "基础段内有待审批试听，正式课禁用";
                     }
                 }
 

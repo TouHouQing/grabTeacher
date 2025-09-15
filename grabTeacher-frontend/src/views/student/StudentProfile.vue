@@ -60,12 +60,11 @@ const studentForm = reactive<StudentInfo>({
   learningGoals: '',
   preferredTeachingStyle: '',
   budgetRange: '',
-  gender: '不愿透露'
+  gender: '男'
 })
 
 // 性别选项
 const genderOptions = [
-  { label: '不愿透露', value: '不愿透露' },
   { label: '男', value: '男' },
   { label: '女', value: '女' }
 ]

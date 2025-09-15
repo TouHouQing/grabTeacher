@@ -6,7 +6,7 @@
         <el-radio-button :label="120">2 小时</el-radio-button>
       </el-radio-group>
       <div class="spacer" />
-      <span class="hint">提示：1.5 小时可在每个 2 小时段内自由选择“前90”或“后90”；若段起点有试听，仅可选“后90”。</span>
+      <span class="hint">说明：1.5小时固定为每个2小时时间段的中间90分钟（如 08:15-09:45）；若该基础段内存在任意30分钟试听（已排或待审批），该时间段不可预约正式课。</span>
     </div>
 
     <div class="content">

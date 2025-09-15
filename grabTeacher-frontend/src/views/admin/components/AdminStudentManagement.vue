@@ -40,7 +40,7 @@ const studentForm = reactive({
   learningGoals: '',
   preferredTeachingStyle: '',
   budgetRange: '',
-  gender: '不愿透露',
+  gender: '男',
   avatarUrl: '',
   balance: 0.00,
   trialTimes: 1,
@@ -64,7 +64,6 @@ const uploadStudentAvatarIfNeeded = async (): Promise<string | null> => {
 
 // 性别选项
 const genderOptions = [
-  { label: '不愿透露', value: '不愿透露' },
   { label: '男', value: '男' },
   { label: '女', value: '女' }
 ]
@@ -78,19 +77,6 @@ const checkUsernameAvailable = async (username: string): Promise<boolean> => {
     return result.success && result.data
   } catch (error) {
     console.error('检查用户名失败:', error)
-    return false
-  }
-}
-
-// 检查邮箱是否可用（仅在新增时检查）
-const checkEmailAvailable = async (email: string): Promise<boolean> => {
-  if (!email || studentForm.id !== 0) return true // 编辑时不检查
-  try {
-    const response = await fetch(`${getApiBaseUrl()}/api/auth/check-email?email=${encodeURIComponent(email)}`)
-    const result = await response.json()
-    return result.success && result.data
-  } catch (error) {
-    console.error('检查邮箱失败:', error)
     return false
   }
 }
@@ -115,26 +101,6 @@ const validateUsername = async (rule: any, value: string, callback: any) => {
   callback()
 }
 
-const validateEmail = async (rule: any, value: string, callback: any) => {
-  if (!value) {
-    callback(new Error('请输入邮箱'))
-    return
-  }
-  const emailRegex = /^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
-  if (!emailRegex.test(value)) {
-    callback(new Error('请输入正确的邮箱格式'))
-    return
-  }
-  if (studentForm.id === 0) { // 仅在新增时检查
-    const available = await checkEmailAvailable(value)
-    if (!available) {
-      callback(new Error('邮箱已被注册，请使用其他邮箱'))
-      return
-    }
-  }
-  callback()
-}
-
 // 表单验证规则
 const studentRules = {
   realName: [
@@ -143,10 +109,6 @@ const studentRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { validator: validateUsername, trigger: 'blur' }
-  ],
-  email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { validator: validateEmail, trigger: 'blur' }
   ]
 }
 
@@ -207,7 +169,7 @@ const handleAddStudent = () => {
     learningGoals: '',
     preferredTeachingStyle: '',
     budgetRange: '',
-    gender: '不愿透露',
+    gender: '男',
     avatarUrl: '',
     balance: 0.00,
     trialTimes: 1,
@@ -246,8 +208,6 @@ const saveStudent = async () => {
     const baseData: any = {
       realName: studentForm.realName,
       username: studentForm.username,
-      email: studentForm.email,
-      phone: studentForm.phone,
       subjectsInterested: studentForm.subjectsInterested,
       subjectIds: studentForm.subjectIds,
       learningGoals: studentForm.learningGoals,
@@ -476,21 +436,6 @@ onMounted(() => {
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item prop="email">
-              <template #label>
-                <span><span style="color:#f56c6c"></span> 邮箱</span>
-              </template>
-              <el-input v-model="studentForm.email" placeholder="请输入邮箱" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="手机号">
-              <el-input v-model="studentForm.phone" placeholder="请输入手机号" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="密码">
               <el-input
                 v-model="studentForm.password"
@@ -504,6 +449,7 @@ onMounted(() => {
             </el-form-item>
           </el-col>
         </el-row>
+
 
         <el-form-item label="头像">
           <AvatarUploader

@@ -92,7 +92,7 @@ const teacherForm = reactive({
   hourlyRate: 0,
   rating: 5.0, // 添加评分字段，默认5.0分
   introduction: '',
-  gender: '不愿透露',
+  gender: '男',
   level: '王牌',
   isVerified: false, // 表单内部仍使用 isVerified，编辑时从 row.verified 映射
   avatarUrl: '',
@@ -136,19 +136,6 @@ const checkUsernameAvailable = async (username: string): Promise<boolean> => {
   }
 }
 
-// 检查邮箱是否可用（仅在新增时检查）
-const checkEmailAvailable = async (email: string): Promise<boolean> => {
-  if (!email || teacherForm.id !== 0) return true // 编辑时不检查
-  try {
-    const response = await fetch(`${getApiBaseUrl()}/api/auth/check-email?email=${encodeURIComponent(email)}`)
-    const result = await response.json()
-    return result.success && result.data
-  } catch (error) {
-    console.error('检查邮箱失败:', error)
-    return false
-  }
-}
-
 // 自定义验证器
 const validateUsername = async (rule: any, value: string, callback: any) => {
   if (!value) {
@@ -169,26 +156,6 @@ const validateUsername = async (rule: any, value: string, callback: any) => {
   callback()
 }
 
-const validateEmail = async (rule: any, value: string, callback: any) => {
-  if (!value) {
-    callback(new Error('请输入邮箱'))
-    return
-  }
-  const emailRegex = /^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
-  if (!emailRegex.test(value)) {
-    callback(new Error('请输入正确的邮箱格式'))
-    return
-  }
-  if (teacherForm.id === 0) { // 仅在新增时检查
-    const available = await checkEmailAvailable(value)
-    if (!available) {
-      callback(new Error('邮箱已被注册，请使用其他邮箱'))
-      return
-    }
-  }
-  callback()
-}
-
 // 表单验证规则
 const teacherRules = {
   realName: [
@@ -197,16 +164,11 @@ const teacherRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { validator: validateUsername, trigger: 'blur' }
-  ],
-  email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { validator: validateEmail, trigger: 'blur' }
   ]
 }
 
 // 性别选项
 const genderOptions = [
-  { label: '不愿透露', value: '不愿透露' },
   { label: '男', value: '男' },
   { label: '女', value: '女' }
 ]
@@ -332,7 +294,7 @@ const handleAddTeacher = () => {
     hourlyRate: 0,
     rating: 5.0, // 默认评分5.0分
     introduction: '',
-    gender: '不愿透露',
+    gender: '男',
     level: '',
     isVerified: false,
     teachingLocationIds: []
@@ -422,8 +384,6 @@ const saveTeacher = async () => {
     const baseData: any = {
       realName: teacherForm.realName,
       username: teacherForm.username,
-      email: teacherForm.email,
-      phone: teacherForm.phone,
       educationBackground: normalizeEducation(teacherForm.educationBackground || ''),
       teachingExperience: teacherForm.teachingExperience,
       specialties: teacherForm.specialties,
@@ -744,21 +704,6 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item prop="email">
-              <template #label>
-                <span><span style="color:#f56c6c"></span> 邮箱</span>
-              </template>
-              <el-input v-model="teacherForm.email" placeholder="请输入邮箱" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="手机号">
-              <el-input v-model="teacherForm.phone" placeholder="请输入手机号" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="密码">
               <el-input
                 v-model="teacherForm.password"
@@ -772,6 +717,7 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
         </el-row>
+
 
         <!-- 基本信息 -->
         <el-row :gutter="20">

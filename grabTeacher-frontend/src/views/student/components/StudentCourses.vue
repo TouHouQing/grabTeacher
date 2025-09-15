@@ -789,46 +789,20 @@ const getAvailableTimeSlotsByDuration = (durationMinutes?: number): string[] => 
   }
 
   if (durationMinutes === 90) {
-    // 1.5小时：在2小时区间内选择开始时间，但确保每个时间段都是完整的1.5小时
-    // 时间限制：七点最多到:30，不能有:45
+    // 1.5小时：仅允许基础2小时段的中间90分钟（baseStart+15 ~ baseEnd-15）
     const baseTimeSlots = availableTimeSlots.value
-    const flexibleSlots: string[] = []
-
+    const centerSlots: string[] = []
     baseTimeSlots.forEach(baseSlot => {
-      const [startTime] = baseSlot.split('-')
-      const [startHour, startMinute] = startTime.split(':').map(Number)
-
-      // 在2小时区间内，每15分钟一个开始时间选项，但限制时间格式
-      for (let minute = 0; minute < 120; minute += 15) {
-        const newStartHour = startHour + Math.floor(minute / 60)
-        const newStartMinute = (startMinute + minute) % 60
-
-        // 时间限制：七点最多到:30，不能有:45
-        if (newStartHour === 7 && newStartMinute > 30) {
-          continue // 跳过7点超过30分的时间
-        }
-        if (newStartMinute === 45) {
-          continue // 跳过所有:45的时间
-        }
-
-        // 计算结束时间（1.5小时后）
-        const totalMinutes = newStartHour * 60 + newStartMinute + 90
-        const endHour = Math.floor(totalMinutes / 60)
-        const endMinute = totalMinutes % 60
-
-        // 检查是否在基础时间段内
-        const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
-        const baseEndTime = baseSlot.split('-')[1]
-
-        // 确保结束时间不超过基础时间段的结束时间
-        if (endTime <= baseEndTime) {
-          const newStartTime = `${newStartHour.toString().padStart(2, '0')}:${newStartMinute.toString().padStart(2, '0')}`
-          flexibleSlots.push(`${newStartTime}-${endTime}`)
-        }
-      }
+      const [bs, be] = baseSlot.split('-')
+      const [bsh, bsm] = bs.split(':').map(Number)
+      const [beh, bem] = be.split(':').map(Number)
+      const startMin = bsh * 60 + bsm + 15
+      const endMin = beh * 60 + bem - 15
+      const s = `${String(Math.floor(startMin / 60)).padStart(2,'0')}:${String(startMin % 60).padStart(2,'0')}`
+      const e = `${String(Math.floor(endMin / 60)).padStart(2,'0')}:${String(endMin % 60).padStart(2,'0')}`
+      centerSlots.push(`${s}-${e}`)
     })
-
-    return flexibleSlots
+    return centerSlots
   } else if (durationMinutes === 120) {
     // 2小时：使用固定的时间段，维持现状不变
     return availableTimeSlots.value
@@ -865,30 +839,25 @@ const loadTeacherAvailableTime = async (_teacherId: number) => {
   teacherAvailableTimeSlots.value = []
 }
 
-// 找到1.5小时时间段对应的基础2小时时间段
+// 找到1.5小时时间段对应的基础2小时时间段（仅当该时间段是基础段的中间90分钟时返回）
 const findBaseTimeSlotFor90Min = (timeSlot: string): string | null => {
-  const [startTime] = timeSlot.split('-')
-  const [startHour, startMinute] = startTime.split(':').map(Number)
+  const [startTime, endTime] = timeSlot.split('-')
+  const [sh, sm] = startTime.split(':').map(Number)
+  const [eh, em] = endTime.split(':').map(Number)
+  const sMin = sh * 60 + sm
+  const eMin = eh * 60 + em
 
-  // 获取基础2小时时间段
   const baseTimeSlots = availableTimeSlots.value
-
-  // 找到包含这个开始时间的基础时间段
   for (const baseSlot of baseTimeSlots) {
-    const [baseStart] = baseSlot.split('-')
-    const [baseStartHour, baseStartMinute] = baseStart.split(':').map(Number)
-
-    // 计算基础时间段的开始时间（分钟）
-    const baseStartMinutes = baseStartHour * 60 + baseStartMinute
-    // 计算当前开始时间（分钟）
-    const currentStartMinutes = startHour * 60 + startMinute
-
-    // 如果当前开始时间在基础时间段内，返回基础时间段
-    if (currentStartMinutes >= baseStartMinutes && currentStartMinutes < baseStartMinutes + 120) {
+    const [bs, be] = baseSlot.split('-')
+    const [bsh, bsm] = bs.split(':').map(Number)
+    const [beh, bem] = be.split(':').map(Number)
+    const bsMin = bsh * 60 + bsm
+    const beMin = beh * 60 + bem
+    if (sMin === bsMin + 15 && eMin === beMin - 15) {
       return baseSlot
     }
   }
-
   return null
 }
 

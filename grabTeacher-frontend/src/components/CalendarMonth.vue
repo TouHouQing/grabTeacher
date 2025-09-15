@@ -12,7 +12,7 @@
     </div>
 
     <el-alert v-if="mode==='student'" type="info" :closable="false" show-icon
-              title="说明：橙色表示段起点有试听（2小时禁用，1.5小时可选）；灰色为老师未开放；红色为已排课不可选。" />
+              title="说明：1.5小时固定为每个2小时时间段的中间90分钟（如 08:15-09:45）；若该基础段内存在任意30分钟试听（已排或待审批），该时间段不可预约正式课。" />
 
     <div v-if="loading" class="loading"><el-skeleton :rows="5" animated /></div>
 
@@ -136,8 +136,8 @@ const inferBaseSlot = (startTime: string, endTime: string): string | null => {
     const [bs, be] = base.split('-'); const bsMin = toMin(bs); const beMin = toMin(be)
     // 2小时完整覆盖
     if (s === bsMin && e === beMin) return base
-    // 1.5小时：与基础段首/尾对齐其一
-    if ((e - s) === 90 && s >= bsMin && e <= beMin && (s === bsMin || e === beMin)) return base
+    // 1.5小时：必须为基础段的中间90分钟（bs+15 ~ be-15）
+    if ((e - s) === 90 && s === bsMin + 15 && e === beMin - 15) return base
   }
   return null
 }
@@ -152,23 +152,14 @@ const selectedBaseSlots = computed<Record<string, string[]>>(()=>{
   return map
 })
 
-// 1.5h
-//
+// 1.5h（中心固定段）
 const selectedHalfSlots = computed<Record<string, string[]>>(()=>{
   const map: Record<string, string[]> = {}
   for (const sess of studentSessions.value) {
     const base = inferBaseSlot(sess.startTime, sess.endTime)
     if (!base) continue
-    const s = toMin(sess.startTime); const e = toMin(sess.endTime)
-    const [bs, be] = base.split('-'); const bsMin = toMin(bs); const beMin = toMin(be)
-    let flag: 'EARLY90' | 'LATE90' | null = null
-    if ((e - s) === 90) {
-      if (s === bsMin) flag = 'EARLY90'
-      else if (e === beMin) flag = 'LATE90'
-    }
-    const key = flag ? `${base}|${flag}` : base
     if (!map[sess.date]) map[sess.date] = []
-    if (!map[sess.date].includes(key)) map[sess.date].push(key)
+    if (!map[sess.date].includes(base)) map[sess.date].push(base)
   }
   return map
 })
@@ -337,8 +328,7 @@ function clearStudentSessions() {
 defineExpose({ reload, applySelectionPatch, clearStudentSessions })
 
 const onClickSlot = (day: any, slot: string) => {
-  // 支持 1.5h 半段标记：slot 可能为 "08:00-10:00|EARLY90" 或 "08:00-10:00|LATE90"
-  const [rawSlot, halfFlag] = (slot || '').split('|')
+  const rawSlot = slot
   const item = day.slots.find((s: any)=> s.slot === rawSlot)
   if (!item) return
   if (props.mode === 'teacher') {
@@ -358,30 +348,15 @@ const onClickSlot = (day: any, slot: string) => {
     let startTime = startStr
     let endTime = endStr
     if (duration === 120) {
-      // 2h:  must be whole base slot; block when busy_trial_base
+      // 2h: must be whole base slot; block when busy_trial_base
       if (item.status === 'busy_trial_base' || item.status === 'busy_formal' || item.status === 'unavailable') return
     } else {
-      // 1.5h: user can pick EARLY90/LATE90; when base has trial at start, EARLY90 is forbidden
-      if (item.status === 'busy_formal' || item.status === 'unavailable') return
-      const start = dayjs(`${day.date} ${startStr}`)
-      const end = dayjs(`${day.date} ${endStr}`)
-      if (halfFlag === 'EARLY90') {
-        if (item.status === 'busy_trial_base') return // 段起点有试听，禁止前90
-        startTime = start.format('HH:mm')
-        endTime = start.add(90, 'minute').format('HH:mm')
-      } else if (halfFlag === 'LATE90') {
-        endTime = end.format('HH:mm')
-        startTime = end.subtract(90, 'minute').format('HH:mm')
-      } else {
-        // 兼容：未带标记则沿用旧逻辑（有试听在段起点则选后90，否则选前90）
-        if (item.status === 'busy_trial_base') {
-          endTime = end.format('HH:mm')
-          startTime = end.subtract(90, 'minute').format('HH:mm')
-        } else {
-          startTime = start.format('HH:mm')
-          endTime = start.add(90, 'minute').format('HH:mm')
-        }
-      }
+      // 1.5h: center-only; block when any trial exists in base slot
+      if (item.status === 'busy_formal' || item.status === 'unavailable' || item.status === 'busy_trial_base') return
+      const s = dayjs(`${day.date} ${startStr}`)
+      const e = dayjs(`${day.date} ${endStr}`)
+      startTime = s.add(15, 'minute').format('HH:mm')
+      endTime = e.subtract(15, 'minute').format('HH:mm')
     }
     const key = `${day.date}_${startTime}_${endTime}`
     const exists = studentSessions.value.find(i=> `${i.date}_${i.startTime}_${i.endTime}` === key)
