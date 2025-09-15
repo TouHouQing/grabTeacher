@@ -541,12 +541,12 @@ const toggleVerification = async (teacher: any) => {
   }
 }
 
-// 切换精选教师状态
+// 切换首页轮播状态
 const toggleFeatured = async (teacher: any) => {
   try {
     const result = await teacherAPI.setFeatured(teacher.id, !teacher.featured)
     if (result.success) {
-      ElMessage.success(teacher.isFeatured ? '已取消天下名师' : '设置为天下名师成功')
+      ElMessage.success(teacher.isFeatured ? '已移出首页轮播' : '已加入首页轮播')
       await loadTeacherList()
     } else {
       ElMessage.error(result.message || '操作失败')
@@ -665,10 +665,10 @@ onMounted(async () => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="featured" label="名师状态" width="100">
+      <el-table-column prop="featured" label="轮播状态" width="100">
         <template #default="{ row }">
           <el-tag :type="row.featured ? 'success' : 'info'">
-            {{ row.featured ? '天下名师' : '普通教师' }}
+            {{ row.featured ? '首页轮播' : '未轮播' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -689,7 +689,7 @@ onMounted(async () => {
               :type="row.featured ? 'warning' : 'primary'"
               @click="toggleFeatured(row)"
             >
-              {{ row.featured ? '取消名师' : '设为名师' }}
+              {{ row.featured ? '移出轮播' : '加入轮播' }}
             </el-button>
             <el-button size="small" type="danger" :icon="Delete" @click="handleDeleteTeacher(row)">删除</el-button>
           </div>

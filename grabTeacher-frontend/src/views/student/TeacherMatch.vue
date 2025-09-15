@@ -2834,10 +2834,25 @@ watch(selectedCourse, (newCourse) => {
             </div>
                       <!-- 新增：偏好开始/结束日期（正式课） -->
           <el-form-item v-if="!isTrialMode" label="开始上课日期">
-            <el-date-picker v-model="preferredStartDate" type="date" placeholder="请选择开始日期" format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
+            <el-date-picker
+              v-model="preferredStartDate"
+              type="date"
+              placeholder="请选择开始日期"
+              :disabled-date="(date) => date < new Date()"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+            />
           </el-form-item>
           <el-form-item v-if="!isTrialMode" label="结束上课日期">
-            <el-date-picker v-model="preferredEndDate" type="date" placeholder="请选择结束日期" format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
+            <el-date-picker
+              v-model="preferredEndDate"
+              type="date"
+              placeholder="请选择结束日期"
+              :disabled="!preferredStartDate"
+              :disabled-date="(date) => preferredStartDate ? date < new Date(preferredStartDate as any) : false"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+            />
           </el-form-item>
           </el-form-item>
           <el-form-item label="教师级别 Teacher Level">
