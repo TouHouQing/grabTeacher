@@ -131,6 +131,62 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
     })
     long countTeachersBySubjectExactName(@Param("subject") String subject, @Param("realName") String realName);
 
+    /**
+     * 管理员端按科目分页查询教师（支持更多筛选条件）
+     */
+    @Select({
+        "<script>",
+        "SELECT DISTINCT t.* FROM teachers t",
+        "INNER JOIN teacher_subjects ts ON t.id = ts.teacher_id",
+        "INNER JOIN subjects s ON ts.subject_id = s.id",
+        "WHERE t.is_deleted = 0",
+        "AND s.name = #{subject} AND s.is_deleted = 0",
+        "<if test='keyword != null and keyword != \"\"'>",
+        "  AND t.real_name LIKE CONCAT('%', #{keyword}, '%')",
+        "</if>",
+        "<if test='gender != null and gender != \"\"'>",
+        "  AND t.gender = #{gender}",
+        "</if>",
+        "<if test='isVerified != null'>",
+        "  AND t.is_verified = #{isVerified}",
+        "</if>",
+        "ORDER BY t.id DESC",
+        "LIMIT #{size} OFFSET #{offset}",
+        "</script>"
+    })
+    List<Teacher> findTeachersBySubjectForAdmin(@Param("subject") String subject,
+                                                @Param("keyword") String keyword,
+                                                @Param("gender") String gender,
+                                                @Param("isVerified") Boolean isVerified,
+                                                @Param("offset") int offset,
+                                                @Param("size") int size);
+
+    /**
+     * 管理员端按科目统计教师数量（支持更多筛选条件）
+     */
+    @Select({
+        "<script>",
+        "SELECT COUNT(DISTINCT t.id) FROM teachers t",
+        "INNER JOIN teacher_subjects ts ON t.id = ts.teacher_id",
+        "INNER JOIN subjects s ON ts.subject_id = s.id",
+        "WHERE t.is_deleted = 0",
+        "AND s.name = #{subject} AND s.is_deleted = 0",
+        "<if test='keyword != null and keyword != \"\"'>",
+        "  AND t.real_name LIKE CONCAT('%', #{keyword}, '%')",
+        "</if>",
+        "<if test='gender != null and gender != \"\"'>",
+        "  AND t.gender = #{gender}",
+        "</if>",
+        "<if test='isVerified != null'>",
+        "  AND t.is_verified = #{isVerified}",
+        "</if>",
+        "</script>"
+    })
+    long countTeachersBySubjectForAdmin(@Param("subject") String subject,
+                                        @Param("keyword") String keyword,
+                                        @Param("gender") String gender,
+                                        @Param("isVerified") Boolean isVerified);
+
 
 
 

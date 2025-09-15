@@ -459,6 +459,12 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public Page<Teacher> getTeacherList(int page, int size, String keyword, String subject, String gender, Boolean isVerified) {
+        // 如果有科目筛选，需要通过关联表查询
+        if (StringUtils.hasText(subject)) {
+            return getTeacherListBySubject(page, size, keyword, subject, gender, isVerified);
+        }
+
+        // 没有科目筛选时的简单查询
         Page<Teacher> pageParam = new Page<>(page, size);
         QueryWrapper<Teacher> queryWrapper = new QueryWrapper<>();
 
@@ -467,9 +473,6 @@ public class AdminServiceImpl implements AdminService {
         // 搜索条件
         if (StringUtils.hasText(keyword)) {
             queryWrapper.like("real_name", keyword);
-        }
-        if (StringUtils.hasText(subject)) {
-            queryWrapper.like("subjects", subject);
         }
         if (StringUtils.hasText(gender)) {
             queryWrapper.eq("gender", gender);
@@ -482,6 +485,26 @@ public class AdminServiceImpl implements AdminService {
         queryWrapper.orderByDesc("id");
 
         return teacherMapper.selectPage(pageParam, queryWrapper);
+    }
+
+    /**
+     * 根据科目筛选教师列表（管理员端）
+     */
+    private Page<Teacher> getTeacherListBySubject(int page, int size, String keyword, String subject, String gender, Boolean isVerified) {
+        int offset = Math.max(0, (page - 1) * size);
+        
+        // 查询教师列表
+        List<Teacher> teachers = teacherMapper.findTeachersBySubjectForAdmin(subject, keyword, gender, isVerified, offset, size);
+        
+        // 查询总数
+        long total = teacherMapper.countTeachersBySubjectForAdmin(subject, keyword, gender, isVerified);
+        
+        // 构建分页结果
+        Page<Teacher> pageResult = new Page<>(page, size);
+        pageResult.setRecords(teachers);
+        pageResult.setTotal(total);
+        
+        return pageResult;
     }
 
     @Override
