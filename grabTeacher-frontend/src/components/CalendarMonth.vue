@@ -1,6 +1,6 @@
 <template>
   <div class="calendar-month">
-    <div class="header">
+    <div class="header" v-if="!hideHeader">
       <el-select v-model="localYear" size="small" style="width: 100px" @change="reload">
         <el-option v-for="y in yearOptions" :key="y" :label="y + '年'" :value="y" />
       </el-select>
@@ -58,6 +58,7 @@ const props = defineProps<{
   allowedPeriods?: Array<'morning'|'afternoon'|'evening'>
   dateRangeStart?: string // 'YYYY-MM-DD'
   dateRangeEnd?: string   // 'YYYY-MM-DD'
+  hideHeader?: boolean // 隐藏顶部年月选择器
 }>()
 
 const emit = defineEmits<{

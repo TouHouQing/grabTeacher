@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, School, Trophy, ArrowLeft, Loading, Clock, User, Document, Timer } from '@element-plus/icons-vue'
-import { courseAPI, teacherAPI, enrollmentAPI } from '../../utils/api'
+import { courseAPI, teacherAPI, enrollmentAPI, publicGradeAPI } from '../../utils/api'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -20,6 +20,12 @@ const enrolling = ref(false)
 const enrolled = ref(false)
 // 额外教师信息
 const teacher = ref<{ avatarUrl?: string; teachingExperience?: number; educationBackground?: string; specialties?: string } | null>(null)
+
+// 年级选择相关状态
+const showGradeModal = ref(false)
+const grades = ref<{ id: string | number; name: string }[]>([])
+const selectedGrade = ref<string | number>('')
+const loadingGrades = ref(false)
 
 // 每周上课时间段类型（与后端 TimeSlotDTO 对齐）
 interface TimeSlotDTO {
@@ -109,7 +115,64 @@ onMounted(() => {
   fetchCourseDetail()
 })
 
-// 立即报名：一对一课程跳转到智能匹配页；大班课按原流程报名
+// 加载年级列表
+const loadGrades = async () => {
+  try {
+    loadingGrades.value = true
+    const res = await publicGradeAPI.list()
+    if (res.success && Array.isArray(res.data)) {
+      grades.value = res.data.map((g: any) => ({ id: g.id ?? g.name, name: g.name ?? String(g) }))
+    } else {
+      grades.value = []
+    }
+  } catch (e) {
+    grades.value = []
+    ElMessage.error('加载年级列表失败')
+  } finally {
+    loadingGrades.value = false
+  }
+}
+
+// 显示年级选择弹窗
+const showGradeSelection = async () => {
+  if (grades.value.length === 0) {
+    await loadGrades()
+  }
+  selectedGrade.value = ''
+  showGradeModal.value = true
+}
+
+// 确认年级选择并跳转
+const confirmGradeSelection = () => {
+  if (!selectedGrade.value) {
+    ElMessage.warning('请选择年级')
+    return
+  }
+
+  const teacherId = course.value?.teacherId
+  if (!teacherId) {
+    ElMessage.warning('未找到授课教师，暂无法预约')
+    return
+  }
+
+  // 跳转并携带 teacherId、courseId 和选择的年级
+  // 找到对应的年级名称
+  const gradeItem = grades.value.find(g => g.id === selectedGrade.value)
+  const gradeName = gradeItem ? gradeItem.name : String(selectedGrade.value)
+
+  router.push({
+    path: '/student-center/match',
+    query: {
+      teacherId: String(teacherId),
+      courseId: String(courseId),
+      grade: gradeName
+    }
+  })
+
+  showGradeModal.value = false
+}
+
+// 立即报名：一对一课程先选择年级再跳转；大班课按原流程报名
 const enrollCourse = async () => {
   try {
     if (!userStore.isLoggedIn) {
@@ -122,18 +185,9 @@ const enrollCourse = async () => {
     }
     if (!course.value) return
 
-    // 一对一课程：跳转到 1v1 教师智能匹配页面并直达该老师
+    // 一对一课程：先显示年级选择弹窗
     if (course.value.courseType === 'one_on_one') {
-      const teacherId = course.value.teacherId
-      if (!teacherId) {
-        ElMessage.warning('未找到授课教师，暂无法预约')
-        return
-      }
-      // 跳转并携带 teacherId 和 courseId，便于目标页预选老师与课程
-      router.push({
-        path: '/student-center/match',
-        query: { teacherId: String(teacherId), courseId: String(courseId) }
-      })
+      await showGradeSelection()
       return
     }
 
@@ -409,6 +463,47 @@ const getStatusText = (status: string) => {
       <p>课程不存在或已被删除</p>
       <el-button @click="goBack" type="primary">返回</el-button>
     </div>
+
+    <!-- 年级选择弹窗 -->
+    <el-dialog
+      v-model="showGradeModal"
+      title="选择年级"
+      width="400px"
+      :close-on-click-modal="false"
+      destroy-on-close
+    >
+      <div class="grade-selection">
+        <p class="grade-tip">请选择您的年级，以便为您匹配合适的教师</p>
+        <el-form :model="{}" label-width="80px">
+          <el-form-item label="年级" required>
+            <el-select
+              v-model="selectedGrade"
+              placeholder="请选择年级"
+              style="width: 100%"
+              :loading="loadingGrades"
+            >
+              <el-option
+                v-for="grade in grades"
+                :key="grade.id"
+                :label="grade.name"
+                :value="grade.id"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <template #footer>
+        <el-button @click="showGradeModal = false">取消</el-button>
+        <el-button
+          type="primary"
+          @click="confirmGradeSelection"
+          :disabled="!selectedGrade"
+        >
+          确认并跳转
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -676,5 +771,17 @@ const getStatusText = (status: string) => {
   .teacher-extra-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* 年级选择弹窗样式 */
+.grade-selection {
+  padding: 20px 0;
+}
+
+.grade-tip {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 20px;
+  text-align: center;
 }
 </style>

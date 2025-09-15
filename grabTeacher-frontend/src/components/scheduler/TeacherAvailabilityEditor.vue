@@ -51,6 +51,7 @@
       ref="calRef"
       :teacher-id="teacherId"
       :months="months"
+      :hide-header="true"
       mode="teacher"
       @change-teacher-selection-many="onTeacherSelectionMany"
       @last-clicked-date="onLastClickedDate"

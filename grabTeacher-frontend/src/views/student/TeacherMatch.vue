@@ -554,7 +554,7 @@ const loadGrades = async () => {
   try {
     const result = await publicGradeAPI.list()
     if (result.success && result.data) {
-      grades.value = result.data
+      grades.value = result.data.map((g: any) => ({ id: g.id ?? g.name, name: g.name ?? String(g) }))
     }
   } catch (error) {
     console.error('获取年级列表失败:', error)
@@ -584,6 +584,7 @@ const splitToTags = (val?: string) => {
 const preloadFromQuery = async () => {
   const teacherIdParam = route.query.teacherId as string | undefined
   const courseIdParam = route.query.courseId as string | undefined
+  const gradeParam = route.query.grade as string | undefined
   if (!teacherIdParam) return
 
   const teacherId = Number(teacherIdParam)
@@ -621,6 +622,16 @@ const preloadFromQuery = async () => {
           if (found) {
             selectedCourse.value = found
           }
+        }
+      }
+
+      // 如果传递了年级参数，预填充年级选择
+      if (gradeParam) {
+        // 等待年级列表加载完成后再设置
+        await loadGrades()
+        const gradeItem = grades.value.find(g => g.id === gradeParam || g.name === gradeParam)
+        if (gradeItem) {
+          matchForm.grade = gradeItem.name
         }
       }
     }

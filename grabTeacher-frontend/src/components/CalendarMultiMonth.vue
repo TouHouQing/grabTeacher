@@ -28,6 +28,7 @@
       :allowed-periods="allowedPeriods"
       :date-range-start="dateRangeStart"
       :date-range-end="dateRangeEnd"
+      :hide-header="hideHeader"
       @change-teacher-selection="onMonthTeacherSelection(monthList[activeIdx].key, $event)"
       @change-student-sessions="onMonthStudentSessions(monthList[activeIdx].key, $event)"
       @clicked-date="(d)=>emit('last-clicked-date', d)"
@@ -50,6 +51,7 @@ const props = defineProps<{
   allowedPeriods?: Array<'morning'|'afternoon'|'evening'>
   dateRangeStart?: string
   dateRangeEnd?: string
+  hideHeader?: boolean
 }>()
 
 const emit = defineEmits<{
