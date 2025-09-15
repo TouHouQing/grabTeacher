@@ -258,6 +258,11 @@ const saveStudent = async () => {
       trialTimes: studentForm.trialTimes,
       adjustmentTimes: studentForm.adjustmentTimes
     }
+    // 用户名可选：留空则不提交，由后端按 student+userId 自动生成
+    if (!studentForm.username || !studentForm.username.trim()) {
+      delete baseData.username
+    }
+
 
     // 处理密码：新建时使用默认密码，编辑时如果填写了密码则更新
     if (wasNew) {
@@ -464,7 +469,10 @@ onMounted(() => {
               <template #label>
                 <span><span style="color:#f56c6c"></span> 用户名</span>
               </template>
-              <el-input v-model="studentForm.username" placeholder="请输入用户名" />
+              <el-input v-model="studentForm.username" placeholder="student+用户ID" />
+              <div style="margin-top:4px;">
+                <el-text type="info" size="small">默认：student+用户ID；保存后自动生成，管理员可在此处修改</el-text>
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">

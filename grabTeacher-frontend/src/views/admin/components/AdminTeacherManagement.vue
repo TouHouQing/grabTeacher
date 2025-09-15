@@ -440,6 +440,10 @@ const saveTeacher = async () => {
       supportsOnline: teacherForm.supportsOnline,
       teachingLocationIds: teacherForm.teachingLocationIds
     }
+    // 用户名可选：留空则不提交，由后端按 teacher+userId 自动生成
+    if (!teacherForm.username || !teacherForm.username.trim()) {
+      delete baseData.username
+    }
 
     // 如果当前教师的级别已被禁用（选项中不存在），则不要提交 level 字段，避免后端校验报错
     const activeLevelSet = new Set(LEVEL_OPTIONS.value.map(o => o.value))
@@ -733,7 +737,10 @@ onMounted(async () => {
               <template #label>
                 <span><span style="color:#f56c6c"></span> 用户名</span>
               </template>
-              <el-input v-model="teacherForm.username" placeholder="请输入用户名" />
+              <el-input v-model="teacherForm.username" placeholder="teacher+用户ID" />
+              <div style="margin-top:4px;">
+                <el-text type="info" size="small">默认：teacher+用户ID；保存后自动生成，管理员可在此处修改</el-text>
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">

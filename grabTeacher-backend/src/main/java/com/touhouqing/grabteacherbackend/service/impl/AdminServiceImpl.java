@@ -252,10 +252,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public Student addStudent(StudentInfoDTO request) {
-        // 验证必填字段
-        if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
-            throw new RuntimeException("用户名不能为空");
-        }
+        // 验证必填字段（用户名可选：留空则自动生成）
         if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
             throw new RuntimeException("邮箱不能为空");
         }
@@ -263,9 +260,14 @@ public class AdminServiceImpl implements AdminService {
             throw new RuntimeException("真实姓名不能为空");
         }
 
-        // 检查用户名是否已存在
-        if (userMapper.existsByUsername(request.getUsername().trim())) {
-            throw new RuntimeException("用户名已被使用");
+        // 处理用户名逻辑：如果管理员未填写，则先用临时用户名插入，拿到ID后再设置为 student+userId
+        String providedUsername = request.getUsername() != null ? request.getUsername().trim() : "";
+        boolean needAutoUsername = !StringUtils.hasText(providedUsername);
+        if (!needAutoUsername) {
+            // 检查用户名是否已存在（仅当管理员提供时）
+            if (userMapper.existsByUsername(providedUsername)) {
+                throw new RuntimeException("用户名已被使用");
+            }
         }
 
         // 检查邮箱是否已存在
@@ -274,8 +276,9 @@ public class AdminServiceImpl implements AdminService {
         }
 
         // 创建用户账号，默认密码为123456
+        String usernameToUse = needAutoUsername ? ("student_tmp_" + System.currentTimeMillis()) : providedUsername;
         User user = User.builder()
-                .username(request.getUsername().trim())
+                .username(usernameToUse)
                 .email(request.getEmail().trim())
                 .password(passwordEncoder.encode("123456")) // 默认密码
                 .phone(request.getPhone())
@@ -289,6 +292,14 @@ public class AdminServiceImpl implements AdminService {
 
         userMapper.insert(user);
         log.info("管理员创建学生用户账号成功: {}, ID: {}", user.getEmail(), user.getId());
+
+        // 若使用自动用户名，拿到ID后设置为最终用户名：student+userId
+        if (needAutoUsername) {
+            String finalUsername = "student" + user.getId();
+            user.setUsername(finalUsername);
+            userMapper.updateById(user);
+            log.info("学生默认用户名已设置为: {}", finalUsername);
+        }
 
         // 创建学生信息，关联到刚创建的用户
         Student student = Student.builder()
@@ -586,10 +597,7 @@ public class AdminServiceImpl implements AdminService {
         @CacheEvict(cacheNames = "featuredTeachers", allEntries = true)
     })
     public Teacher addTeacher(TeacherInfoDTO request) {
-        // 验证必填字段
-        if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
-            throw new RuntimeException("用户名不能为空");
-        }
+        // 验证必填字段（用户名可选：留空则自动生成）
         if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
             throw new RuntimeException("邮箱不能为空");
         }
@@ -597,9 +605,14 @@ public class AdminServiceImpl implements AdminService {
             throw new RuntimeException("真实姓名不能为空");
         }
 
-        // 检查用户名是否已存在
-        if (userMapper.existsByUsername(request.getUsername().trim())) {
-            throw new RuntimeException("用户名已被使用");
+        // 处理用户名逻辑：如果管理员未填写，则先用临时用户名插入，拿到ID后再设置为 teacher+userId
+        String providedUsername = request.getUsername() != null ? request.getUsername().trim() : "";
+        boolean needAutoUsername = !StringUtils.hasText(providedUsername);
+        if (!needAutoUsername) {
+            // 检查用户名是否已存在（仅当管理员提供时）
+            if (userMapper.existsByUsername(providedUsername)) {
+                throw new RuntimeException("用户名已被使用");
+            }
         }
 
         // 检查邮箱是否已存在
@@ -608,8 +621,9 @@ public class AdminServiceImpl implements AdminService {
         }
 
         // 创建用户账号，默认密码为123456
+        String usernameToUse = needAutoUsername ? ("teacher_tmp_" + System.currentTimeMillis()) : providedUsername;
         User user = User.builder()
-                .username(request.getUsername().trim())
+                .username(usernameToUse)
                 .email(request.getEmail().trim())
                 .password(passwordEncoder.encode("123456")) // 默认密码
                 .phone(request.getPhone())
@@ -624,6 +638,14 @@ public class AdminServiceImpl implements AdminService {
 
         userMapper.insert(user);
         log.info("管理员创建教师用户账号成功: {}, ID: {}", user.getEmail(), user.getId());
+
+        // 若使用自动用户名，拿到ID后设置为最终用户名：teacher+userId
+        if (needAutoUsername) {
+            String finalUsername = "teacher" + user.getId();
+            user.setUsername(finalUsername);
+            userMapper.updateById(user);
+            log.info("教师默认用户名已设置为: {}", finalUsername);
+        }
 
         // 按星期字段已废弃：创建教师不再接受 weekly availableTimeSlots
 
