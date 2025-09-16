@@ -869,7 +869,7 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="一对一课程：时薪/本月课时（可编辑）">
+        <el-form-item label="时薪/课时">
           <el-table :data="teacherForm.courseSalaries" size="small" border style="width: 100%">
             <el-table-column prop="title" label="课程" min-width="200" show-overflow-tooltip />
             <el-table-column label="时薪(M豆/小时)" width="200">

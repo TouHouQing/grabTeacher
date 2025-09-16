@@ -3198,9 +3198,6 @@ watch(selectedCourse, (newCourse) => {
                   <br>当前选择：{{ scheduleForm.selectedDurationMinutes === 90 ? '1.5小时' : '2小时' }}课程
                 </template>
               </div>
-              <el-button type="primary" size="large" @click="openCalendarBooking">
-                <el-icon><Calendar /></el-icon> 打开日历选择
-              </el-button>
             </el-form-item>
           </template>
 
