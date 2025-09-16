@@ -139,9 +139,3 @@ public interface AdminService {
                                      java.util.List<com.touhouqing.grabteacherbackend.model.dto.AdminCourseMetricsUpdateDTO> items,
                                      Long operatorId);
 }
-
-    /**
-     * 
-     *  
-     * 
-     */
