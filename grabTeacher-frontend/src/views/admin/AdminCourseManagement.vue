@@ -541,20 +541,6 @@ const saveCourse = async () => {
         loading.value = false
         return
       }
-      // 业务约束：每位教师仅允许一个课程（前端预校验，后端仍会强校验）
-      if (!isEditing.value) {
-        try {
-          const listResp: any = await courseAPI.getTeacherCourses(courseForm.teacherId!)
-          const list = Array.isArray(listResp?.data) ? listResp.data : (Array.isArray(listResp?.data?.records) ? listResp.data.records : [])
-          if (Array.isArray(list) && list.length > 0) {
-            ElMessage.error('该教师已存在课程，每位教师仅允许一个课程')
-            loading.value = false
-            return
-          }
-        } catch (e) {
-          // 忽略预检异常，交由后端兜底
-        }
-      }
 
     }
 
