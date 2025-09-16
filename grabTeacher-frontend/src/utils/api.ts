@@ -348,7 +348,6 @@ export const teacherAPI = {
     teachingExperience?: number
     specialties?: string
     subjectIds?: number[]
-    hourlyRate?: number
     introduction?: string
     videoIntroUrl?: string
     gender?: string
@@ -373,7 +372,6 @@ export const teacherAPI = {
     teachingExperience?: number
     specialties?: string
     subjectIds?: number[]
-    hourlyRate?: number
     introduction?: string
     videoIntroUrl?: string
     gender?: string
@@ -421,6 +419,15 @@ export const teacherAPI = {
       },
       body: JSON.stringify({ isFeatured: isFeatured })
     }),
+
+  // 管理员：批量更新某教师的一对一课程的时薪与本月课时（差值入账）
+  adminUpdateOneOnOneMetrics: (teacherId: number, items: Array<{ courseId: number; teacherHourlyRate?: number | null; currentHours?: number | null }>) =>
+    apiRequest(`/api/admin/teachers/${teacherId}/courses/one-on-one-metrics`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(items || [])
+    }),
+
 
   // 匹配教师
   matchTeachers: (data: {

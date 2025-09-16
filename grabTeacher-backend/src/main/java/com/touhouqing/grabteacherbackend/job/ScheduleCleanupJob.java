@@ -5,6 +5,7 @@ import com.touhouqing.grabteacherbackend.mapper.CourseEnrollmentMapper;
 import com.touhouqing.grabteacherbackend.mapper.CourseScheduleMapper;
 import com.touhouqing.grabteacherbackend.mapper.TeacherMapper;
 import com.touhouqing.grabteacherbackend.mapper.HourDetailMapper;
+import com.touhouqing.grabteacherbackend.mapper.CourseMapper;
 import com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment;
 import com.touhouqing.grabteacherbackend.model.entity.HourDetail;
 import com.touhouqing.grabteacherbackend.model.entity.CourseSchedule;
@@ -35,6 +36,7 @@ public class ScheduleCleanupJob {
     private final TeacherMapper teacherMapper;
     private final HourDetailMapper hourDetailMapper;
     private final CourseEnrollmentMapper courseEnrollmentMapper;
+    private final CourseMapper courseMapper;
 
     /**
      * 每天午夜00:00执行，将所有过期的进行中课程状态更新为已完成
@@ -108,8 +110,13 @@ public class ScheduleCleanupJob {
                                     .createdAt(LocalDateTime.now())
                                     .build();
                             hourDetailMapper.insert(detail);
-                            // 累加教师本月课时
-                            teacherMapper.incrementCurrentHours(schedule.getTeacherId(), hours);
+                            // 同步累加课程本月课时（仅一对一课程生效）
+                            if (schedule.getEnrollmentId() != null) {
+                                CourseEnrollment ce = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
+                                if (ce != null && ce.getCourseId() != null) {
+                                    courseMapper.incrementCourseCurrentHours(ce.getCourseId(), hours);
+                                }
+                            }
                         } else {
                             log.warn("课程安排ID: {} 对应的教师ID: {} 不存在，跳过课时记录", schedule.getId(), schedule.getTeacherId());
                         }
@@ -136,12 +143,12 @@ public class ScheduleCleanupJob {
     @Scheduled(cron = "0 0 0 1 * ?")
     @Transactional
     public void resetTeacherMonthlyHours() {
-        log.info("开始执行定时任务：月初重置教师课时（current->last，并清空current）");
+        log.info("开始执行定时任务：月初重置课程课时（仅一对一）");
         try {
-            int affected = teacherMapper.resetMonthlyHours();
-            log.info("月初重置完成，共影响教师记录数：{}", affected);
+            int affectedCourses = courseMapper.resetMonthlyHoursOneOnOne();
+            log.info("月初重置课程课时完成（仅一对一），共影响课程记录数：{}", affectedCourses);
         } catch (Exception e) {
-            log.error("月初重置教师课时失败", e);
+            log.error("月初重置课程课时失败", e);
             throw e;
         }
     }

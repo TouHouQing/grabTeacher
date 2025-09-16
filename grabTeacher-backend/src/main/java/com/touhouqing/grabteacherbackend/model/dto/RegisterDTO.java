@@ -57,7 +57,6 @@ public class RegisterDTO {
     private Integer teachingExperience;
     private String specialties;
     private List<Long> subjectIds;
-    private BigDecimal hourlyRate;
     private String introduction;
     private List<TimeSlotDTO> availableTimeSlots;
 

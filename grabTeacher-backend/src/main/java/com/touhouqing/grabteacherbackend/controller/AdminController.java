@@ -415,6 +415,27 @@ public class AdminController {
                     .body(CommonResult.error("获取失败"));
         }
     }
+    @Operation(summary = "批量更新一对一课程的时薪与本月课时", description = "管理员在教师管理-编辑页批量更新该教师名下的一对一课程的时薪与本月课时；对课时采取差值入账并记录HourDetail")
+    @PutMapping("/teachers/{teacherId}/courses/one-on-one-metrics")
+    public ResponseEntity<CommonResult<Object>> batchUpdateOneOnOneCourseMetrics(
+            @PathVariable Long teacherId,
+            @RequestBody java.util.List<com.touhouqing.grabteacherbackend.model.dto.AdminCourseMetricsUpdateDTO> items,
+            org.springframework.security.core.Authentication authentication) {
+        try {
+            Long operatorId = ((com.touhouqing.grabteacherbackend.security.UserPrincipal) authentication.getPrincipal()).getId();
+            adminService.updateOneOnOneCourseMetrics(teacherId, items, operatorId);
+            return ResponseEntity.ok(com.touhouqing.grabteacherbackend.common.result.CommonResult.success("更新成功", null));
+        } catch (RuntimeException e) {
+            logger.warn("批量更新一对一课程指标失败: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(com.touhouqing.grabteacherbackend.common.result.CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("批量更新一对一课程指标异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(com.touhouqing.grabteacherbackend.common.result.CommonResult.error("更新失败"));
+        }
+    }
+
 
     /**
      * 获取学生感兴趣的科目列表
@@ -579,25 +600,25 @@ public class AdminController {
         try {
             Page<BalanceTransaction> pageRequest = new Page<>(page, size);
             QueryWrapper<BalanceTransaction> queryWrapper = new QueryWrapper<>();
-            
+
             // 按创建时间倒序排列
             queryWrapper.orderByDesc("created_at");
-            
+
             // 按用户ID筛选
             if (userId != null) {
                 queryWrapper.eq("user_id", userId);
             }
-            
+
             // 按学生姓名筛选（模糊查询）
             if (name != null && !name.trim().isEmpty()) {
                 queryWrapper.like("name", name.trim());
             }
-            
+
             // 按交易类型筛选
             if (transactionType != null && !transactionType.trim().isEmpty()) {
                 queryWrapper.eq("transaction_type", transactionType);
             }
-            
+
             Page<BalanceTransaction> result = balanceTransactionMapper.selectPage(pageRequest, queryWrapper);
             return ResponseEntity.ok(CommonResult.success("获取成功", result));
         } catch (Exception e) {

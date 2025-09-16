@@ -96,7 +96,13 @@ const hourDetails = ref({
   teacherDeduction: 0,   // 教师超出调课/请假次数后所扣课时
   studentCompensation: 0, // 学生超出调课/请假次数的补偿课时
   adminAdjustment: 0,    // 总Admin手动调整记录
-  totalHours: 0          // 总课时
+  totalHours: 0,         // 总课时
+  // 新增：基于课程的本月/上月课时与薪资汇总
+  courseSummaries: [] as Array<any>,
+  totalCurrentHoursByCourses: 0,
+  totalLastHoursByCourses: 0,
+  totalCurrentAmount: 0,
+  totalLastAmount: 0
 })
 const hourDetailsLoading = ref(false)
 
@@ -833,10 +839,45 @@ onMounted(async () => {
             {{ hourDetails.adminAdjustment >= 0 ? '+' : '' }}{{ hourDetails.adminAdjustment }}小时
           </div>
         </div>
+        <div style="color:#999;font-size:12px;margin-top:4px;">最近10条</div>
+        <el-table :data="hourDetails.adminAdjustList || []" size="small" stripe style="width: 100%; margin-top: 6px">
+          <el-table-column prop="createdAt" label="时间" width="180">
+            <template #default="{ row }">{{ (row.createdAt || '').toString().replace('T',' ').slice(0,19) }}</template>
+          </el-table-column>
+          <el-table-column prop="hours" label="调整课时" width="120">
+            <template #default="{ row }">
+              <span :class="(Number(row.hours || 0) >= 0) ? 'positive' : 'negative'">{{ Number(row.hours || 0) >= 0 ? '+' : '' }}{{ row.hours }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="reason" label="备注" min-width="200" show-overflow-tooltip />
+        </el-table>
+
         <el-divider />
         <div class="detail-item total">
           <div class="detail-label">本月累计课时：</div>
           <div class="detail-value total-value">{{ hourDetails.totalHours }}小时</div>
+        </div>
+
+        <el-divider />
+        <div class="course-salary-section">
+          <div class="section-title">薪资明细（本月）</div>
+          <el-table :data="hourDetails.courseSummaries || []" size="small" stripe style="width: 100%">
+            <el-table-column prop="title" label="课程" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="teacherHourlyRate" label="时薪" width="120">
+              <template #default="{ row }">{{ row.teacherHourlyRate || 0 }} M豆/小时</template>
+            </el-table-column>
+            <el-table-column prop="currentHours" label="本月课时" width="120">
+              <template #default="{ row }">{{ row.currentHours || 0 }} 小时</template>
+            </el-table-column>
+            <el-table-column prop="currentAmount" label="本月薪资" width="140">
+              <template #default="{ row }">{{ row.currentAmount || 0 }} M豆</template>
+            </el-table-column>
+          </el-table>
+
+          <div class="detail-item total">
+            <div class="detail-label">本月总薪资（估算）：</div>
+            <div class="detail-value total-value">{{ hourDetails.totalCurrentAmount || 0 }} M豆</div>
+          </div>
         </div>
       </div>
       <template #footer>

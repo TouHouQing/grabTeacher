@@ -1218,7 +1218,6 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
           />
 
 
-          />
           <span style="margin-left: 10px; color: #909399;" v-if="courseForm.courseType === 'one_on_one'">
             M豆/小时（不填表示价格面议）
           </span>

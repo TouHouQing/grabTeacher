@@ -43,8 +43,6 @@ public class Teacher {
     @TableField("specialties")
     private String specialties;
 
-    @TableField("hourly_rate")
-    private BigDecimal hourlyRate;
 
     @Schema(description = "教师介绍", example = "我是一个专业的教师，擅长高中数学")
     @TableField("introduction")
@@ -96,15 +94,14 @@ public class Teacher {
     @TableField(exist = false)
     private List<Long> subjectIds;
 
-    @Schema(description = "本月课时（小时）", example = "12.5")
-    @TableField("current_hours")
-    @Builder.Default
-    private BigDecimal currentHours = BigDecimal.ZERO;
 
-    @Schema(description = "上月课时（小时）", example = "30.0")
-    @TableField("last_hours")
-    @Builder.Default
-    private BigDecimal lastHours = BigDecimal.ZERO;
+    // 非持久化字段：本月/上月总课时（按一对一课程汇总）
+    @TableField(exist = false)
+    private java.math.BigDecimal currentHours;
+
+    @TableField(exist = false)
+    private java.math.BigDecimal lastHours;
+
 
     // 保留必要的构造函数
     public Teacher(Long userId, String realName) {

@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -45,9 +44,6 @@ public class TeacherProfileVO {
 
     @Schema(description = "教授科目ID列表", example = "[1, 2, 3]")
     private List<Long> subjectIds;
-
-    @Schema(description = "小时收费", example = "100.00")
-    private BigDecimal hourlyRate;
 
     @Schema(description = "个人介绍", example = "专业数学教师，擅长高考辅导")
     private String introduction;

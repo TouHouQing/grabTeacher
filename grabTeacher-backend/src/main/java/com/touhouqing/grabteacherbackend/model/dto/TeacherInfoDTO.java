@@ -24,7 +24,6 @@ public class TeacherInfoDTO {
     @Schema(description = "教学科目ID列表", example = "[1, 2, 3]")
     private List<Long> subjectIds;
 
-    private BigDecimal hourlyRate;
     private String introduction;
     private String videoIntroUrl;
 

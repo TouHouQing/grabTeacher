@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 @Mapper
 public interface CourseMapper extends BaseMapper<Course> {
@@ -84,4 +85,22 @@ public interface CourseMapper extends BaseMapper<Course> {
      */
     @Update("UPDATE courses SET enrollment_count = enrollment_count + 1, status = CASE WHEN person_limit IS NOT NULL AND enrollment_count + 1 >= person_limit THEN 'full' ELSE status END WHERE id = #{courseId} AND is_deleted = 0 AND (person_limit IS NULL OR enrollment_count < person_limit)")
     int incrementEnrollmentAndSetFullIfNeeded(@Param("courseId") Long courseId);
+
+    @Update("UPDATE courses SET current_hours = COALESCE(current_hours, 0) + #{hours} WHERE id = #{courseId} AND is_deleted = 0 AND course_type = 'one_on_one'")
+    int incrementCourseCurrentHours(@Param("courseId") Long courseId, @Param("hours") BigDecimal hours);
+
+    @Update("UPDATE courses SET last_hours = COALESCE(current_hours, 0), current_hours = 0 WHERE is_deleted = 0 AND course_type = 'one_on_one'")
+    int resetMonthlyHoursOneOnOne();
+
+    @Select("SELECT COALESCE(SUM(current_hours), 0) FROM courses WHERE is_deleted = 0 AND course_type = 'one_on_one' AND teacher_id = #{teacherId}")
+    BigDecimal sumCurrentHoursByTeacher(@Param("teacherId") Long teacherId);
+
+    @Select("SELECT COALESCE(SUM(last_hours), 0) FROM courses WHERE is_deleted = 0 AND course_type = 'one_on_one' AND teacher_id = #{teacherId}")
+    BigDecimal sumLastHoursByTeacher(@Param("teacherId") Long teacherId);
+
+    /**
+     *   /
+     */
+    java.util.List<java.util.Map<String, Object>> sumHoursByTeacherIds(@org.apache.ibatis.annotations.Param("teacherIds") java.util.List<Long> teacherIds);
+
 }

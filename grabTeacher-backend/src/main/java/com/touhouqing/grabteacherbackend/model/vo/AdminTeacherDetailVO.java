@@ -58,9 +58,6 @@ public class AdminTeacherDetailVO {
     @Schema(description = "教授科目ID列表", example = "[1, 2, 3]")
     private List<Long> subjectIds;
     
-    @Schema(description = "小时收费", example = "100.00")
-    private BigDecimal hourlyRate;
-    
     @Schema(description = "教师评分", example = "4.5")
     private BigDecimal rating;
     
@@ -86,11 +83,6 @@ public class AdminTeacherDetailVO {
     @Schema(description = "本月剩余调课次数", example = "3")
     private Integer adjustmentTimes;
 
-    @Schema(description = "本月课时（小时）", example = "12.5")
-    private BigDecimal currentHours;
-
-    @Schema(description = "上月课时（小时）", example = "30.0")
-    private BigDecimal lastHours;
 
     // --- 新增：授课地点 ---
     @Schema(description = "是否支持线上授课", example = "true")
@@ -107,4 +99,7 @@ public class AdminTeacherDetailVO {
 
     @Schema(description = "删除时间")
     private LocalDateTime deletedAt;
+
+    @Schema(description = "一对一课程薪资列表（仅展示）")
+    private List<CourseSalaryBriefVO> courseSalaries;
 }

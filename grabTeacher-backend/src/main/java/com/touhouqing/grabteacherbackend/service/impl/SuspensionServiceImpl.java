@@ -144,15 +144,6 @@ public class SuspensionServiceImpl implements SuspensionService {
                 Course c = courseMapper.selectById(enrollment.getCourseId());
                 if (c != null) pricePerHour = c.getPrice();
             }
-            // 兜底：一对一未绑定课程时，按教师时薪退款
-            if (pricePerHour == null) {
-                try {
-                    Teacher t = teacherMapper.selectById(enrollment.getTeacherId());
-                    if (t != null && t.getHourlyRate() != null) {
-                        pricePerHour = t.getHourlyRate();
-                    }
-                } catch (Exception ignored) {}
-            }
 
             for (CourseSchedule cs : all) {
                 if (cs.getScheduledDate() == null) continue;

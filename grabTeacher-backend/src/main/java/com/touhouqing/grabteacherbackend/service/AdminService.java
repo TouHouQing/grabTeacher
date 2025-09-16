@@ -126,9 +126,22 @@ public interface AdminService {
 
     /** 更新当前管理员资料（可改姓名/邮箱/号码，并覆盖头像、二维码） */
     void updateCurrentAdminProfile(Long currentUserId, AdminProfileUpdateDTO dto);
-    
+
     /**
      * 获取学生感兴趣的科目列表
      */
     List<Long> getStudentSubjects(Long studentId);
+
+    /**
+     * 批量更新某教师名下的一对一课程的时薪与本月课时，并记录管理员调整明细
+     */
+    void updateOneOnOneCourseMetrics(Long teacherId,
+                                     java.util.List<com.touhouqing.grabteacherbackend.model.dto.AdminCourseMetricsUpdateDTO> items,
+                                     Long operatorId);
 }
+
+    /**
+     * 
+     *  
+     * 
+     */

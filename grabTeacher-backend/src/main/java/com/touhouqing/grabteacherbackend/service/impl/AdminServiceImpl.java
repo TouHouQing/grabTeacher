@@ -117,6 +117,92 @@ public class AdminServiceImpl implements AdminService {
         return statistics;
     }
 
+    @Override
+    @Transactional
+    public void updateOneOnOneCourseMetrics(Long teacherId,
+                                            java.util.List<com.touhouqing.grabteacherbackend.model.dto.AdminCourseMetricsUpdateDTO> items,
+                                            Long operatorId) {
+        if (teacherId == null) {
+            throw new RuntimeException("teacherId 不能为空");
+        }
+        if (items == null || items.isEmpty()) {
+            return; // 无变更，直接返回
+        }
+        Teacher teacher = teacherMapper.selectById(teacherId);
+        if (teacher == null || Boolean.TRUE.equals(teacher.getDeleted())) {
+            throw new RuntimeException("教师不存在或已删除");
+        }
+        Long teacherUserId = teacher.getUserId();
+        String teacherName = teacher.getRealName();
+
+        for (com.touhouqing.grabteacherbackend.model.dto.AdminCourseMetricsUpdateDTO dto : items) {
+            if (dto == null || dto.getCourseId() == null) {
+                continue;
+            }
+            Course course = courseMapper.selectById(dto.getCourseId());
+            if (course == null || Boolean.TRUE.equals(course.getDeleted())) {
+                log.warn("跳过：课程不存在或已删除，courseId={}", dto.getCourseId());
+                continue;
+            }
+            if (!teacherId.equals(course.getTeacherId())) {
+                log.warn("跳过：课程不属于该教师，teacherId={}, courseId={}, ownerTeacherId={} ", teacherId, course.getId(), course.getTeacherId());
+                continue;
+            }
+            if (!"one_on_one".equals(course.getCourseType())) {
+                log.warn("跳过：不是一对一课程，courseId={}, courseType={}", course.getId(), course.getCourseType());
+                continue;
+            }
+
+            boolean changed = false;
+            // 校验与更新时薪
+            if (dto.getTeacherHourlyRate() != null) {
+                java.math.BigDecimal rate = dto.getTeacherHourlyRate();
+                if (rate.compareTo(java.math.BigDecimal.ZERO) < 0) {
+                    throw new RuntimeException("时薪不能为负数");
+                }
+                rate = rate.setScale(2, java.math.RoundingMode.HALF_UP);
+                if (course.getTeacherHourlyRate() == null || course.getTeacherHourlyRate().compareTo(rate) != 0) {
+                    course.setTeacherHourlyRate(rate);
+                    changed = true;
+                }
+            }
+
+            // 校验与更新本月课时（差值入账）
+            if (dto.getCurrentHours() != null) {
+                java.math.BigDecimal newHours = dto.getCurrentHours();
+                if (newHours.compareTo(java.math.BigDecimal.ZERO) < 0) {
+                    throw new RuntimeException("本月课时不能为负数");
+                }
+                newHours = newHours.setScale(2, java.math.RoundingMode.HALF_UP);
+                java.math.BigDecimal oldHours = course.getCurrentHours() != null ? course.getCurrentHours() : java.math.BigDecimal.ZERO;
+                oldHours = oldHours.setScale(2, java.math.RoundingMode.HALF_UP);
+                java.math.BigDecimal delta = newHours.subtract(oldHours);
+                if (delta.compareTo(java.math.BigDecimal.ZERO) != 0) {
+                    // 写入调整明细（Admin 手动调整）
+                    HourDetail record = HourDetail.builder()
+                            .userId(teacherUserId)
+                            .name(teacherName)
+                            .hours(delta)
+                            .hoursBefore(oldHours)
+                            .hoursAfter(newHours)
+                            .transactionType(delta.signum() >= 0 ? 1 : 0)
+                            .reason("管理员手动调整：课程(ID=" + course.getId() + ", 标题=" + course.getTitle() + ")")
+                            .operatorId(operatorId)
+                            .createdAt(java.time.LocalDateTime.now())
+                            .build();
+                    hourDetailMapper.insert(record);
+
+                    course.setCurrentHours(newHours);
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                courseMapper.updateById(course);
+            }
+        }
+    }
+
     /**
      * 获取用户列表
      */
@@ -498,7 +584,39 @@ public class AdminServiceImpl implements AdminService {
         // 排序
         queryWrapper.orderByDesc("id");
 
-        return teacherMapper.selectPage(pageParam, queryWrapper);
+        Page<Teacher> pageResult = teacherMapper.selectPage(pageParam, queryWrapper);
+        java.util.List<Teacher> records = pageResult.getRecords();
+        if (records != null && !records.isEmpty()) {
+            java.util.List<Long> teacherIds = new java.util.ArrayList<>();
+            for (Teacher t : records) { if (t != null) teacherIds.add(t.getId()); }
+            try {
+                java.util.List<java.util.Map<String, Object>> sums = courseMapper.sumHoursByTeacherIds(teacherIds);
+                java.util.Map<Long, java.math.BigDecimal> curMap = new java.util.HashMap<>();
+                java.util.Map<Long, java.math.BigDecimal> lastMap = new java.util.HashMap<>();
+                if (sums != null) {
+                    for (java.util.Map<String, Object> row : sums) {
+                        if (row == null) continue;
+                        Object tidObj = row.get("teacherId");
+                        if (tidObj == null) continue;
+                        Long tid = tidObj instanceof Number ? ((Number) tidObj).longValue() : Long.valueOf(String.valueOf(tidObj));
+                        java.math.BigDecimal ch = row.get("currentHours") instanceof java.math.BigDecimal
+                                ? (java.math.BigDecimal) row.get("currentHours")
+                                : new java.math.BigDecimal(String.valueOf(row.get("currentHours")));
+                        java.math.BigDecimal lh = row.get("lastHours") instanceof java.math.BigDecimal
+                                ? (java.math.BigDecimal) row.get("lastHours")
+                                : new java.math.BigDecimal(String.valueOf(row.get("lastHours")));
+                        curMap.put(tid, ch);
+                        lastMap.put(tid, lh);
+                    }
+                }
+                for (Teacher t : records) {
+                    if (t == null) continue;
+                    t.setCurrentHours(curMap.getOrDefault(t.getId(), java.math.BigDecimal.ZERO));
+                    t.setLastHours(lastMap.getOrDefault(t.getId(), java.math.BigDecimal.ZERO));
+                }
+            } catch (Exception ignore) { }
+        }
+        return pageResult;
     }
 
     /**
@@ -506,18 +624,50 @@ public class AdminServiceImpl implements AdminService {
      */
     private Page<Teacher> getTeacherListBySubject(int page, int size, String keyword, String subject, String gender, Boolean isVerified) {
         int offset = Math.max(0, (page - 1) * size);
-        
+
         // 查询教师列表
         List<Teacher> teachers = teacherMapper.findTeachersBySubjectForAdmin(subject, keyword, gender, isVerified, offset, size);
-        
+
         // 查询总数
         long total = teacherMapper.countTeachersBySubjectForAdmin(subject, keyword, gender, isVerified);
-        
+        // 
+        if (teachers != null && !teachers.isEmpty()) {
+            java.util.List<Long> ids = new java.util.ArrayList<>();
+            for (Teacher t : teachers) { if (t != null) ids.add(t.getId()); }
+            try {
+                java.util.List<java.util.Map<String, Object>> sums = courseMapper.sumHoursByTeacherIds(ids);
+                java.util.Map<Long, java.math.BigDecimal> curMap = new java.util.HashMap<>();
+                java.util.Map<Long, java.math.BigDecimal> lastMap = new java.util.HashMap<>();
+                if (sums != null) {
+                    for (java.util.Map<String, Object> row : sums) {
+                        if (row == null) continue;
+                        Object tidObj = row.get("teacherId");
+                        if (tidObj == null) continue;
+                        Long tid = tidObj instanceof Number ? ((Number) tidObj).longValue() : Long.valueOf(String.valueOf(tidObj));
+                        java.math.BigDecimal ch = row.get("currentHours") instanceof java.math.BigDecimal
+                                ? (java.math.BigDecimal) row.get("currentHours")
+                                : new java.math.BigDecimal(String.valueOf(row.get("currentHours")));
+                        java.math.BigDecimal lh = row.get("lastHours") instanceof java.math.BigDecimal
+                                ? (java.math.BigDecimal) row.get("lastHours")
+                                : new java.math.BigDecimal(String.valueOf(row.get("lastHours")));
+                        curMap.put(tid, ch);
+                        lastMap.put(tid, lh);
+                    }
+                }
+                for (Teacher t : teachers) {
+                    if (t == null) continue;
+                    t.setCurrentHours(curMap.getOrDefault(t.getId(), java.math.BigDecimal.ZERO));
+                    t.setLastHours(lastMap.getOrDefault(t.getId(), java.math.BigDecimal.ZERO));
+                }
+            } catch (Exception ignore) { }
+        }
+
+
         // 构建分页结果
         Page<Teacher> pageResult = new Page<>(page, size);
         pageResult.setRecords(teachers);
         pageResult.setTotal(total);
-        
+
         return pageResult;
     }
 
@@ -558,6 +708,34 @@ public class AdminServiceImpl implements AdminService {
         }
         boolean supportsOnline = teacher.getSupportsOnline() != null ? teacher.getSupportsOnline() : offlineIds.isEmpty();
 
+        //
+        //
+        java.util.List<com.touhouqing.grabteacherbackend.model.entity.Course> _courses = courseMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.touhouqing.grabteacherbackend.model.entity.Course>()
+                        .eq("teacher_id", teacherId)
+                        .eq("course_type", "one_on_one")
+                        .eq("is_deleted", false)
+        );
+        java.util.List<com.touhouqing.grabteacherbackend.model.vo.CourseSalaryBriefVO> courseSalaries = new java.util.ArrayList<>();
+        for (var c : _courses) {
+            java.math.BigDecimal ch = c.getCurrentHours() != null ? c.getCurrentHours() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal lh = c.getLastHours() != null ? c.getLastHours() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal rate = c.getTeacherHourlyRate() != null ? c.getTeacherHourlyRate() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal curAmt = rate.multiply(ch).setScale(2, java.math.RoundingMode.HALF_UP);
+            java.math.BigDecimal lastAmt = rate.multiply(lh).setScale(2, java.math.RoundingMode.HALF_UP);
+            courseSalaries.add(
+                    com.touhouqing.grabteacherbackend.model.vo.CourseSalaryBriefVO.builder()
+                            .courseId(c.getId())
+                            .title(c.getTitle())
+                            .teacherHourlyRate(rate)
+                            .currentHours(ch)
+                            .lastHours(lh)
+                            .currentAmount(curAmt)
+                            .lastAmount(lastAmt)
+                            .build()
+            );
+        }
+
         return AdminTeacherDetailVO.builder()
                 .id(teacher.getId())
                 .userId(teacher.getUserId())
@@ -571,7 +749,6 @@ public class AdminServiceImpl implements AdminService {
                 .teachingExperience(teacher.getTeachingExperience())
                 .specialties(teacher.getSpecialties())
                 .subjectIds(subjectIds)
-                .hourlyRate(teacher.getHourlyRate())
                 .rating(teacher.getRating())
                 .introduction(teacher.getIntroduction())
                 .gender(teacher.getGender())
@@ -580,13 +757,12 @@ public class AdminServiceImpl implements AdminService {
                 .verified(teacher.getVerified())
                 .featured(teacher.getFeatured())
                 .adjustmentTimes(user != null ? user.getAdjustmentTimes() : null)
-                .currentHours(teacher.getCurrentHours())
-                .lastHours(teacher.getLastHours())
                 .supportsOnline(supportsOnline)
                 .teachingLocationIds(offlineIds)
                 .teachingLocations(teacher.getTeachingLocations())
                 .deleted(teacher.getDeleted())
                 .deletedAt(teacher.getDeletedAt())
+                .courseSalaries(courseSalaries)
                 .build();
     }
 
@@ -696,7 +872,6 @@ public class AdminServiceImpl implements AdminService {
                 .educationBackground(request.getEducationBackground())
                 .teachingExperience(request.getTeachingExperience())
                 .specialties(request.getSpecialties())
-                .hourlyRate(request.getHourlyRate())
                 .introduction(request.getIntroduction())
                 .gender(request.getGender() != null ? request.getGender() : "不愿透露")
                 .level(resolvedLevelName)
@@ -787,7 +962,6 @@ public class AdminServiceImpl implements AdminService {
         teacher.setEducationBackground(request.getEducationBackground());
         teacher.setTeachingExperience(request.getTeachingExperience());
         teacher.setSpecialties(request.getSpecialties());
-        teacher.setHourlyRate(request.getHourlyRate());
         teacher.setIntroduction(request.getIntroduction());
         teacher.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
         // 更新教师级别（从级别表校验）
@@ -826,31 +1000,6 @@ public class AdminServiceImpl implements AdminService {
         // 更新教师评分
         if (request.getRating() != null) {
             teacher.setRating(request.getRating());
-        }
-
-        // 管理员可更新教师课时（小时）
-        if (request.getCurrentHours() != null) {
-            java.math.BigDecimal oldCurrent = teacher.getCurrentHours() == null ? java.math.BigDecimal.ZERO : teacher.getCurrentHours();
-            if (request.getCurrentHours().compareTo(oldCurrent) != 0) {
-                // 写入课时明细
-                java.math.BigDecimal delta = request.getCurrentHours().subtract(oldCurrent);
-                HourDetail detail = HourDetail.builder()
-                        .userId(teacher.getUserId())
-                        .name(teacher.getRealName())
-                        .hours(delta)
-                        .hoursBefore(oldCurrent)
-                        .hoursAfter(request.getCurrentHours())
-                        .transactionType(delta.compareTo(java.math.BigDecimal.ZERO) > 0 ? 1 : 0)
-                        .reason("管理员调整课时")
-                        .operatorId(null)
-                        .createdAt(java.time.LocalDateTime.now())
-                        .build();
-                hourDetailMapper.insert(detail);
-            }
-            teacher.setCurrentHours(request.getCurrentHours());
-        }
-        if (request.getLastHours() != null) {
-            teacher.setLastHours(request.getLastHours());
         }
 
         // 按星期字段已废弃：更新教师不再处理 weekly availableTimeSlots

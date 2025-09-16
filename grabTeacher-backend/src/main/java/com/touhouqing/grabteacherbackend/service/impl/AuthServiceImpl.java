@@ -121,8 +121,7 @@ public class AuthServiceImpl implements AuthService {
                         .educationBackground(StringUtils.hasText(registerDTO.getEducationBackground()) ? registerDTO.getEducationBackground() : null)
                         .teachingExperience(registerDTO.getTeachingExperience() != null && registerDTO.getTeachingExperience() > 0 ? registerDTO.getTeachingExperience() : null)
                         .specialties(StringUtils.hasText(registerDTO.getSpecialties()) ? registerDTO.getSpecialties() : null)
-                        // 注册时不设置收费，由管理员后续设置
-                        .hourlyRate(null)
+                        // 注册时不设置收费（已改为按课程维度时薪，无教师时薪）
                         .introduction(StringUtils.hasText(registerDTO.getIntroduction()) ? registerDTO.getIntroduction() : null)
                         .gender(StringUtils.hasText(registerDTO.getGender()) ? registerDTO.getGender() : "不愿透露")
                         .verified(false)
