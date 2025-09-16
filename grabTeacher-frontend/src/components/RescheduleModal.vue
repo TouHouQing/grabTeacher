@@ -390,46 +390,44 @@ const getAvailableTimeSlotsByDuration = (durationMinutes?: number): string[] => 
   }
 
   if (durationMinutes === 90) {
-    // 1.5小时：在2小时区间内选择开始时间，但确保每个时间段都是完整的1.5小时
-    // 时间限制：七点最多到:30，不能有:45
+    // 1.5小时：只显示每两小时时间段的中间1.5小时，如8:00-10:00只显示8:15-9:45
     const baseTimeSlots = availableTimeSlots.value
-    const flexibleSlots: string[] = []
+    const middleSlots: string[] = []
 
     baseTimeSlots.forEach(baseSlot => {
-      const [startTime] = baseSlot.split('-')
+      const [startTime, endTime] = baseSlot.split('-')
       const [startHour, startMinute] = startTime.split(':').map(Number)
+      const [endHour, endMinute] = endTime.split(':').map(Number)
 
-      // 在2小时区间内，每15分钟一个开始时间选项，但限制时间格式
-      for (let minute = 0; minute < 120; minute += 15) {
-        const newStartHour = startHour + Math.floor(minute / 60)
-        const newStartMinute = (startMinute + minute) % 60
+      // 计算中间1.5小时的时间段（开始时间+15分钟，结束时间-15分钟）
+      const middleStartHour = startHour
+      const middleStartMinute = startMinute + 15
+      const middleEndHour = endHour
+      const middleEndMinute = endMinute - 15
 
-        // 时间限制：七点最多到:30，不能有:45
-        if (newStartHour === 7 && newStartMinute > 30) {
-          continue // 跳过7点超过30分的时间
-        }
-        if (newStartMinute === 45) {
-          continue // 跳过所有:45的时间
-        }
-
-        // 计算结束时间（1.5小时后）
-        const totalMinutes = newStartHour * 60 + newStartMinute + 90
-        const endHour = Math.floor(totalMinutes / 60)
-        const endMinute = totalMinutes % 60
-
-        // 检查是否在基础时间段内
-        const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
-        const baseEndTime = baseSlot.split('-')[1]
-
-        // 确保结束时间不超过基础时间段的结束时间
-        if (endTime <= baseEndTime) {
-          const newStartTime = `${newStartHour.toString().padStart(2, '0')}:${newStartMinute.toString().padStart(2, '0')}`
-          flexibleSlots.push(`${newStartTime}-${endTime}`)
-        }
+      // 处理分钟进位
+      let finalStartHour = middleStartHour
+      let finalStartMinute = middleStartMinute
+      if (finalStartMinute >= 60) {
+        finalStartHour += 1
+        finalStartMinute -= 60
       }
+
+      let finalEndHour = middleEndHour
+      let finalEndMinute = middleEndMinute
+      if (finalEndMinute < 0) {
+        finalEndHour -= 1
+        finalEndMinute += 60
+      }
+
+      // 格式化时间并添加到结果中
+      const formattedStartTime = `${finalStartHour.toString().padStart(2, '0')}:${finalStartMinute.toString().padStart(2, '0')}`
+      const formattedEndTime = `${finalEndHour.toString().padStart(2, '0')}:${finalEndMinute.toString().padStart(2, '0')}`
+
+      middleSlots.push(`${formattedStartTime}-${formattedEndTime}`)
     })
 
-    return flexibleSlots
+    return middleSlots
   } else if (durationMinutes === 120) {
     // 2小时：使用固定的时间段，维持现状不变
     return availableTimeSlots.value
