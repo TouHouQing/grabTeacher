@@ -103,15 +103,7 @@ public class CourseServiceImpl implements CourseService {
             throw new RuntimeException("只有教师和管理员可以创建课程");
         }
 
-        // 业务约束：每位教师仅允许一个课程（未删除）
-        {
-            QueryWrapper<Course> q = new QueryWrapper<>();
-            q.eq("teacher_id", teacherId).eq("is_deleted", false);
-            Long exist = courseMapper.selectCount(q);
-            if (exist != null && exist > 0) {
-                throw new RuntimeException("该教师已存在课程，每位教师仅允许一个课程。如需变更请先删除或下架原课程");
-            }
-        }
+        // 已移除教师课程数量上限限制：允许同一教师创建多个课程
 
         // 验证课程类型
         if (!isValidCourseType(request.getCourseType())) {
@@ -248,15 +240,7 @@ public class CourseServiceImpl implements CourseService {
             throw new RuntimeException("没有权限操作此课程");
         }
 
-            // 业务约束：每位教师仅允许一个课程（排除当前课程）
-            {
-                QueryWrapper<Course> q = new QueryWrapper<>();
-                q.eq("teacher_id", course.getTeacherId()).eq("is_deleted", false).ne("id", course.getId());
-                Long exist = courseMapper.selectCount(q);
-                if (exist != null && exist > 0) {
-                    throw new RuntimeException("该教师已存在其他课程，每位教师仅允许一个课程");
-                }
-            }
+            // 已移除教师课程数量上限限制的更新校验：允许同一教师拥有多个课程
 
         // 验证科目是否存在
         Subject subject = subjectMapper.selectById(request.getSubjectId());
