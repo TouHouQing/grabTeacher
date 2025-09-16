@@ -1632,12 +1632,6 @@ const createBookingRequest = async () => {
       })
 
       showScheduleModal.value = false
-
-      // 跳转到学生预约管理页面
-      setTimeout(() => {
-        ElMessage.info('即将跳转到预约管理页面...')
-        // router.push('/student/bookings') // 暂时注释，因为这个页面可能还不存在
-      }, 2000)
     } else {
       // 显示后端返回的具体错误信息
       const errorMessage = result.message || '预约申请提交失败'
