@@ -777,6 +777,14 @@ const mergedActiveCourses = computed(() => {
 const currentCourse = ref<Course | null>(null)
 const detailDialogVisible = ref(false)
 
+// 详情窗口：是否为试听课（任一节次为试听则视为试听课）
+const isTrialCourse = computed(() => {
+  const course = currentCourse.value
+  if (!course) return false
+  const list = course.schedules || []
+  return list.some(s => Boolean(s.isTrial))
+})
+
 // 调课相关数据
 const showRescheduleModal = ref(false)
 const currentRescheduleCourse = ref<Course | null>(null)
@@ -2439,7 +2447,7 @@ export default {
               <span>{{ currentCourse.teacher }}</span>
             </div>
             <div class="detail-meta">
-              <div class="meta-item">
+              <div class="meta-item" v-if="!isTrialCourse">
                 <el-icon><Collection /></el-icon>
                 <span>{{ currentCourse.subject }}</span>
               </div>
