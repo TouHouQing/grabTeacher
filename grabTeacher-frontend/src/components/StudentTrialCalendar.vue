@@ -21,8 +21,14 @@
           <div class="date">{{ d.label }}</div>
           <BaseSlotBar :slots="d.slots" mode="student" @click-slot="(slot,item)=>onPickSlot(d, slot, item)" />
           <div v-if="selected.date===d.date && selected.slot" class="half-hour">
-            <el-select v-model="selected.start" placeholder="选择开始时间" size="small" style="width: 160px;">
-              <el-option v-for="opt in halfHourOptions(d, selected.slot || '')" :key="opt" :label="opt" :value="opt" />
+            <el-select v-model="selected.start" placeholder="选择开始时间" size="small" style="width: 200px;">
+              <el-option
+                v-for="opt in halfHourOptions(d, selected.slot || '')"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+                :disabled="opt.disabled"
+              />
             </el-select>
             <span class="end">结束：{{ endTimeFromStart(selected.start) }}</span>
           </div>
@@ -41,6 +47,10 @@
 import { ref } from 'vue'
 import dayjs from 'dayjs'
 import BaseSlotBar from './BaseSlotBar.vue'
+// 可选：用户提示
+// import { ElMessage } from 'element-plus'
+
+import { teacherAPI, bookingAPI } from '@/utils/api'
 
 const props = defineProps<{ teacherId: number; title?: string }>()
 
@@ -58,12 +68,17 @@ const yearOptions = Array.from({length: 4}).map((_,i)=> dayjs().year() -1 + i)
 
 const BASE_SLOTS = ['08:00-10:00','10:00-12:00','13:00-15:00','15:00-17:00','17:00-19:00','19:00-21:00']
 
-// API 走 teacherAPI.getMonthlyCalendar，避免多次请求
-// 这里直接用 fetch 来避免对项目别名的依赖；实际项目中应使用已封装的 apiRequest
+// 每天每个基础段对应的“30分钟起始点（含禁用与原因）”缓存
+type TrialOpt = { value: string; label: string; disabled: boolean }
+const trialOptionMap = ref<Record<string, TrialOpt[]>>({})
+
+// 统一使用已封装的 api.ts（携带 Bearer Token），避免 401
 async function getMonthlyCalendar(teacherId: number, y: number, m: number) {
-  const url = `/api/calendar/teacher/${teacherId}/month?year=${y}&month=${m}`
-  const res = await fetch(url, { credentials: 'include' })
-  return res.json()
+  return teacherAPI.getMonthlyCalendar(teacherId, y, m)
+}
+
+async function getDayAvailability(teacherId: number, date: string, segment?: string) {
+  return bookingAPI.getDayAvailability(teacherId, date, segment)
 }
 
 const buildMonthDays = (y: number, m: number) => {
@@ -95,27 +110,68 @@ const reload = async () => {
         day.slots = BASE_SLOTS.map(s => statusBy[s] || { slot: s, status: 'unavailable' })
       }
     }
+    // 切月份时清理缓存
+    trialOptionMap.value = {}
   } finally {
     loading.value = false
   }
 }
 
-const onPickSlot = (day: any, slot: string, item: any) => {
-  if (item.status==='busy_formal' || item.status==='unavailable') return
-  selected.value = { date: day.date, slot, start: null }
+function segmentFromSlot(slot: string): 'morning'|'afternoon'|'evening' {
+  const start = slot.split('-')[0]
+  if (start < '12:00') return 'morning'
+  if (start < '17:00') return 'afternoon'
+  return 'evening'
 }
 
-const halfHourOptions = (day: any, slot: string) => {
-  const [startStr, endStr] = slot.split('-')
-  const start = dayjs(`${day.date} ${startStr}`)
-  const end = dayjs(`${day.date} ${endStr}`)
-  const res: string[] = []
-  let cur = start
-  while (cur.add(30,'minute').valueOf() <= end.valueOf()) {
-    res.push(cur.format('HH:mm'))
-    cur = cur.add(30,'minute')
+function isContained(child: string, parent: string): boolean {
+  const [cs, ce] = child.split('-')
+  const [ps, pe] = parent.split('-')
+  return (cs >= ps) && (ce <= pe)
+}
+
+const reasonText = (reasons?: string[] | null) => {
+  const r = Array.isArray(reasons) ? reasons : []
+  const map: Record<string, string> = {
+    busyScheduled: '与老师已有课程冲突',
+    duplicateTrialSlot: '与试听占位冲突',
+    teacherUnavailable: '教师未开放该时间段',
+    pendingTrial: '该时段存在待审批试听',
+    busy: '该时段已被占用'
   }
-  return res
+  const texts = r.map(k => map[k] || '不可预约')
+  return texts.length ? `不可预约：${texts.join('、')}` : '不可预约'
+}
+
+async function loadTrialStarts(date: string, baseSlot: string) {
+  const key = `${date}|${baseSlot}`
+  if (trialOptionMap.value[key]) return
+  const seg = segmentFromSlot(baseSlot)
+  const res = await getDayAvailability(props.teacherId, date, seg)
+  if (!res || !res.data) { trialOptionMap.value[key] = []; return }
+  const slots = (res.data.trialSlots || []) as Array<{ slot: string; trialAvailable: boolean; reasons?: string[] }>
+  const options: TrialOpt[] = []
+  for (const s of slots) {
+    if (!isContained(s.slot, baseSlot)) continue
+    const start = s.slot.split('-')[0]
+    options.push({ value: start, label: s.trialAvailable ? start : `${start}（${reasonText(s.reasons)}）`, disabled: !s.trialAvailable })
+  }
+  // 去重并按时间排序
+  const uniq = new Map<string, TrialOpt>()
+  for (const o of options) if (!uniq.has(o.value)) uniq.set(o.value, o)
+  trialOptionMap.value[key] = Array.from(uniq.values()).sort((a,b)=> a.value.localeCompare(b.value))
+}
+
+const onPickSlot = async (day: any, slot: string, item: any) => {
+  if (item.status==='busy_formal' || item.status==='unavailable') return
+  selected.value = { date: day.date, slot, start: null }
+  await loadTrialStarts(day.date, slot)
+}
+
+const halfHourOptions = (day: any, slot: string): TrialOpt[] => {
+  const key = `${day.date}|${slot}`
+  const list = trialOptionMap.value[key]
+  return Array.isArray(list) ? list : []
 }
 
 const endTimeFromStart = (start: string | null) => {

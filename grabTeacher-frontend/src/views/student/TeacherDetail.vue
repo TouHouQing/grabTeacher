@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Location, School, Trophy, ArrowLeft, Loading, Star, Clock, Document, InfoFilled } from '@element-plus/icons-vue'
-import { teacherAPI, evaluationAPI, bookingAPI, publicTeachingLocationAPI, publicGradeAPI } from '@/utils/api'
+import { teacherAPI, evaluationAPI, bookingAPI, publicTeachingLocationAPI, publicGradeAPI, subjectAPI } from '@/utils/api'
 import StudentBookingCalendar from '@/components/StudentBookingCalendar.vue'
 import StudentTrialCalendar from '@/components/StudentTrialCalendar.vue'
 import { useUserStore } from '@/stores/user'
@@ -155,7 +155,8 @@ const subjects = ref([]) // 科目列表
 const selectedSubject = ref('')
 const selectedDate = ref('')
 const selectedTimeSlot = ref('')
-const availableTimeSlots = ref([]) // 可用时间段
+type TrialOption = { slot: string; available: boolean; reason: string }
+const availableTimeSlots = ref<TrialOption[]>([]) // 当日该分段全部30分钟起点（含禁用态+原因）
 const loadingSubjects = ref(false)
 // const loadingTimeSlots = ref(false) // 暂时注释，未使用
 
@@ -768,28 +769,39 @@ const loadSubjects = async () => {
   try {
     loadingSubjects.value = true
 
-    // 如果教师详情已经加载，直接使用教师的科目
+    // 获取所有激活的科目列表
+    const subjectResult = await subjectAPI.getActiveSubjects()
+    if (!subjectResult.success || !subjectResult.data) {
+      ElMessage.error('加载科目列表失败')
+      subjects.value = []
+      return
+    }
+
+    // 获取教师详情中的科目列表
+    let teacherSubjects: string[] = []
     if (teacher.value && teacher.value.subjects) {
-      // 将科目名称转换为科目对象格式
-      subjects.value = teacher.value.subjects.map((subjectName: string) => ({
-        id: subjectName, // 使用科目名称作为ID
-        name: subjectName,
-        active: true
-      }))
+      teacherSubjects = teacher.value.subjects
     } else {
-      // 如果教师详情未加载，重新获取教师详情
       const result = await teacherAPI.getDetail(teacherId)
       if (result.success && result.data && result.data.subjects) {
-        subjects.value = result.data.subjects.map((subjectName: string) => ({
-          id: subjectName,
-          name: subjectName,
-          active: true
-        }))
-      } else {
-        ElMessage.error('该教师暂无可授课科目')
-        subjects.value = []
+        teacherSubjects = result.data.subjects
       }
     }
+
+    if (teacherSubjects.length === 0) {
+      ElMessage.error('该教师暂无可授课科目')
+      subjects.value = []
+      return
+    }
+
+    // 过滤出教师可授课的科目，使用真正的科目ID
+    subjects.value = subjectResult.data.filter((subject: any) =>
+      teacherSubjects.includes(subject.name)
+    ).map((subject: any) => ({
+      id: subject.id, // 使用真正的科目ID
+      name: subject.name,
+      active: subject.active
+    }))
   } catch (error) {
     console.error('加载教师科目失败:', error)
     ElMessage.error('加载教师科目失败')
@@ -820,16 +832,87 @@ const generateHalfHourSlots = (start: string, end: string) => {
   return result
 }
 
+
+// 试听课当日可用的30分钟起点缓存：key = `${date}|${period}`，值为 ['HH:mm-HH:mm']
+const trialOptionCache = ref<Record<string, TrialOption[]>>({})
+
+const segmentFromPeriod = (period: string) => {
+  if (period === 'morning' || period === 'afternoon' || period === 'evening') return period
+  return undefined
+}
+
+// 直接使用 fetch + credentials，兼容基于 Cookie 的登录态（与 StudentTrialCalendar 保持一致）
+
+
+// 根据后端返回过滤出“可预约的30分钟段”
+const reasonText = (reasons?: string[] | null) => {
+  const r = Array.isArray(reasons) ? reasons : []
+  const map: Record<string, string> = {
+    busyScheduled: '与老师已有课程冲突',
+    duplicateTrialSlot: '与试听占位冲突',
+    teacherUnavailable: '教师未开放该时间段',
+    pendingTrial: '该时段存在待审批的试听',
+    busy: '该时段已被占用'
+  }
+  const texts = r.map(k => map[k] || '不可预约')
+  return texts.length ? `不可预约：${texts.join('、')}` : '不可预约'
+}
+
+const computeTrialOptions = (resp: any): TrialOption[] => {
+  try {
+    const raw: Array<{ slot: string; trialAvailable?: boolean; reasons?: string[] }> = Array.isArray(resp?.data?.trialSlots) ? resp.data.trialSlots : []
+    const uniq = new Map<string, TrialOption>()
+    for (const s of raw) {
+      const key = s.slot
+      const opt: TrialOption = { slot: key, available: !!s.trialAvailable, reason: s.trialAvailable ? '' : reasonText(s.reasons) }
+      // 如果同一slot重复，保留任一（prefer available=false 的原因信息）
+      const exist = uniq.get(key)
+      if (!exist) uniq.set(key, opt)
+      else if (exist.available && !opt.available) uniq.set(key, opt)
+    }
+    return Array.from(uniq.values()).sort((a,b)=> a.slot.localeCompare(b.slot))
+  } catch { return [] }
+}
+
+// 刷新某日某分段的可选30分钟起点（只在选择日期与分段后触发）
+const refreshTrialSlots = async () => {
+  availableTimeSlots.value = []
+  selectedTimeSlot.value = ''
+  if (!selectedDate.value || !selectedTimePeriod.value) return
+
+  // 确保日期格式为 YYYY-MM-DD
+  const dateStr = typeof selectedDate.value === 'string'
+    ? selectedDate.value
+    : new Date(selectedDate.value).toISOString().split('T')[0]
+
+  const key = `${dateStr}|${selectedTimePeriod.value}`
+  if (trialOptionCache.value[key]) {
+    availableTimeSlots.value = trialOptionCache.value[key]
+    return
+  }
+  try {
+    const seg = segmentFromPeriod(selectedTimePeriod.value)
+    const res = await bookingAPI.getDayAvailability(teacherId, dateStr, seg as any)
+    const options = computeTrialOptions(res)
+    trialOptionCache.value[key] = options
+    availableTimeSlots.value = options
+  } catch (e) {
+    console.error('获取试听时段失败:', e)
+    availableTimeSlots.value = []
+  }
+}
+
+// 选择日期变化后，清空已选具体时间并刷新可选项
+watch(selectedDate, () => {
+  trialOptionCache.value = { ...trialOptionCache.value } // 保留缓存
+  if (selectedTimePeriod.value) refreshTrialSlots()
+})
+
 // 选择时间段类型
 const selectTimePeriod = (period: string) => {
   selectedTimePeriod.value = period
-  const periodData = timePeriods.find(p => p.value === period)
-  if (periodData) {
-    availableTimeSlots.value = generateHalfHourSlots(periodData.range[0], periodData.range[1])
-  } else {
-    availableTimeSlots.value = []
-  }
-  selectedTimeSlot.value = ''
+  // 选择分段后，实时向后端拉取当天该分段“可约试听30分钟段”
+  refreshTrialSlots()
 }
 
 // 选择时间段
@@ -857,13 +940,19 @@ const confirmTrialBooking = async () => {
       teacherId: teacherId,
       bookingType: 'single' as const,
       studentRequirements: `申请与${teacher.value?.name}老师进行${selectedSubject.value}科目试听`,
-      grade: String(selectedGrade.value),
+      grade: grades.value.find(g => g.id === selectedGrade.value)?.name || '',
 
       isTrial: true,
       trialDurationMinutes: 30,
       requestedDate: selectedDate.value,
       requestedStartTime: selectedTimeSlot.value.split('-')[0],
       requestedEndTime: selectedTimeSlot.value.split('-')[1]
+    }
+
+    // 传递科目ID
+    const selectedSubjectObj = subjects.value.find(s => s.id === selectedSubject.value)
+    if (selectedSubjectObj) {
+      bookingData.subjectId = selectedSubjectObj.id
     }
 
     // 选择授课地点
@@ -1066,15 +1155,21 @@ const onTrialConfirm = async (payload: { date: string; startTime: string; endTim
       teacherId: teacherId,
       bookingType: 'single' as const,
       studentRequirements: `申请与${teacher.value?.name}老师进行${selectedSubject.value}科目试听`,
-      grade: String(selectedGrade.value),
+      grade: grades.value.find(g => g.id === selectedGrade.value)?.name || '',
       isTrial: true,
       trialDurationMinutes: 30,
       requestedDate: payload.date,
       requestedStartTime: payload.startTime,
       requestedEndTime: payload.endTime
     }
+
+    // 传递科目ID
+    const selectedSubjectObj = subjects.value.find(s => s.id === selectedSubject.value)
+    if (selectedSubjectObj) {
+      bookingData.subjectId = selectedSubjectObj.id
+    }
     if (selectedTeachingLocation.value === 'online') {
-      bookingData.isOnline = true
+      bookingData.teachingLocation = '线上'
     } else if (selectedTeachingLocation.value) {
       bookingData.teachingLocationId = Number(selectedTeachingLocation.value)
     }
@@ -1370,6 +1465,7 @@ watch(selectedCourse, (newCourse) => {
             <el-date-picker
               v-model="selectedDate"
               type="date"
+              value-format="YYYY-MM-DD"
               placeholder="选择日期"
               style="width: 100%"
               :disabled-date="(time) => time.getTime() < Date.now() - 8.64e7"
@@ -1390,17 +1486,31 @@ watch(selectedCourse, (newCourse) => {
 
           <el-form-item v-if="selectedTimePeriod" label="具体时间" required>
             <div class="time-slots">
-              <el-button
-                v-for="slot in availableTimeSlots"
-                :key="slot"
-                :type="selectedTimeSlot === slot ? 'primary' : 'default'"
-                :plain="selectedTimeSlot !== slot"
-                @click="selectTimeSlot(slot)"
-                class="time-slot-btn"
-              >
-                {{ slot }}
-              </el-button>
-  </div>
+              <span v-for="opt in availableTimeSlots" :key="opt.slot" style="display:inline-block">
+                <el-tooltip v-if="!opt.available" :content="opt.reason" placement="top">
+                  <span>
+                    <el-button
+                      :type="selectedTimeSlot === opt.slot ? 'primary' : 'default'"
+                      :plain="selectedTimeSlot !== opt.slot"
+                      :disabled="!opt.available"
+                      @click="selectTimeSlot(opt.slot)"
+                      class="time-slot-btn"
+                    >
+                      {{ opt.slot }}
+                    </el-button>
+                  </span>
+                </el-tooltip>
+                <el-button
+                  v-else
+                  :type="selectedTimeSlot === opt.slot ? 'primary' : 'default'"
+                  :plain="selectedTimeSlot !== opt.slot"
+                  @click="selectTimeSlot(opt.slot)"
+                  class="time-slot-btn"
+                >
+                  {{ opt.slot }}
+                </el-button>
+              </span>
+            </div>
           </el-form-item>
         </el-form>
 

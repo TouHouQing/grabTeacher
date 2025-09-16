@@ -574,7 +574,7 @@ export const bookingAPI = {
     selectedSessions?: Array<{ date: string; startTime: string; endTime: string }>
   }) => apiRequest('/api/booking/request', {
     method: 'POST',
-    body: JSON.stringify(data)
+    data: data
   }),
 
   // 管理员审批预约申请

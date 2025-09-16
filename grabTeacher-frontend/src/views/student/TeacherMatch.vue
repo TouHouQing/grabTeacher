@@ -1583,6 +1583,14 @@ const createBookingRequest = async () => {
       trialDurationMinutes: scheduleForm.bookingType === 'trial' ? 30 : undefined,
       selectedDurationMinutes: scheduleForm.bookingType === 'recurring' ? (selectedCourse.value?.durationMinutes || scheduleForm.selectedDurationMinutes) : undefined
     }
+
+    // 试听课时传递科目ID
+    if (scheduleForm.bookingType === 'trial') {
+      const selectedSubject = subjects.value.find(s => s.name === matchForm.subject)
+      if (selectedSubject) {
+        bookingData.subjectId = selectedSubject.id
+      }
+    }
     if (scheduleForm.bookingType !== 'trial') {
       bookingData.courseId = selectedCourse.value.id
     }
