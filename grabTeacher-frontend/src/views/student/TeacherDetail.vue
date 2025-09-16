@@ -168,6 +168,11 @@ const selectedTeachingLocation = ref<string | number>('')
 // 年级选择
 const grades = ref<Array<{ id: string | number; name: string }>>([])
 const selectedGrade = ref<string | number>('')
+// 正式课偏好：上午/下午/晚上 + 开始/结束日期
+const selectedPeriods = ref<string[]>([])
+const preferredStartDate = ref<string>('')
+const preferredEndDate = ref<string>('')
+
 
 
 
@@ -1144,8 +1149,13 @@ const openCalendarBooking = () => {
   if (!selectedCourse.value) { ElMessage.warning('请先选择课程'); return }
   if (!selectedGrade.value) { ElMessage.warning('请先选择年级'); return }
   if (!selectedTeachingLocation.value) { ElMessage.warning('请先选择授课地点'); return }
-  const defaultDuration = (selectedCourse.value as any)?.durationMinutes || 90
-  calendarDlg.value?.open({ defaultDuration })
+  if (!preferredStartDate.value || !preferredEndDate.value) { ElMessage.warning('请选择开始和结束日期'); return }
+  if (preferredStartDate.value > preferredEndDate.value) { ElMessage.warning('结束日期不能早于开始日期'); return }
+  if (!selectedPeriods.value || selectedPeriods.value.length === 0) { ElMessage.warning('请选择上课时间（上午/下午/晚上，至少一项）'); return }
+  const defaultDuration = (selectedCourse.value as any)?.durationMinutes || scheduleForm.value.selectedDurationMinutes || 120
+  const periods = [...selectedPeriods.value] as Array<'morning'|'afternoon'|'evening'>
+  // @ts-ignore
+  calendarDlg.value?.open({ defaultDuration: defaultDuration === 90 ? 90 : 120, allowedPeriods: periods, dateStart: preferredStartDate.value, dateEnd: preferredEndDate.value })
 }
 
 
@@ -1578,12 +1588,6 @@ watch(selectedCourse, (newCourse) => {
           />
         </div>
 
-        <div style="margin: 8px 0 12px 0; text-align: right;">
-          <el-button type="success" plain size="small" @click="openCalendarBooking">
-            使用日历预约
-          </el-button>
-        </div>
-
 
         <el-form :model="scheduleForm" label-width="120px" class="schedule-form">
 
@@ -1670,6 +1674,7 @@ watch(selectedCourse, (newCourse) => {
 
           <!-- 授课地点选择 -->
           <el-form-item label="授课地点" required>
+
             <el-radio-group v-model="selectedTeachingLocation">
               <el-radio-button
                 v-for="opt in allowedTeachingLocations"
@@ -1681,13 +1686,46 @@ watch(selectedCourse, (newCourse) => {
             </el-radio-group>
           </el-form-item>
 
+          <!-- 正式课偏好：上午/下午/晚上 + 开始/结束日期（与智能匹配页保持一致） -->
+          <el-form-item label="偏好上课时间" required>
+            <el-checkbox-group v-model="selectedPeriods">
+              <el-checkbox label="morning">上午（8-12点）</el-checkbox>
+              <el-checkbox label="afternoon">下午（13-17点）</el-checkbox>
+              <el-checkbox label="evening">晚上（17-21点）</el-checkbox>
+            </el-checkbox-group>
+          </el-form-item>
+
+          <el-form-item label="开始上课日期" required>
+            <el-date-picker
+              v-model="preferredStartDate"
+              type="date"
+              placeholder="请选择开始日期"
+              :disabled-date="(date) => date < new Date()"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+            />
+          </el-form-item>
+
+          <el-form-item label="结束上课日期" required>
+            <el-date-picker
+              v-model="preferredEndDate"
+              type="date"
+              placeholder="请选择结束日期"
+              :disabled="!preferredStartDate"
+              :disabled-date="(date) => preferredStartDate ? date < new Date(preferredStartDate) : false"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+            />
+          </el-form-item>
+
+
 
           <!-- 课程安排：已改为按月日历预约 -->
           <el-form-item label="课程安排">
-            <el-alert type="info" :closable="false" show-icon title="本系统已改为按月日历预约，请点击上方“使用日历预约”选择具体日期与时间段" />
+            <el-alert type="info" :closable="false" show-icon title="本系统已改为按月日历预约，请点击“使用日历预约”选择具体日期与时间段" />
           </el-form-item>
 
-          <!-- 已移除按星期的时间段/星期选择与课程预览，改为使用上方“使用日历预约”选择具体日期与时间段 -->
+          <!-- 已移除按星期的时间段/星期选择与课程预览，改为使用“使用日历预约”选择具体日期与时间段 -->
         </el-form>
 
         <!-- 操作按钮：引导使用日历预约 -->
@@ -1696,7 +1734,7 @@ watch(selectedCourse, (newCourse) => {
           <el-button
             type="primary"
             @click="openCalendarBooking"
-            :disabled="!selectedCourse || !selectedGrade || !selectedTeachingLocation"
+            :disabled="!selectedCourse || !selectedGrade || !selectedTeachingLocation || selectedPeriods.length===0 || !preferredStartDate || !preferredEndDate"
           >
             使用日历预约
           </el-button>
@@ -1712,6 +1750,8 @@ watch(selectedCourse, (newCourse) => {
   max-width: 1200px;
   margin: 0 auto;
 }
+
+
 
 .detail-header {
   display: flex;
