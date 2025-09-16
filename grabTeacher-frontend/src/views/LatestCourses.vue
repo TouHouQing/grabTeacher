@@ -266,8 +266,12 @@ const formatPrice = (course: Course) => {
       return '价格面议'
     }
   } else {
-    // 一对一课程显示可定制
-    return '价格可定制'
+    // 一对一课程显示真实价格（按小时），无价格则展示“价格面议”
+    if (course.price && course.price > 0) {
+      return `${course.price} M豆/h`
+    } else {
+      return '价格面议'
+    }
   }
 }
 
@@ -446,7 +450,7 @@ const handleEnroll = async (course: Course) => {
                 <el-tag size="small" class="course-tag" type="success">{{ course.subjectName }}</el-tag>
               </div>
               <div class="course-price-section">
-                <div class="course-price" :class="{ 'customizable': course.courseType === 'one_on_one' }">
+                <div class="course-price">
                   {{ formatPrice(course) }}
                 </div>
                 <div class="course-status-text" :class="{

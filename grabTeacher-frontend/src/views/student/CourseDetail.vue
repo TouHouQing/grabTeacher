@@ -3,8 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, School, Trophy, ArrowLeft, Loading, Clock, User, Document, Timer } from '@element-plus/icons-vue'
-import { courseAPI, teacherAPI, enrollmentAPI, publicGradeAPI, publicTeachingLocationAPI, bookingAPI, subjectAPI } from '../../utils/api'
-import StudentBookingCalendar from '@/components/StudentBookingCalendar.vue'
+import { courseAPI, teacherAPI, enrollmentAPI, publicGradeAPI, publicTeachingLocationAPI, bookingAPI } from '../../utils/api'
+import StudentBookingCalendar from '../../components/StudentBookingCalendar.vue'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -33,10 +33,7 @@ const grades = ref<{ id: string | number; name: string }[]>([])
 const selectedGrade = ref<string | number>('')
 const loadingGrades = ref(false)
 
-// 科目选择相关状态
-const subjects = ref<any[]>([])
-const selectedSubject = ref<string>('')
-const loadingSubjects = ref(false)
+// 科目选择：详情页固定为课程科目，不再二次选择
 
 // 偏好上课时间选择
 const selectedPeriods = ref<string[]>([])
@@ -169,23 +166,6 @@ const loadGrades = async () => {
   }
 }
 
-// 加载科目列表
-const loadSubjects = async () => {
-  try {
-    loadingSubjects.value = true
-    const res = await subjectAPI.getActiveSubjects()
-    if (res.success && Array.isArray(res.data)) {
-      subjects.value = res.data
-    } else {
-      subjects.value = []
-    }
-  } catch (e) {
-    subjects.value = []
-    ElMessage.error('加载科目列表失败')
-  } finally {
-    loadingSubjects.value = false
-  }
-}
 
 // 显示年级选择弹窗
 const showGradeSelection = async () => {
@@ -245,8 +225,6 @@ const enrollCourse = async () => {
       if (allowedTeachingLocations.value.length === 0) {
         // 若尚未加载地点，尝试补载
         try {
-          const locResp = await publicTeachingLocationAPI.getActive()
-          const list = locResp?.success ? (locResp.data || []) : []
           const opts: Array<{ value: string | number; label: string }> = []
           // 默认支持线上
           opts.push({ value: 'online', label: '线上' })
@@ -254,13 +232,7 @@ const enrollCourse = async () => {
         } catch {}
       }
 
-      // 加载科目列表
-      if (subjects.value.length === 0) {
-        await loadSubjects()
-      }
-
-      // 重置表单状态
-      selectedSubject.value = ''
+      // 重置表单状态（科目固定为课程科目）
       selectedGrade.value = ''
       selectedPeriods.value = []
       preferredStartDate.value = ''
@@ -318,7 +290,6 @@ const enrollCourse = async () => {
 
 // 详情页打开日历
 const openCalendarFromDetail = () => {
-  if (!selectedSubject.value) { ElMessage.warning('请先选择科目'); return }
   if (!selectedGrade.value) { ElMessage.warning('请先选择年级'); return }
   if (selectedPeriods.value.length === 0) { ElMessage.warning('请选择偏好上课时间段'); return }
   if (!preferredStartDate.value) { ElMessage.warning('请选择开始上课日期'); return }
@@ -353,7 +324,7 @@ const onCalendarConfirmFromDetail = async (sessions: Array<{ date: string; start
     const bookingData: any = {
       teacherId: course.value?.teacherId,
       courseId: course.value?.id,
-      subject: selectedSubject.value,
+      subject: course.value?.subjectName,
       grade: grades.value.find(g => g.id === selectedGrade.value)?.name || String(selectedGrade.value),
       preferredTimeSlots: preferredTimeSlots,
       preferredDateStart: preferredStartDate.value,
@@ -476,10 +447,10 @@ const getStatusText = (status: string) => {
           <div class="course-actions">
             <el-button type="primary" size="large"
                        :loading="enrolling"
-                       :disabled="enrolling || enrolled"
+                       :disabled="enrolling"
                        @click="enrollCourse">
               <el-icon><Calendar /></el-icon>
-              {{ enrolled ? '已报名' : '立即报名' }}
+              立即报名
             </el-button>
             <el-button size="large" @click="goBack">返回</el-button>
           </div>
@@ -624,14 +595,7 @@ const getStatusText = (status: string) => {
         <div class="schedule-modal-content">
           <el-form label-width="120px">
             <el-form-item label="科目" required>
-              <el-select v-model="selectedSubject" placeholder="请选择科目" style="width: 100%" :loading="loadingSubjects">
-                <el-option
-                  v-for="subject in subjects"
-                  :key="subject.id"
-                  :label="subject.name"
-                  :value="subject.name"
-                />
-              </el-select>
+              <el-input :model-value="course.subjectName" disabled />
             </el-form-item>
 
             <el-form-item label="年级" required>
@@ -692,7 +656,7 @@ const getStatusText = (status: string) => {
         <template #footer>
           <span class="dialog-footer">
             <el-button @click="showScheduleModal = false">取消</el-button>
-            <el-button type="primary" @click="openCalendarFromDetail" :disabled="!selectedSubject || !selectedGrade || selectedPeriods.length === 0 || !preferredStartDate || !preferredEndDate || !selectedTeachingLocation">
+            <el-button type="primary" @click="openCalendarFromDetail" :disabled="!selectedGrade || selectedPeriods.length === 0 || !preferredStartDate || !preferredEndDate || !selectedTeachingLocation">
               <el-icon><Calendar /></el-icon> 打开日历选择
             </el-button>
           </span>
