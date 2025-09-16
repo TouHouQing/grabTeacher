@@ -35,6 +35,9 @@ public class ClassRecordVO {
     @Schema(description = "学生姓名")
     private String studentName;
 
+    @Schema(description = "学生ID")
+    private Long studentId;
+
     @Schema(description = "课程类型")
     private String courseType;
 

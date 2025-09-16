@@ -150,6 +150,7 @@ public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
             "ce.duration_minutes as durationMinutes, " +
             "ce.is_trial as isTrial, " +
             "ce.enrollment_type as courseType, " +
+            "s.id as studentId, " +
             "s.real_name as studentName, " +
             "t.real_name as teacherName, " +
             "COALESCE(c.title, '一对一课程') as courseName, " +

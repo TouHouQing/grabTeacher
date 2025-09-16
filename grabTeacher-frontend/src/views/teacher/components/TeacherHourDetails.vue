@@ -85,7 +85,42 @@
         </template>
       </el-table-column>
 
+      <el-table-column label="操作" width="120" fixed="right" align="center">
+        <template #default="{ row }">
+          <el-button
+            v-if="row.courseType === 'one_on_one' && !row.isTrial"
+            type="primary"
+            size="small"
+            @click="openGradeDialog(row)"
+          >录入成绩</el-button>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+
     </el-table>
+    <el-dialog v-model="gradeDialogVisible" title="录入成绩" width="500px">
+      <div>
+        <el-form label-width="100px">
+          <el-form-item label="学生">
+            <span>{{ editingRow?.studentName || '-' }}</span>
+          </el-form-item>
+          <el-form-item label="课程">
+            <span>{{ editingRow?.courseName || '-' }}</span>
+          </el-form-item>
+          <el-form-item label="成绩">
+            <el-input-number v-model="gradeForm.score" :min="0" :max="100" :step="1" controls-position="right" style="width: 180px" />
+          </el-form-item>
+          <el-form-item label="课后评语">
+            <el-input v-model="gradeForm.teacherComment" type="textarea" :rows="4" maxlength="255" show-word-limit placeholder="可填写对本节课的评价与建议" />
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="gradeDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submittingGrade" @click="submitGrade">{{ gradeMode === 'create' ? '提交' : '更新' }}</el-button>
+      </template>
+    </el-dialog>
+
     <div class="pagination-container">
       <el-pagination
         :current-page="pagination.page"
@@ -102,8 +137,8 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted, computed } from 'vue'
-import { ElMessage } from 'element-plus'
-import { teacherAPI } from '../../../utils/api'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { teacherAPI, lessonGradeAPI } from '../../../utils/api'
 
 // 接口定义
 interface ClassRecord {
@@ -113,6 +148,7 @@ interface ClassRecord {
   endTime: string
   courseName: string
   studentName: string
+  studentId?: number
   courseType: string
   teacherName: string
   sessionNumber?: number
@@ -192,6 +228,90 @@ const handleReset = () => {
   pagination.page = 1
   loadList()
 }
+
+
+// 
+const gradeDialogVisible = ref(false)
+const submittingGrade = ref(false)
+const gradeForm = reactive<{ score: number | null; teacherComment: string }>({
+  score: null,
+  teacherComment: ''
+})
+const gradeMode = ref<'create' | 'update'>('create')
+const editingRow = ref<ClassRecord | null>(null)
+const editingGradeId = ref<number | null>(null)
+
+const openGradeDialog = async (row: ClassRecord) => {
+  try {
+    if (!row.studentId) {
+      ElMessage.warning('缺少学生ID，无法录入成绩')
+      return
+    }
+    editingRow.value = row
+    gradeForm.score = null
+    gradeForm.teacherComment = ''
+    gradeMode.value = 'create'
+    editingGradeId.value = null
+
+    const res = await lessonGradeAPI.getByScheduleAndStudent(row.scheduleId, row.studentId)
+    if (res?.success && res.data) {
+      gradeMode.value = 'update'
+      editingGradeId.value = res.data.id
+      gradeForm.score = res.data.score ?? null
+      gradeForm.teacherComment = res.data.teacherComment || ''
+    }
+
+    gradeDialogVisible.value = true
+  } catch (e: any) {
+    ElMessage.error(e.message || '加载成绩信息失败')
+  }
+}
+
+const submitGrade = async () => {
+  if (!editingRow.value || !editingRow.value.studentId) return
+  if (gradeForm.score == null) {
+    ElMessage.warning('请填写成绩（0-100）')
+    return
+  }
+  try {
+    submittingGrade.value = true
+    if (gradeMode.value === 'create') {
+      await ElMessageBox.confirm(`确认为学生【${editingRow.value.studentName}】录入成绩 ${gradeForm.score} 分？`, '确认', { type: 'warning' })
+      const res = await lessonGradeAPI.create({
+        scheduleId: editingRow.value.scheduleId,
+        studentId: editingRow.value.studentId,
+        score: Number(gradeForm.score),
+        teacherComment: gradeForm.teacherComment || ''
+      })
+      if (res.success) {
+        ElMessage.success('成绩录入成功')
+        gradeDialogVisible.value = false
+      } else {
+        ElMessage.error(res.message || '成绩录入失败')
+      }
+    } else {
+      await ElMessageBox.confirm('确定更新该成绩吗？', '确认', { type: 'warning' })
+      const res = await lessonGradeAPI.update({
+        id: editingGradeId.value!,
+        score: Number(gradeForm.score),
+        teacherComment: gradeForm.teacherComment || ''
+      })
+      if (res.success) {
+        ElMessage.success('成绩更新成功')
+        gradeDialogVisible.value = false
+      } else {
+        ElMessage.error(res.message || '成绩更新失败')
+      }
+    }
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '提交失败')
+    }
+  } finally {
+    submittingGrade.value = false
+  }
+}
+
 const handleSizeChange = (s: number) => { pagination.size = s; pagination.page = 1; loadList() }
 const handleCurrentChange = (p: number) => { pagination.page = p; loadList() }
 

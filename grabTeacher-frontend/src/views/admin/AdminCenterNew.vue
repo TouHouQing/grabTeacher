@@ -99,7 +99,7 @@ const handleMenuSelect = (key: string) => {
             </el-menu-item>
             <el-menu-item index="courses">
               <el-icon><Reading /></el-icon>
-              <span>课程管理</span>
+              <span>最新课程</span>
             </el-menu-item>
             <el-menu-item index="course-evaluations">
               <el-icon><Reading /></el-icon>
