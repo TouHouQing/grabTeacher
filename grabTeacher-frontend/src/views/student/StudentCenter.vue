@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, defineAsyncComponent } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import { HomeFilled, Connection, Document, Reading, User, Coin, ChatDotRound, Star, List } from '@element-plus/icons-vue'
 import StudentCourses from './components/StudentCourses.vue'
@@ -11,6 +11,7 @@ import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
 const route = useRoute()
+const router = useRouter()
 const activeMenu = ref('dashboard')
 const upcomingCourses = ref<UpcomingCourse[]>([])
 const loading = ref(false)
@@ -118,7 +119,7 @@ const loadUpcomingCourses = async () => {
 // 进入课堂
 const enterClassroom = (scheduleId: number) => {
   // 跳转到课堂页面
-  window.open(`/classroom/${scheduleId}`, '_blank')
+  router.push(`/classroom/${scheduleId}`)
 }
 
 // 获取统计数据

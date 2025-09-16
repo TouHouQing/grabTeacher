@@ -1970,7 +1970,8 @@ const getGradeLevel = (score: number): string => {
 // 进入课堂
 const enterClassroom = (course: Course) => {
   if (course.status === 'active') {
-    ElMessage.success(`正在进入 ${course.title} 课堂`)
+    // 跳转到课堂页面
+    router.push(`/classroom/${course.id}`)
   } else if (course.status === 'upcoming') {
     ElMessage.warning('该课程还未开始')
   } else {
