@@ -807,6 +807,17 @@ public class BookingServiceImpl implements BookingService {
                 defaultDurationMinutes = (int) java.time.Duration.between(head.getStartTime(), head.getEndTime()).toMinutes();
             }
 
+            // 判定该卡片是否为试听课（来自报名或预约）
+            Boolean isTrialGroup = Boolean.FALSE;
+            if (enrollment != null && Boolean.TRUE.equals(enrollment.getTrial())) {
+                isTrialGroup = Boolean.TRUE;
+            } else if (head.getBookingRequestId() != null) {
+                BookingRequest br2 = bookingRequestMapper.selectById(head.getBookingRequestId());
+                if (br2 != null && Boolean.TRUE.equals(br2.getIsTrial())) {
+                    isTrialGroup = Boolean.TRUE;
+                }
+            }
+
             // schedules 列表
             java.util.List<com.touhouqing.grabteacherbackend.model.vo.StudentCourseScheduleV2VO> scheduleVOs = new java.util.ArrayList<>();
             for (CourseSchedule cs : list) {
@@ -829,6 +840,7 @@ public class BookingServiceImpl implements BookingService {
                         .enrollmentId(cs.getEnrollmentId())
                         .bookingRequestId(cs.getBookingRequestId())
                         .durationMinutes(dur)
+                        .isTrial(isTrialGroup)
                         .build());
             }
             com.touhouqing.grabteacherbackend.model.vo.StudentCourseCardV2VO card = com.touhouqing.grabteacherbackend.model.vo.StudentCourseCardV2VO.builder()
@@ -857,6 +869,7 @@ public class BookingServiceImpl implements BookingService {
                         .endTime(next.getEndTime())
                         .sessionNumber(next.getSessionNumber())
                         .status(mapScheduleStatusToLegacy(next.getScheduleStatus()))
+                        .isTrial(isTrialGroup)
                         .build());
             }
             cards.add(card);
@@ -923,6 +936,10 @@ public class BookingServiceImpl implements BookingService {
                     if (subject != null) {
                         vo.setSubjectName(subject.getName());
                     }
+                }
+                // 非试听且为一对一课程时，返回课程级教师时薪
+                if (Boolean.FALSE.equals(vo.getTrial()) && "one_on_one".equalsIgnoreCase(course.getCourseType())) {
+                    vo.setTeacherHourlyRate(course.getTeacherHourlyRate());
                 }
             }
         }
@@ -1057,6 +1074,61 @@ public class BookingServiceImpl implements BookingService {
             userMapper.updateById(user);
             log.info("试听课申请被拒绝，恢复试听次数+1，用户ID: {}, 当前次数: {}", userId, user.getTrialTimes());
         }
+    }
+
+    @Override
+    @Transactional
+    public void cancelTrialSchedule(Long scheduleId, Long operatorUserId) {
+        log.info("请求取消试听课节，scheduleId={}, operatorUserId={}", scheduleId, operatorUserId);
+
+        CourseSchedule cs = courseScheduleMapper.findById(scheduleId);
+        if (cs == null) {
+            throw new RuntimeException("课程安排不存在");
+        }
+        if (cs.getEnrollmentId() == null) {
+            throw new RuntimeException("缺少报名信息，无法取消");
+        }
+        if (cs.getScheduleStatus() != null && !"scheduled".equals(cs.getScheduleStatus())) {
+            throw new RuntimeException("仅可取消未开始的课程");
+        }
+        // 校验是试听课
+        CourseEnrollment enrollment = courseEnrollmentMapper.selectById(cs.getEnrollmentId());
+        if (enrollment == null || !Boolean.TRUE.equals(enrollment.getTrial())) {
+            throw new RuntimeException("仅支持取消试听课");
+        }
+        // 权限校验：操作者必须是该课节对应的教师或学生
+        boolean allowed = false;
+        // 学生端
+        Student opStu = studentMapper.selectOne(new QueryWrapper<Student>().eq("user_id", operatorUserId).eq("is_deleted", false));
+        if (opStu != null && cs.getStudentId() != null && opStu.getId() != null && opStu.getId().equals(cs.getStudentId())) {
+            allowed = true;
+        }
+        // 教师端
+        if (!allowed) {
+            Teacher opT = teacherMapper.selectOne(new QueryWrapper<Teacher>().eq("user_id", operatorUserId).eq("is_deleted", false));
+            if (opT != null && cs.getTeacherId() != null && opT.getId() != null && opT.getId().equals(cs.getTeacherId())) {
+                allowed = true;
+            }
+        }
+        if (!allowed) {
+            throw new RuntimeException("无权限操作该课节");
+        }
+
+        // 软删除该课节并标记为已取消
+        cs.setDeleted(true);
+        cs.setDeletedAt(java.time.LocalDateTime.now());
+        cs.setScheduleStatus("cancelled");
+        courseScheduleMapper.updateById(cs);
+
+        // 恢复学生试听次数
+        if (cs.getStudentId() != null) {
+            Student s = studentMapper.selectById(cs.getStudentId());
+            if (s != null && s.getUserId() != null) {
+                resetTrialUsage(s.getUserId());
+            }
+        }
+
+        log.info("试听课节已取消并恢复试听次数，scheduleId={}", scheduleId);
     }
 
     @Override

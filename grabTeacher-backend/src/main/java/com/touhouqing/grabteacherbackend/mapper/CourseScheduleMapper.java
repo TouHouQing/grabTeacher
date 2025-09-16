@@ -152,7 +152,8 @@ public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
             "ce.enrollment_type as courseType, " +
             "s.real_name as studentName, " +
             "t.real_name as teacherName, " +
-            "COALESCE(c.title, '一对一课程') as courseName " +
+            "COALESCE(c.title, '一对一课程') as courseName, " +
+            "CASE WHEN ce.is_trial = 1 OR ce.enrollment_type <> 'one_on_one' THEN NULL ELSE c.teacher_hourly_rate END as teacherHourlyRate " +
             "FROM course_schedules cs " +
             "INNER JOIN course_enrollments ce ON cs.enrollment_id = ce.id " +
             "INNER JOIN students s ON ce.student_id = s.id " +

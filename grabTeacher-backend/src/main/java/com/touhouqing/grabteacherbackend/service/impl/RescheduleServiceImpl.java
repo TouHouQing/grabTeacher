@@ -116,6 +116,10 @@ public  class RescheduleServiceImpl implements RescheduleService {
         if (courseEntity == null || !"one_on_one".equals(courseEntity.getCourseType())) {
             throw new RuntimeException("仅支持1v1课程的调课/取消申请，班课请联系管理员处理");
         }
+        // 禁止试听课发起调课
+        if (Boolean.TRUE.equals(enrollment.getTrial())) {
+            throw new RuntimeException("试听课不允许申请调课，请直接在该节课上进行停课操作");
+        }
 
         // 验证学生权限
         if (!enrollment.getStudentId().equals(student.getId())) {
@@ -243,6 +247,10 @@ public  class RescheduleServiceImpl implements RescheduleService {
         Course courseT = enrollment2.getCourseId() != null ? courseMapper.selectById(enrollment2.getCourseId()) : null;
         if (courseT == null || !"one_on_one".equals(courseT.getCourseType())) {
             throw new RuntimeException("仅支持1v1课程的调课/取消申请，班课请联系管理员处理");
+        }
+        // 禁止试听课发起调课
+        if (Boolean.TRUE.equals(enrollment2.getTrial())) {
+            throw new RuntimeException("试听课不允许申请调课，请直接在该节课上进行停课操作");
         }
 
         // 检查是否已有待处理的调课申请
@@ -980,6 +988,10 @@ public  class RescheduleServiceImpl implements RescheduleService {
         Student student = studentMapper.findByUserId(studentUserId);
         CourseEnrollment enrollment = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
         if (student == null || enrollment == null || !enrollment.getStudentId().equals(student.getId())) {
+            return false;
+        }
+        // 禁止试听课申请调课
+        if (Boolean.TRUE.equals(enrollment.getTrial())) {
             return false;
         }
 

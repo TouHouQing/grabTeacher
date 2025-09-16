@@ -47,4 +47,7 @@ public class StudentCourseScheduleV2VO {
 
     @Schema(description = "本节课时长(分钟)")
     private Integer durationMinutes;
+
+    @Schema(description = "是否试听课")
+    private Boolean isTrial;
 }

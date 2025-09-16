@@ -1452,6 +1452,72 @@ public class TeacherServiceImpl implements TeacherService {
         BigDecimal currentHours = teacher.getCurrentHours() != null ? teacher.getCurrentHours() : BigDecimal.ZERO;
         BigDecimal lastHours = teacher.getLastHours() != null ? teacher.getLastHours() : BigDecimal.ZERO;
 
+        // 7. 基于“课程专属时薪(一对一)”计算当月/上月收入（完成课节）
+        try {
+            // 当月范围
+            LocalDateTime curStart = startOfMonth.atStartOfDay();
+            LocalDateTime curEnd = endOfMonth.atTime(23, 59, 59);
+
+            // 上月范围
+            LocalDate lastMonth = now.minusMonths(1);
+            LocalDate lastStartOfMonth = lastMonth.withDayOfMonth(1);
+            LocalDate lastEndOfMonth = lastMonth.withDayOfMonth(lastMonth.lengthOfMonth());
+
+            // 拉取两个月内课表（含课程ID与单次时长）
+            java.util.List<com.touhouqing.grabteacherbackend.model.entity.CourseSchedule> curList = courseScheduleMapper.findByTeacherIdAndDateRange(teacher.getId(), startOfMonth, endOfMonth);
+            java.util.List<com.touhouqing.grabteacherbackend.model.entity.CourseSchedule> lastList = courseScheduleMapper.findByTeacherIdAndDateRange(teacher.getId(), lastStartOfMonth, lastEndOfMonth);
+
+            // 收集课程ID并批量查询课程的教师时薪
+            java.util.Set<Long> courseIds = new java.util.HashSet<>();
+            for (var cs : curList) { if (cs.getCourseId() != null) courseIds.add(cs.getCourseId()); }
+            for (var cs : lastList) { if (cs.getCourseId() != null) courseIds.add(cs.getCourseId()); }
+            java.util.Map<Long, java.math.BigDecimal> courseRateMap = new java.util.HashMap<>();
+            if (!courseIds.isEmpty()) {
+                java.util.List<com.touhouqing.grabteacherbackend.model.entity.Course> courses = courseMapper.selectBatchIds(new java.util.ArrayList<>(courseIds));
+                for (var c : courses) {
+                    courseRateMap.put(c.getId(), c.getTeacherHourlyRate());
+                }
+            }
+            java.math.BigDecimal fallbackRate = teacher.getHourlyRate() != null ? teacher.getHourlyRate() : java.math.BigDecimal.ZERO;
+
+            java.util.function.Function<java.util.List<com.touhouqing.grabteacherbackend.model.entity.CourseSchedule>, java.math.BigDecimal> calcSum = (list) -> {
+                java.math.BigDecimal sum = java.math.BigDecimal.ZERO;
+                for (var cs : list) {
+                    if (!"completed".equalsIgnoreCase(cs.getScheduleStatus())) continue; // 仅完成的课节计入收入
+                    Integer mins = cs.getDurationMinutes();
+                    if (mins == null || mins <= 0) {
+                        // 兜底：用时间差计算
+                        if (cs.getStartTime() != null && cs.getEndTime() != null) {
+                            int m = java.time.Duration.between(cs.getStartTime(), cs.getEndTime()).toMinutesPart();
+                            mins = m > 0 ? m : 0;
+                        } else {
+                            continue;
+                        }
+                    }
+                    java.math.BigDecimal hours = new java.math.BigDecimal(mins).divide(new java.math.BigDecimal(60), 4, java.math.RoundingMode.HALF_UP);
+                    java.math.BigDecimal rate = fallbackRate;
+                    if (cs.getCourseId() != null) {
+                        java.math.BigDecimal r = courseRateMap.get(cs.getCourseId());
+                        if (r != null) rate = r;
+                    }
+                    if (rate.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        sum = sum.add(rate.multiply(hours));
+                    }
+                }
+                return sum.setScale(2, java.math.RoundingMode.HALF_UP);
+            };
+
+            java.math.BigDecimal currentEarnings = calcSum.apply(curList);
+            java.math.BigDecimal lastEarnings = calcSum.apply(lastList);
+
+            statistics.put("currentEarnings", currentEarnings);
+            statistics.put("lastEarnings", lastEarnings);
+        } catch (Exception e) {
+            log.warn("统计教师收入失败，降级为0: userId={}, err={}", userId, e.toString());
+            statistics.put("currentEarnings", java.math.BigDecimal.ZERO);
+            statistics.put("lastEarnings", java.math.BigDecimal.ZERO);
+        }
+
         statistics.put("rescheduleRequests", rescheduleRequestsCount);
         statistics.put("totalCourses", totalCourses != null ? totalCourses.intValue() : 0);
         statistics.put("upcomingClasses", upcomingClasses != null ? upcomingClasses.intValue() : 0);

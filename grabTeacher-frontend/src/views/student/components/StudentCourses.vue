@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { ref, computed, onMounted, defineAsyncComponent, reactive } from 'vue'
+import { ref, computed, onMounted, defineAsyncComponent, reactive, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Timer, Refresh, VideoCamera, InfoFilled, Clock, Collection, Reading, Star } from '@element-plus/icons-vue'
 import { bookingAPI, rescheduleAPI, teacherAPI, studentAPI, apiRequest, suspensionAPI, enrollmentAPI } from '../../../utils/api'
@@ -34,7 +34,8 @@ interface CourseSchedule {
   bookingRequestId?: number;
   enrollmentId?: number;
   bookingSource?: string;
-  trial?: boolean;  // 与后端字段名保持一致
+  isTrial?: boolean; // 后端统一字段
+  trial?: boolean;  // 兼容旧字段（少量旧接口/历史数据）
   sessionNumber?: number;
   courseType?: string;
 }
@@ -222,7 +223,8 @@ const loadStudentCoursesV2 = async () => {
         createdAt: '',
         bookingRequestId: card.bookingRequestId ? Number(card.bookingRequestId) : (s.bookingRequestId ? Number(s.bookingRequestId) : undefined),
         enrollmentId: card.enrollmentId ? Number(card.enrollmentId) : (s.enrollmentId ? Number(s.enrollmentId) : undefined),
-        trial: false,
+        isTrial: Boolean(s.isTrial ?? s.trial ?? card.isTrial ?? card.trial ?? false),
+        trial: Boolean(s.isTrial ?? s.trial ?? card.isTrial ?? card.trial ?? false),
         sessionNumber: s.sessionNumber ? Number(s.sessionNumber) : undefined,
         courseType: String(card.courseType || '')
       }))
@@ -456,7 +458,6 @@ const getSubjectImage = (subject: string): string => {
 
 onMounted(() => {
   loadStudentCoursesV2()
-  loadBookings()
   // 延迟并行加载非关键数据，避免首屏并发四个请求
   setTimeout(async () => {
     try {
@@ -479,6 +480,8 @@ const activeTab = ref('active')
 // 预约相关接口
 interface BookingRequest {
   id: number
+
+
   teacherName: string
   courseTitle?: string
   subjectName?: string
@@ -554,6 +557,18 @@ const filteredBookings = computed(() => {
   }
   return []
 })
+// 懒加载预约列表：仅在切换到“待审核/已审核”标签时请求，避免与课程接口并发
+const loadedBookingStatuses = ref<Set<string>>(new Set())
+watch(activeTab, async (val: string) => {
+  if (val === 'pending' || val === 'approved') {
+    if (!loadedBookingStatuses.value.has(val)) {
+      statusFilter.value = val
+      await loadBookings()
+      loadedBookingStatuses.value.add(val)
+    }
+  }
+})
+
 
 // 已审核且未开始的预约（用于“进行中”标签展示）
 const isBookingNotStartedYet = (b: BookingRequest): boolean => {
@@ -618,6 +633,8 @@ const generatePlannedSchedulesFromBooking = (b: BookingRequest): CourseSchedule[
       durationMinutes: duration,
       totalTimes: total,
       status: 'scheduled',
+      isTrial: Boolean(b.isTrial),
+      trial: Boolean(b.isTrial),
       sessionNumber: (idx ?? result.length) + 1
     } as unknown as CourseSchedule)
   }
@@ -1476,15 +1493,34 @@ const loadSuspensionStatus = async () => {
 
 
 
-// 发起停课申请
+// 发起停课（试听课：直接确认并删除该节课；正式课：走停课申请流程）
 const requestSuspension = async (course: Course) => {
-  // 预解析报名ID：优先课表；若无课表则按预约ID查询报名
+  // 若下一节为试听课：无需选择日期，直接确认 -> 删除该节课并恢复试听次数
+  const next = getNextSchedule(course.schedules)
+  if (next && next.isTrial && next.id) {
+    try {
+      await ElMessageBox.confirm(
+        '确认要停掉该试听课？此操作将删除该节课，并恢复您的试听次数。',
+        '确认停课',
+        { type: 'warning', confirmButtonText: '确认停课', cancelButtonText: '再想想' }
+      )
+      await bookingAPI.cancelTrialSchedule(Number(next.id))
+      ElMessage.success('试听课已停课，试听次数已恢复')
+      await loadStudentCoursesV2()
+    } catch (e: any) {
+      if (e !== 'cancel') {
+        ElMessage.error(e?.message || '停课失败，请稍后重试')
+      }
+    }
+    return
+  }
+
+  // 正式课：打开停课申请弹窗
   currentSuspensionEnrollmentId.value = null
   let eid: number | null = null
   const eidFromSchedule = course.schedules?.[0]?.enrollmentId
   if (eidFromSchedule && Number(eidFromSchedule) > 0) {
     eid = Number(eidFromSchedule)
-
   } else if (course.bookingRequestId) {
     try {
       const res = await enrollmentAPI.getByBookingRequestId(course.bookingRequestId)
@@ -2126,7 +2162,7 @@ export default {
                       <el-icon><Reading /></el-icon> 查看成绩
                     </el-button>
                     <el-button
-                      v-if="course.remainingLessons && course.remainingLessons > 0"
+                      v-if="course.remainingLessons && course.remainingLessons > 0 && !(getNextSchedule(course.schedules)?.isTrial)"
                       size="small"
                       type="warning"
                       @click="showReschedule(course)"

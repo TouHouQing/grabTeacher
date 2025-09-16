@@ -274,6 +274,12 @@ public class RescheduleController {
                         .body(CommonResult.error("无权限操作此课程安排"));
             }
 
+            // 禁止试听课调课
+            if (Boolean.TRUE.equals(enrollment.getTrial())) {
+                return ResponseEntity.badRequest()
+                        .body(CommonResult.error("试听课不允许调课"));
+            }
+
             // 首先检查教师可用时间
             try {
                 validateSingleRescheduleTime(schedule.getTeacherId(), newDate, newStartTime, newEndTime);
@@ -387,6 +393,12 @@ public class RescheduleController {
             if (teacher == null || enrollment2 == null || !enrollment2.getTeacherId().equals(teacher.getId())) {
                 return ResponseEntity.badRequest()
                         .body(CommonResult.error("无权限操作此课程安排"));
+            }
+
+            // 禁止试听课调课
+            if (Boolean.TRUE.equals(enrollment2.getTrial())) {
+                return ResponseEntity.badRequest()
+                        .body(CommonResult.error("试听课不允许调课"));
             }
 
             // 首先检查教师可用时间

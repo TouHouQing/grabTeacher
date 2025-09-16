@@ -661,6 +661,9 @@ export const bookingAPI = {
   // 检查免费试听资格
   checkTrialEligibility: () => apiRequest('/api/booking/trial/check'),
 
+  // 取消试听课节（教师/学生端）：删除该节课并恢复学生试听次数
+  cancelTrialSchedule: (scheduleId: number) => apiRequest(`/api/booking/trial/schedule/${scheduleId}`, { method: 'DELETE' }),
+
   // 管理员获取预约申请列表
   getAdminRequests: (params: {
     page?: number
@@ -726,6 +729,7 @@ export const courseAPI = {
     status?: string
     gender?: string
     price?: number | null
+    teacherHourlyRate?: number | null
     startDate?: string
     endDate?: string
     personLimit?: number | null
@@ -748,6 +752,8 @@ export const courseAPI = {
     status?: string
     gender?: string
     price?: number | null
+    teacherHourlyRate?: number | null
+
     startDate?: string
     endDate?: string
     personLimit?: number | null

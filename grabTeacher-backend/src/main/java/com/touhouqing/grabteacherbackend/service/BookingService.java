@@ -112,7 +112,15 @@ public interface BookingService {
      * @param userId 用户ID
      */
     void resetTrialUsage(Long userId);
-    
+
+    /**
+     * 取消并删除一节试听课（教师或学生发起），并恢复学生的试听次数
+     * 仅允许对未开始、状态为 scheduled 的试听课执行
+     * @param scheduleId 课程安排ID
+     * @param operatorUserId 当前操作用户的ID（用于权限校验）
+     */
+    void cancelTrialSchedule(Long scheduleId, Long operatorUserId);
+
     /**
      * 检查教师在指定时间是否有冲突
      * @param teacherId 教师ID

@@ -64,6 +64,11 @@ public class SuspensionServiceImpl implements SuspensionService {
             }
         }
 
+        // 试听课无需停课申请（直接在试听课节上操作停课）
+        if (Boolean.TRUE.equals(enrollment.getTrial())) {
+            throw new RuntimeException("试听课无需停课申请，请直接在试听课节点击停课");
+        }
+
         // 权限校验
         if (student != null) {
             if (!Objects.equals(enrollment.getStudentId(), student.getId())) throw new RuntimeException("无权限操作该报名");

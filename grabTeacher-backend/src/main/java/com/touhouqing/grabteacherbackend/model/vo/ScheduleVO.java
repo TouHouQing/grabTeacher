@@ -6,9 +6,13 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 
 /**
  * 课程安排响应DTO
@@ -19,7 +23,7 @@ import java.time.LocalDateTime;
 @Builder
 @Schema(description = "课程安排响应数据")
 public class ScheduleVO {
-    
+
     @Schema(description = "排课ID", example = "1")
     private Long id;
 
@@ -81,6 +85,8 @@ public class ScheduleVO {
     private String bookingSource;
 
     @Schema(description = "是否为试听课", example = "false")
+    @JsonProperty("isTrial")
+    @JsonAlias({"isTrial", "trial"})
     private Boolean trial;
 
     @Schema(description = "课程序号（在周期性课程中的第几次课）", example = "1")
@@ -88,4 +94,7 @@ public class ScheduleVO {
 
     @Schema(description = "课程类型", example = "one_on_one", allowableValues = {"one_on_one", "large_class"})
     private String courseType;
+
+    @Schema(description = "教师时薪（仅一对一&非试听），单位：M豆/小时")
+    private BigDecimal teacherHourlyRate;
 }

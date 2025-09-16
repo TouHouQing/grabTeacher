@@ -70,6 +70,10 @@ public class Course {
     @Schema(description = "课程单价，单位：M豆，1M豆=1元，课程价格，1对1代表每小时价格，大班课代表总课程价格", example = "299.00")
     private BigDecimal price;
 
+    @TableField("teacher_hourly_rate")
+    @Schema(description = "教师时薪（仅一对一使用），单位：M豆/小时。用于计算教师收入，与学生价格（price）可不一致", example = "60.00")
+    private BigDecimal teacherHourlyRate;
+
     @TableField("start_date")
     @Schema(description = "开始日期（大班课专用）", example = "2026-01-15")
     private LocalDate startDate;

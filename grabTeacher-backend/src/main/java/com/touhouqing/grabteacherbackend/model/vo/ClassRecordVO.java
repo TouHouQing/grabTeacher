@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -54,4 +55,7 @@ public class ClassRecordVO {
 
     @Schema(description = "课程时长（分钟）")
     private Integer durationMinutes;
+
+    @Schema(description = "教师时薪（仅一对一&非试听），单位：M豆/小时")
+    private BigDecimal teacherHourlyRate;
 }

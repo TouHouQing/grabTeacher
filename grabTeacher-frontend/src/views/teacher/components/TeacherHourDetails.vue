@@ -78,6 +78,13 @@
           {{ row.durationMinutes }}分钟
         </template>
       </el-table-column>
+      <el-table-column label="时薪" width="100" align="center">
+        <template #default="{ row }">
+          <span v-if="row.isTrial || row.courseType !== 'one_on_one' || !row.teacherHourlyRate">-</span>
+          <span v-else>{{ row.teacherHourlyRate }} M豆/小时</span>
+        </template>
+      </el-table-column>
+
     </el-table>
     <div class="pagination-container">
       <el-pagination
@@ -113,6 +120,7 @@ interface ClassRecord {
   teacherNotes?: string
   studentFeedback?: string
   durationMinutes: number
+  teacherHourlyRate?: number
 }
 
 const filterForm = reactive({

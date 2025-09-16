@@ -420,5 +420,26 @@ public class BookingController {
         }
     }
 
+    /**
+     * 取消试听课节（教师/学生）：无需日期选择，直接删除该节试听课并恢复学生试听次数
+     */
+    @DeleteMapping("/trial/schedule/{scheduleId}")
+    @PreAuthorize("hasAnyRole('STUDENT','TEACHER')")
+    @Operation(summary = "取消试听课节并恢复试听次数", description = "仅用于试听课：无需选择日期，直接删除该节课并恢复学生的试听次数")
+    public ResponseEntity<CommonResult<Void>> cancelTrialSchedule(
+            @Parameter(description = "课表ID", required = true) @PathVariable Long scheduleId,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        try {
+            bookingService.cancelTrialSchedule(scheduleId, currentUser.getId());
+            return ResponseEntity.ok(CommonResult.success("已取消该试听课并恢复学生试听次数", null));
+        } catch (RuntimeException e) {
+            logger.warn("取消试听课失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("取消试听课异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("取消失败"));
+        }
+    }
+
 
 }

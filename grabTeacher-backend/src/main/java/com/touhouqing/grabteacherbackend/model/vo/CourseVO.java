@@ -74,6 +74,10 @@ public class CourseVO {
     @Schema(description = "课程价格（大班课专用）", example = "299.00")
     private BigDecimal price;
 
+    @Schema(description = "教师时薪（仅一对一使用），单位：M豆/小时。仅管理员和教师端有意义")
+    private BigDecimal teacherHourlyRate;
+
+
     @Schema(description = "开始日期（大班课专用）", example = "2024-01-15")
     private LocalDate startDate;
 

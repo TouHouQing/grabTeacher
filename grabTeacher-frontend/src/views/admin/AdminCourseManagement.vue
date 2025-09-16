@@ -22,6 +22,7 @@ interface Course {
   createdAt: string
   featured: boolean
   price?: number
+  teacherHourlyRate?: number | null
   startDate?: string
   endDate?: string
   personLimit?: number
@@ -91,6 +92,8 @@ const courseForm = reactive({
   durationMinutes: null as number | null,
   status: 'active',
   price: null as number | null,
+  teacherHourlyRate: null as number | null,
+
   startDate: '',
   endDate: '',
   personLimit: null as number | null,
@@ -189,6 +192,20 @@ const formRules = {
       trigger: 'blur'
     }
   ],
+  teacherHourlyRate: [
+    {
+      validator: (_rule: any, value: any, callback: any) => {
+        if (courseForm.courseType !== 'one_on_one') return callback()
+        if (value !== null && value !== undefined && value <= 0) {
+          callback(new Error('教师时薪必须大于0（不填表示按老师默认时薪）'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
+  ],
+
   startDate: [
     {
       validator: (_rule: any, value: any, callback: any) => {
@@ -394,6 +411,7 @@ const resetForm = () => {
   courseForm.durationMinutes = null
   courseForm.status = 'active'
   courseForm.price = null
+  courseForm.teacherHourlyRate = null
   courseForm.startDate = ''
   courseForm.endDate = ''
   courseForm.courseTimeSlots = []
@@ -426,6 +444,8 @@ const openEditDialog = async (course: Course) => {
   courseForm.courseType = course.courseType
   courseForm.durationMinutes = course.durationMinutes ?? null
   courseForm.status = course.status
+  ;(courseForm as any).teacherHourlyRate = (course as any).teacherHourlyRate ?? null
+
   courseForm.price = course.price || null
   courseForm.startDate = course.startDate || ''
   courseForm.endDate = course.endDate || ''
@@ -483,6 +503,8 @@ const openEditDialog = async (course: Course) => {
     if (resp?.success && resp.data) {
       const detail = resp.data as any
       if (detail.courseType) courseForm.courseType = detail.courseType
+      if (detail.teacherHourlyRate !== undefined) (courseForm as any).teacherHourlyRate = detail.teacherHourlyRate ?? null
+
       if (detail.durationMinutes) courseForm.durationMinutes = detail.durationMinutes
       if (detail.status) courseForm.status = detail.status
       if (detail.price !== undefined) courseForm.price = detail.price ?? null
@@ -556,6 +578,7 @@ const saveCourse = async () => {
       // durationMinutes: handled in type-specific block
       status: courseForm.status,
       price: courseForm.price, // 所有课程类型都可以设置价格
+      teacherHourlyRate: courseForm.courseType === 'one_on_one' ? courseForm.teacherHourlyRate : null,
       ...(coverUrl ? { imageUrl: coverUrl } : {})
     }
 
@@ -867,6 +890,20 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
         <el-table-column prop="id" label="ID" width="80" align="center" />
         <el-table-column prop="title" label="课程标题" min-width="180" show-overflow-tooltip />
         <el-table-column prop="teacherName" label="授课教师" width="100" />
+        <el-table-column label="教师时薪" width="120">
+          <template #default="{ row }">
+            <span v-if="row.courseType === 'one_on_one'">
+              <template v-if="row.teacherHourlyRate !== null && row.teacherHourlyRate !== undefined">
+                {{ row.teacherHourlyRate }}M豆/时
+              </template>
+              <template v-else>
+                按老师默认
+              </template>
+            </span>
+            <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
+
         <el-table-column prop="subjectName" label="科目" width="80" />
         <el-table-column prop="courseTypeDisplay" label="类型" width="80" />
         <el-table-column prop="durationMinutes" label="时长" width="90">
@@ -1179,6 +1216,9 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
             placeholder="不填表示可定制价格"
             clearable
           />
+
+
+          />
           <span style="margin-left: 10px; color: #909399;" v-if="courseForm.courseType === 'one_on_one'">
             M豆/小时（不填表示价格面议）
           </span>
@@ -1198,6 +1238,22 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
             </span>
           </template>
         </el-form-item>
+
+        <el-form-item v-if="courseForm.courseType === 'one_on_one'" label="教师时薪" prop="teacherHourlyRate">
+          <el-input-number
+            v-model="courseForm.teacherHourlyRate"
+            :min="0"
+            :precision="2"
+            :step="5"
+            style="width: 200px"
+            placeholder="不填表示按老师默认时薪"
+            clearable
+          />
+          <span style="margin-left: 10px; color: #909399;">
+            M豆/小时（仅用于计算教师收入，可与学生价不一致）
+          </span>
+        </el-form-item>
+
 
         <!-- 大班课：授课方式与地点选择（方案A） -->
         <template v-if="courseForm.courseType === 'large_class'">

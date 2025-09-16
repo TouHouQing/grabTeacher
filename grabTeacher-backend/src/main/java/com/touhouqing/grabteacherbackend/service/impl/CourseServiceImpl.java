@@ -192,6 +192,7 @@ public class CourseServiceImpl implements CourseService {
                 .deleted(false)
                 .imageUrl(request.getImageUrl())
                 .price(request.getPrice()) // 所有课程类型都可以设置价格
+                .teacherHourlyRate("one_on_one".equals(request.getCourseType()) ? request.getTeacherHourlyRate() : null)
                 .build();
         course.setCourseLocation(finalCourseLocation);
 
@@ -339,6 +340,14 @@ public class CourseServiceImpl implements CourseService {
 
         // 设置价格（所有课程类型都可以有价格）
         course.setPrice(request.getPrice());
+
+        // 教师时薪：仅对一对一课程生效
+        if ("one_on_one".equals(request.getCourseType())) {
+            course.setTeacherHourlyRate(request.getTeacherHourlyRate());
+        } else {
+            course.setTeacherHourlyRate(null);
+        }
+
 
         // 更新大班课专用字段
         if ("large_class".equals(request.getCourseType())) {
@@ -758,6 +767,7 @@ public class CourseServiceImpl implements CourseService {
                 .createdAt(course.getCreatedAt())
                 .courseLocation(course.getCourseLocation())
                 .price(course.getPrice())
+                .teacherHourlyRate(course.getTeacherHourlyRate())
                 .startDate(course.getStartDate())
                 .endDate(course.getEndDate())
                 .personLimit(course.getPersonLimit())
@@ -899,6 +909,7 @@ public class CourseServiceImpl implements CourseService {
                     .createdAt(c.getCreatedAt())
                     .courseLocation(c.getCourseLocation())
                     .price(c.getPrice())
+                    .teacherHourlyRate(c.getTeacherHourlyRate())
                     .startDate(c.getStartDate())
                     .endDate(c.getEndDate())
                     .personLimit(c.getPersonLimit())

@@ -13,6 +13,7 @@ import {
   Money,
   Setting,
   ChatDotRound,
+  ChatLineRound,
   List,
   Refresh,
   Lock
@@ -43,6 +44,7 @@ interface ScheduleItem {
   courseTitle?: string
   subjectName?: string
   grade?: string
+  teacherHourlyRate?: number
 }
 
 
@@ -74,10 +76,6 @@ const calendarLoading = ref(false)
 const monthDate = ref(new Date())
 const monthSchedules = ref<ScheduleItem[]>([])
 
-// 全部课程抽屉
-const allSchedulesVisible = ref(false)
-const allSchedulesLoading = ref(false)
-const allSchedules = ref<ScheduleItem[]>([])
 
 // 统计数据
 const statistics = ref({
@@ -90,8 +88,6 @@ const statistics = ref({
   monthlyRescheduleCount: 0
 })
 const statsLoading = ref(false)
-// 工资统计（基于时薪 * 课时）
-const salary = ref({ currentSalary: 0, lastSalary: 0 })
 
 // 课时详情模态框
 const showHourDetailsModal = ref(false)
@@ -263,32 +259,6 @@ const loadMonthSchedules = async () => {
     }
   } catch (e) {
 //      load all schedules for current teacher (very wide range)
-const loadAllSchedules = async () => {
-  try {
-    allSchedulesLoading.value = true
-    const res = await bookingAPI.getTeacherSchedules({ startDate: '1970-01-01', endDate: '2099-12-31' })
-    if (res.success && Array.isArray(res.data)) {
-      allSchedules.value = res.data.sort((a: any, b: any) => {
-        const d = a.scheduledDate.localeCompare(b.scheduledDate)
-        if (d !== 0) return d
-        return a.startTime.localeCompare(b.startTime)
-      })
-    } else {
-      allSchedules.value = []
-      ElMessage.error(res.message || '获取全部课程失败')
-    }
-  } catch (e) {
-    allSchedules.value = []
-    ElMessage.error('获取全部课程失败，请稍后重试')
-  } finally {
-    allSchedulesLoading.value = false
-  }
-}
-
-const openAllSchedulesDrawer = async () => {
-  allSchedulesVisible.value = true
-  if (allSchedules.value.length === 0) await loadAllSchedules()
-}
 
     console.error('加载当月课表失败:', e)
   } finally {
@@ -297,36 +267,6 @@ const openAllSchedulesDrawer = async () => {
 }
 
 // 全部课程抽屉（独立实现，避免受上方函数内作用域影响）
-const allVisible = ref(false)
-const allLoading = ref(false)
-const allList = ref<ScheduleItem[]>([])
-
-const fetchAllSchedules = async () => {
-  try {
-    allLoading.value = true
-    const res = await bookingAPI.getTeacherSchedules({ startDate: '1970-01-01', endDate: '2099-12-31' })
-    if (res.success && Array.isArray(res.data)) {
-      allList.value = res.data.sort((a: any, b: any) => {
-        const d = a.scheduledDate.localeCompare(b.scheduledDate)
-        if (d !== 0) return d
-        return a.startTime.localeCompare(b.startTime)
-      })
-    } else {
-      allList.value = []
-      ElMessage.error(res.message || '获取全部课程失败')
-    }
-  } catch (e) {
-    allList.value = []
-    ElMessage.error('获取全部课程失败，请稍后重试')
-  } finally {
-    allLoading.value = false
-  }
-}
-
-const openAllSchedules = async () => {
-  allVisible.value = true
-  if (allList.value.length === 0) await fetchAllSchedules()
-}
 
 
 const dateHasSchedule = (date: Date) => {
@@ -408,8 +348,30 @@ const openRescheduleModal = async (schedule: ScheduleItem) => {
 }
 
 
-// 打开停课弹窗（从即将开始/详情发起）
-const openSuspensionDialog = (schedule: ScheduleItem) => {
+// 打开停课（试听课直接停课并恢复次数；正式课走停课申请）
+const openSuspensionDialog = async (schedule: ScheduleItem) => {
+  // 试听课：无需选择日期，直接确认 -> 删除该节课并恢复学生试听次数
+  if (schedule.isTrial) {
+    try {
+      await ElMessageBox.confirm(
+        '确认要停掉该试听课？此操作将删除该节课，并恢复学生的试听次数。',
+        '确认停课',
+        { type: 'warning', confirmButtonText: '确认停课', cancelButtonText: '再想想' }
+      )
+      await bookingAPI.cancelTrialSchedule(Number(schedule.id))
+      ElMessage.success('试听课已停课，已恢复学生的试听次数')
+      await fetchUpcomingCourses()
+      await loadMonthSchedules()
+      showScheduleDetailModal.value = false
+    } catch (e: any) {
+      if (e !== 'cancel') {
+        ElMessage.error(e?.message || '停课失败，请稍后重试')
+      }
+    }
+    return
+  }
+
+  // 正式课：走原停课申请流程
   if (!schedule.enrollmentId) {
     ElMessage.error('缺少报名ID，无法发起停课申请')
     return
@@ -497,18 +459,13 @@ const loadStatistics = async () => {
         lastHours: statsRes.data.lastHours || 0,
         monthlyRescheduleCount: statsRes.data.monthlyRescheduleCount || 0
       }
+
     } else {
       ElMessage.error(statsRes.message || '获取统计数据失败')
     }
 
-    // 基于资料中的时薪计算工资
-    if (profileRes.success && profileRes.data) {
-      const rate = Number(profileRes.data.hourlyRate || 0)
-      const ch = Number(statistics.value.currentHours || 0)
-      const lh = Number(statistics.value.lastHours || 0)
-      salary.value.currentSalary = Math.round(rate * ch * 100) / 100
-      salary.value.lastSalary = Math.round(rate * lh * 100) / 100
-    } else {
+    // 教师资料获取仍保留，但不再用于计算收入（收入已由后端精确计算）
+    if (!profileRes.success) {
       ElMessage.error(profileRes.message || '获取教师资料失败')
     }
   } catch (error) {
@@ -625,6 +582,8 @@ onMounted(async () => {
                 <div class="stat-hint">点击查看详情</div>
               </div>
             </div>
+
+
           </div>
 
           <div class="calendar-section">
@@ -644,7 +603,7 @@ onMounted(async () => {
                   <el-icon><Refresh /></el-icon>
                   刷新
                 </el-button>
-                <el-button @click="openAllSchedules" style="margin-left: 8px;">查看全部课程</el-button>
+
               </div>
 
 
@@ -727,10 +686,16 @@ onMounted(async () => {
                     <el-tag v-else type="success" size="small">正式</el-tag>
                   </template>
                 </el-table-column>
+                <el-table-column label="时薪" width="120">
+                  <template #default="scope">
+                    <span v-if="scope.row.isTrial || scope.row.courseType !== 'one_on_one' || !scope.row.teacherHourlyRate">-</span>
+                    <span v-else>{{ scope.row.teacherHourlyRate }} M豆/小时</span>
+                  </template>
+                </el-table-column>
                 <el-table-column label="操作" width="260">
                   <template #default="scope">
                     <el-button type="primary" size="small" @click="viewScheduleDetail(scope.row)">详情</el-button>
-                    <el-button type="warning" size="small" @click="openRescheduleModal(scope.row)">
+                    <el-button v-if="!scope.row.isTrial" type="warning" size="small" @click="openRescheduleModal(scope.row)">
                       <el-icon><Refresh /></el-icon>
                       申请调课
                     </el-button>
@@ -801,34 +766,6 @@ onMounted(async () => {
           </div>
           <div class="detail-item">
 
-    <!-- 全部课程抽屉 -->
-    <el-drawer v-model="allVisible" title="全部课程" size="70%">
-      <div v-loading="allLoading">
-        <el-table :data="allList" style="width: 100%">
-          <el-table-column prop="scheduledDate" label="日期" width="120" />
-          <el-table-column label="时间" width="140">
-            <template #default="scope">
-              {{ scope.row.startTime }}-{{ scope.row.endTime }}
-            </template>
-          </el-table-column>
-          <el-table-column label="课程">
-            <template #default="scope">
-              {{ buildOneToOneTitle(scope.row) || scope.row.courseTitle || scope.row.courseName }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="studentName" label="学生" width="140" />
-          <el-table-column prop="subjectName" label="科目" width="120" />
-          <el-table-column label="状态" width="100">
-            <template #default="scope">
-              <el-tag :type="getScheduleStatusTag(scope.row.status)" size="small">{{ getScheduleStatusText(scope.row.status) }}</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
-        <div v-if="!allLoading && allList.length === 0" class="empty-state">
-          <el-empty description="暂无课程" />
-        </div>
-      </div>
-    </el-drawer>
 
             <div class="label">学科</div>
             <div class="value">{{ selectedSchedule.subjectName || '-' }}</div>
@@ -837,6 +774,14 @@ onMounted(async () => {
             <div class="label">时长</div>
             <div class="value">{{ selectedSchedule.durationMinutes || 0 }} 分钟</div>
           </div>
+          <div class="detail-item">
+            <div class="label">时薪</div>
+            <div class="value">
+              <span v-if="selectedSchedule?.isTrial || selectedSchedule?.courseType !== 'one_on_one' || !selectedSchedule?.teacherHourlyRate">-</span>
+              <span v-else>{{ selectedSchedule.teacherHourlyRate }} M豆/小时</span>
+            </div>
+          </div>
+
           <div class="detail-item">
             <div class="label">状态</div>
             <div class="value">
@@ -852,7 +797,7 @@ onMounted(async () => {
       <template #footer>
         <div class="dialog-actions">
           <el-button @click="showScheduleDetailModal = false">关闭</el-button>
-          <el-button type="warning" @click="selectedSchedule && openRescheduleModal(selectedSchedule)">
+          <el-button v-if="selectedSchedule && !selectedSchedule.isTrial" type="warning" @click="openRescheduleModal(selectedSchedule)">
             <el-icon><Refresh /></el-icon>
             申请调课
           </el-button>

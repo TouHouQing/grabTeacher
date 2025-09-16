@@ -80,40 +80,52 @@ public class CourseSchedule {
     private LocalDateTime deletedAt;
 
     // 以下字段来源于 course_enrollments 关联，用于业务便捷读取，不直接持久化
+    @TableField(exist = false)
     @Schema(description = "教师ID（来自course_enrollments）")
     private Long teacherId;
 
+    @TableField(exist = false)
     @Schema(description = "学生ID（来自course_enrollments）")
     private Long studentId;
 
+    @TableField(exist = false)
     @Schema(description = "课程ID（来自course_enrollments）")
     private Long courseId;
 
+    @TableField(exist = false)
     @Schema(description = "预约申请ID（来自course_enrollments）")
     private Long bookingRequestId;
 
     // 便捷展示用的非持久化字段（JOIN 或 关联派生）
+    @TableField(exist = false)
     @Schema(description = "教师姓名（JOIN）")
     private String teacherName;
 
+    @TableField(exist = false)
     @Schema(description = "学生姓名（JOIN）")
     private String studentName;
 
+    @TableField(exist = false)
     @Schema(description = "课程标题（JOIN）")
     private String courseTitle;
 
+    @TableField(exist = false)
     @Schema(description = "科目名称（JOIN）")
     private String subjectName;
 
+    @TableField(exist = false)
     @Schema(description = "年级（报名信息）")
     private String grade;
 
+    @TableField(exist = false)
     @Schema(description = "是否试听（报名信息）")
     private Boolean trial;
 
+    @TableField(exist = false)
     @Schema(description = "课程类型（报名信息）")
     private String courseType;
 
+    @TableField(exist = false)
     @Schema(description = "单次时长（分钟，报名信息）")
     private Integer durationMinutes;
 
