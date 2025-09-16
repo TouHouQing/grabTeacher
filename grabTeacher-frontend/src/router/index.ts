@@ -158,6 +158,12 @@ const router = createRouter({
       name: 'CourseDetail',
       component: () => import('../views/student/CourseDetail.vue')
     },
+    {
+      path: '/classroom/:id',
+      name: 'Classroom',
+      component: () => import('../views/student/Classroom.vue'),
+      meta: { requiresAuth: true, role: 'student' }
+    },
     // 兼容旧路由的重定向
     {
       path: '/student',
