@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, School, Trophy, ArrowLeft, Loading, Clock, User, Document, Timer } from '@element-plus/icons-vue'
-import { courseAPI, teacherAPI, enrollmentAPI, publicGradeAPI, publicTeachingLocationAPI, bookingAPI } from '../../utils/api'
+import { courseAPI, teacherAPI, enrollmentAPI, publicGradeAPI, publicTeachingLocationAPI, bookingAPI, subjectAPI } from '../../utils/api'
 import StudentBookingCalendar from '@/components/StudentBookingCalendar.vue'
 import { useUserStore } from '@/stores/user'
 
@@ -32,6 +32,18 @@ const allowedTeachingLocations = ref<Array<{ value: string | number; label: stri
 const grades = ref<{ id: string | number; name: string }[]>([])
 const selectedGrade = ref<string | number>('')
 const loadingGrades = ref(false)
+
+// 科目选择相关状态
+const subjects = ref<any[]>([])
+const selectedSubject = ref<string>('')
+const loadingSubjects = ref(false)
+
+// 偏好上课时间选择
+const selectedPeriods = ref<string[]>([])
+
+// 偏好开始/结束日期
+const preferredStartDate = ref<string>('')
+const preferredEndDate = ref<string>('')
 
 // 每周上课时间段类型（与后端 TimeSlotDTO 对齐）
 interface TimeSlotDTO {
@@ -157,6 +169,24 @@ const loadGrades = async () => {
   }
 }
 
+// 加载科目列表
+const loadSubjects = async () => {
+  try {
+    loadingSubjects.value = true
+    const res = await subjectAPI.getActiveSubjects()
+    if (res.success && Array.isArray(res.data)) {
+      subjects.value = res.data
+    } else {
+      subjects.value = []
+    }
+  } catch (e) {
+    subjects.value = []
+    ElMessage.error('加载科目列表失败')
+  } finally {
+    loadingSubjects.value = false
+  }
+}
+
 // 显示年级选择弹窗
 const showGradeSelection = async () => {
   if (grades.value.length === 0) {
@@ -210,7 +240,7 @@ const enrollCourse = async () => {
     }
     if (!course.value) return
 
-    // 一对一课程：直接在本页弹出课程安排（包含年级选择与授课地点）
+    // 一对一课程：直接在本页弹出课程安排（包含科目、年级、偏好时间、日期范围、授课地点选择）
     if (course.value.courseType === 'one_on_one') {
       if (allowedTeachingLocations.value.length === 0) {
         // 若尚未加载地点，尝试补载
@@ -223,6 +253,20 @@ const enrollCourse = async () => {
           allowedTeachingLocations.value = opts
         } catch {}
       }
+
+      // 加载科目列表
+      if (subjects.value.length === 0) {
+        await loadSubjects()
+      }
+
+      // 重置表单状态
+      selectedSubject.value = ''
+      selectedGrade.value = ''
+      selectedPeriods.value = []
+      preferredStartDate.value = ''
+      preferredEndDate.value = ''
+      selectedTeachingLocation.value = allowedTeachingLocations.value.length > 0 ? allowedTeachingLocations.value[0].value : ''
+
       showScheduleModal.value = true
       return
     }
@@ -274,8 +318,19 @@ const enrollCourse = async () => {
 
 // 详情页打开日历
 const openCalendarFromDetail = () => {
+  if (!selectedSubject.value) { ElMessage.warning('请先选择科目'); return }
   if (!selectedGrade.value) { ElMessage.warning('请先选择年级'); return }
+  if (selectedPeriods.value.length === 0) { ElMessage.warning('请选择偏好上课时间段'); return }
+  if (!preferredStartDate.value) { ElMessage.warning('请选择开始上课日期'); return }
+  if (!preferredEndDate.value) { ElMessage.warning('请选择结束上课日期'); return }
   if (!selectedTeachingLocation.value) { ElMessage.warning('请选择授课地点'); return }
+
+  // 验证日期范围
+  if (preferredStartDate.value > preferredEndDate.value) {
+    ElMessage.warning('结束日期不能早于开始日期')
+    return
+  }
+
   // 一对一课程默认 90 或 120，由日历页面选择；这里不强制
   calendarDlg.value?.open()
 }
@@ -283,10 +338,26 @@ const openCalendarFromDetail = () => {
 // 从日历确认后的提交
 const onCalendarConfirmFromDetail = async (sessions: Array<{ date: string; startTime: string; endTime: string }>, duration: 90|120) => {
   try {
+    // 构建偏好时间段
+    const preferredTimeSlots: string[] = []
+    if (selectedPeriods.value.includes('morning')) {
+      preferredTimeSlots.push('08:00-10:00', '10:00-12:00')
+    }
+    if (selectedPeriods.value.includes('afternoon')) {
+      preferredTimeSlots.push('13:00-15:00', '15:00-17:00')
+    }
+    if (selectedPeriods.value.includes('evening')) {
+      preferredTimeSlots.push('17:00-19:00', '19:00-21:00')
+    }
+
     const bookingData: any = {
       teacherId: course.value?.teacherId,
       courseId: course.value?.id,
+      subject: selectedSubject.value,
       grade: String(selectedGrade.value),
+      preferredTimeSlots: preferredTimeSlots,
+      preferredDateStart: preferredStartDate.value,
+      preferredDateEnd: preferredEndDate.value,
       bookingType: 'calendar' as const,
       isTrial: false,
       selectedDurationMinutes: duration,
@@ -546,16 +617,66 @@ const getStatusText = (status: string) => {
       <el-dialog
         v-model="showScheduleModal"
         :title="`${course.teacherName} - 课程安排`"
-        width="700px"
+        width="800px"
         :close-on-click-modal="false"
         destroy-on-close
       >
         <div class="schedule-modal-content">
           <el-form label-width="120px">
-            <el-form-item label="选择年级" required>
+            <el-form-item label="科目" required>
+              <el-select v-model="selectedSubject" placeholder="请选择科目" style="width: 100%" :loading="loadingSubjects">
+                <el-option
+                  v-for="subject in subjects"
+                  :key="subject.id"
+                  :label="subject.name"
+                  :value="subject.name"
+                />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="年级" required>
               <el-select v-model="selectedGrade" placeholder="请选择年级" style="width: 100%" :loading="loadingGrades" @visible-change="(v)=>{ if(v && grades.length===0) loadGrades() }">
                 <el-option v-for="g in grades" :key="g.id" :label="g.name" :value="g.id" />
               </el-select>
+            </el-form-item>
+
+            <el-form-item label="偏好上课时间" required>
+              <div class="time-preference-container">
+                <el-checkbox-group v-model="selectedPeriods" class="time-preference-checkbox-group">
+                  <div class="time-preference-row">
+                    <el-checkbox label="morning">上午（8-12点）</el-checkbox>
+                    <el-checkbox label="afternoon">下午（13-17点）</el-checkbox>
+                  </div>
+                  <div class="time-preference-row">
+                    <el-checkbox label="evening">晚上（17-21点）</el-checkbox>
+                  </div>
+                </el-checkbox-group>
+              </div>
+            </el-form-item>
+
+            <el-form-item label="开始上课日期" required>
+              <el-date-picker
+                v-model="preferredStartDate"
+                type="date"
+                placeholder="请选择开始日期"
+                :disabled-date="(date) => date < new Date()"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 100%"
+              />
+            </el-form-item>
+
+            <el-form-item label="结束上课日期" required>
+              <el-date-picker
+                v-model="preferredEndDate"
+                type="date"
+                placeholder="请选择结束日期"
+                :disabled="!preferredStartDate"
+                :disabled-date="(date) => preferredStartDate ? date < new Date(preferredStartDate) : false"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 100%"
+              />
             </el-form-item>
 
             <el-form-item label="授课地点" required>
@@ -564,14 +685,14 @@ const getStatusText = (status: string) => {
               </el-radio-group>
             </el-form-item>
 
-            <el-alert type="info" :closable="false" title="请选择年级与授课地点后，点击下方“打开日历选择”" />
+            <el-alert type="info" :closable="false" title="请完成所有必填项后，点击下方打开日历选择" />
           </el-form>
         </div>
 
         <template #footer>
           <span class="dialog-footer">
             <el-button @click="showScheduleModal = false">取消</el-button>
-            <el-button type="primary" @click="openCalendarFromDetail" :disabled="!selectedGrade || !selectedTeachingLocation">
+            <el-button type="primary" @click="openCalendarFromDetail" :disabled="!selectedSubject || !selectedGrade || selectedPeriods.length === 0 || !preferredStartDate || !preferredEndDate || !selectedTeachingLocation">
               <el-icon><Calendar /></el-icon> 打开日历选择
             </el-button>
           </span>
@@ -906,5 +1027,24 @@ const getStatusText = (status: string) => {
   font-size: 14px;
   margin-bottom: 20px;
   text-align: center;
+}
+
+/* 时间偏好选择样式 */
+.time-preference-container {
+  width: 100%;
+}
+
+.time-preference-checkbox-group {
+  width: 100%;
+}
+
+.time-preference-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.time-preference-row:last-child {
+  margin-bottom: 0;
 }
 </style>

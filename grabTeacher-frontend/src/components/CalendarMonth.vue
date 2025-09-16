@@ -25,13 +25,13 @@
           v-for="cell in calendarCells"
           :key="cell.key"
           class="day-card"
-          :class="{ 'is-other': cell.isOtherMonth, 'is-past': (mode==='teacher' && dayjs(cell.date).isBefore(dayjs().startOf('day'))) }"
+          :class="{ 'is-other': cell.isOtherMonth, 'is-past': dayjs(cell.date).isBefore(dayjs().startOf('day')) }"
         >
           <div class="date">
             <span class="date-number">{{ dayjs(cell.date).date() }}</span>
           </div>
           <BaseSlotBar
-            v-if="!cell.isOtherMonth && (mode==='student' || !dayjs(cell.date).isBefore(dayjs().startOf('day')))"
+            v-if="!cell.isOtherMonth && !dayjs(cell.date).isBefore(dayjs().startOf('day'))"
             :slots="cell.slots"
             :mode="mode"
             :selected="mode==='teacher' ? (teacherSelected[cell.date] || []) : ((props.durationMinutes===90) ? (selectedHalfSlots[cell.date] || []) : (selectedBaseSlots[cell.date] || []))"
@@ -187,24 +187,42 @@ const applyStudentFilters = () => {
   if (props.mode !== 'student') return
   for (const day of days.value) {
     const original = rawSlotsByDate.value[day.date] || []
+
+    // 过去日期过滤：不显示过去的日期
+    if (dayjs(day.date).isBefore(dayjs().startOf('day'))) {
+      day.slots = []
+      continue
+    }
+
     // 日期范围过滤
     if ((props.dateRangeStart && day.date < props.dateRangeStart) || (props.dateRangeEnd && day.date > props.dateRangeEnd)) {
       day.slots = []
       continue
     }
-    // 时间段过滤
-    if (props.allowedPeriods && props.allowedPeriods.length > 0) {
+
+    // 今天的时间段过滤：只显示未来的时间段
+    if (dayjs(day.date).isSame(dayjs(), 'day')) {
+      const currentHour = dayjs().hour()
       day.slots = original.filter((it: any) => {
         const start = String(it.slot || '').split('-')[0]
         const h = parseInt((start || '00').split(':')[0], 10)
-        let p: 'morning' | 'afternoon' | 'evening' | '' = ''
-        if (h >= 8 && h < 12) p = 'morning'
-        else if (h >= 13 && h < 17) p = 'afternoon'
-        else if (h >= 17 && h < 21) p = 'evening'
-        return p ? (props.allowedPeriods as any).includes(p) : false
+        return h > currentHour
       })
     } else {
-      day.slots = [...original]
+      // 未来日期：应用时间段偏好过滤
+      if (props.allowedPeriods && props.allowedPeriods.length > 0) {
+        day.slots = original.filter((it: any) => {
+          const start = String(it.slot || '').split('-')[0]
+          const h = parseInt((start || '00').split(':')[0], 10)
+          let p: 'morning' | 'afternoon' | 'evening' | '' = ''
+          if (h >= 8 && h < 12) p = 'morning'
+          else if (h >= 13 && h < 17) p = 'afternoon'
+          else if (h >= 17 && h < 21) p = 'evening'
+          return p ? (props.allowedPeriods as any).includes(p) : false
+        })
+      } else {
+        day.slots = [...original]
+      }
     }
   }
 }
