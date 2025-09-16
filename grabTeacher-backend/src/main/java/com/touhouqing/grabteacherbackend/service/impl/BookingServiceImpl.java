@@ -775,10 +775,9 @@ public class BookingServiceImpl implements BookingService {
             }
             // 课程标题与基础信息
             String title;
-            if (head.getCourseTitle() != null && !head.getCourseTitle().isEmpty()) {
-                title = head.getCourseTitle();
-            } else {
-                // 一对一自动生成：姓名+科目+年级+一对一课程
+            boolean isOneOnOne = head.getCourseType() != null && head.getCourseType().equalsIgnoreCase("one_on_one");
+            if (isOneOnOne) {
+                // 一对一强制使用：学生姓名 + 科目 + 年级 + 一对一课程
                 String studentName = head.getStudentName();
                 if ((studentName == null || studentName.isEmpty()) && head.getStudentId() != null) {
                     Student s = studentMapper.selectById(head.getStudentId());
@@ -794,12 +793,27 @@ public class BookingServiceImpl implements BookingService {
                 }
                 String grade = head.getGrade();
                 if (enrollment != null && (grade == null || grade.isEmpty())) grade = enrollment.getGrade();
+                if ((grade == null || grade.isEmpty()) && head.getBookingRequestId() != null) {
+                    BookingRequest br2 = bookingRequestMapper.selectById(head.getBookingRequestId());
+                    if (br2 != null && br2.getGrade() != null && !br2.getGrade().isEmpty()) grade = br2.getGrade();
+                }
                 StringBuilder sb = new StringBuilder();
                 if (studentName != null) sb.append(studentName);
                 if (subjectName != null) sb.append(subjectName);
                 if (grade != null) sb.append(grade);
                 sb.append("一对一课程");
                 title = sb.toString();
+            } else {
+                // 其他课程类型保持原有标题，若无则回退科目/类型
+                if (head.getCourseTitle() != null && !head.getCourseTitle().isEmpty()) {
+                    title = head.getCourseTitle();
+                } else if (head.getSubjectName() != null && !head.getSubjectName().isEmpty()) {
+                    title = head.getSubjectName();
+                } else if (head.getCourseType() != null) {
+                    title = head.getCourseType();
+                } else {
+                    title = "课程";
+                }
             }
             // 计算课程默认时长（分钟）
             Integer defaultDurationMinutes = null;
