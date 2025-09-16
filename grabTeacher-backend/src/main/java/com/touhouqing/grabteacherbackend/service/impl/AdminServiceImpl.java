@@ -400,27 +400,30 @@ public class AdminServiceImpl implements AdminService {
         student.setBudgetRange(request.getBudgetRange());
         student.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
 
-        // 管理员可以更新余额
-        if (request.getBalance() != null && !request.getBalance().equals(oldBalance)) {
-            student.setBalance(request.getBalance());
+        // 管理员可以更新余额（仅在余额实际变化时记录明细；忽略 0 与 0.00 的刻度差异）
+        if (request.getBalance() != null) {
+            BigDecimal oldBal = (oldBalance != null) ? oldBalance : BigDecimal.ZERO;
+            if (request.getBalance().compareTo(oldBal) != 0) {
+                student.setBalance(request.getBalance());
 
-            // 记录余额变动
-            BigDecimal amountChange = request.getBalance().subtract(oldBalance);
-            BalanceTransaction transaction = BalanceTransaction.builder()
-                    .userId(student.getUserId())
-                    .name(student.getRealName())
-                    .amount(amountChange)
-                    .balanceBefore(oldBalance)
-                    .balanceAfter(request.getBalance())
-                    .transactionType(amountChange.compareTo(BigDecimal.ZERO) > 0 ? "RECHARGE" : "DEDUCT")
-                    .reason("管理员调整余额")
-                    .operatorId(operatorId) // 管理员ID
-                    .createdAt(LocalDateTime.now())
-                    .build();
-            balanceTransactionMapper.insert(transaction);
+                // 记录余额变动（仅在有变动时）
+                BigDecimal amountChange = request.getBalance().subtract(oldBal);
+                BalanceTransaction transaction = BalanceTransaction.builder()
+                        .userId(student.getUserId())
+                        .name(student.getRealName())
+                        .amount(amountChange)
+                        .balanceBefore(oldBal)
+                        .balanceAfter(request.getBalance())
+                        .transactionType(amountChange.compareTo(BigDecimal.ZERO) > 0 ? "RECHARGE" : "DEDUCT")
+                        .reason("管理员调整余额")
+                        .operatorId(operatorId) // 管理员ID
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                balanceTransactionMapper.insert(transaction);
 
-            log.info("管理员更新学生余额: studentId={}, 余额变动: {} -> {}, 变动金额: {}",
-                    studentId, oldBalance, request.getBalance(), amountChange);
+                log.info("管理员更新学生余额: studentId={}, 余额变动: {} -> {}, 变动金额: {}",
+                        studentId, oldBal, request.getBalance(), amountChange);
+            }
         }
 
         studentMapper.updateById(student);
