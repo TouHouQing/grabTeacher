@@ -1199,7 +1199,7 @@ const onCalendarConfirm = async (sessions: Array<{ date: string; startTime: stri
     const bookingData: any = {
       teacherId: teacherId,
       courseId: (selectedCourse.value as any)?.id,
-      grade: String(selectedGrade.value),
+      grade: grades.value.find(g => g.id === selectedGrade.value)?.name || String(selectedGrade.value),
       bookingType: 'calendar' as const,
       isTrial: false,
       selectedDurationMinutes: duration,

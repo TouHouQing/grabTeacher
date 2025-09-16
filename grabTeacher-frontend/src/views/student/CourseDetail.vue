@@ -354,7 +354,7 @@ const onCalendarConfirmFromDetail = async (sessions: Array<{ date: string; start
       teacherId: course.value?.teacherId,
       courseId: course.value?.id,
       subject: selectedSubject.value,
-      grade: String(selectedGrade.value),
+      grade: grades.value.find(g => g.id === selectedGrade.value)?.name || String(selectedGrade.value),
       preferredTimeSlots: preferredTimeSlots,
       preferredDateStart: preferredStartDate.value,
       preferredDateEnd: preferredEndDate.value,
