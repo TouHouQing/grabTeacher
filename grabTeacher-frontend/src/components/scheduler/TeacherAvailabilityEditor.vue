@@ -109,6 +109,10 @@ const PRESETS: Record<string, { label: string; scope: 'all'|'weekday'|'weekend';
 
 const props = defineProps<{ teacherId: number; months?: number; adminMode?: boolean }>()
 
+const emit = defineEmits<{
+  (e: 'save-success'): void
+}>()
+
 const months = props.months || 6
 const overwrite = ref(false)
 const saving = ref(false)
@@ -161,6 +165,11 @@ const onSave = async () => {
     }
     ElMessage.success('保存成功')
     ;(calRef.value as any)?.refreshActiveMonth?.()
+
+    // 在管理员模式下触发保存成功事件
+    if (props.adminMode) {
+      emit('save-success')
+    }
   } catch (e:any) {
     ElMessage.error(e?.message || '保存失败')
   } finally {

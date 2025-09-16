@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, Search, Refresh, Check, Close } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search, Refresh, Check, Close, Calendar } from '@element-plus/icons-vue'
 import { teacherAPI, fileAPI, teacherLevelAPI, teachingLocationAPI } from '../../../utils/api'
 import { getApiBaseUrl } from '../../../utils/env'
 import AvatarUploader from '../../../components/AvatarUploader.vue'
+import TeacherAvailabilityEditor from '../../../components/scheduler/TeacherAvailabilityEditor.vue'
 
 // 学历枚举与归一化
 const EDUCATION_ALLOWED = ['专科及以下', '本科', '硕士', '博士'] as const
@@ -49,6 +50,7 @@ const teacherPagination = reactive({
 // 对话框
 const teacherDialogVisible = ref(false)
 const teacherDialogTitle = ref('')
+const availabilityDialogVisible = ref(false)
 const LEVEL_OPTIONS = ref<{ label: string; value: string }[]>([])
 
 const fetchTeacherLevels = async () => {
@@ -453,6 +455,32 @@ const saveTeacher = async () => {
     }
 
     ElMessage.success(teacherForm.id === 0 ? '添加成功，默认密码为123456' : '更新成功')
+
+    // 如果是新增教师，保存成功后询问是否设置可上课时间
+    if (teacherForm.id === 0) {
+      try {
+        await ElMessageBox.confirm(
+          '教师添加成功！是否现在设置该教师的可上课时间？',
+          '设置可上课时间',
+          {
+            confirmButtonText: '立即设置',
+            cancelButtonText: '稍后设置',
+            type: 'info'
+          }
+        )
+        // 用户选择立即设置，打开可上课时间设置对话框
+        teacherDialogVisible.value = false
+        await loadTeacherList()
+        // 等待一下确保列表更新完成
+        setTimeout(() => {
+          openAvailabilityDialog()
+        }, 100)
+        return
+      } catch {
+        // 用户选择稍后设置，继续正常流程
+      }
+    }
+
     // 清理状态
     _teacherAvatarFile.value = null
     teacherDialogVisible.value = false
@@ -463,6 +491,26 @@ const saveTeacher = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 打开可上课时间设置对话框
+const openAvailabilityDialog = () => {
+  if (teacherForm.id === 0) {
+    ElMessage.warning('请先保存教师信息后再设置可上课时间')
+    return
+  }
+  availabilityDialogVisible.value = true
+}
+
+// 关闭可上课时间设置对话框
+const closeAvailabilityDialog = () => {
+  availabilityDialogVisible.value = false
+}
+
+// 可上课时间保存成功回调
+const onAvailabilitySaveSuccess = () => {
+  ElMessage.success('可上课时间设置已保存')
+  closeAvailabilityDialog()
 }
 
 // 删除教师
@@ -875,6 +923,23 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
         </el-row>
+
+        <!-- 可上课时间设置 -->
+        <el-form-item label="可上课时间">
+          <div class="availability-setting-container">
+            <el-button
+              type="primary"
+              @click="openAvailabilityDialog"
+              :disabled="teacherForm.id === 0"
+            >
+              <el-icon><Calendar /></el-icon>
+              设置可上课时间
+            </el-button>
+            <el-text type="info" size="small" style="margin-left: 8px;">
+              {{ teacherForm.id === 0 ? '请先保存教师信息后再设置可上课时间' : '点击设置教师的可上课时间段' }}
+            </el-text>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
@@ -882,6 +947,29 @@ onMounted(async () => {
           <el-button type="primary" @click="saveTeacher" :loading="loading">
             {{ teacherForm.id === 0 ? '添加' : '更新' }}
           </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 可上课时间设置对话框 -->
+    <el-dialog
+      v-model="availabilityDialogVisible"
+      :title="`设置 ${teacherForm.realName} 的可上课时间`"
+      width="90%"
+      :close-on-click-modal="false"
+      destroy-on-close
+    >
+      <div class="availability-dialog-content">
+        <TeacherAvailabilityEditor
+          :teacher-id="teacherForm.id"
+          :months="6"
+          :admin-mode="true"
+          @save-success="onAvailabilitySaveSuccess"
+        />
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="closeAvailabilityDialog">关闭</el-button>
         </span>
       </template>
     </el-dialog>
@@ -975,5 +1063,22 @@ onMounted(async () => {
   font-weight: 600;
   color: #ff9900;
   font-size: 14px;
+}
+
+.availability-setting-container {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.availability-dialog-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.availability-dialog-content .editor {
+  background: white;
+  border-radius: 4px;
+  padding: 16px;
 }
 </style>
