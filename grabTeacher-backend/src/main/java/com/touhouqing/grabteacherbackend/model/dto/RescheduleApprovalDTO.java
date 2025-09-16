@@ -8,6 +8,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 /**
  * 调课申请审批DTO
@@ -32,4 +34,13 @@ public class RescheduleApprovalDTO {
 
     @Schema(description = "是否影响后续课程", example = "false")
     private Boolean affectsFutureSessions;
+
+    @Schema(description = "管理员最终选择的新日期（可选，若提供则覆盖申请中的新时间）", example = "2025-09-20")
+    private LocalDate selectedNewDate;
+
+    @Schema(description = "管理员最终选择的新开始时间（可选）", example = "15:00")
+    private LocalTime selectedNewStartTime;
+
+    @Schema(description = "管理员最终选择的新结束时间（可选）", example = "17:00")
+    private LocalTime selectedNewEndTime;
 }

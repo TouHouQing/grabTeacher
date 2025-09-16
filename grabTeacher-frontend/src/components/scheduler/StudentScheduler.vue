@@ -21,11 +21,12 @@
           :date-range-start="dateRangeStart"
           :date-range-end="dateRangeEnd"
           :hide-header="true"
+          :student-single-select="!props.multiSelect"
           @change-student-sessions="onChangeSessions"
         />
       </div>
       <div class="right">
-        <div class="summary-title">已选择 ({{ sessions.length }})</div>
+        <div class="summary-title">已选择</div>
         <div class="session-list">
           <div v-for="(s, idx) in sessions" :key="idx" class="item">
             <div class="t">{{ formatSession(s) }}</div>
@@ -41,7 +42,7 @@
         </div>
         <div class="right">
           <el-button @click="visible=false">取消</el-button>
-          <el-button type="primary" :disabled="sessions.length===0" @click="confirm">确认 ({{ sessions.length }} 次)</el-button>
+          <el-button type="primary" :disabled="sessions.length===0" @click="confirm">确认</el-button>
         </div>
       </div>
     </template>
@@ -55,7 +56,7 @@ import 'dayjs/locale/zh-cn'
 dayjs.locale('zh-cn')
 import CalendarMultiMonth from '@/components/CalendarMultiMonth.vue'
 
-const props = defineProps<{ teacherId: number; title?: string; months?: number }>()
+const props = defineProps<{ teacherId: number; title?: string; months?: number; multiSelect?: boolean }>()
 
 const visible = ref(false)
 const title = ref(props.title || '选择上课时间（按日历）')
@@ -74,7 +75,12 @@ const dateRangeEnd = ref<string | undefined>(undefined)
 const emit = defineEmits<{ (e:'confirm', sessions: Array<{ date: string; startTime: string; endTime: string }>, duration: 90|120): void }>()
 
 function onChangeSessions(list: Array<{ date: string; startTime: string; endTime: string }>) {
-  sessions.value = list
+  // 根据是否允许多选，决定保留全部或仅保留最后一次
+  if (props.multiSelect) {
+    sessions.value = Array.isArray(list) ? [...list] : []
+  } else {
+    sessions.value = (list && list.length) ? [list[list.length - 1]] : []
+  }
 }
 
 const open = (opts?: { defaultDuration?: 90|120; allowedPeriods?: Array<'morning'|'afternoon'|'evening'>; dateStart?: string; dateEnd?: string }) => {

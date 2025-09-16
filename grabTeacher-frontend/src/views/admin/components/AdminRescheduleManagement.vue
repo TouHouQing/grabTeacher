@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, defineAsyncComponent } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Check,
@@ -38,6 +38,54 @@ interface RescheduleRequest {
   subjectName: string
   teacherName: string
   studentName: string
+  teacherId?: number
+}
+
+const StudentScheduler = defineAsyncComponent(() => import('../../../components/scheduler/StudentScheduler.vue'))
+const studentSchedulerRef = ref<any>(null)
+const selectedFinal = ref<{ date: string; startTime: string; endTime: string } | null>(null)
+
+function openFinalCalendar() {
+  if (!currentRequest.value?.teacherId || Number(currentRequest.value?.teacherId) <= 0) {
+    ElMessage.error('未获取到授课教师，无法打开日历')
+    return
+  }
+  // 管理员：默认展示到未来6个月，无上限日期
+  studentSchedulerRef.value?.open({ defaultDuration: 120 as 90|120, dateStart: new Date().toISOString().slice(0,10) })
+}
+
+function onAdminCalendarConfirm(sessions: Array<{ date: string; startTime: string; endTime: string }>, _duration: 90|120) {
+  if (sessions && sessions.length) {
+    selectedFinal.value = sessions[0]
+    ElMessage.success(`已选择最终时间：${selectedFinal.value.date} ${selectedFinal.value.startTime}-${selectedFinal.value.endTime}`)
+  }
+}
+
+function isSameSession(a: {date:string;startTime:string;endTime:string} | null | undefined,
+                      b: {date:string;startTime:string;endTime:string} | null | undefined): boolean {
+  return !!a && !!b && a.date === b.date && a.startTime === b.startTime && a.endTime === b.endTime
+}
+
+function isSelectedCandidate(c: {date:string;startTime:string;endTime:string}): boolean {
+  return isSameSession(selectedFinal.value, c)
+}
+
+function selectFinalFromCandidate(c: {date:string;startTime:string;endTime:string}) {
+  selectedFinal.value = { ...c }
+  ElMessage.success(`已选择最终时间：${c.date} ${c.startTime}-${c.endTime}`)
+}
+
+function parseCandidateList(s: string | undefined): Array<{ date:string; startTime:string; endTime:string }> {
+  const list: Array<{date:string;startTime:string;endTime:string}> = []
+  if (!s || !s.startsWith('CANDIDATES|')) return list
+  const body = s.substring('CANDIDATES|'.length)
+  for (const item of body.split(',')) {
+    const [d, times] = item.trim().split(' ')
+    if (!d || !times || !times.includes('-')) continue
+    const [st, et] = times.split('-')
+    list.push({ date: d, startTime: st, endTime: et })
+  }
+  return list
 }
 
 // 响应式数据
@@ -119,6 +167,12 @@ const quickApproval = async (request: RescheduleRequest, status: 'approved' | 'r
   try {
     const action = status === 'approved' ? '同意' : '拒绝'
 
+    // 强制：管理员同意前必须选择最终时间
+    if (status === 'approved' && !selectedFinal.value) {
+      ElMessage.warning('请先通过“按日历选择最终时间”选择最终上课时间')
+      return
+    }
+
     // 使用ElMessageBox.prompt获取审批原因
     const { value: reviewNotes } = await ElMessageBox.prompt(
       `请输入${action}调课申请的原因：`,
@@ -128,7 +182,7 @@ const quickApproval = async (request: RescheduleRequest, status: 'approved' | 'r
         cancelButtonText: '取消',
         inputType: 'textarea',
         inputPlaceholder: `请输入${action}的原因...`,
-        inputValidator: (value) => {
+        inputValidator: (value: string) => {
           if (!value || value.trim().length === 0) {
             return '审批原因不能为空'
           }
@@ -152,10 +206,16 @@ const quickApproval = async (request: RescheduleRequest, status: 'approved' | 'r
       }
     )
 
-    const result = await rescheduleAPI.adminApprove(request.id, {
+    const payload: any = {
       status,
       reviewNotes: reviewNotes.trim()
-    })
+    }
+    if (status === 'approved' && selectedFinal.value) {
+      payload.selectedNewDate = selectedFinal.value.date
+      payload.selectedNewStartTime = selectedFinal.value.startTime
+      payload.selectedNewEndTime = selectedFinal.value.endTime
+    }
+    const result = await rescheduleAPI.adminApprove(request.id, payload)
 
     if (result.success) {
       ElMessage.success(`调课申请已${action}`)
@@ -289,11 +349,17 @@ onMounted(() => {
             {{ formatDate(row.originalDate) }} {{ formatTime(row.originalStartTime) }}-{{ formatTime(row.originalEndTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="新时间" width="180" v-if="rescheduleRequests.some(r => r.newDate || r.newWeeklySchedule)">
+        <el-table-column label="新时间" min-width="200">
           <template #default="{ row }">
-            <span v-if="row.requestType === 'recurring' && row.newWeeklySchedule">
-              {{ formatRecurringSchedule(row.newWeeklySchedule) }}
-            </span>
+            <template v-if="row.newWeeklySchedule && row.newWeeklySchedule.startsWith('CANDIDATES|')">
+              <span v-if="parseCandidateList(row.newWeeklySchedule).length > 0">
+                {{ parseCandidateList(row.newWeeklySchedule)[0].date }}
+                {{ formatTime(parseCandidateList(row.newWeeklySchedule)[0].startTime) }}-{{ formatTime(parseCandidateList(row.newWeeklySchedule)[0].endTime) }}
+              </span>
+              <span v-if="parseCandidateList(row.newWeeklySchedule).length > 1" class="text-muted">
+                +{{ parseCandidateList(row.newWeeklySchedule).length - 1 }}
+              </span>
+            </template>
             <span v-else-if="row.newDate">
               {{ formatDate(row.newDate) }} {{ formatTime(row.newStartTime) }}-{{ formatTime(row.newEndTime) }}
             </span>
@@ -305,7 +371,8 @@ onMounted(() => {
             <span class="reason-text">{{ row.reason }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="紧急程度" width="100" align="center">
+        <!-- 紧急程度列不再展示 -->
+        <el-table-column v-if="false" label="紧急程度" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="getUrgencyTagType(row.urgencyLevel)" size="small">
               {{ row.urgencyLevel === 'high' ? '紧急' : row.urgencyLevel === 'medium' ? '一般' : '普通' }}
@@ -380,6 +447,27 @@ onMounted(() => {
       width="600px"
       :close-on-click-modal="false"
     >
+          <div class="detail-row" v-if="currentRequest?.newWeeklySchedule && currentRequest.newWeeklySchedule.startsWith('CANDIDATES|')">
+            <span class="label">教师候选：</span>
+            <span>
+              <el-tag
+                v-for="(c, idx) in parseCandidateList(currentRequest.newWeeklySchedule)"
+                :key="idx"
+                :type="isSelectedCandidate(c) ? 'success' : 'info'"
+                :effect="isSelectedCandidate(c) ? 'dark' : 'plain'"
+                class="clickable-tag"
+                style="margin-right: 6px; margin-bottom: 4px;"
+                @click="selectFinalFromCandidate(c)"
+              >
+                {{ c.date }} {{ formatTime(c.startTime) }}-{{ formatTime(c.endTime) }}
+              </el-tag>
+            </span>
+          </div>
+          <div class="detail-row" v-if="selectedFinal">
+            <span class="label">已选最终：</span>
+            <span>{{ selectedFinal.date }} {{ formatTime(selectedFinal.startTime) }}-{{ formatTime(selectedFinal.endTime) }}</span>
+          </div>
+
       <div v-if="currentRequest" class="detail-content">
         <div class="detail-section">
           <h4>基本信息</h4>
@@ -393,6 +481,14 @@ onMounted(() => {
           </div>
           <div class="detail-row">
             <span class="label">申请人：</span>
+      <StudentScheduler
+        v-if="(currentRequest?.teacherId || 0) > 0"
+        ref="studentSchedulerRef"
+        :teacher-id="currentRequest?.teacherId || 0"
+        :months="6"
+        @confirm="onAdminCalendarConfirm"
+      />
+
             <span>{{ currentRequest.applicantName }} ({{ currentRequest.applicantType === 'student' ? '学生' : '教师' }})</span>
           </div>
           <div class="detail-row">
@@ -452,6 +548,10 @@ onMounted(() => {
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="showDetailModal = false">关闭</el-button>
+          <el-button type="primary" link @click="openFinalCalendar">
+            按日历选择最终时间（可跨两周）
+          </el-button>
+
           <template v-if="currentRequest?.status === 'pending'">
             <el-button
               type="success"
@@ -567,6 +667,10 @@ onMounted(() => {
   color: #606266;
   min-width: 100px;
   flex-shrink: 0;
+}
+
+.clickable-tag {
+  cursor: pointer;
 }
 
 .dialog-footer {

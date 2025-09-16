@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 
 /**
@@ -40,6 +41,9 @@ public class RescheduleApplyDTO {
     @Schema(description = "新结束时间(单次调课)", example = "17:00")
     private LocalTime newEndTime;
 
+    // 教师端多选候选新时间（学生端忽略）
+    @Schema(description = "候选新时间列表（教师端可多选）")
+    private List<CandidateTimeDTO> candidateSessions;
 
 
     @NotBlank(message = "调课原因不能为空")

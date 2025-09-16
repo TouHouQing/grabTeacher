@@ -29,6 +29,7 @@
       :date-range-start="dateRangeStart"
       :date-range-end="dateRangeEnd"
       :hide-header="hideHeader"
+      :student-single-select="props.studentSingleSelect"
       @change-teacher-selection="onMonthTeacherSelection(monthList[activeIdx].key, $event)"
       @change-student-sessions="onMonthStudentSessions(monthList[activeIdx].key, $event)"
       @clicked-date="(d)=>emit('last-clicked-date', d)"
@@ -52,6 +53,7 @@ const props = defineProps<{
   dateRangeStart?: string
   dateRangeEnd?: string
   hideHeader?: boolean
+  studentSingleSelect?: boolean
 }>()
 
 const emit = defineEmits<{

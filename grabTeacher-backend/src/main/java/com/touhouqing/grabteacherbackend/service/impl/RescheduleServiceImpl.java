@@ -151,6 +151,17 @@ public  class RescheduleServiceImpl implements RescheduleService {
             if (!scheduleBj.isAfter(nowBj.plusHours(4))) {
                 throw new RuntimeException("调课需在开课前4小时之外发起");
             }
+            // 学生端：限制新时间在未来两周内（含当天起14天窗口）
+            if (request.getNewDate() != null) {
+                LocalDate todayBj = ZonedDateTime.now(ZoneId.of("Asia/Shanghai")).toLocalDate();
+                LocalDate latest = todayBj.plusDays(13);
+                if (request.getNewDate().isBefore(todayBj)) {
+                    throw new RuntimeException("新的上课日期不能早于今天");
+                }
+                if (request.getNewDate().isAfter(latest)) {
+                    throw new RuntimeException("学生调课仅支持未来两周内的时间，超出请联系管理员");
+                }
+            }
             // 额外：对新请求的时间进行“待处理占用”检查
             if (request.getNewDate() != null && request.getNewStartTime() != null && request.getNewEndTime() != null) {
                 List<RescheduleRequest> pendings = rescheduleRequestMapper.findPendingSingleByTeacherAndDate(schedule.getTeacherId(), request.getNewDate());
@@ -282,6 +293,19 @@ public  class RescheduleServiceImpl implements RescheduleService {
         // 计算提前通知小时数
         int advanceNoticeHours = calculateAdvanceNoticeHours(schedule.getScheduledDate(), schedule.getStartTime());
 
+        // 教师可提交候选新时间（多选），以特殊格式写入 new_weekly_schedule 字段，避免库表迁移：
+        // 形如：CANDIDATES|2025-09-20 15:00-17:00,2025-09-21 19:00-21:00
+        String candidatesStr = null;
+        if (request.getCandidateSessions() != null && !request.getCandidateSessions().isEmpty()) {
+            String joined = request.getCandidateSessions().stream()
+                    .filter(Objects::nonNull)
+                    .map(s -> String.format("%s %s-%s", s.getDate(), s.getStartTime(), s.getEndTime()))
+                    .collect(Collectors.joining(","));
+            if (joined != null && !joined.isEmpty()) {
+                candidatesStr = "CANDIDATES|" + joined;
+            }
+        }
+
         // 创建调课申请
         RescheduleRequest rescheduleRequest = RescheduleRequest.builder()
                 .scheduleId(request.getScheduleId())
@@ -294,6 +318,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 .newDate(request.getNewDate())
                 .newStartTime(request.getNewStartTime())
                 .newEndTime(request.getNewEndTime())
+                .newWeeklySchedule(candidatesStr)
                 .reason(request.getReason())
                 .urgencyLevel(request.getUrgencyLevel())
                 .advanceNoticeHours(advanceNoticeHours)
@@ -476,20 +501,34 @@ public  class RescheduleServiceImpl implements RescheduleService {
             throw new RuntimeException("课程安排不存在");
         }
 
-        // 如果是同意申请，需要检查时间冲突
+        // 如果是同意申请，需要检查时间冲突（支持管理员覆盖选择最终时间）
         if ("approved".equals(approval.getStatus()) && isSingleType(rescheduleRequest.getRequestType())) {
+            // 兼容教师提交候选但未写入 newDate 的情况，要求管理员明确选择最终时间
+            LocalDate useDate = approval.getSelectedNewDate() != null ? approval.getSelectedNewDate() : rescheduleRequest.getNewDate();
+            LocalTime useStart = approval.getSelectedNewStartTime() != null ? approval.getSelectedNewStartTime() : rescheduleRequest.getNewStartTime();
+            LocalTime useEnd = approval.getSelectedNewEndTime() != null ? approval.getSelectedNewEndTime() : rescheduleRequest.getNewEndTime();
+
+            if (useDate == null || useStart == null || useEnd == null) {
+                throw new RuntimeException("未提供最终的新上课时间，请先选择具体时间再审批通过");
+            }
+
             boolean hasConflict = hasTimeConflict(
                 schedule.getTeacherId(),
                 schedule.getStudentId(),
-                rescheduleRequest.getNewDate().toString(),
-                rescheduleRequest.getNewStartTime().toString(),
-                rescheduleRequest.getNewEndTime().toString(),
+                useDate.toString(),
+                useStart.toString(),
+                useEnd.toString(),
                 schedule.getId()
             );
 
             if (hasConflict) {
                 throw new RuntimeException("新的时间安排存在冲突，请选择其他时间");
             }
+
+            // 将最终选中的时间回写到申请记录，便于审计及后续处理
+            rescheduleRequest.setNewDate(useDate);
+            rescheduleRequest.setNewStartTime(useStart);
+            rescheduleRequest.setNewEndTime(useEnd);
         }
 
         // 更新调课申请状态
@@ -1505,6 +1544,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
 
                 Teacher teacher = teacherMapper.selectById(schedule.getTeacherId());
                 if (teacher != null) {
+                    builder.teacherId(schedule.getTeacherId());
                     builder.teacherName(teacher.getRealName());
                 }
 

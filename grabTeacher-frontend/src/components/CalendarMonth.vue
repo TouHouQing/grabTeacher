@@ -64,6 +64,7 @@ const props = defineProps<{
   dateRangeStart?: string // 'YYYY-MM-DD'
   dateRangeEnd?: string   // 'YYYY-MM-DD'
   hideHeader?: boolean // 隐藏顶部年月选择器
+  studentSingleSelect?: boolean // 学生模式下是否单选（默认单选）
 }>()
 
 const emit = defineEmits<{
@@ -378,10 +379,20 @@ const onClickSlot = (day: any, slot: string) => {
     }
     const key = `${day.date}_${startTime}_${endTime}`
     const exists = studentSessions.value.find(i=> `${i.date}_${i.startTime}_${i.endTime}` === key)
-    if (exists) {
-      studentSessions.value = studentSessions.value.filter(i=> `${i.date}_${i.startTime}_${i.endTime}` !== key)
+    if (props.studentSingleSelect !== false) {
+      // 单选：再次点击同一时段 => 取消；点击其他 => 仅保留当前
+      if (exists) {
+        studentSessions.value = []
+      } else {
+        studentSessions.value = [{ date: day.date, startTime, endTime }]
+      }
     } else {
-      studentSessions.value = [...studentSessions.value, { date: day.date, startTime, endTime }]
+      // 多选：点击已选 => 移除；点击未选 => 累加
+      if (exists) {
+        studentSessions.value = studentSessions.value.filter(i=> `${i.date}_${i.startTime}_${i.endTime}` !== key)
+      } else {
+        studentSessions.value = [...studentSessions.value, { date: day.date, startTime, endTime }]
+      }
     }
     emit('change-student-sessions', studentSessions.value)
   }

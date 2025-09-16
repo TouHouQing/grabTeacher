@@ -86,36 +86,37 @@
 
           <el-form-item label="调整到">
             <div class="new-schedule-group">
-              <el-date-picker
-                v-model="rescheduleForm.newDate"
-                type="date"
-                placeholder="选择新日期"
-                :disabled-date="(date) => {
-                  const d = new Date(date)
-                  d.setHours(0,0,0,0)
-                  const today = new Date()
-                  today.setHours(0,0,0,0)
-                  return d < today
-                }"
-                format="YYYY-MM-DD"
-                value-format="YYYY-MM-DD"
-                style="width: 200px;"
-                @change="checkRescheduleTimeConflict"
-              />
-              <el-select
-                v-model="rescheduleForm.newTime"
-                placeholder="选择新时间"
-                style="width: 150px;"
-                @change="checkRescheduleTimeConflict"
-              >
-                <el-option
-                  v-for="time in getCurrentRescheduleTimeSlots"
-                  :key="time"
-                  :label="time"
-                  :value="time"
-                  :disabled="!isTimeSlotSelectable(time)"
-                />
-              </el-select>
+              <el-button type="primary" @click="openCalendar">
+                {{ props.isTeacher ? '按日历选择（可多选）' : '按日历选择' }}
+              </el-button>
+              <!-- 学生端显示已选择 -->
+              <template v-if="!props.isTeacher && rescheduleForm.newDate && rescheduleForm.newTime">
+                <el-tag type="success" effect="plain" style="margin-left: 12px;">
+                  已选择：{{ rescheduleForm.newDate }} {{ rescheduleForm.newTime }}
+                </el-tag>
+              </template>
+
+              <!-- 教师端显示候选列表 -->
+              <div v-if="props.isTeacher && candidateSessions.length > 0" class="candidate-list" style="margin-top: 8px;">
+                <el-tag
+                  v-for="(c, idx) in candidateSessions.slice(0, 3)"
+                  :key="idx"
+                  type="success"
+                  effect="plain"
+                  style="margin-right: 8px; margin-bottom: 8px;"
+                >
+                  {{ c.date }} {{ c.startTime }}-{{ c.endTime }}
+                </el-tag>
+                <el-tag
+                  v-if="candidateSessions.length > 3"
+                  type="info"
+                  effect="plain"
+                  style="margin-right: 8px; margin-bottom: 8px;"
+                >
+                  +{{ candidateSessions.length - 3 }}
+                </el-tag>
+              </div>
+
             </div>
 
             <!-- 时间冲突检查结果 -->
@@ -175,10 +176,19 @@
     <template #footer>
       <span class="dialog-footer">
         <el-button @click="handleClose">取消</el-button>
+    <StudentScheduler
+      v-if="calendarTeacherId > 0"
+      ref="studentSchedulerRef"
+      :teacher-id="calendarTeacherId"
+      :months="props.isTeacher ? 6 : 1"
+      :multi-select="props.isTeacher"
+      @confirm="onCalendarConfirm"
+    />
+
         <el-button
           type="primary"
           @click="submitReschedule"
-          :disabled="!(rescheduleForm.originalDate && rescheduleForm.originalTime && rescheduleForm.newDate && rescheduleForm.newTime && selectedSchedule && isScheduleAdjustable(selectedSchedule) && Number(selectedSchedule.id) > 0)"
+          :disabled="submitDisabled"
         >
           <el-icon><Check /></el-icon>
           提交申请
@@ -189,9 +199,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, defineAsyncComponent } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Check, Loading } from '@element-plus/icons-vue'
+const StudentScheduler = defineAsyncComponent(() => import('./scheduler/StudentScheduler.vue'))
 import { rescheduleAPI, teacherAPI, studentAPI } from '../utils/api'
 
 // 课程接口
@@ -371,6 +382,67 @@ const teacherAvailableTimeSlots = ref<TeacherAvailableTime[]>([])
 // 本月剩余调课次数（来自用户资料）
 const userAdjustmentTimes = ref<number | null>(null)
 const studentOverQuota = computed(() => !props.isTeacher && (userAdjustmentTimes.value === null ? false : (userAdjustmentTimes.value <= 0)))
+
+// 日历选择（学生/教师）
+// 计算用于日历查询的教师ID（优先取所选节次的教师ID）
+const calendarTeacherId = computed(() => (selectedSchedule.value?.teacherId || props.course?.teacherId || 0))
+
+const studentSchedulerRef = ref<any>(null)
+const candidateSessions = ref<Array<{ date: string; startTime: string; endTime: string }>>([])
+
+const submitDisabled = computed(() => {
+  const s = selectedSchedule.value
+  if (!s || !isScheduleAdjustable(s)) return true
+  const reasonOk = !!rescheduleForm.value.reason.trim()
+  const hasSingle = !!(rescheduleForm.value.newDate && rescheduleForm.value.newTime)
+  // 教师端：可多选候选，只要有候选且填写了原因即可提交
+  if (props.isTeacher && candidateSessions.value.length > 0) return !reasonOk
+  return !(hasSingle && reasonOk)
+})
+
+const openCalendar = () => {
+  if (!calendarTeacherId.value || Number(calendarTeacherId.value) <= 0) {
+    ElMessage.error('未获取到授课教师，无法打开日历')
+    return
+  }
+  const s = selectedSchedule.value
+  const defaultDuration = (s?.durationMinutes === 120 ? 120 : 90) as 90 | 120
+  const today = new Date()
+  const startStr = today.toISOString().slice(0, 10)
+  let endStr: string | undefined = undefined
+  if (!props.isTeacher) {
+    const end = new Date(today)
+    end.setDate(end.getDate() + 13)
+    endStr = end.toISOString().slice(0, 10)
+  }
+  studentSchedulerRef.value?.open({ defaultDuration, dateStart: startStr, dateEnd: endStr })
+}
+
+const onCalendarConfirm = (sessions: Array<{ date: string; startTime: string; endTime: string }>, _duration: 90 | 120) => {
+  if (!props.isTeacher) {
+    if (!sessions || sessions.length === 0) return
+    const first = sessions[0]
+    rescheduleForm.value.newDate = first.date
+    rescheduleForm.value.newTime = `${first.startTime}-${first.endTime}`
+    if (sessions.length > 1) {
+      ElMessage.info('学生端仅支持单次调课，已为你选取第一个时间')
+    } else {
+      ElMessage.success('已选择新的上课时间')
+    }
+    // 学生端：选择完成后触发一次冲突检查
+    void checkRescheduleTimeConflict()
+  } else {
+    // 教师端：支持多选候选
+    candidateSessions.value = Array.isArray(sessions) ? [...sessions] : []
+    if (candidateSessions.value.length > 0) {
+      const first = candidateSessions.value[0]
+      rescheduleForm.value.newDate = first.date
+      rescheduleForm.value.newTime = `${first.startTime}-${first.endTime}`
+    }
+    ElMessage.success(`已选择候选时间 ${candidateSessions.value.length} 个`)
+    // 教师端候选由管理员最终选择，当前不强制做冲突校验
+  }
+}
 
 // 时间冲突检查状态
 const timeConflictChecking = ref(false)
@@ -736,10 +808,23 @@ const submitReschedule = async () => {
   if (!props.course) return
 
   // 验证表单
-  if (!rescheduleForm.value.originalDate || !rescheduleForm.value.originalTime ||
-      !rescheduleForm.value.newDate || !rescheduleForm.value.newTime) {
-    ElMessage.warning('请填写完整的调课信息')
-    return
+  if (props.isTeacher) {
+    // 教师端：允许多选候选；若无候选，则必须提供单个新时间
+    if (!rescheduleForm.value.originalDate || !rescheduleForm.value.originalTime) {
+      ElMessage.warning('请填写完整的调课信息')
+      return
+    }
+    if (candidateSessions.value.length === 0 && (!rescheduleForm.value.newDate || !rescheduleForm.value.newTime)) {
+      ElMessage.warning('请选择候选时间或填写一个新的上课时间')
+      return
+    }
+  } else {
+    // 学生端：必须提供单个新时间
+    if (!rescheduleForm.value.originalDate || !rescheduleForm.value.originalTime ||
+        !rescheduleForm.value.newDate || !rescheduleForm.value.newTime) {
+      ElMessage.warning('请填写完整的调课信息')
+      return
+    }
   }
 
   // 检查4小时限制（仅针对原定课程开始时间）
@@ -747,24 +832,25 @@ const submitReschedule = async () => {
     ElMessage.error('调课需在开课前4小时之外发起')
     return
   }
-  // 新的上课日期不得早于今天
-  if (isPastDate(rescheduleForm.value.newDate)) {
-    ElMessage.error('新的上课日期不能早于今天')
-    return
-  }
+  // 新的上课日期不得早于今天（仅在单选场景校验；教师多候选由管理员选取时再校验）
+  if (!props.isTeacher || candidateSessions.value.length === 0) {
+    if (isPastDate(rescheduleForm.value.newDate)) {
+      ElMessage.error('新的上课日期不能早于今天')
+      return
+    }
 
-  // 检查时间冲突
-  if (timeConflictResult.value?.hasConflict) {
-    ElMessage.error('所选时间与其他课程冲突，请选择其他时间')
-    return
-  }
-
-  // 如果还没有检查过时间冲突，先检查
-  if (!timeConflictResult.value) {
-    await checkRescheduleTimeConflict()
+    // 检查时间冲突（单选场景校验）
     if (timeConflictResult.value?.hasConflict) {
       ElMessage.error('所选时间与其他课程冲突，请选择其他时间')
       return
+    }
+    // 如果还没有检查过时间冲突，先检查
+    if (!timeConflictResult.value) {
+      await checkRescheduleTimeConflict()
+      if (timeConflictResult.value?.hasConflict) {
+        ElMessage.error('所选时间与其他课程冲突，请选择其他时间')
+        return
+      }
     }
   }
 
@@ -782,15 +868,21 @@ const submitReschedule = async () => {
       return
     }
 
-    // 构建调课申请数据（仅单次、按具体节次与时间）
-    const requestData = {
+    // 构建调课申请数据（学生单选 / 教师可多选候选）
+    const requestData: any = {
       scheduleId: s.id,
       requestType: 'reschedule' as const,
       reason: rescheduleForm.value.reason,
-      urgencyLevel: 'medium' as const,
-      newDate: rescheduleForm.value.newDate,
-      newStartTime: rescheduleForm.value.newTime.split('-')[0],
-      newEndTime: rescheduleForm.value.newTime.split('-')[1]
+      urgencyLevel: 'medium' as const
+    }
+    if (rescheduleForm.value.newDate && rescheduleForm.value.newTime) {
+      requestData.newDate = rescheduleForm.value.newDate
+      requestData.newStartTime = rescheduleForm.value.newTime.split('-')[0]
+      requestData.newEndTime = rescheduleForm.value.newTime.split('-')[1]
+    }
+
+    if (props.isTeacher && candidateSessions.value.length > 0) {
+      requestData.candidateSessions = candidateSessions.value
     }
 
     // 根据用户类型选择API

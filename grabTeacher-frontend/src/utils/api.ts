@@ -913,6 +913,7 @@ export const rescheduleAPI = {
     urgencyLevel?: 'low' | 'medium' | 'high'
     advanceNoticeHours?: number
     notes?: string
+    candidateSessions?: Array<{ date: string; startTime: string; endTime: string }>
   }) => apiRequest('/api/reschedule/teacher/request', {
     method: 'POST',
     body: JSON.stringify(data)
@@ -1013,6 +1014,9 @@ export const rescheduleAPI = {
   adminApprove: (id: number, data: {
     status: 'approved' | 'rejected'
     reviewNotes?: string
+    selectedNewDate?: string
+    selectedNewStartTime?: string
+    selectedNewEndTime?: string
   }) => apiRequest(`/api/reschedule/${id}/approve`, {
     method: 'PUT',
     body: JSON.stringify(data)
