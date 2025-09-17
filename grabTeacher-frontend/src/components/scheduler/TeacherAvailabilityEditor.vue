@@ -5,7 +5,7 @@
       <div class="actions">
         <el-button size="small" @click="onFullOpenThisMonth">本月全开</el-button>
         <el-button size="small" @click="onClearThisMonth">清空本月</el-button>
-        <el-button type="primary" size="small" :loading="saving" @click="onSave">保存</el-button>
+        <el-button type="primary" size="small" :loading="saving" @click="onSave">保存本月</el-button>
       </div>
     </div>
     <CalendarMultiMonth
@@ -88,11 +88,17 @@ function onLastClickedDate(d: string) {
 // 引导：提示先点击日历某一天以便“复制当日”
 
 const onSave = async () => {
+  // 聚合所有月份后，仅保留当前活跃月份（保存本月）
   const agg = (calRef.value && (calRef.value as any).getTeacherSelectionAll) ? (calRef.value as any).getTeacherSelectionAll() : selection.value
-  const items = Object.entries(agg)
+  const active = (calRef.value as any)?.getActiveMonthInfo?.()
+  const activeKey: string | undefined = active?.key
+
+  const allItems = Object.entries(agg)
     .map(([date, slots]) => ({ date, timeSlots: Array.isArray(slots) ? (slots as string[]) : [] }))
+  const items = activeKey ? allItems.filter(it => it.date.startsWith(activeKey)) : allItems
+
   if (items.length === 0) {
-    ElMessage.warning('未选择任何时段，已取消保存')
+    ElMessage.warning('本月未选择任何时段，已取消保存')
     return
   }
   saving.value = true
@@ -100,16 +106,11 @@ const onSave = async () => {
     if (props.adminMode) {
       await teacherAPI.setDailyAvailabilityByAdmin({ teacherId: props.teacherId, items, overwrite: true })
     } else {
-      // 明确携带 teacherId，避免后端因缺少ID而忽略写入
       await teacherAPI.setDailyAvailability({ teacherId: props.teacherId, items, overwrite: true })
     }
-    ElMessage.success('保存成功')
+    ElMessage.success('已保存本月')
     ;(calRef.value as any)?.refreshActiveMonth?.()
 
-    // 在管理员模式下触发保存成功事件
-    if (props.adminMode) {
-      emit('save-success')
-    }
   } catch (e:any) {
     ElMessage.error(e?.message || '保存失败')
   } finally {
