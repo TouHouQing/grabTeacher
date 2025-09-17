@@ -1449,7 +1449,7 @@ onMounted(async () => {
 .day-dialog-list { display:flex; flex-direction:column; gap:8px; }
 .day-dialog-row { display:flex; flex-direction:column; }
 .day-dialog-row .row-title { font-weight:600; color:#303133; }
-.day-dialog-row .row-title.trial { color:#e6a23c; }
+.day-dialog-row .row-title.trial { color:#303133; }
 .day-dialog-row .row-time { color:#606266; font-size:12px; }
 
 
@@ -1473,7 +1473,7 @@ onMounted(async () => {
 .calendar-cell .day-entries { margin-top: 4px; display: flex; flex-direction: column; gap: 4px; }
 .calendar-cell .entry { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; font-size: 11px; background: #f7f9fb; border-radius: 4px; padding: 2px 4px; white-space: nowrap; overflow: hidden; }
 .calendar-cell .entry .title { color: #303133; font-weight: 500; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-.calendar-cell .entry .title.trial { color: #e6a23c; }
+.calendar-cell .entry .title.trial { color: #303133; }
 .calendar-cell .entry .time { color: #606266; }
 .calendar-cell .more { font-size: 11px; color: #909399; }
 
