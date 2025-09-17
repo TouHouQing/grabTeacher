@@ -220,6 +220,22 @@ const viewScheduleDetail = (schedule: ScheduleItem) => {
   showScheduleDetailModal.value = true
 }
 
+// 详情弹窗：计算显示的时长（试听课固定30分钟；否则取字段或按起止时间计算）
+const getDetailDurationMinutes = (s: ScheduleItem | null | undefined): number => {
+  if (!s) return 0
+  if (s.isTrial) return 30
+  if (typeof s.durationMinutes === 'number' && s.durationMinutes > 0) return s.durationMinutes
+  try {
+    const [sh, sm] = (s.startTime || '00:00').split(':').map((x)=>Number(x))
+    const [eh, em] = (s.endTime || '00:00').split(':').map((x)=>Number(x))
+    const start = sh*60 + sm
+    const end = eh*60 + em
+    return Math.max(0, end - start)
+  } catch {
+    return 0
+  }
+}
+
 // 课程状态 -> 中文
 const getScheduleStatusText = (status?: string) => {
   switch (status) {
@@ -785,7 +801,7 @@ onMounted(async () => {
           </div>
           <div class="detail-item">
             <div class="label">时长</div>
-            <div class="value">{{ selectedSchedule.durationMinutes || 0 }} 分钟</div>
+            <div class="value">{{ getDetailDurationMinutes(selectedSchedule) }} 分钟</div>
           </div>
 
           <div class="detail-item">
