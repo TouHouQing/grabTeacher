@@ -51,10 +51,11 @@ public class CourseDTO {
     @Schema(description = "线下地点ID（仅大班课，必须来自授课地点表，且当前仅允许选择一个）", example = "184")
     private Long offlineLocationId;
 
-    @Schema(description = "课程价格（大班课专用，为空表示可定制价格）", example = "299.00")
+    @NotNull(message = "课程价格不能为空")
+    @Schema(description = "课程价格（每小时），必填", example = "299.00")
     private BigDecimal price;
 
-    @Schema(description = "教师时薪（仅一对一使用），单位：M豆/小时。用于计算教师收入，与学生价格（price）可不一致", example = "60.00")
+    @Schema(description = "教师时薪（1人报名时的基准），单位：M豆/小时。用于计算教师收入（大班课每+1人，时薪+5）；可与学生价格（price）不一致", example = "60.00")
     private BigDecimal teacherHourlyRate;
 
 

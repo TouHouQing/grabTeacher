@@ -3,7 +3,7 @@ import { ref, reactive, onMounted, watch, computed, defineAsyncComponent } from 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
 import { courseAPI, subjectAPI, teacherAPI, fileAPI, publicTeachingLocationAPI } from '../../utils/api'
-const CompactTimeSlotSelector = defineAsyncComponent(() => import('../../components/CompactTimeSlotSelector.vue'))
+const StudentBookingCalendar = defineAsyncComponent(() => import('../../components/StudentBookingCalendar.vue'))
 
 // 课程接口定义
 interface Course {
@@ -181,13 +181,17 @@ const formRules = {
   ],
   price: [
     {
-      validator: (_rule: any, value: any, callback: any) => {
-        // 所有课程类型都可以设置价格
-        if (value !== null && value !== undefined && value <= 0) {
-          callback(new Error('价格必须大于0（不填表示价格面议）'))
-        } else {
-          callback()
+      validator: (_rule: any, value: number | null | undefined, callback: (err?: Error) => void) => {
+        // 所有课程类型都必须设置“每小时价格”
+        if (value === null || value === undefined) {
+          callback(new Error('课程价格为必填（按每小时）'))
+          return
         }
+        if (value <= 0) {
+          callback(new Error('课程价格必须大于0'))
+          return
+        }
+        callback()
       },
       trigger: 'blur'
     }
@@ -195,12 +199,16 @@ const formRules = {
   teacherHourlyRate: [
     {
       validator: (_rule: any, value: any, callback: any) => {
-        if (courseForm.courseType !== 'one_on_one') return callback()
-        if (value !== null && value !== undefined && value <= 0) {
-          callback(new Error('教师时薪必须大于0（不填表示按老师默认时薪）'))
-        } else {
-          callback()
+        if (courseForm.courseType !== 'one_on_one' && courseForm.courseType !== 'large_class') return callback()
+        if (value === null || value === undefined) {
+          callback(new Error('教师时薪为必填'))
+          return
         }
+        if (value <= 0) {
+          callback(new Error('教师时薪必须大于0'))
+          return
+        }
+        callback()
       },
       trigger: 'blur'
     }
@@ -375,7 +383,7 @@ const recomputeSuggestedPrice = () => {
   const hourly = (t as any)?.hourlyRate
   if (!hourly || hourly <= 0) return
 
-  const hoursPerSession = (courseForm.durationMinutes || 0) / 60
+  // 按每小时计价，建议价直接取教师每小时价格；无需基于单次课时长换算
   if (courseForm.courseType === 'one_on_one') {
     // 一对一：建议为按级别每小时价格
     suggestedPrice.value = Number(hourly.toFixed(2))
@@ -383,20 +391,63 @@ const recomputeSuggestedPrice = () => {
     return
   }
   if (courseForm.courseType === 'large_class') {
-    // 大班课：当最大报名人数>1时，每多1人，"半价时薪"在基础上+5
-    // 计算公式： (0.5 * 时薪 + 5 * max(0, personLimit - 1)) × 总课时
-    const weeks = calcWeeksBetween(courseForm.startDate, courseForm.endDate)
-    const weeklySessions = calcWeeklySessions()
-    if (!weeks || !weeklySessions || !hoursPerSession) return
-    const totalHours = weeks * weeklySessions * hoursPerSession
-    const extraStudents = Math.max(0, (courseForm.personLimit || 1) - 1)
-    const effectiveHalfHourly = 0.5 * hourly + 5 * extraStudents
-    const total = effectiveHalfHourly * totalHours
-    suggestedPrice.value = Number(total.toFixed(2))
-    suggestedUnit.value = 'total'
+    // 大班课：建议价格也按“每小时”显示
+    suggestedPrice.value = Number(hourly.toFixed(2))
+    suggestedUnit.value = 'per_hour'
     return
   }
 }
+
+// —— 大班课：按日历选择每周上课时间（自动基于教师可用与既有课程做冲突检测） ——
+type AdminCalendarExpose = { open: (opts?: { defaultDuration?: 90|120; dateStart?: string; dateEnd?: string }) => void }
+const calendarRef = ref<AdminCalendarExpose | null>(null)
+const BASE_SLOTS = ['08:00-10:00','10:00-12:00','13:00-15:00','15:00-17:00','17:00-19:00','19:00-21:00']
+const toMin = (t: string) => { const [h, m] = (t||'').split(':').map(Number); return (h||0) * 60 + (m||0) }
+const inferBaseSlot = (startTime: string, endTime: string): string | null => {
+  for (const base of BASE_SLOTS) {
+    const [bs, be] = base.split('-'); const bsMin = toMin(bs); const beMin = toMin(be)
+    const s = toMin(startTime); const e = toMin(endTime)
+    if (s === bsMin && e === beMin) return base // 2小时
+    if ((e - s) === 90 && s === bsMin + 15 && e === beMin - 15) return base // 1.5小时
+  }
+  return null
+}
+
+const openCalendarPicker = () => {
+  if (courseForm.courseType !== 'large_class') return
+  if (!courseForm.teacherId) { ElMessage.error('请先选择教师'); return }
+  if (!courseForm.startDate || !courseForm.endDate) { ElMessage.error('请先设置开课起止日期'); return }
+  const d: 90|120 = (courseForm.durationMinutes === 120 ? 120 : 90)
+  calendarRef.value?.open?.({ defaultDuration: d, dateStart: courseForm.startDate, dateEnd: courseForm.endDate })
+}
+
+function onCalendarConfirm(sessions: Array<{ date: string; startTime: string; endTime: string }>, duration: 90|120) {
+  const map: Record<number, Set<string>> = {}
+  for (const it of (courseForm.courseTimeSlots || [])) {
+    const set = map[it.weekday] || new Set<string>()
+    for (const s of (it.timeSlots || [])) set.add(s)
+    map[it.weekday] = set
+  }
+  for (const s of sessions || []) {
+    const dt = new Date(s.date + 'T00:00:00'); let w = dt.getDay(); if (w === 0) w = 7
+    const base = inferBaseSlot(s.startTime, s.endTime); if (!base) continue
+    const set = map[w] || new Set<string>(); set.add(base); map[w] = set
+  }
+  const ordered = (Object.keys(map).map(k => Number(k)).sort((a,b)=>a-b))
+  const sorted = (arr: string[]) => {
+    const order = new Map(BASE_SLOTS.map((s,i)=>[s,i]))
+    return [...arr].sort((a,b)=> (order.get(a) || 0) - (order.get(b) || 0))
+  }
+  courseForm.courseTimeSlots = ordered.map(w => ({ weekday: w, timeSlots: sorted(Array.from(map[w] || [])) }))
+  courseForm.durationMinutes = duration
+}
+
+const weekdayLabel = (w: number) => ['周一','周二','周三','周四','周五','周六','周日'][w-1] || `周${w}`
+const getWeekdayCount = (w: number) => {
+  const it = (courseForm.courseTimeSlots || []).find(d => d.weekday === w)
+  return it ? (it.timeSlots?.length || 0) : 0
+}
+
 
 
 
@@ -564,7 +615,7 @@ const saveCourse = async () => {
       // durationMinutes: handled in type-specific block
       status: courseForm.status,
       price: courseForm.price, // 所有课程类型都可以设置价格
-      teacherHourlyRate: courseForm.courseType === 'one_on_one' ? courseForm.teacherHourlyRate : null,
+      teacherHourlyRate: courseForm.teacherHourlyRate,
       ...(coverUrl ? { imageUrl: coverUrl } : {})
     }
 
@@ -876,17 +927,19 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
         <el-table-column prop="id" label="ID" width="80" align="center" />
         <el-table-column prop="title" label="课程标题" min-width="180" show-overflow-tooltip />
         <el-table-column prop="teacherName" label="授课教师" width="100" />
-        <el-table-column label="教师时薪" width="120">
+        <el-table-column label="教师时薪" width="180">
           <template #default="{ row }">
-            <span v-if="row.courseType === 'one_on_one'">
-              <template v-if="row.teacherHourlyRate !== null && row.teacherHourlyRate !== undefined">
-                {{ row.teacherHourlyRate }}M豆/时
-              </template>
-              <template v-else>
-                按老师默认
-              </template>
-            </span>
-            <span v-else class="text-muted">-</span>
+            <template v-if="row.courseType === 'one_on_one'">
+              <span v-if="row.teacherHourlyRate !== null && row.teacherHourlyRate !== undefined">{{ row.teacherHourlyRate }}M豆/时</span>
+              <span v-else>按老师默认</span>
+            </template>
+            <template v-else-if="row.courseType === 'large_class'">
+              <span v-if="row.teacherHourlyRate !== null && row.teacherHourlyRate !== undefined">1人：{{ row.teacherHourlyRate }}M豆/时（+5/人）</span>
+              <span v-else class="text-muted">未设置</span>
+            </template>
+            <template v-else>
+              <span class="text-muted">-</span>
+            </template>
           </template>
         </el-table-column>
 
@@ -904,7 +957,7 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
                 {{ row.price }}M豆/时
               </template>
               <template v-else>
-                {{ row.price }}M豆
+                {{ row.price }}M豆/时
               </template>
             </span>
             <span v-else class="text-muted">价格面议</span>
@@ -1173,9 +1226,24 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
           </el-form-item>
 
           <el-form-item label="每周上课时间" prop="courseTimeSlots" required v-if="courseForm.courseType === 'large_class'">
-            <CompactTimeSlotSelector
-              v-model="courseForm.courseTimeSlots"
-              title="设置每周上课时间周期"
+            <div class="weekly-picker" style="display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <el-button size="small" type="primary" plain @click="openCalendarPicker">
+                  按日历选择（自动避开冲突）
+                </el-button>
+                <span style="color:#909399;">仅可选择教师可用且不与已排课程冲突的时间</span>
+              </div>
+              <div class="weekly-summary" style="display:flex; gap:8px; flex-wrap:wrap;">
+                <el-tag v-for="w in 7" :key="w" size="small" effect="plain">
+                  {{ weekdayLabel(w) }}：{{ getWeekdayCount(w) }} 段
+                </el-tag>
+              </div>
+            </div>
+            <StudentBookingCalendar
+              ref="calendarRef"
+              :teacher-id="courseForm.teacherId || 0"
+              :multi-select="true"
+              @confirm="onCalendarConfirm"
             />
           </el-form-item>
         </template>
@@ -1199,16 +1267,13 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
             :precision="2"
             :step="10"
             style="width: 200px"
-            placeholder="不填表示可定制价格"
+            placeholder="请输入每小时价格"
             clearable
           />
 
 
-          <span style="margin-left: 10px; color: #909399;" v-if="courseForm.courseType === 'one_on_one'">
-            M豆/小时（不填表示价格面议）
-          </span>
-          <span style="margin-left: 10px; color: #909399;" v-else>
-            M豆/总课程（不填表示价格面议）
+          <span style="margin-left: 10px; color: #909399;">
+            M豆/小时（必填）
           </span>
           <template v-if="suggestedPrice !== null">
             <el-divider direction="vertical" />
@@ -1224,20 +1289,35 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
           </template>
         </el-form-item>
 
-        <el-form-item v-if="courseForm.courseType === 'one_on_one'" label="教师时薪" prop="teacherHourlyRate">
+        <el-form-item v-if="courseForm.courseType === 'one_on_one'" label="教师时薪" prop="teacherHourlyRate" required>
           <el-input-number
             v-model="courseForm.teacherHourlyRate"
             :min="0"
             :precision="2"
             :step="5"
             style="width: 200px"
-            placeholder="不填表示按老师默认时薪"
+            placeholder="请输入老师时薪"
             clearable
           />
           <span style="margin-left: 10px; color: #909399;">
-            M豆/小时（仅用于计算教师收入，可与学生价不一致）
+            M豆/小时（必填，仅用于计算教师收入，可与学生价不一致）
           </span>
         </el-form-item>
+        <el-form-item v-if="courseForm.courseType === 'large_class'" label="教师时薪" prop="teacherHourlyRate" required>
+          <el-input-number
+            v-model="courseForm.teacherHourlyRate"
+            :min="0"
+            :precision="2"
+            :step="5"
+            style="width: 200px"
+            placeholder="填1人报名时的时薪"
+            clearable
+          />
+          <span style="margin-left: 10px; color: #909399;">
+            M豆/小时（1人报名时的老师时薪；每+1人，时薪+5）
+          </span>
+        </el-form-item>
+
 
 
         <!-- 大班课：授课方式与地点选择（方案A） -->

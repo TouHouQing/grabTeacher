@@ -173,6 +173,17 @@ public class CourseServiceImpl implements CourseService {
             }
         }
 
+        // 校验教师时薪为必填：一对一与大班课通用
+        if (request.getTeacherHourlyRate() == null || request.getTeacherHourlyRate().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("教师时薪为必填且必须大于0");
+        }
+
+        // 校验课程价格为必填（每小时），一对一与大班课通用
+        if (request.getPrice() == null || request.getPrice().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("课程价格为必填且必须大于0（按每小时）");
+        }
+
+
         Course course = Course.builder()
                 .teacherId(teacherId)
                 .subjectId(request.getSubjectId())
@@ -184,7 +195,7 @@ public class CourseServiceImpl implements CourseService {
                 .deleted(false)
                 .imageUrl(request.getImageUrl())
                 .price(request.getPrice()) // 所有课程类型都可以设置价格
-                .teacherHourlyRate("one_on_one".equals(request.getCourseType()) ? request.getTeacherHourlyRate() : null)
+                .teacherHourlyRate(request.getTeacherHourlyRate())
                 .build();
         course.setCourseLocation(finalCourseLocation);
 
@@ -279,6 +290,17 @@ public class CourseServiceImpl implements CourseService {
                 throw new RuntimeException("课程时长只能选择90分钟（一个半小时）或120分钟（俩小时）");
             }
             finalDuration = durationMinutes;
+
+        // 校验课程价格为必填（每小时），一对一与大班课通用
+        if (request.getPrice() == null || request.getPrice().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("课程价格为必填且必须大于0（按每小时）");
+        }
+
+        }
+
+        // 校验教师时薪为必填：一对一与大班课通用
+        if (request.getTeacherHourlyRate() == null || request.getTeacherHourlyRate().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("教师时薪为必填且必须大于0");
         }
 
         course.setSubjectId(request.getSubjectId());
@@ -325,12 +347,8 @@ public class CourseServiceImpl implements CourseService {
         // 设置价格（所有课程类型都可以有价格）
         course.setPrice(request.getPrice());
 
-        // 教师时薪：仅对一对一课程生效
-        if ("one_on_one".equals(request.getCourseType())) {
-            course.setTeacherHourlyRate(request.getTeacherHourlyRate());
-        } else {
-            course.setTeacherHourlyRate(null);
-        }
+        // 教师时薪：一对一使用直接时薪；大班课存“报名1人时的老师时薪”作为基准（可为空）
+        course.setTeacherHourlyRate(request.getTeacherHourlyRate());
 
 
         // 更新大班课专用字段

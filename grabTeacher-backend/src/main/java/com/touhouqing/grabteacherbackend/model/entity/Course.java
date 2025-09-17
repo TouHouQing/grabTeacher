@@ -67,11 +67,11 @@ public class Course {
     private Boolean featured = false;
 
     @TableField("price")
-    @Schema(description = "课程单价，单位：M豆，1M豆=1元，课程价格，1对1代表每小时价格，大班课代表总课程价格", example = "299.00")
+    @Schema(description = "课程价格（每小时），单位：M豆，1M豆=1元；一对一与大班课均为每小时价格", example = "299.00")
     private BigDecimal price;
 
     @TableField("teacher_hourly_rate")
-    @Schema(description = "教师时薪（仅一对一使用），单位：M豆/小时。用于计算教师收入，与学生价格（price）可不一致", example = "60.00")
+    @Schema(description = "教师时薪（1人报名时的基准），单位：M豆/小时；用于计算教师收入（大班课每+1人，时薪+5）；可与学生价格不一致", example = "60.00")
     private BigDecimal teacherHourlyRate;
 
     @TableField("current_hours")

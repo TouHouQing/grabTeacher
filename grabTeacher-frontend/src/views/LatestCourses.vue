@@ -259,14 +259,14 @@ const getDefaultTeacherAvatar = () => {
 // 格式化价格显示
 const formatPrice = (course: Course) => {
   if (course.courseType === 'large_class') {
-    // 大班课显示价格（m豆）
+    // 大班课价格采用“每小时”展示
     if (course.price && course.price > 0) {
-      return `${course.price}m豆`
+      return `${course.price} M豆/h`
     } else {
       return '价格面议'
     }
   } else {
-    // 一对一课程显示真实价格（按小时），无价格则展示“价格面议”
+    // 一对一课程按小时
     if (course.price && course.price > 0) {
       return `${course.price} M豆/h`
     } else {

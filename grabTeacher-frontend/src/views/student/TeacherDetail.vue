@@ -1565,7 +1565,7 @@ watch(selectedCourse, (newCourse) => {
       </div>
     </el-dialog>
 
-    <StudentBookingCalendar ref="calendarDlg" :teacher-id="teacherId" @confirm="onCalendarConfirm" />
+    <StudentBookingCalendar ref="calendarDlg" :teacher-id="teacherId" :multi-select="true" @confirm="onCalendarConfirm" />
 <StudentTrialCalendar ref="trialDlg" :teacher-id="teacherId" @confirm="onTrialConfirm" />
 
     <!-- 课程安排弹窗 -->
