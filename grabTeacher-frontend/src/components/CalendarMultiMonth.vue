@@ -1,7 +1,7 @@
 <template>
   <div class="calendar-multi">
     <div class="toolbar">
-      <div class="months">
+      <div class="months" v-if="!hideMonths">
         <el-button-group>
           <el-button v-for="(m, idx) in monthList" :key="m.key" size="small"
                      :type="idx===activeIdx ? 'primary' : 'default'"
@@ -50,6 +50,7 @@ const props = defineProps<{
   dateRangeEnd?: string
   hideHeader?: boolean
   studentSingleSelect?: boolean
+  hideMonths?: boolean
 }>()
 
 const emit = defineEmits<{

@@ -11,7 +11,7 @@
  Target Server Version : 80406 (8.4.6)
  File Encoding         : 65001
 
- Date: 17/09/2025 17:21:15
+ Date: 17/09/2025 23:31:35
 */
 
 SET NAMES utf8mb4;
@@ -62,7 +62,7 @@ CREATE TABLE `balance_transactions` (
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_booking_id` (`booking_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='学生余额变动记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='学生余额变动记录表';
 
 -- ----------------------------
 -- Records of balance_transactions
@@ -87,7 +87,7 @@ CREATE TABLE `booking_requests` (
   `requested_end_time` time DEFAULT NULL COMMENT '请求的结束时间(单次预约)',
   `recurring_weekdays` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '周期性预约的星期几，逗号分隔：1,3,5',
   `recurring_time_slots` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '周期性预约的时间段，逗号分隔：14:00-16:00,18:00-20:00',
-  `selected_sessions_json` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `selected_sessions_json` json DEFAULT NULL COMMENT 'calendar选择的具体会话JSON',
   `start_date` date DEFAULT NULL COMMENT '周期性预约开始日期',
   `end_date` date DEFAULT NULL COMMENT '周期性预约结束日期',
   `total_times` int DEFAULT NULL COMMENT '总课程次数',
@@ -105,7 +105,7 @@ CREATE TABLE `booking_requests` (
   `teaching_location_id` bigint DEFAULT NULL COMMENT '授课地点ID（线下）',
   `teaching_location` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '线上' COMMENT '授课地点名称',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='预约申请表，记录学生的课程预约申请';
+) ENGINE=InnoDB AUTO_INCREMENT=47 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='预约申请表，记录学生的课程预约申请';
 
 -- ----------------------------
 -- Records of booking_requests
@@ -145,7 +145,7 @@ CREATE TABLE `course_enrollments` (
   KEY `idx_student_id` (`student_id`),
   KEY `idx_teacher_id` (`teacher_id`),
   KEY `idx_course_id` (`course_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='课程关系表，记录学生课程报名关系';
+) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='课程关系表，记录学生课程报名关系';
 
 -- ----------------------------
 -- Records of course_enrollments
@@ -286,7 +286,7 @@ CREATE TABLE `course_schedules` (
   KEY `idx_enrollment_id` (`enrollment_id`),
   KEY `idx_scheduled_date` (`scheduled_date`),
   KEY `idx_teacher_time` (`scheduled_date`,`start_time`,`end_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=207 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='课程安排表，记录具体的上课时间安排';
+) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='课程安排表，记录具体的上课时间安排';
 
 -- ----------------------------
 -- Records of course_schedules
@@ -357,9 +357,9 @@ INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`,
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`, `teacher_hourly_rate`, `current_hours`, `last_hours`) VALUES (37, 19, 7, '中学物理一对一课程', '中学物理实验课程，培养实验技能和科学思维。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, 2, NULL, NULL, NULL, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 1, '184', 300.00, 0.00, 0.00);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`, `teacher_hourly_rate`, `current_hours`, `last_hours`) VALUES (39, 20, 8, '中学化学一对一课程', '中学化学实验课程，深入理解化学原理。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, 2, NULL, NULL, NULL, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 1, '184', 260.00, 0.00, 0.00);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`, `teacher_hourly_rate`, `current_hours`, `last_hours`) VALUES (41, 21, 2, '小学科学一对一课程', '中学生物实验课程，探索生命科学奥秘。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, 1, NULL, NULL, NULL, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 1, '184', 270.00, 0.00, 0.00);
-INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`, `teacher_hourly_rate`, `current_hours`, `last_hours`) VALUES (43, 22, 6, '中学华文一对一课程', '中学古代文学学习，深入理解经典作品。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, 2, NULL, NULL, NULL, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线下', 1, '184', 240.00, 0.00, 0.00);
+INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`, `teacher_hourly_rate`, `current_hours`, `last_hours`) VALUES (43, 22, 6, '中学华文一对一课程', '中学古代文学学习，深入理解经典作品。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, 3, NULL, NULL, NULL, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线下', 1, '184', 240.00, 0.00, 0.00);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`, `teacher_hourly_rate`, `current_hours`, `last_hours`) VALUES (45, 23, 6, '中学华文一对一课程', '中学现代文学鉴赏，培养文学素养。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, 1, NULL, NULL, NULL, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 1, '184', 0.00, 0.00, 0.00);
-INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`, `teacher_hourly_rate`, `current_hours`, `last_hours`) VALUES (47, 24, 6, '中学华文一对一课程', '语言学基础知识，了解语言的科学原理。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, 2, NULL, NULL, NULL, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 1, '184', 229.93, 0.08, 0.00);
+INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`, `teacher_hourly_rate`, `current_hours`, `last_hours`) VALUES (47, 24, 6, '中学华文一对一课程', '语言学基础知识，了解语言的科学原理。', 5.0000000, 'one_on_one', 199.00, NULL, NULL, NULL, 2, NULL, NULL, NULL, 'active', 0, '2025-07-28 21:44:29', 0, NULL, '线上', 1, '184', 229.93, 0.50, 0.00);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`, `teacher_hourly_rate`, `current_hours`, `last_hours`) VALUES (56, 22, 7, '321312132', '', 5.0000000, 'one_on_one', NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, 'active', 0, '2025-09-16 21:10:33', 1, '2025-09-17 08:44:30', '线上', 0, NULL, NULL, 0.00, 0.00);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`, `teacher_hourly_rate`, `current_hours`, `last_hours`) VALUES (57, 24, 8, '测试大班课', '213123312131', 5.0000000, 'large_class', 50.00, '2025-09-18', '2025-10-31', 3, 1, '[{\"timeSlots\":[\"17:00-19:00\"],\"weekday\":1},{\"timeSlots\":[\"17:00-19:00\"],\"weekday\":2},{\"timeSlots\":[\"17:00-19:00\"],\"weekday\":3},{\"timeSlots\":[\"17:00-19:00\",\"19:00-21:00\"],\"weekday\":4},{\"timeSlots\":[\"17:00-19:00\",\"19:00-21:00\"],\"weekday\":5},{\"timeSlots\":[\"19:00-21:00\"],\"weekday\":6},{\"timeSlots\":[\"19:00-21:00\"],\"weekday\":7}]', NULL, 90, 'active', 1, '2025-09-17 10:49:28', 1, '2025-09-17 14:52:19', '线上', 0, NULL, 40.00, 0.00, 0.00);
 INSERT INTO `courses` (`id`, `teacher_id`, `subject_id`, `title`, `description`, `rating`, `course_type`, `price`, `start_date`, `end_date`, `person_limit`, `enrollment_count`, `course_time_slots`, `image_url`, `duration_minutes`, `status`, `is_featured`, `created_at`, `is_deleted`, `deleted_at`, `course_location`, `supports_online`, `offline_locations`, `teacher_hourly_rate`, `current_hours`, `last_hours`) VALUES (58, 24, 7, '测试小班课', '31231313', 5.0000000, 'large_class', 50.00, '2025-09-18', '2025-09-21', 2, 1, '[{\"timeSlots\":[\"17:00-19:00\"],\"weekday\":4},{\"timeSlots\":[\"17:00-19:00\"],\"weekday\":5},{\"timeSlots\":[\"17:00-19:00\"],\"weekday\":6},{\"timeSlots\":[\"17:00-19:00\"],\"weekday\":7}]', NULL, 90, 'active', 0, '2025-09-17 15:19:14', 0, NULL, '线上', 0, NULL, 5.00, 0.00, 0.00);
@@ -410,12 +410,15 @@ CREATE TABLE `hour_details` (
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_booking_id` (`booking_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='教师课时变动记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='教师课时变动记录表';
 
 -- ----------------------------
 -- Records of hour_details
 -- ----------------------------
 BEGIN;
+INSERT INTO `hour_details` (`id`, `user_id`, `name`, `hours`, `hours_before`, `hours_after`, `transaction_type`, `reason`, `booking_id`, `operator_id`, `created_at`) VALUES (4, 166, '郑教授', 0.42, 0.08, 0.50, 1, '管理员手动调整：课程(ID=47, 标题=中学华文一对一课程)', NULL, 11, '2025-09-17 19:13:08');
+INSERT INTO `hour_details` (`id`, `user_id`, `name`, `hours`, `hours_before`, `hours_after`, `transaction_type`, `reason`, `booking_id`, `operator_id`, `created_at`) VALUES (5, 166, '郑教授', -0.01, 0.50, 0.49, 0, '管理员手动调整：课程(ID=47, 标题=中学华文一对一课程)', NULL, 11, '2025-09-17 19:14:48');
+INSERT INTO `hour_details` (`id`, `user_id`, `name`, `hours`, `hours_before`, `hours_after`, `transaction_type`, `reason`, `booking_id`, `operator_id`, `created_at`) VALUES (6, 166, '郑教授', 0.01, 0.49, 0.50, 1, '管理员手动调整：课程(ID=47, 标题=中学华文一对一课程)', NULL, 11, '2025-09-17 19:22:17');
 COMMIT;
 
 -- ----------------------------
@@ -737,7 +740,7 @@ CREATE TABLE `students` (
 -- Records of students
 -- ----------------------------
 BEGIN;
-INSERT INTO `students` (`id`, `user_id`, `real_name`, `subjects_interested`, `learning_goals`, `preferred_teaching_style`, `balance`, `budget_range`, `is_deleted`, `deleted_at`, `gender`) VALUES (6, 10, '小明', '数学,科学,华文', '希望提高数学和科学成绩，加强华文阅读能力', '实践型教学', 957602.51, '100-200', 0, NULL, '男');
+INSERT INTO `students` (`id`, `user_id`, `real_name`, `subjects_interested`, `learning_goals`, `preferred_teaching_style`, `balance`, `budget_range`, `is_deleted`, `deleted_at`, `gender`) VALUES (6, 10, '小明', '数学,科学,华文', '希望提高数学和科学成绩，加强华文阅读能力', '实践型教学', 878798.51, '100-200', 0, NULL, '男');
 COMMIT;
 
 -- ----------------------------
@@ -917,7 +920,7 @@ CREATE TABLE `teacher_daily_availability` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_teacher_date` (`teacher_id`,`available_date`),
   KEY `idx_teacher_date` (`teacher_id`,`available_date`)
-) ENGINE=InnoDB AUTO_INCREMENT=17949 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17979 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of teacher_daily_availability
@@ -10038,24 +10041,36 @@ INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, 
 INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17910, 37, '2025-10-29', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-15 10:04:33', '2025-09-15 10:04:33', 0, NULL);
 INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17911, 37, '2025-10-30', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-15 10:04:33', '2025-09-15 10:04:33', 0, NULL);
 INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17912, 37, '2025-10-31', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-15 10:04:33', '2025-09-15 10:04:33', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17931, 22, '2025-09-13', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17932, 22, '2025-09-14', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17933, 22, '2025-09-15', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17934, 22, '2025-09-16', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17935, 22, '2025-09-17', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17936, 22, '2025-09-18', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17937, 22, '2025-09-19', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17938, 22, '2025-09-20', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17939, 22, '2025-09-21', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17940, 22, '2025-09-22', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17941, 22, '2025-09-23', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17942, 22, '2025-09-24', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17943, 22, '2025-09-25', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17944, 22, '2025-09-26', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17945, 22, '2025-09-27', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17946, 22, '2025-09-28', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17947, 22, '2025-09-29', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
-INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17948, 22, '2025-09-30', '[\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-16 10:05:31', '2025-09-16 10:05:31', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17949, 22, '2025-09-13', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17950, 22, '2025-09-14', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17951, 22, '2025-09-15', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17952, 22, '2025-09-16', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17953, 22, '2025-09-17', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17954, 22, '2025-09-18', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17955, 22, '2025-09-19', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17956, 22, '2025-09-20', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17957, 22, '2025-09-21', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17958, 22, '2025-09-22', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17959, 22, '2025-09-23', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17960, 22, '2025-09-24', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17961, 22, '2025-09-25', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17962, 22, '2025-09-26', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17963, 22, '2025-09-27', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17964, 22, '2025-09-28', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17965, 22, '2025-09-29', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17966, 22, '2025-09-30', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17967, 22, '2025-09-01', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17968, 22, '2025-09-02', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17969, 22, '2025-09-03', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17970, 22, '2025-09-04', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17971, 22, '2025-09-05', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17972, 22, '2025-09-06', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17973, 22, '2025-09-07', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17974, 22, '2025-09-08', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17975, 22, '2025-09-09', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17976, 22, '2025-09-10', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17977, 22, '2025-09-11', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
+INSERT INTO `teacher_daily_availability` (`id`, `teacher_id`, `available_date`, `time_slots_json`, `created_at`, `updated_at`, `is_deleted`, `deleted_at`) VALUES (17978, 22, '2025-09-12', '[\"08:00-10:00\",\"10:00-12:00\",\"13:00-15:00\",\"15:00-17:00\",\"17:00-19:00\",\"19:00-21:00\"]', '2025-09-17 22:59:04', '2025-09-17 22:59:04', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -10277,3 +10292,100 @@ INSERT INTO `users` (`id`, `username`, `email`, `password`, `phone`, `birth_date
 COMMIT;
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+
+
+-- ============================================
+-- Seed: 课程评价示例数据（基于现有课程/教师/学生）
+-- 说明：
+-- 1) 按当前 courses 与 teachers、students 真实数据生成评价
+-- 2) 每门课程插入至多 2 条，避免 uk_student_course 冲突使用 INSERT IGNORE
+-- 3) MySQL 5.7 兼容；执行前请确保已存在 teachers/students/courses 数据
+-- ============================================
+START TRANSACTION;
+
+-- 临时学生池 + 行号（最多100人，避免 RAND() 全表扫描；用行号替代 LIMIT 偏移）
+CREATE TEMPORARY TABLE IF NOT EXISTS tmp_seed_students_rn AS
+SELECT s.id, s.real_name, @rn:=@rn+1 AS rn
+FROM (
+  SELECT id, real_name FROM students WHERE is_deleted = 0 ORDER BY id LIMIT 100
+) s
+JOIN (SELECT @rn:=0) r;
+
+SET @seed_cnt := IFNULL((SELECT COUNT(*) FROM tmp_seed_students_rn), 0);
+
+-- 第一轮：每门课程 1 条评价
+INSERT IGNORE INTO course_evaluation (
+  teacher_id, student_id, course_id, teacher_name, student_name, course_name,
+  is_featured, student_comment, rating, created_at, updated_at, is_deleted, course_location
+)
+SELECT
+  c.teacher_id,
+  s1.id AS student_id,
+  c.id    AS course_id,
+  t.real_name AS teacher_name,
+  s1.real_name AS student_name,
+  c.title AS course_name,
+  IF(RAND() < 0.20, 1, 0) AS is_featured,
+  CASE FLOOR(RAND()*8)
+    WHEN 0 THEN '老师讲解清晰，课堂节奏把握得很好。'
+    WHEN 1 THEN '针对性很强，作业反馈及时，孩子进步明显。'
+    WHEN 2 THEN '课堂互动多，学习兴趣提升了。'
+    WHEN 3 THEN '内容循序渐进，方法实用有效。'
+    WHEN 4 THEN '老师非常负责，答疑细致耐心。'
+    WHEN 5 THEN '课程安排合理，性价比高。'
+    WHEN 6 THEN '拓展知识点丰富，视野开阔。'
+    ELSE       '整体体验很棒，收获很大。'
+  END AS student_comment,
+  ROUND(4.0 + RAND()*1.0, 1) AS rating,                  -- 4.0 ~ 5.0 更真实
+  NOW() - INTERVAL FLOOR(RAND()*60) DAY AS created_at,   -- 近两个月随机时间
+  NOW() AS updated_at,
+  0 AS is_deleted,
+  c.course_location
+FROM courses c
+JOIN teachers t ON t.id = c.teacher_id AND t.is_deleted = 0
+JOIN tmp_seed_students_rn s1
+  ON s1.rn = ((c.id % NULLIF(@seed_cnt,0)) + 1)
+WHERE c.is_deleted = 0
+  AND @seed_cnt > 0;
+
+-- 第二轮：为部分课程再补充第2条评价，选择不同学生（偏移+13）
+INSERT IGNORE INTO course_evaluation (
+  teacher_id, student_id, course_id, teacher_name, student_name, course_name,
+  is_featured, student_comment, rating, created_at, updated_at, is_deleted, course_location
+)
+SELECT
+  c.teacher_id,
+  s2.id AS student_id,
+  c.id    AS course_id,
+  t.real_name AS teacher_name,
+  s2.real_name AS student_name,
+  c.title AS course_name,
+  IF(RAND() < 0.12, 1, 0) AS is_featured,
+  CASE FLOOR(RAND()*8)
+    WHEN 0 THEN '讲练结合，孩子当堂就能吸收，效果很好。'
+    WHEN 1 THEN '举例生动，能够联系实际，理解更深。'
+    WHEN 2 THEN '思路清晰，重难点突出，学习效率高。'
+    WHEN 3 THEN '作业讲评细致，指出了很多易错点。'
+    WHEN 4 THEN '课堂氛围轻松，孩子更愿意表达与思考。'
+    WHEN 5 THEN '针对薄弱点有专门强化，提升明显。'
+    WHEN 6 THEN '课程资源丰富，材料整理得很专业。'
+    ELSE       '服务体验很棒，沟通顺畅。'
+  END AS student_comment,
+  ROUND(4.1 + RAND()*0.9, 1) AS rating,
+  NOW() - INTERVAL FLOOR(RAND()*45) DAY AS created_at,
+  NOW() AS updated_at,
+  0 AS is_deleted,
+  c.course_location
+FROM courses c
+JOIN teachers t ON t.id = c.teacher_id AND t.is_deleted = 0
+JOIN tmp_seed_students_rn s2
+  ON s2.rn = (((c.id + 13) % NULLIF(@seed_cnt,0)) + 1)
+WHERE c.is_deleted = 0
+  AND @seed_cnt > 1
+  AND RAND() < 0.65;  -- 随机选取部分课程增加第二条，避免过密
+
+COMMIT;
+
+DROP TEMPORARY TABLE IF EXISTS tmp_seed_students_rn;
+-- ============================================

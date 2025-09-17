@@ -1,15 +1,16 @@
 <template>
   <el-dialog v-model="visible" :title="title" :width="dialogWidth" :fullscreen="isSmall" destroy-on-close @closed="onClosed">
     <div class="toolbar">
-      <el-radio-group v-model="duration" size="small">
+      <el-radio-group v-if="!props.lockDuration" v-model="duration" size="small">
         <el-radio-button :label="90">1.5 小时</el-radio-button>
         <el-radio-button :label="120">2 小时</el-radio-button>
       </el-radio-group>
       <div class="spacer" />
-      <el-button size="small" @click="onSelectAllMonth">本月全选</el-button>
-      <el-button size="small" @click="onClearMonth">清空本月</el-button>
-
-      <span class="hint">说明：1.5小时固定为每个2小时时间段的中间90分钟（如 08:15-09:45）；若该基础段内存在任意30分钟试听（已排或待审批），该时间段不可预约正式课。</span>
+      <template v-if="props.showMonthQuickButtons !== false">
+        <el-button size="small" @click="onSelectAllMonth">本月全选</el-button>
+        <el-button size="small" @click="onClearMonth">清空本月</el-button>
+      </template>
+      <span v-if="props.showHint !== false" class="hint">说明：1.5小时固定为每个2小时时间段的中间90分钟（如 08:15-09:45）；若该基础段内存在任意30分钟试听（已排或待审批），该时间段不可预约正式课。</span>
     </div>
 
     <div class="content">
@@ -24,6 +25,7 @@
           :date-range-start="dateRangeStart"
           :date-range-end="dateRangeEnd"
           :hide-header="true"
+          :hide-months="props.hideMonths"
           :student-single-select="!props.multiSelect"
           @change-student-sessions="onChangeSessions"
         />
@@ -59,7 +61,7 @@ import 'dayjs/locale/zh-cn'
 dayjs.locale('zh-cn')
 import CalendarMultiMonth from '@/components/CalendarMultiMonth.vue'
 
-const props = defineProps<{ teacherId: number; title?: string; months?: number; multiSelect?: boolean }>()
+const props = defineProps<{ teacherId: number; title?: string; months?: number; multiSelect?: boolean; lockDuration?: boolean; showMonthQuickButtons?: boolean; showHint?: boolean; hideMonths?: boolean }>()
 
 const visible = ref(false)
 

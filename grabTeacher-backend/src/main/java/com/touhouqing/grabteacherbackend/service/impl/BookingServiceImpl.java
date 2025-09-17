@@ -2403,7 +2403,13 @@ public class BookingServiceImpl implements BookingService {
                 m.put("end", s.getEndTime().toString());
                 arr.add(m);
             }
-            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(arr);
+            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(arr);
+            // 防止 DB 列容量不足导致插入失败（MySQL5.7 TEXT ~ 65KB）。
+            // 超限时给出友好提示，避免抛出 DataTruncation。
+            if (json != null && json.length() > 60000) {
+                throw new RuntimeException("所选时段过多，请分批提交（单次提交请控制在约1200条以内）");
+            }
+            return json;
         } catch (Exception e) {
             throw new RuntimeException("所选时段序列化失败");
         }

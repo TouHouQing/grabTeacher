@@ -182,6 +182,10 @@
       :teacher-id="calendarTeacherId"
       :months="12"
       :multi-select="props.isTeacher"
+      :lock-duration="!props.isTeacher"
+      :show-month-quick-buttons="props.isTeacher"
+      :show-hint="props.isTeacher"
+      :hide-months="!props.isTeacher"
       @confirm="onCalendarConfirm"
     />
 
