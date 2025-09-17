@@ -357,6 +357,7 @@ export const teacherAPI = {
     // 授课地点
     supportsOnline?: boolean
     teachingLocationIds?: number[]
+    hourlyRateText?: string
   }) => apiRequest('/api/admin/teachers', {
     method: 'POST',
     body: JSON.stringify(data)
@@ -380,6 +381,7 @@ export const teacherAPI = {
     // 授课地点
     supportsOnline?: boolean
     teachingLocationIds?: number[]
+    hourlyRateText?: string
   }) => apiRequest(`/api/admin/teachers/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)

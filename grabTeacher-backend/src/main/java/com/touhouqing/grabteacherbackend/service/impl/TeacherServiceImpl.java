@@ -211,6 +211,7 @@ public class TeacherServiceImpl implements TeacherService {
                 .specialties(teacher.getSpecialties())
                 .subjectIds(subjectIds)
                 .introduction(teacher.getIntroduction())
+                .hourlyRateText(teacher.getHourlyRateText())
                 .gender(teacher.getGender())
                 .avatarUrl(avatarUrl)
                                 .supportsOnline(supportsOnline)

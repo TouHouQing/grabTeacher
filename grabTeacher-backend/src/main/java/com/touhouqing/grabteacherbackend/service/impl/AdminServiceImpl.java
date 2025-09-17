@@ -751,6 +751,7 @@ public class AdminServiceImpl implements AdminService {
                 .subjectIds(subjectIds)
                 .rating(teacher.getRating())
                 .introduction(teacher.getIntroduction())
+                .hourlyRateText(teacher.getHourlyRateText())
                 .gender(teacher.getGender())
                 .level(teacher.getLevel())
 
@@ -877,6 +878,7 @@ public class AdminServiceImpl implements AdminService {
                 .level(resolvedLevelName)
                 .supportsOnline(supportsOnline)
                 .teachingLocations(teachingLocationsCsv)
+                .hourlyRateText(request.getHourlyRateText())
 
                 .rating(request.getRating() != null ? request.getRating() : BigDecimal.valueOf(5.0)) // 默认评分5.0
                 .verified(true) // 管理员添加的教师默认已审核
@@ -1003,6 +1005,11 @@ public class AdminServiceImpl implements AdminService {
         }
 
         // 按星期字段已废弃：更新教师不再处理 weekly availableTimeSlots
+
+        // 更新教师时薪展示文本（varchar）
+        if (request.getHourlyRateText() != null) {
+            teacher.setHourlyRateText(request.getHourlyRateText());
+        }
 
         teacherMapper.updateById(teacher);
 

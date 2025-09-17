@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 dayjs.locale('zh-cn')
@@ -73,7 +73,7 @@ onMounted(() => {
     else if ((mql as any)?.addListener) (mql as any).addListener(mediaHandler)
   } catch {}
 })
-onBeforeUnmount(() => {
+onUnmounted(() => {
   try {
     if (mql && mediaHandler) {
       if ((mql as any)?.removeEventListener) (mql as any).removeEventListener('change', mediaHandler)

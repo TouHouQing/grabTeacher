@@ -59,7 +59,7 @@ export interface TeacherInfo {
   specialties?: string
   subjects?: string
   subjectIds?: number[]  // 保留用于显示，但不允许修改
-  hourlyRate?: number
+  hourlyRateText?: string
   introduction?: string
   videoIntroUrl?: string
   gender?: string

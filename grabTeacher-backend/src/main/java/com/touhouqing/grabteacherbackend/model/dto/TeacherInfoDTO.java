@@ -39,6 +39,10 @@ public class TeacherInfoDTO {
     @Schema(description = "线下授课地点ID列表（从授课地点表选择）", example = "[1,2,3]")
     private List<Long> teachingLocationIds;
 
+
+    @Schema(description = "教师时薪展示文本（varchar），由管理员维护")
+    private String hourlyRateText;
+
     @Schema(description = "可上课时间安排")
     private List<TimeSlotDTO> availableTimeSlots;
 

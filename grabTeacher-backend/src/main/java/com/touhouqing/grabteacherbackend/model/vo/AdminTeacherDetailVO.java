@@ -21,49 +21,53 @@ import java.util.List;
 @Builder
 @Schema(description = "管理员端教师详情响应")
 public class AdminTeacherDetailVO {
-    
+
     @Schema(description = "教师ID", example = "1")
     private Long id;
-    
+
     @Schema(description = "用户ID", example = "1")
     private Long userId;
-    
+
     @Schema(description = "真实姓名", example = "张老师")
     private String realName;
-    
+
     @Schema(description = "用户名", example = "zhangteacher")
     private String username;
-    
+
     @Schema(description = "邮箱", example = "zhang@example.com")
     private String email;
-    
+
     @Schema(description = "电话", example = "+65 8888 8888")
     private String phone;
-    
+
     @Schema(description = "头像URL", example = "https://example.com/avatar.jpg")
     private String avatarUrl;
-    
+
     @Schema(description = "出生年月", example = "1990-01")
     private String birthDate;
-    
+
     @Schema(description = "教育背景", example = "北京大学数学系硕士")
     private String educationBackground;
-    
+
     @Schema(description = "教学经验年数", example = "5")
     private Integer teachingExperience;
-    
+
     @Schema(description = "专业特长", example = "高考数学,竞赛辅导")
     private String specialties;
-    
+
     @Schema(description = "教授科目ID列表", example = "[1, 2, 3]")
     private List<Long> subjectIds;
-    
+
     @Schema(description = "教师评分", example = "4.5")
     private BigDecimal rating;
-    
+
     @Schema(description = "个人介绍", example = "专业数学教师，擅长高考辅导")
     private String introduction;
-    
+
+
+    @Schema(description = "教师时薪展示文本（varchar），由管理员维护")
+    private String hourlyRateText;
+
 
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     private String gender;

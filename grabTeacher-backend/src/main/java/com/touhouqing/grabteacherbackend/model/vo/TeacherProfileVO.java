@@ -49,6 +49,10 @@ public class TeacherProfileVO {
     private String introduction;
 
 
+    @Schema(description = "教师时薪展示文本（varchar），由管理员维护")
+    private String hourlyRateText;
+
+
     @Schema(description = "性别", example = "不愿透露", allowableValues = {"男", "女", "不愿透露"})
     private String gender;
 

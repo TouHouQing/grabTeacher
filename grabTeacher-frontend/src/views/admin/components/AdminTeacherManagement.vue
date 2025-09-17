@@ -101,7 +101,7 @@ const teacherForm = reactive({
   // 授课地点：supportsOnline 为线上开关；ID 数组为线下地点
   teachingLocationIds: [] as number[],
   supportsOnline: true,
-  courseSalaries: [] as Array<any>
+  hourlyRateText: ''
 })
 const _teacherAvatarFile = ref<File | null>(null)
 
@@ -295,6 +295,7 @@ const handleAddTeacher = () => {
     gender: '男',
     level: '',
     isVerified: false,
+    hourlyRateText: '',
     teachingLocationIds: []
   })
   teacherForm.supportsOnline = true
@@ -313,11 +314,9 @@ const handleEditTeacher = async (teacher: any) => {
     const detail = await teacherAPI.getById(teacher.id)
     if (detail.success && detail.data) {
       Object.assign(teacherForm, detail.data)
-      ;(teacherForm as any).courseSalaries = ((detail.data as any).courseSalaries || []).map((it: any) => ({
-        ...it,
-        editTeacherHourlyRate: Number(it.teacherHourlyRate ?? 0),
-        editCurrentHours: Number(it.currentHours ?? 0)
-      }))
+      // 回显教师的统一时薪（varchar），兼容历史 numeric 字段
+      ;(teacherForm as any).hourlyRateText = (detail.data as any).hourlyRateText
+        || (typeof (detail.data as any).hourlyRate === 'number' ? `${(detail.data as any).hourlyRate}` : '')
       // 统一旧值到新枚举：如“硕士研究生”=>“硕士”，“博士研究生”=>“博士”，“专科”=>“专科及以下”
       teacherForm.educationBackground = normalizeEducation(teacherForm.educationBackground || '')
       teacherForm.level = detail.data.level || '王牌'
@@ -379,40 +378,6 @@ const handleEditTeacher = async (teacher: any) => {
   teacherDialogVisible.value = true
 }
 
-// 一对一课程：可编辑时薪与本月课时（差值入账）
-const courseEditDirty = ref(false)
-const onCourseCellChange = () => {
-  courseEditDirty.value = true
-}
-const toFixed2NonNegative = (v: any): number => {
-  const n = Number(v || 0)
-  if (Number.isNaN(n) || n < 0) return 0
-  return Number(n.toFixed(2))
-}
-const saveOneOnOneCourseMetrics = async (): Promise<void> => {
-  if (!teacherForm.id) return
-  const rows: any[] = (teacherForm as any).courseSalaries || []
-  const items: Array<{ courseId: number; teacherHourlyRate?: number; currentHours?: number }> = []
-  for (const r of rows) {
-    const payload: any = { courseId: r.courseId }
-    const newRate = toFixed2NonNegative(r.editTeacherHourlyRate)
-    const newHours = toFixed2NonNegative(r.editCurrentHours)
-    const oldRate = Number(r.teacherHourlyRate ?? 0)
-    const oldHours = Number(r.currentHours ?? 0)
-    if (newRate !== oldRate) payload.teacherHourlyRate = newRate
-    if (newHours !== oldHours) payload.currentHours = newHours
-    if (payload.teacherHourlyRate !== undefined || payload.currentHours !== undefined) {
-      items.push(payload)
-    }
-  }
-  if (items.length === 0) return
-  const res = await teacherAPI.adminUpdateOneOnOneMetrics(teacherForm.id, items as any)
-  if (!res.success) {
-    throw new Error(res.message || '保存课程时薪/本月课时失败')
-  }
-  courseEditDirty.value = false
-}
-
 
 // 保存教师
 const saveTeacher = async () => {
@@ -434,7 +399,8 @@ const saveTeacher = async () => {
       isVerified: teacherForm.isVerified,
       adjustmentTimes: teacherForm.adjustmentTimes,
       supportsOnline: teacherForm.supportsOnline,
-      teachingLocationIds: teacherForm.teachingLocationIds
+      teachingLocationIds: teacherForm.teachingLocationIds,
+      hourlyRateText: teacherForm.hourlyRateText
     }
     // 用户名可选：留空则不提交，由后端按 teacher+userId 自动生成
     if (!teacherForm.username || !teacherForm.username.trim()) {
@@ -488,14 +454,6 @@ const saveTeacher = async () => {
       teacherForm.avatarUrl = uploadedAvatarUrl
     }
 
-
-    // 保存一对一课程的时薪与本月课时（如有变更）
-    try {
-      await saveOneOnOneCourseMetrics()
-    } catch (e: any) {
-      ElMessage.error(e?.message || '保存课程时薪/本月课时失败')
-      return
-    }
 
     ElMessage.success(teacherForm.id === 0 ? '添加成功，默认密码为123456' : '更新成功')
 
@@ -869,25 +827,9 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="时薪/课时">
-          <el-table :data="teacherForm.courseSalaries" size="small" border style="width: 100%">
-            <el-table-column prop="title" label="课程" min-width="200" show-overflow-tooltip />
-            <el-table-column label="时薪(M豆/小时)" width="200">
-              <template #default="{ row }">
-                <el-input-number v-model="row.editTeacherHourlyRate" :min="0" :step="1" :precision="2" @change="onCourseCellChange" style="width: 180px" />
-              </template>
-            </el-table-column>
-            <el-table-column label="本月课时(小时)" width="200">
-              <template #default="{ row }">
-                <el-input-number v-model="row.editCurrentHours" :min="0" :step="1" :precision="2" @change="onCourseCellChange" style="width: 180px" />
-              </template>
-            </el-table-column>
-            <el-table-column label="当前值预览" min-width="260">
-              <template #default="{ row }">
-                <span style="color:#999">原时薪: {{ row.teacherHourlyRate || 0 }} → 新: {{ row.editTeacherHourlyRate || 0 }}；原课时: {{ row.currentHours || 0 }} → 新: {{ row.editCurrentHours || 0 }}</span>
-              </template>
-            </el-table-column>
-          </el-table>
+        <el-form-item label="时薪">
+          <el-input v-model="teacherForm.hourlyRateText" placeholder="请输入时薪展示文本，例如：200 M豆/小时、￥300/小时、$45/h" />
+          <div style="margin-top:4px;"><el-text type="info" size="small">此字段为展示用文本，将显示在教师端个人资料“时薪”处</el-text></div>
         </el-form-item>
         <el-form-item label="教师评分">
           <el-input-number

@@ -223,7 +223,7 @@ onMounted(async () => {
               </el-form-item>
 
               <el-form-item label="时薪">
-                <el-input :value="teacherForm.hourlyRate ? `$${teacherForm.hourlyRate}/小时` : '未设置'" disabled></el-input>
+                <el-input :value="teacherForm.hourlyRateText || '未设置'" disabled></el-input>
               </el-form-item>
 
               <el-form-item label="级别">
