@@ -348,7 +348,31 @@ function setStudentSessions(list: Array<{ date: string; startTime: string; endTi
   emit('change-student-sessions', studentSessions.value)
 }
 // @ts-ignore
-defineExpose({ reload, applySelectionPatch, clearStudentSessions, setStudentSessions })
+function getSelectableSessions(duration?: 90 | 120 | number) {
+  const dur = (duration as any) || 90
+  const res: Array<{ date: string; startTime: string; endTime: string }> = []
+  for (const day of days.value) {
+    const slots = (day as any).slots || []
+    for (const it of slots) {
+      const raw = String(it.slot || '')
+      const [startStr, endStr] = raw.split('-')
+      if (dur === 120) {
+        if (it.status === 'busy_trial_base' || it.status === 'busy_formal' || it.status === 'unavailable') continue
+        res.push({ date: day.date, startTime: startStr, endTime: endStr })
+      } else {
+        if (it.status === 'busy_formal' || it.status === 'unavailable' || it.status === 'busy_trial_base') continue
+        const s = dayjs(`${day.date} ${startStr}`)
+        const e = dayjs(`${day.date} ${endStr}`)
+        const startTime = s.add(15, 'minute').format('HH:mm')
+        const endTime = e.subtract(15, 'minute').format('HH:mm')
+        res.push({ date: day.date, startTime, endTime })
+      }
+    }
+  }
+  return res
+}
+
+defineExpose({ reload, applySelectionPatch, clearStudentSessions, setStudentSessions, getSelectableSessions })
 
 const onClickSlot = (day: any, slot: string) => {
   const rawSlot = slot

@@ -10,11 +10,7 @@
       </div>
       <div class="spacer" />
       <slot name="extra" />
-      <el-radio-group v-model="monthsCount" size="small" style="margin-left: 8px;">
-        <el-radio-button :label="3">3个月</el-radio-button>
-        <el-radio-button :label="6">6个月</el-radio-button>
-        <el-radio-button :label="12">12个月</el-radio-button>
-      </el-radio-group>
+
     </div>
 
     <CalendarMonth
@@ -38,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import dayjs from 'dayjs'
 import CalendarMonth from './CalendarMonth.vue'
 
@@ -63,7 +59,7 @@ const emit = defineEmits<{
 }>()
 
 const base = dayjs(`${props.startYear || dayjs().year()}-${String(props.startMonth || (dayjs().month()+1)).padStart(2,'0')}-01`)
-const monthsCount = ref(props.months || 3)
+const monthsCount = ref(props.months || 12)
 const activeIdx = ref(0)
 const monthRef = ref<InstanceType<typeof CalendarMonth> | null>(null)
 
@@ -153,12 +149,52 @@ function setStudentSessionsAll(list: Array<{ date: string; startTime: string; en
   if (active) (monthRef.value as any)?.setStudentSessions?.(byMonth[active.key] || [])
 }
 // @ts-ignore
-defineExpose({ getTeacherSelectionAll, getStudentSessionsAll, refreshActiveMonth, clear, clearAllStudentSessions, applySelectionPatch, setStudentSessionsAll })
+defineExpose({ getTeacherSelectionAll, getStudentSessionsAll, refreshActiveMonth, clear, clearAllStudentSessions, applySelectionPatch, setStudentSessionsAll, selectAllStudentInActiveMonth, clearActiveMonthStudentSessions, applyTeacherFullMonth, clearTeacherFullMonth, getActiveMonthInfo })
 
-watch(monthsCount, () => {
-  // 切换月份数量时，重置活跃索引
-  activeIdx.value = 0
-})
+
+function getActiveMonthInfo() {
+  const m = monthList.value[activeIdx.value]
+  return m ? { ...m } : null
+}
+
+async function selectAllStudentInActiveMonth() {
+  const target = monthList.value[activeIdx.value]
+  if (!target) return
+  const dur = (props.durationMinutes as any) || 90
+  const list = await (monthRef.value as any)?.getSelectableSessions?.(dur)
+  sessionsByMonth.value = { ...sessionsByMonth.value, [target.key]: list }
+  ;(monthRef.value as any)?.setStudentSessions?.(list)
+  emit('change-student-sessions', flattenSessions())
+}
+
+async function clearActiveMonthStudentSessions() {
+  const target = monthList.value[activeIdx.value]
+  if (!target) return
+  sessionsByMonth.value = { ...sessionsByMonth.value, [target.key]: [] }
+  ;(monthRef.value as any)?.clearStudentSessions?.()
+  emit('change-student-sessions', flattenSessions())
+}
+
+async function applyTeacherFullMonth(slots: string[], overwrite: boolean) {
+  const target = monthList.value[activeIdx.value]
+  if (!target) return
+  const start = dayjs(`${target.year}-${String(target.month).padStart(2, '0')}-01`)
+  const end = start.endOf('month')
+  const patch: Record<string, string[]> = {}
+  let cur = start
+  while (cur.isBefore(end) || cur.isSame(end, 'day')) {
+    const key = cur.format('YYYY-MM-DD')
+    patch[key] = [...(slots || [])]
+    cur = cur.add(1, 'day')
+  }
+  applySelectionPatch(patch, overwrite)
+}
+
+function clearTeacherFullMonth() {
+  applyTeacherFullMonth([], true)
+}
+
+watch(monthsCount, () => { activeIdx.value = 0 })
 
 watch(activeIdx, () => {
   // 切换活跃月份时，如有缓存会话则回填

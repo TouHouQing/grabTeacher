@@ -6,7 +6,7 @@
         <el-tooltip :content="s.tips || statusText(s.status)" placement="top" :disabled="!s.tips && !statusText(s.status)">
           <el-button
             size="small"
-            :class="['slot-btn', `status-${s.status}`, { selected: selectedSet.has(s.slot) } ]"
+            :class="['slot-btn', `status-${effectiveStatus(s)}`, { selected: selectedSet.has(s.slot) } ]"
             :disabled="disabledCenter(s)"
             @click="$emit('click-slot', s.slot, s)"
           >
@@ -19,7 +19,7 @@
         <el-tooltip :content="s.tips || statusText(s.status)" placement="top" :disabled="!s.tips && !statusText(s.status)">
           <el-button
             size="small"
-            :class="['slot-btn', `status-${s.status}`, { selected: selectedSet.has(s.slot) } ]"
+            :class="['slot-btn', `status-${effectiveStatus(s)}`, { selected: selectedSet.has(s.slot) } ]"
             :disabled="disabledInMode(s)"
             @click="$emit('click-slot', s.slot, s)"
           >
@@ -70,6 +70,17 @@ function disabledCenter(s: SlotItem): boolean {
   if (s.status === 'busy_formal' || s.status === 'unavailable' || s.status === 'busy_trial_base' || s.status === 'pending_trial') return true
   return false
 }
+
+function effectiveStatus(s: SlotItem): string {
+  if (props.mode === 'teacher') {
+    // 预览：已选视为“可预约”；未选回落为“不可预约”，但保留红/橙等禁用态
+    if (selectedSet.value.has(s.slot)) return 'available'
+    if (s.status === 'busy_formal' || s.status === 'busy_trial_base' || s.status === 'pending_trial') return s.status
+    return 'unavailable'
+  }
+  return s.status || 'unavailable'
+}
+
 
 
 const shortSlot = (slot: string) => slot

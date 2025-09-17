@@ -6,6 +6,9 @@
         <el-radio-button :label="120">2 小时</el-radio-button>
       </el-radio-group>
       <div class="spacer" />
+      <el-button size="small" @click="onSelectAllMonth">本月全选</el-button>
+      <el-button size="small" @click="onClearMonth">清空本月</el-button>
+
       <span class="hint">说明：1.5小时固定为每个2小时时间段的中间90分钟（如 08:15-09:45）；若该基础段内存在任意30分钟试听（已排或待审批），该时间段不可预约正式课。</span>
     </div>
 
@@ -85,7 +88,7 @@ onUnmounted(() => {
 const dialogWidth = computed(() => isSmall.value ? '100vw' : 'min(1360px, 98vw)')
 const title = ref(props.title || '选择上课时间（按日历）')
 const duration = ref<90 | 120>(90)
-const months = props.months || 6
+const months = props.months || 12
 const sessions = ref<Array<{ date: string; startTime: string; endTime: string }>>([])
 const calRef = ref<InstanceType<typeof CalendarMultiMonth> | null>(null)
 
@@ -127,6 +130,13 @@ const open = (opts?: { defaultDuration?: 90|120; allowedPeriods?: Array<'morning
 const confirm = () => {
   emit('confirm', sessions.value, duration.value)
   visible.value = false
+}
+
+async function onSelectAllMonth() {
+  await (calRef.value as any)?.selectAllStudentInActiveMonth?.()
+}
+function onClearMonth() {
+  ;(calRef.value as any)?.clearActiveMonthStudentSessions?.()
 }
 
 // 关闭对话框后，统一清空选择与过滤条件，确保切换老师或重新进入时无残留

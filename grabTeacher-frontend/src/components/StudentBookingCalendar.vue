@@ -2,7 +2,7 @@
   <StudentScheduler
     ref="dlg"
     :teacher-id="teacherId"
-    :months="6"
+    :months="12"
     :multi-select="multiSelect"
     @confirm="confirmProxy"
   />

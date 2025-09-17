@@ -276,7 +276,7 @@ onMounted(async () => {
   <el-tab-pane label="可上课时间">
     <div class="profile-container">
       <div class="form-section">
-        <TeacherAvailabilityEditor v-if="teacherForm.id" :teacher-id="Number(teacherForm.id)" :months="6" />
+        <TeacherAvailabilityEditor v-if="teacherForm.id" :teacher-id="Number(teacherForm.id)" :months="12" />
       </div>
     </div>
   </el-tab-pane>

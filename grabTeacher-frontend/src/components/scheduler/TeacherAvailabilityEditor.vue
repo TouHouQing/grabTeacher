@@ -3,47 +3,8 @@
     <div class="toolbar">
       <el-alert type="info" :closable="false" show-icon title="设置按日历的可上课基础段，仅影响学生可预约；已排课程优先级更高" />
       <div class="actions">
-        <el-checkbox v-model="overwrite" size="small">覆盖同日已设置</el-checkbox>
-        <el-button size="small" @click="onCopyDay" :disabled="!lastClickedDate">复制当日</el-button>
-        <el-button size="small" @click="pasteDialog=true" :disabled="!clipboardSlots.length">粘贴到…</el-button>
-        <el-dropdown>
-          <el-button size="small" :title="lastPresetLabel ? `已应用：${lastPresetLabel}${lastPresetSlotsLabel ? '：' + lastPresetSlotsLabel : ''}` : ''">
-            预设{{ lastPresetLabel ? `（已应用：${lastPresetLabel}${lastPresetSlotsLabelShort ? '：' + lastPresetSlotsLabelShort : ''}）` : '' }}
-            <i class="el-icon--right el-icon-arrow-down" />
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item @click="openPreset('weekday_full')">
-                <span>工作日全开</span>
-                <span v-if="lastAppliedPreset==='weekday_full'" style="margin-left:6px">✓</span>
-              </el-dropdown-item>
-              <el-dropdown-item @click="openPreset('weekend_full')">
-                <span>周末全开</span>
-                <span v-if="lastAppliedPreset==='weekend_full'" style="margin-left:6px">✓</span>
-              </el-dropdown-item>
-              <el-dropdown-item @click="openPreset('all_full')">
-                <span>整月全开</span>
-                <span v-if="lastAppliedPreset==='all_full'" style="margin-left:6px">✓</span>
-              </el-dropdown-item>
-              <el-dropdown-item divided @click="openPreset('evening')">
-                <span>每日晚上</span>
-                <span v-if="lastAppliedPreset==='evening'" style="margin-left:6px">✓</span>
-              </el-dropdown-item>
-              <el-dropdown-item @click="openPreset('daytime')">
-                <span>每日下午</span>
-                <span v-if="lastAppliedPreset==='daytime'" style="margin-left:6px">✓</span>
-              </el-dropdown-item>
-              <el-dropdown-item @click="openPreset('morning_evening')">
-                <span>每日上午</span>
-                <span v-if="lastAppliedPreset==='morning_evening'" style="margin-left:6px">✓</span>
-              </el-dropdown-item>
-              <el-dropdown-item divided @click="openPreset('clear')">
-                <span>清空范围</span>
-                <span v-if="lastAppliedPreset==='clear'" style="margin-left:6px">✓</span>
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <el-button size="small" @click="onFullOpenThisMonth">本月全开</el-button>
+        <el-button size="small" @click="onClearThisMonth">清空本月</el-button>
         <el-button type="primary" size="small" :loading="saving" @click="onSave">保存</el-button>
       </div>
     </div>
@@ -57,30 +18,9 @@
       @last-clicked-date="onLastClickedDate"
     />
 
-    <el-dialog v-model="pasteDialog" title="粘贴到范围" width="460px">
-      <div class="paste-form">
-        <el-date-picker v-model="pasteRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" :disabled-date="(d)=> d < new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())" />
-        <el-radio-group v-model="pasteScope" class="scope">
-          <el-radio-button label="all">全部</el-radio-button>
-          <el-radio-button label="weekday">仅工作日</el-radio-button>
-          <el-radio-button label="weekend">仅周末</el-radio-button>
-        </el-radio-group>
-      </div>
-      <template #footer>
-        <el-button @click="pasteDialog=false">取消</el-button>
-        <el-button type="primary" :disabled="!canPaste" @click="onPaste">确定粘贴</el-button>
-      </template>
-    </el-dialog>
 
-    <el-dialog v-model="presetDialog" :title="presetTitle" width="460px">
-      <div class="paste-form">
-        <el-date-picker v-model="presetRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" :disabled-date="(d)=> d < new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())" />
-      </div>
-      <template #footer>
-        <el-button @click="presetDialog=false">取消</el-button>
-        <el-button type="primary" :disabled="!presetRange || presetRange.length!==2" @click="onApplyPreset">应用</el-button>
-      </template>
-    </el-dialog>
+
+
   </div>
 </template>
 
@@ -113,7 +53,7 @@ const emit = defineEmits<{
   (e: 'save-success'): void
 }>()
 
-const months = props.months || 6
+const months = props.months || 12
 const overwrite = ref(false)
 const saving = ref(false)
 const selection = ref<Record<string, string[]>>({})
@@ -158,10 +98,10 @@ const onSave = async () => {
   saving.value = true
   try {
     if (props.adminMode) {
-      await teacherAPI.setDailyAvailabilityByAdmin({ teacherId: props.teacherId, items, overwrite: overwrite.value })
+      await teacherAPI.setDailyAvailabilityByAdmin({ teacherId: props.teacherId, items, overwrite: true })
     } else {
       // 明确携带 teacherId，避免后端因缺少ID而忽略写入
-      await teacherAPI.setDailyAvailability({ teacherId: props.teacherId, items, overwrite: overwrite.value })
+      await teacherAPI.setDailyAvailability({ teacherId: props.teacherId, items, overwrite: true })
     }
     ElMessage.success('保存成功')
     ;(calRef.value as any)?.refreshActiveMonth?.()
@@ -175,6 +115,13 @@ const onSave = async () => {
   } finally {
     saving.value = false
   }
+}
+
+function onFullOpenThisMonth() {
+  ;(calRef.value as any)?.applyTeacherFullMonth?.(BASE_SLOTS, true)
+}
+function onClearThisMonth() {
+  ;(calRef.value as any)?.clearTeacherFullMonth?.()
 }
 
 function onCopyDay() {
