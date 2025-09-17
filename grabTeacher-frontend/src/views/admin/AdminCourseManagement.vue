@@ -106,7 +106,7 @@ const courseForm = reactive({
   _localPreviewUrl: '' as string
 })
 
-// 授课地点（小班课专用）
+// 授课方式/地点（小班课）
 const activeLocations = ref<Array<{ id: number; name: string }>>([])
 const locationMode = ref<'online' | 'offline'>('online')
 const selectedOfflineLocationId = ref<number | null>(null)
@@ -399,8 +399,9 @@ const recomputeSuggestedPrice = () => {
 }
 
 // —— 小班课：按日历选择每周上课时间（自动基于教师可用与既有课程做冲突检测） ——
-type AdminCalendarExpose = { open: (opts?: { defaultDuration?: 90|120; dateStart?: string; dateEnd?: string }) => void }
+type AdminCalendarExpose = { open: (opts?: { defaultDuration?: 90|120; dateStart?: string; dateEnd?: string; preselectSessions?: Array<{ date: string; startTime: string; endTime: string }> }) => void }
 const calendarRef = ref<AdminCalendarExpose | null>(null)
+const selectedSessions = ref<Array<{ date: string; startTime: string; endTime: string }>>([])
 const BASE_SLOTS = ['08:00-10:00','10:00-12:00','13:00-15:00','15:00-17:00','17:00-19:00','19:00-21:00']
 const toMin = (t: string) => { const [h, m] = (t||'').split(':').map(Number); return (h||0) * 60 + (m||0) }
 const inferBaseSlot = (startTime: string, endTime: string): string | null => {
@@ -416,12 +417,19 @@ const inferBaseSlot = (startTime: string, endTime: string): string | null => {
 const openCalendarPicker = () => {
   if (courseForm.courseType !== 'large_class') return
   if (!courseForm.teacherId) { ElMessage.error('请先选择教师'); return }
-  if (!courseForm.startDate || !courseForm.endDate) { ElMessage.error('请先设置开课起止日期'); return }
   const d: 90|120 = (courseForm.durationMinutes === 120 ? 120 : 90)
-  calendarRef.value?.open?.({ defaultDuration: d, dateStart: courseForm.startDate, dateEnd: courseForm.endDate })
+  calendarRef.value?.open?.({ defaultDuration: d, preselectSessions: selectedSessions.value })
 }
 
 function onCalendarConfirm(sessions: Array<{ date: string; startTime: string; endTime: string }>, duration: 90|120) {
+  // 自动填充开始/结束日期（按所选会话的首尾日期）
+  if (sessions && sessions.length > 0) {
+    const dates = sessions.map(s => s.date).sort()
+    courseForm.startDate = dates[0]
+    courseForm.endDate = dates[dates.length - 1]
+  }
+  // 保存会话以便二次打开日历回填
+  selectedSessions.value = Array.isArray(sessions) ? [...sessions] : []
   const map: Record<number, Set<string>> = {}
   for (const it of (courseForm.courseTimeSlots || [])) {
     const set = map[it.weekday] || new Set<string>()
@@ -469,9 +477,12 @@ const resetForm = () => {
 
   courseForm.personLimit = null
   courseForm.courseLocation = '线上'
-  // 重置授课地点选择（仅小班课使用）
+  // 重置授课方式与地点（仅小班课使用）
   locationMode.value = 'online'
   selectedOfflineLocationId.value = null
+  // 清空已选会话（用于二次打开日历回填）
+  selectedSessions.value = []
+
 
 }
 
@@ -510,20 +521,24 @@ const openEditDialog = async (course: Course) => {
   courseForm._localPreviewUrl = ''
   courseForm._localImageFile = null
 
+  // 打开编辑时清空上一个课程残留的会话选择，防止回填到别的课程
+  selectedSessions.value = []
+
   dialogTitle.value = '编辑课程'
   isEditing.value = true
   dialogVisible.value = true
 
   // 仅当为小班课且列表数据缺少周期信息时，再拉取详情，避免不必要请求
   const needFetchDetail = course.courseType === 'large_class' && (!listSlots || listSlots.length === 0)
-  // 回显授课地点（方案A：从名称判断线上/线下）
+  // 回显授课方式/地点（单选：线上 或 线下）
   if (courseForm.courseType === 'large_class') {
-    if ((courseForm.courseLocation || '') === '线上') {
+    const locStr = courseForm.courseLocation || ''
+    if (locStr === '线上') {
       locationMode.value = 'online'
       selectedOfflineLocationId.value = null
     } else {
       locationMode.value = 'offline'
-      const match = activeLocations.value.find(l => l.name === (courseForm.courseLocation || ''))
+      const match = activeLocations.value.find(l => l.name === locStr)
       selectedOfflineLocationId.value = match ? match.id : null
     }
   } else {
@@ -585,10 +600,10 @@ const saveCourse = async () => {
       }
     }
 
-    // 业务前置校验：小班课必须设置每周上课时间周期
+    // 业务前置校验：小班课需通过日历至少选择一次上课时间
     if (courseForm.courseType === 'large_class') {
       if (!courseForm.courseTimeSlots || courseForm.courseTimeSlots.length === 0) {
-        ElMessage.error('小班课必须设置每周上课时间周期')
+        ElMessage.error('小班课必须通过日历选择至少一次上课时间')
         loading.value = false
         return
       }
@@ -627,9 +642,9 @@ const saveCourse = async () => {
       courseData.personLimit = courseForm.personLimit
       courseData.courseTimeSlots = courseForm.courseTimeSlots
 
-      // 授课地点：小班课二选一（线上/线下单选）
+      // 授课方式：单选（线上 或 线下）
       if (locationMode.value === 'online') {
-        courseData.supportsOnline = true
+        (courseData as any).supportsOnline = true
         courseData.courseLocation = '线上'
       } else {
         if (!selectedOfflineLocationId.value) {
@@ -637,7 +652,9 @@ const saveCourse = async () => {
           loading.value = false
           return
         }
-        courseData.offlineLocationId = selectedOfflineLocationId.value
+        (courseData as any).offlineLocationId = selectedOfflineLocationId.value
+        const loc = activeLocations.value.find(l => l.id === selectedOfflineLocationId.value!)
+        courseData.courseLocation = loc ? loc.name : '线下'
       }
     }
 
@@ -1182,35 +1199,6 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
             <span style="color: #409eff; font-weight: 500;">小班课设置</span>
           </el-divider>
 
-          <el-form-item label="开始日期" prop="startDate" required>
-            <el-date-picker
-              v-model="courseForm.startDate"
-              type="date"
-              placeholder="请选择开始日期"
-              style="width: 200px"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-              :disabled-date="(time) => time.getTime() < Date.now() - 24 * 60 * 60 * 1000"
-            />
-            <span style="margin-left: 10px; color: #909399;">小班课必须设置开始日期</span>
-          </el-form-item>
-
-          <el-form-item label="结束日期" prop="endDate" required>
-            <el-date-picker
-              v-model="courseForm.endDate"
-              type="date"
-              placeholder="请选择结束日期"
-              style="width: 200px"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-              :disabled-date="(time) => {
-                const today = Date.now() - 24 * 60 * 60 * 1000
-                const startTime = courseForm.startDate ? new Date(courseForm.startDate).getTime() : 0
-                return time.getTime() < Math.max(today, startTime)
-              }"
-            />
-            <span style="margin-left: 10px; color: #909399;">必须晚于开始日期</span>
-          </el-form-item>
 
           <el-form-item label="人数限制" prop="personLimit">
             <el-input-number
@@ -1225,7 +1213,7 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
             <span style="margin-left: 10px; color: #909399;">人（不填表示不限制人数）</span>
           </el-form-item>
 
-          <el-form-item label="每周上课时间" prop="courseTimeSlots" required v-if="courseForm.courseType === 'large_class'">
+          <el-form-item label="上课时间" prop="courseTimeSlots" required v-if="courseForm.courseType === 'large_class'">
             <div class="weekly-picker" style="display:flex; flex-direction:column; gap:8px;">
               <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <el-button size="small" type="primary" plain @click="openCalendarPicker">
@@ -1320,7 +1308,7 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
 
 
 
-        <!-- 小班课：授课方式与地点选择（方案A） -->
+        <!-- 小班课：授课方式与地点选择（单选：线上 或 线下） -->
         <template v-if="courseForm.courseType === 'large_class'">
           <el-form-item label="授课方式" required>
             <el-radio-group v-model="locationMode">

@@ -139,12 +139,31 @@ function applySelectionPatch(patch: Record<string, string[]>, overwrite: boolean
   }
   ;(monthRef.value as any)?.applySelectionPatch?.(filtered, overwrite)
 }
+function setStudentSessionsAll(list: Array<{ date: string; startTime: string; endTime: string }>) {
+  // 根据月份 key 进行分组并缓存
+  const byMonth: Record<string, Array<{ date: string; startTime: string; endTime: string }>> = {}
+  for (const s of (list || [])) {
+    const key = (s.date || '').slice(0, 7)
+    if (!key) continue
+    ;(byMonth[key] = byMonth[key] || []).push(s)
+  }
+  sessionsByMonth.value = byMonth
+  // 将当前活跃月份的会话下发到子组件进行高亮回显
+  const active = monthList.value[activeIdx.value]
+  if (active) (monthRef.value as any)?.setStudentSessions?.(byMonth[active.key] || [])
+}
 // @ts-ignore
-defineExpose({ getTeacherSelectionAll, getStudentSessionsAll, refreshActiveMonth, clear, clearAllStudentSessions, applySelectionPatch })
+defineExpose({ getTeacherSelectionAll, getStudentSessionsAll, refreshActiveMonth, clear, clearAllStudentSessions, applySelectionPatch, setStudentSessionsAll })
 
 watch(monthsCount, () => {
   // 切换月份数量时，重置活跃索引
   activeIdx.value = 0
+})
+
+watch(activeIdx, () => {
+  // 切换活跃月份时，如有缓存会话则回填
+  const active = monthList.value[activeIdx.value]
+  if (active) (monthRef.value as any)?.setStudentSessions?.(sessionsByMonth.value[active.key] || [])
 })
 </script>
 

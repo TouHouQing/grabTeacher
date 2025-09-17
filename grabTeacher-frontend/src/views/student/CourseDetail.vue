@@ -5,7 +5,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, School, Trophy, ArrowLeft, Loading, Clock, User, Document, Timer } from '@element-plus/icons-vue'
 import { courseAPI, teacherAPI, enrollmentAPI, publicGradeAPI, publicTeachingLocationAPI, bookingAPI } from '../../utils/api'
 import StudentBookingCalendar from '../../components/StudentBookingCalendar.vue'
+import SimpleCourseCalendar from '../../components/SimpleCourseCalendar.vue'
 import { useUserStore } from '@/stores/user'
+import dayjs from 'dayjs'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,6 +29,12 @@ const showGradeModal = ref(false)
 // 直接在本页弹“课程安排”弹窗（用于一对一）
 const showScheduleModal = ref(false)
 const calendarDlg = ref<InstanceType<typeof StudentBookingCalendar> | null>(null)
+// 简洁课表日历状态（仅展示）
+const showSimpleCalendar = ref(false)
+const simpleSessions = ref<Array<{ date: string; startTime: string; endTime: string }>>([])
+const simpleStart = ref<string>('')
+const simpleEnd = ref<string>('')
+
 const selectedTeachingLocation = ref<string | number>('')
 const allowedTeachingLocations = ref<Array<{ value: string | number; label: string }>>([])
 const grades = ref<{ id: string | number; name: string }[]>([])
@@ -288,7 +296,7 @@ const enrollCourse = async () => {
   }
 }
 
-// 详情页打开日历
+// 详情页打开日历（用于一对一预约，在本页直接弹出可选日历）
 const openCalendarFromDetail = () => {
   if (!selectedGrade.value) { ElMessage.warning('请先选择年级'); return }
   if (selectedPeriods.value.length === 0) { ElMessage.warning('请选择偏好上课时间段'); return }
@@ -302,8 +310,48 @@ const openCalendarFromDetail = () => {
     return
   }
 
-  // 一对一课程默认 90 或 120，由日历页面选择；这里不强制
-  calendarDlg.value?.open()
+  // 打开可选择的日历对话框（由 StudentBookingCalendar 控制显示）
+  calendarDlg.value?.open?.()
+}
+
+// 小班课：查看课表（仅展示，禁止多选，基于课程已有/推导的 sessions 进行回显）
+const openScheduleView = () => {
+  if (!course.value) return
+  if (course.value.courseType !== 'large_class') return
+
+  const start = course.value.startDate
+  const end = course.value.endDate
+
+  // 优先使用后端 sessions，如无则根据每周安排推导
+  const anyCourse: any = course.value as any
+  let sessions: Array<{ date: string; startTime: string; endTime: string }> = []
+  if (Array.isArray(anyCourse.sessions) && anyCourse.sessions.length > 0) {
+    sessions = anyCourse.sessions.map((s: any) => ({ date: s.date, startTime: s.startTime, endTime: s.endTime }))
+  } else if (start && end && Array.isArray(course.value.courseTimeSlots)) {
+    const weekly: Array<{ weekday: number; timeSlots: string[] }> = course.value.courseTimeSlots as any
+    const mapByWeekday: Record<number, string[]> = {}
+    for (const w of weekly) {
+      if (!mapByWeekday[w.weekday]) mapByWeekday[w.weekday] = []
+      mapByWeekday[w.weekday].push(...w.timeSlots)
+    }
+    let cursor = dayjs(start)
+    const endDay = dayjs(end)
+    while (cursor.isBefore(endDay) || cursor.isSame(endDay, 'day')) {
+      const jsDay = cursor.day() // 0(日) - 6(六)
+      const weekday = jsDay === 0 ? 7 : jsDay // 1-7
+      const slots = mapByWeekday[weekday] || []
+      for (const t of slots) {
+        const [st, et] = String(t).split('-')
+        if (st && et) sessions.push({ date: cursor.format('YYYY-MM-DD'), startTime: st, endTime: et })
+      }
+      cursor = cursor.add(1, 'day')
+    }
+  }
+
+  simpleStart.value = start || ''
+  simpleEnd.value = end || ''
+  simpleSessions.value = sessions
+  showSimpleCalendar.value = true
 }
 
 // 从日历确认后的提交
@@ -452,6 +500,12 @@ const getStatusText = (status: string) => {
               <el-icon><Calendar /></el-icon>
               立即报名
             </el-button>
+            <el-button
+              v-if="course.courseType === 'large_class'"
+              size="large"
+              type="warning"
+              @click="openScheduleView"
+            >查看课表</el-button>
             <el-button size="large" @click="goBack">返回</el-button>
           </div>
         </div>
@@ -495,23 +549,6 @@ const getStatusText = (status: string) => {
           </div>
         </div>
       </div>
-
-      <!-- 每周上课时间安排 -->
-      <div class="weekly-schedule" v-if="course.courseTimeSlots && course.courseTimeSlots.length">
-        <h2>上课时间安排</h2>
-        <div class="weekday-grid">
-          <div class="weekday-item" v-for="(s, idx) in sortedCourseTimeSlots" :key="idx">
-            <div class="weekday-title">
-              <el-icon><Calendar /></el-icon>
-              <span>{{ getWeekdayName(s.weekday) }}</span>
-            </div>
-            <div class="time-chips">
-              <el-tag v-for="(t, i) in s.timeSlots" :key="i" size="small" effect="light" type="info">{{ t }}</el-tag>
-            </div>
-          </div>
-        </div>
-      </div>
-
 
       <!-- 教师信息 -->
       <div class="teacher-info" v-if="course.teacherName">
@@ -664,6 +701,16 @@ const getStatusText = (status: string) => {
       </el-dialog>
 
       <StudentBookingCalendar ref="calendarDlg" :teacher-id="course.teacherId" @confirm="onCalendarConfirmFromDetail" />
+      <!-- 小班课查看课表：使用简洁只读日历 -->
+      <el-dialog
+        v-model="showSimpleCalendar"
+        title="课表"
+        width="900px"
+        destroy-on-close
+        :close-on-click-modal="true"
+      >
+        <SimpleCourseCalendar :sessions="simpleSessions" :start="simpleStart" :end="simpleEnd" />
+      </el-dialog>
     </div>
 
     <!-- 错误状态 -->
@@ -931,18 +978,6 @@ const getStatusText = (status: string) => {
 .chip { --el-tag-font-size: 12px; }
 
 
-/* 每周上课时间安排布局 */
-.weekly-schedule { padding: 30px; border-top: 1px solid #eee; }
-.weekly-schedule h2 { font-size: 20px; color: #333; margin-bottom: 16px; }
-.weekday-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-.weekday-item { background: #f8f9fa; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-.weekday-title { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #333; }
-.time-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-
-@media (max-width: 768px) {
-  .weekly-schedule { padding: 20px; }
-  .weekday-grid { grid-template-columns: 1fr; }
-}
 
 
 

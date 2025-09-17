@@ -107,10 +107,17 @@ function onChangeSessions(list: Array<{ date: string; startTime: string; endTime
   }
 }
 
-const open = (opts?: { defaultDuration?: 90|120; allowedPeriods?: Array<'morning'|'afternoon'|'evening'>; dateStart?: string; dateEnd?: string }) => {
-  // 每次打开前清空上次选择，避免残留
-  sessions.value = []
-  calRef.value?.clear?.()
+const open = (opts?: { defaultDuration?: 90|120; allowedPeriods?: Array<'morning'|'afternoon'|'evening'>; dateStart?: string; dateEnd?: string; preselectSessions?: Array<{ date: string; startTime: string; endTime: string }> }) => {
+  const pre = opts?.preselectSessions || []
+  if (pre.length > 0) {
+    sessions.value = [...pre]
+    calRef.value?.clearAllStudentSessions?.()
+    ;(calRef.value as any)?.setStudentSessionsAll?.(pre)
+  } else {
+    // 每次打开前清空上次选择，避免残留
+    sessions.value = []
+    calRef.value?.clear?.()
+  }
   if (opts?.defaultDuration) duration.value = opts.defaultDuration
   allowedPeriods.value = opts?.allowedPeriods
   dateRangeStart.value = opts?.dateStart

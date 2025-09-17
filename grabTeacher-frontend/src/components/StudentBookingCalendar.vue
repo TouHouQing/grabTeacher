@@ -14,7 +14,7 @@ const StudentScheduler = defineAsyncComponent(() => import('./scheduler/StudentS
 
 const props = withDefaults(defineProps<{ teacherId: number; title?: string; multiSelect?: boolean }>(), { multiSelect: true })
 const emit = defineEmits<{ (e:'confirm', sessions: Array<{ date: string; startTime: string; endTime: string }>, duration: 90|120): void }>()
-type SchedulerExpose = { open: (opts?: { defaultDuration?: 90|120; allowedPeriods?: Array<'morning'|'afternoon'|'evening'>; dateStart?: string; dateEnd?: string }) => void }
+type SchedulerExpose = { open: (opts?: { defaultDuration?: 90|120; allowedPeriods?: Array<'morning'|'afternoon'|'evening'>; dateStart?: string; dateEnd?: string; preselectSessions?: Array<{ date: string; startTime: string; endTime: string }> }) => void }
 const dlg = ref<SchedulerExpose | null>(null)
 const multiSelect = props.multiSelect
 
@@ -22,7 +22,7 @@ function confirmProxy(sessions: Array<{ date: string; startTime: string; endTime
   emit('confirm', sessions, duration)
 }
 
-const open = (opts?: { defaultDuration?: 90|120; allowedPeriods?: Array<'morning'|'afternoon'|'evening'>; dateStart?: string; dateEnd?: string }) => dlg.value?.open(opts)
+const open = (opts?: { defaultDuration?: 90|120; allowedPeriods?: Array<'morning'|'afternoon'|'evening'>; dateStart?: string; dateEnd?: string; preselectSessions?: Array<{ date: string; startTime: string; endTime: string }> }) => dlg.value?.open(opts)
 defineExpose({ open })
 </script>
 

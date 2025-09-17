@@ -343,8 +343,12 @@ function clearStudentSessions() {
   studentSessions.value = []
   emit('change-student-sessions', studentSessions.value)
 }
+function setStudentSessions(list: Array<{ date: string; startTime: string; endTime: string }>) {
+  studentSessions.value = Array.isArray(list) ? [...list] : []
+  emit('change-student-sessions', studentSessions.value)
+}
 // @ts-ignore
-defineExpose({ reload, applySelectionPatch, clearStudentSessions })
+defineExpose({ reload, applySelectionPatch, clearStudentSessions, setStudentSessions })
 
 const onClickSlot = (day: any, slot: string) => {
   const rawSlot = slot
