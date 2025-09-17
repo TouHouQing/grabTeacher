@@ -78,25 +78,41 @@ const monthSchedules = ref<ScheduleItem[]>([])
 
 
 
-// 将当月课表按日期分组，供日历单元格快速渲染时间段（O(n) 预聚合，避免每格扫描）
-const schedulesMapByDate = computed<Record<string, Array<{ startTime: string; endTime: string }>>>(() => {
-  const map: Record<string, Array<{ startTime: string; endTime: string }>> = {}
+// 将当月课表按日期分组，供日历单元格快速渲染“课程名 + 时间段”（O(n) 预聚合，避免每格扫描）
+const schedulesMapByDate = computed<Record<string, Array<{ title: string; startTime: string; endTime: string; isTrial: boolean }>>>(() => {
+  const map: Record<string, Array<{ title: string; startTime: string; endTime: string; isTrial: boolean }>> = {}
   for (const s of monthSchedules.value) {
     const ds = (s as any)?.scheduledDate
     const st = (s as any)?.startTime
     const et = (s as any)?.endTime
     if (!ds || !st || !et) continue
-    ;(map[ds] = map[ds] || []).push({ startTime: st, endTime: et })
+    const titleFull = buildOneToOneTitle(s as any) || (s as any)?.courseTitle || (s as any)?.courseName || '课程'
+    ;(map[ds] = map[ds] || []).push({ title: titleFull, startTime: st, endTime: et, isTrial: !!(s as any)?.isTrial })
   }
   Object.keys(map).forEach(k => map[k].sort((a, b) => a.startTime.localeCompare(b.startTime)))
   return map
 })
 
-// 返回某天的时间段文案数组（如 10:00-12:00）
-const getDayTimes = (date: Date): string[] => {
+// 某天的条目数组：[{ title, timeText, isTrial }]
+const getDayEntries = (date: Date): Array<{ title: string; timeText: string; isTrial: boolean }> => {
   const ds = date.toISOString().split('T')[0]
   const arr = schedulesMapByDate.value[ds] || []
-  return arr.map((it: { startTime: string; endTime: string }) => `${it.startTime}-${it.endTime}`)
+  return arr.map((it: { title: string; startTime: string; endTime: string; isTrial: boolean }) => ({
+    title: it.title,
+    timeText: `${it.startTime}-${it.endTime}`,
+    isTrial: it.isTrial
+  }))
+}
+
+// 当日条目明细弹窗
+const showDayEntriesDialog = ref(false)
+const dayEntriesDialog = ref<{ date: string; entries: Array<{ title: string; timeText: string; isTrial: boolean }> }>({ date: '', entries: [] })
+
+function openDayEntriesDialog(date: Date) {
+  const ds = date.toISOString().split('T')[0]
+  dayEntriesDialog.value.date = ds
+  dayEntriesDialog.value.entries = getDayEntries(date)
+  showDayEntriesDialog.value = true
 }
 
 
@@ -637,17 +653,40 @@ onMounted(async () => {
               </div>
 
 
-            </div>
-            <el-calendar v-model="monthDate">
-              <template #date-cell="{ data }">
-                <div class="calendar-cell" :class="(schedulesMapByDate[data.date.toISOString().split('T')[0]]?.length ? 'has-schedule' : 'no-schedule')">
-                  <div class="date-number">{{ data.day.split('-').slice(-1)[0] }}</div>
-                  <div class="times" v-if="getDayTimes(data.date).length">
-                    <div class="time" v-for="(t, i) in getDayTimes(data.date)" :key="i">{{ t }}</div>
-                  </div>
+            <el-dialog v-model="showDayEntriesDialog" :title="`${dayEntriesDialog.date} 当日课程`" width="520px">
+              <div v-if="dayEntriesDialog.entries.length===0" style="color:#909399">无课程</div>
+              <div v-else class="day-dialog-list">
+                <div class="day-dialog-row" v-for="(e,idx) in dayEntriesDialog.entries" :key="idx">
+                  <div class="row-title" :class="e.isTrial ? 'trial' : 'regular'">{{ e.title }}</div>
+                  <div class="row-time">{{ e.timeText }}</div>
                 </div>
+              </div>
+              <template #footer>
+                <el-button @click="showDayEntriesDialog=false">关闭</el-button>
               </template>
-            </el-calendar>
+            </el-dialog>
+
+            </div>
+            <div class="calendar-scroll">
+              <el-calendar v-model="monthDate">
+                <template #date-cell="{ data }">
+                  <div class="calendar-cell" :class="(schedulesMapByDate[data.date.toISOString().split('T')[0]]?.length ? 'has-schedule' : 'no-schedule')"
+                       @click="getDayEntries(data.date).length && openDayEntriesDialog(data.date)">
+                    <div class="date-number">{{ data.day.split('-').slice(-1)[0] }}</div>
+                    <div class="day-entries" v-if="getDayEntries(data.date).length">
+                      <div class="entry" v-for="(e, i) in getDayEntries(data.date)" :key="i" :title="`${e.title} ${e.timeText}`">
+                        <div class="title-row">
+                          <span class="title" :class="e.isTrial ? 'trial' : 'regular'">{{ e.title }}</span>
+                        </div>
+                        <div class="time-row">
+                          <span class="time">{{ e.timeText }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </el-calendar>
+            </div>
             <div class="calendar-legend">
               <span><i class="dot"></i> 有课程</span>
               <span class="muted">无课程</span>
@@ -1044,7 +1083,11 @@ onMounted(async () => {
 .calendar-cell {
   position: relative;
   padding: 4px 6px;
+  border-radius: 6px;
 }
+
+.calendar-cell.has-schedule { background: #f7fbff; border: 1px solid #ecf5ff; }
+.calendar-cell.no-schedule { background: #fff; border: 1px solid transparent; }
 
 .calendar-cell .date-number {
   font-size: 12px;
@@ -1403,6 +1446,12 @@ onMounted(async () => {
     grid-template-columns: 1fr;
     gap: 8px;
   }
+.day-dialog-list { display:flex; flex-direction:column; gap:8px; }
+.day-dialog-row { display:flex; flex-direction:column; }
+.day-dialog-row .row-title { font-weight:600; color:#303133; }
+.day-dialog-row .row-title.trial { color:#e6a23c; }
+.day-dialog-row .row-time { color:#606266; font-size:12px; }
+
 
   .stat-card {
     width: 100%;
@@ -1421,9 +1470,16 @@ onMounted(async () => {
 }
 
 /* 当月课表：在单元格内展示当天课程时间段 */
-.calendar-cell .times { margin-top: 4px; display: grid; grid-auto-rows: 18px; row-gap: 2px; overflow: hidden; max-height: 74px; }
-.calendar-cell .time { font-size: 11px; color: #606266; background: #f7f9fb; border-radius: 4px; padding: 0 4px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.calendar-cell .day-entries { margin-top: 4px; display: flex; flex-direction: column; gap: 4px; }
+.calendar-cell .entry { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; font-size: 11px; background: #f7f9fb; border-radius: 4px; padding: 2px 4px; white-space: nowrap; overflow: hidden; }
+.calendar-cell .entry .title { color: #303133; font-weight: 500; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.calendar-cell .entry .title.trial { color: #e6a23c; }
+.calendar-cell .entry .time { color: #606266; }
+.calendar-cell .more { font-size: 11px; color: #909399; }
 
+:deep(.el-calendar-table td) { vertical-align: top; }
+:deep(.el-calendar-table .el-calendar-day) { height: auto !important; padding: 6px !important; }
+.calendar-scroll { max-height: 72vh; overflow-y: auto; }
+@media (max-width: 768px) { .calendar-scroll { max-height: 65vh; } }
+.calendar-cell.has-schedule { cursor: pointer; }
 </style>
-
-
