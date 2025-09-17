@@ -1248,11 +1248,6 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
                 </el-button>
                 <span style="color:#909399;">仅可选择教师可用且不与已排课程冲突的时间</span>
               </div>
-              <div class="weekly-summary" style="display:flex; gap:8px; flex-wrap:wrap;">
-                <el-tag v-for="w in 7" :key="w" size="small" effect="plain">
-                  {{ weekdayLabel(w) }}：{{ getWeekdayCount(w) }} 段
-                </el-tag>
-              </div>
             </div>
             <StudentBookingCalendar
               ref="calendarRef"

@@ -485,7 +485,7 @@ onMounted(() => {
         v-if="(currentRequest?.teacherId || 0) > 0"
         ref="studentSchedulerRef"
         :teacher-id="currentRequest?.teacherId || 0"
-        :months="6"
+        :months="12"
         @confirm="onAdminCalendarConfirm"
       />
 

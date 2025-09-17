@@ -180,7 +180,7 @@
       v-if="calendarTeacherId > 0"
       ref="studentSchedulerRef"
       :teacher-id="calendarTeacherId"
-      :months="props.isTeacher ? 6 : 1"
+      :months="12"
       :multi-select="props.isTeacher"
       @confirm="onCalendarConfirm"
     />

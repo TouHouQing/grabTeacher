@@ -945,7 +945,7 @@ onMounted(async () => {
       <div class="availability-dialog-content">
         <TeacherAvailabilityEditor
           :teacher-id="teacherForm.id"
-          :months="6"
+          :months="12"
           :admin-mode="true"
           @save-success="onAvailabilitySaveSuccess"
         />

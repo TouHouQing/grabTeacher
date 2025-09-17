@@ -10,7 +10,7 @@
     <TeacherAvailabilityEditor
       v-else
       :teacher-id="Number(teacherId)"
-      :months="6"
+      :months="12"
       :admin-mode="true"
     />
   </div>
