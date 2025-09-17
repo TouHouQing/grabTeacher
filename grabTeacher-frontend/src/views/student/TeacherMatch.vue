@@ -516,10 +516,13 @@ const handleMatch = async () => {
 
         console.log('转换后的教师数据:', teachers)
 
-        // 先设置数据，再显示结果
+        // 先设置数据
         matchedTeachers.value = teachers
 
-        // 使用 nextTick 确保数据更新完成后再显示结果
+        // 预加载完整科目，确保卡片直接显示全部科目（避免 +n）
+        await preloadFullSubjectsForTeachers(teachers)
+
+        // 再显示结果
         nextTick(() => {
           showResults.value = true
           ElMessage.success(`为您匹配到了 ${teachers.length} 位适合的教师`)
@@ -2585,10 +2588,9 @@ const fullSubjectsMap = reactive<{ [id: number]: string[] }>({})
 const fullSubjectsLoading = reactive<{ [id: number]: boolean }>({})
 
 const subjectsDisplayText = (t: Teacher) => {
-  const base = Array.isArray(t.subjects) ? t.subjects : []
-  const total = typeof t.subjectsCount === 'number' ? t.subjectsCount : base.length
-  const extra = Math.max(total - base.length, 0)
-  return base.join('、') + (extra > 0 ? ` +${extra}` : '')
+  const full = fullSubjectsMap[t.id]
+  const list = Array.isArray(full) && full.length ? full : (Array.isArray(t.subjects) ? t.subjects : [])
+  return list.join('、')
 }
 
 const getSubjectsTooltip = (t: Teacher) => {
@@ -2607,10 +2609,26 @@ const onSubjectsTooltipShow = async (t: Teacher) => {
     fullSubjectsLoading[t.id] = true
     const res = await teacherAPI.getDetail(t.id)
     const full = Array.isArray(res?.data?.subjects) ? res.data.subjects : []
-    fullSubjectsMap[t.id] = full
+    if (full.length) fullSubjectsMap[t.id] = full
   } finally {
     fullSubjectsLoading[t.id] = false
   }
+}
+
+// 预加载匹配结果中每位教师的完整科目（避免“+n”，卡片直接展示全部科目）
+const preloadFullSubjectsForTeachers = async (list: Teacher[]) => {
+  try {
+    const tasks = (list || []).map((t: Teacher) => {
+      const baseLen = Array.isArray(t.subjects) ? t.subjects.length : 0
+      const total = typeof t.subjectsCount === 'number' ? t.subjectsCount : baseLen
+      if (total <= baseLen || fullSubjectsMap[t.id]) return null
+      return teacherAPI.getDetail(t.id).then(res => {
+        const full = Array.isArray(res?.data?.subjects) ? res.data.subjects : []
+        if (full.length) fullSubjectsMap[t.id] = full
+      }).catch(() => {})
+    }).filter(Boolean) as Promise<any>[]
+    if (tasks.length) await Promise.allSettled(tasks)
+  } catch {}
 }
 
 // 安全的时间选择更新处理
