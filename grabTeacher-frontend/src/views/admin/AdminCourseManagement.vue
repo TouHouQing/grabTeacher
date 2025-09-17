@@ -628,7 +628,7 @@ const saveCourse = async () => {
       description: courseForm.description,
       courseType: courseForm.courseType,
       // durationMinutes: handled in type-specific block
-      status: courseForm.status,
+      status: isEditing.value ? courseForm.status : 'active',
       price: courseForm.price, // 所有课程类型都可以设置价格
       teacherHourlyRate: courseForm.teacherHourlyRate,
       ...(coverUrl ? { imageUrl: coverUrl } : {})
@@ -1236,7 +1236,8 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
           </el-form-item>
         </template>
 
-        <el-form-item label="课程状态">
+        <!-- 新增课程不允许选择状态；仅编辑时显示可选状态 -->
+        <el-form-item label="课程状态" v-if="isEditing">
           <el-radio-group v-model="courseForm.status">
             <el-radio
               v-for="option in statusOptions"
@@ -1246,6 +1247,9 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
               {{ option.label }}
             </el-radio>
           </el-radio-group>
+        </el-form-item>
+        <el-form-item label="课程状态" v-else>
+          <el-tag type="success">默认：可报名</el-tag>
         </el-form-item>
 
         <el-form-item label="课程价格" prop="price">

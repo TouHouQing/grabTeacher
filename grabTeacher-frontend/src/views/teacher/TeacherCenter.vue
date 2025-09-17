@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, defineAsyncComponent } from 'vue'
+import { ref, watch, onMounted, defineAsyncComponent, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import { bookingAPI, teacherAPI, rescheduleAPI, suspensionAPI } from '../../utils/api'
@@ -76,6 +76,28 @@ const calendarLoading = ref(false)
 const monthDate = ref(new Date())
 const monthSchedules = ref<ScheduleItem[]>([])
 
+
+
+// 将当月课表按日期分组，供日历单元格快速渲染时间段（O(n) 预聚合，避免每格扫描）
+const schedulesMapByDate = computed<Record<string, Array<{ startTime: string; endTime: string }>>>(() => {
+  const map: Record<string, Array<{ startTime: string; endTime: string }>> = {}
+  for (const s of monthSchedules.value) {
+    const ds = (s as any)?.scheduledDate
+    const st = (s as any)?.startTime
+    const et = (s as any)?.endTime
+    if (!ds || !st || !et) continue
+    ;(map[ds] = map[ds] || []).push({ startTime: st, endTime: et })
+  }
+  Object.keys(map).forEach(k => map[k].sort((a, b) => a.startTime.localeCompare(b.startTime)))
+  return map
+})
+
+// 返回某天的时间段文案数组（如 10:00-12:00）
+const getDayTimes = (date: Date): string[] => {
+  const ds = date.toISOString().split('T')[0]
+  const arr = schedulesMapByDate.value[ds] || []
+  return arr.map((it: { startTime: string; endTime: string }) => `${it.startTime}-${it.endTime}`)
+}
 
 // 统计数据
 const statistics = ref({
@@ -235,25 +257,9 @@ const loadMonthSchedules = async () => {
   try {
     calendarLoading.value = true
     const d = new Date(monthDate.value)
-    const now = new Date()
-    const isCurrentMonth = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-
-    let start: Date
-    let end: Date
-
-    if (isCurrentMonth) {
-      // 当前月：从今天起两周
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      end = new Date(start)
-      end.setDate(start.getDate() + 13)
-    } else {
-      // 非当前月：从该月第一天起两周，最多到该月末
-      start = new Date(d.getFullYear(), d.getMonth(), 1)
-      end = new Date(start)
-      end.setDate(start.getDate() + 13)
-      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0)
-      if (end.getTime() > monthEnd.getTime()) end = monthEnd
-    }
+    // 改为整月范围：当月第一天 ~ 当月最后一天（确保当月日历完整填充）
+    const start: Date = new Date(d.getFullYear(), d.getMonth(), 1)
+    const end: Date = new Date(d.getFullYear(), d.getMonth() + 1, 0)
 
     const startStr = start.toISOString().split('T')[0]
     const endStr = end.toISOString().split('T')[0]
@@ -616,9 +622,11 @@ onMounted(async () => {
             </div>
             <el-calendar v-model="monthDate">
               <template #date-cell="{ data }">
-                <div class="calendar-cell" :class="dateScheduleStatus(data.date) === 'has' ? 'has-schedule' : 'no-schedule'">
-                  <span class="date-number">{{ data.day.split('-').slice(-1)[0] }}</span>
-                  <span v-if="dateScheduleStatus(data.date) === 'has'" class="dot"></span>
+                <div class="calendar-cell" :class="(schedulesMapByDate[data.date.toISOString().split('T')[0]]?.length ? 'has-schedule' : 'no-schedule')">
+                  <div class="date-number">{{ data.day.split('-').slice(-1)[0] }}</div>
+                  <div class="times" v-if="getDayTimes(data.date).length">
+                    <div class="time" v-for="(t, i) in getDayTimes(data.date)" :key="i">{{ t }}</div>
+                  </div>
                 </div>
               </template>
             </el-calendar>
@@ -1038,6 +1046,7 @@ onMounted(async () => {
 
 .calendar-cell .dot {
   position: absolute;
+
   right: 6px;
   bottom: 6px;
   width: 6px;
@@ -1049,6 +1058,8 @@ onMounted(async () => {
 .calendar-legend {
   margin-top: 8px;
   display: flex;
+
+
   gap: 16px;
   align-items: center;
 }
@@ -1056,6 +1067,8 @@ onMounted(async () => {
 .calendar-legend .dot {
   display: inline-block;
   width: 8px;
+
+
   height: 8px;
   border-radius: 50%;
   background: #67c23a;
@@ -1400,5 +1413,11 @@ onMounted(async () => {
     font-size: 12px;
   }
 }
+
+/* 当月课表：在单元格内展示当天课程时间段 */
+.calendar-cell .times { margin-top: 4px; display: grid; grid-auto-rows: 18px; row-gap: 2px; overflow: hidden; max-height: 74px; }
+.calendar-cell .time { font-size: 11px; color: #606266; background: #f7f9fb; border-radius: 4px; padding: 0 4px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 </style>
+
 
