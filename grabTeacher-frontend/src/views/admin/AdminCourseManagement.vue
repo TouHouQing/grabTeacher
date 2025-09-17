@@ -28,6 +28,9 @@ interface Course {
   personLimit?: number
   enrollmentCount?: number
 
+  currentHours?: number | null
+  lastHours?: number | null
+
   imageUrl?: string
   courseLocation?: string
   _localImageFile?: File | null
@@ -93,6 +96,8 @@ const courseForm = reactive({
   status: 'active',
   price: null as number | null,
   teacherHourlyRate: null as number | null,
+  // 仅一对一：本月课时（编辑时可改，变动将记录明细）
+  currentHours: null as number | null,
 
   startDate: '',
   endDate: '',
@@ -471,6 +476,7 @@ const resetForm = () => {
   courseForm.status = 'active'
   courseForm.price = null
   courseForm.teacherHourlyRate = null
+  courseForm.currentHours = null
   courseForm.startDate = ''
   courseForm.endDate = ''
   courseForm.courseTimeSlots = []
@@ -507,6 +513,7 @@ const openEditDialog = async (course: Course) => {
   courseForm.durationMinutes = course.durationMinutes ?? null
   courseForm.status = course.status
   ;(courseForm as any).teacherHourlyRate = (course as any).teacherHourlyRate ?? null
+  courseForm.currentHours = (course as any).currentHours ?? null
 
   courseForm.price = course.price || null
   courseForm.startDate = course.startDate || ''
@@ -580,6 +587,8 @@ const openEditDialog = async (course: Course) => {
       if (detail.courseLocation) courseForm.courseLocation = detail.courseLocation
       // 关键：使用详情返回的每周上课时间进行回显
       courseForm.courseTimeSlots = (detail.courseTimeSlots as Array<{ weekday: number; timeSlots: string[] }>) || []
+      // 回显当前本月课时（仅一对一课程有意义）
+      if (detail.currentHours !== undefined) courseForm.currentHours = detail.currentHours ?? courseForm.currentHours
     }
   } catch (e) {
     console.warn('获取课程详情失败，使用列表数据回显:', e)
@@ -666,6 +675,24 @@ const saveCourse = async () => {
     }
 
     if (response.success) {
+      // 若编辑一对一课程且填写了本月课时，调用管理员接口进行差值入账并记录明细
+      if (isEditing.value && courseForm.id && courseForm.teacherId && courseForm.courseType === 'one_on_one' && courseForm.currentHours !== null && courseForm.currentHours !== undefined) {
+        try {
+          const items = [{ courseId: courseForm.id as number, currentHours: Number(courseForm.currentHours) }]
+          const res2: any = await teacherAPI.adminUpdateOneOnOneMetrics(courseForm.teacherId as number, items)
+          if (!res2?.success) {
+            ElMessage.error(res2?.message || '更新本月课时失败')
+            loading.value = false
+            return
+          }
+          ElMessage.success('本月课时已更新并记录明细')
+        } catch (e) {
+          console.error('更新本月课时失败:', e)
+          ElMessage.error('更新本月课时失败')
+          loading.value = false
+          return
+        }
+      }
       ElMessage.success(isEditing.value ? '课程更新成功' : '课程创建成功')
       // 回显最新封面
       if (response.data?.imageUrl) {
@@ -1308,6 +1335,20 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
           <span style="margin-left: 10px; color: #909399;">
             M豆/小时（1人报名时的老师时薪；每+1人，时薪+5）
           </span>
+        </el-form-item>
+
+        <!-- 一对一：编辑时可直接调整本月课时（变动会记录到课时变动明细） -->
+        <el-form-item v-if="isEditing && courseForm.courseType === 'one_on_one'" label="本月课时">
+          <el-input-number
+            v-model="courseForm.currentHours"
+            :min="0"
+            :precision="2"
+            :step="0.5"
+            style="width: 200px"
+            placeholder="填写新的本月课时"
+            clearable
+          />
+          <span style="margin-left: 10px; color: #909399;">小时（按差值自动入账，并写入课时变动明细表）</span>
         </el-form-item>
 
 

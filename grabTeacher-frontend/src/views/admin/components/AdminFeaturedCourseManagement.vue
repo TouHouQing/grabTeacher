@@ -108,6 +108,14 @@
             >
               取消精选
             </el-button>
+            <el-button
+              v-if="row.courseType === 'one_on_one'"
+              type="success"
+              size="small"
+              @click="openEditHours(row)"
+            >
+              编辑课时
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -135,6 +143,34 @@
           :key="course.id"
           class="featured-course-card"
         >
+    <!-- 编辑本月课时对话框 -->
+    <el-dialog
+      v-model="editHoursDialogVisible"
+      :title="`编辑课时 - ${editHoursForm.title}`"
+      width="420px"
+      :close-on-click-modal="false"
+    >
+      <el-form label-width="90px">
+        <el-form-item label="本月课时">
+          <el-input-number
+            v-model="editHoursForm.currentHours"
+            :min="0"
+            :precision="2"
+            :step="0.5"
+            style="width: 200px"
+            placeholder="填写新的本月课时"
+          />
+          <span style="margin-left: 10px; color: #909399;">小时</span>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="editHoursDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitEditHours">保存</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
           <div class="course-title">{{ course.title }}</div>
           <div class="course-info">
             <span>{{ course.teacherName }}</span> |
@@ -149,7 +185,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { courseAPI, subjectAPI } from '../../../utils/api'
+import { courseAPI, subjectAPI, teacherAPI } from '../../../utils/api'
 
 // 接口定义
 interface Course {
@@ -167,6 +203,8 @@ interface Course {
   statusDisplay: string
   featured: boolean
   createdAt: string
+  currentHours?: number | null
+  lastHours?: number | null
 }
 
 interface Subject {
@@ -215,7 +253,7 @@ const fetchCourses = async () => {
 
       // 根据精选状态筛选
       if (filter.featured !== null) {
-        courseList = courseList.filter(course => course.featured === filter.featured)
+        courseList = courseList.filter((course: Course) => course.featured === filter.featured)
       }
 
       courses.value = courseList
@@ -331,6 +369,57 @@ const handleSizeChange = (size: number) => {
   currentPage.value = 1
   fetchCourses()
 }
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+// 
+const editHoursDialogVisible = ref(false)
+const editHoursForm = reactive({
+  courseId: 0,
+  teacherId: 0,
+  title: '',
+  currentHours: null as number | null
+})
+
+const openEditHours = (row: Course) => {
+  editHoursForm.courseId = row.id
+  editHoursForm.teacherId = row.teacherId
+  editHoursForm.title = row.title
+  editHoursForm.currentHours = (typeof (row.currentHours as any) === 'number') ? (row.currentHours as number) : null
+  editHoursDialogVisible.value = true
+}
+
+const submitEditHours = async () => {
+  try {
+    if (editHoursForm.currentHours === null || editHoursForm.currentHours === undefined || Number(editHoursForm.currentHours) < 0) {
+      ElMessage.error('请输入不小于0的本月课时')
+      return
+    }
+    const res: any = await teacherAPI.adminUpdateOneOnOneMetrics(editHoursForm.teacherId, [
+      { courseId: editHoursForm.courseId, currentHours: Number(editHoursForm.currentHours) }
+    ])
+    if (res?.success) {
+      ElMessage.success('本月课时已更新并记录明细')
+      editHoursDialogVisible.value = false
+      await fetchCourses()
+    } else {
+      ElMessage.error(res?.message || '更新失败')
+    }
+  } catch (e) {
+    console.error('更新本月课时失败:', e)
+    ElMessage.error('更新失败')
+  }
+}
+
 
 // 刷新数据
 const refreshData = async () => {

@@ -774,6 +774,8 @@ public class CourseServiceImpl implements CourseService {
                 .endDate(course.getEndDate())
                 .personLimit(course.getPersonLimit())
                 .enrollmentCount(course.getEnrollmentCount())
+                .currentHours(course.getCurrentHours())
+                .lastHours(course.getLastHours())
                 .imageUrl(course.getImageUrl());
 
         CourseVO response = builder.build();
@@ -916,6 +918,8 @@ public class CourseServiceImpl implements CourseService {
                     .endDate(c.getEndDate())
                     .personLimit(c.getPersonLimit())
                     .enrollmentCount(c.getEnrollmentCount())
+                    .currentHours(c.getCurrentHours())
+                    .lastHours(c.getLastHours())
                     .imageUrl(c.getImageUrl())
                     .build();
 

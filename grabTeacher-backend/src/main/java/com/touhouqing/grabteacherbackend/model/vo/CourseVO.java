@@ -90,6 +90,11 @@ public class CourseVO {
     @Schema(description = "当前报名人数", example = "0")
     private Integer enrollmentCount;
 
+    @Schema(description = "本月课时（仅一对一课程）", example = "12.5")
+    private BigDecimal currentHours;
+
+    @Schema(description = "上月课时（仅一对一课程）", example = "10.0")
+    private BigDecimal lastHours;
 
     @Schema(description = "课程封面图URL")
     private String imageUrl;
