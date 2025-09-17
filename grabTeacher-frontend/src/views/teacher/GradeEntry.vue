@@ -222,33 +222,35 @@ onMounted(() => {
       <el-button type="primary" @click="loadSchedules" :loading="loading">刷新</el-button>
     </div>
 
-    <el-table :data="filteredRows" v-loading="loading" style="width: 100%">
-      <el-table-column prop="scheduledDate" label="日期" width="120" />
-      <el-table-column label="时间" width="140">
-        <template #default="scope">
-          {{ scope.row.startTime }}-{{ scope.row.endTime }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="courseTitle" label="课程" />
-      <el-table-column prop="subjectName" label="科目" width="120" />
-      <el-table-column prop="studentName" label="学生" width="140" />
-      <el-table-column label="成绩(0-100)" width="160">
-        <template #default="{ row }">
-          <el-input-number v-model="formMap[row.id].score" :min="0" :max="100" :step="1" :precision="0" />
-        </template>
-      </el-table-column>
-      <el-table-column label="教师评语">
-        <template #default="{ row }">
-          <el-input v-model="formMap[row.id].comment" placeholder="请输入评语，选填" />
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="220">
-        <template #default="{ row }">
-          <el-button size="small" type="primary" @click="submitGrade(row)">保存成绩</el-button>
-          <el-button size="small" @click="handleViewChart(row)">查看图表</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <div class="table-wrap">
+      <el-table :data="filteredRows" v-loading="loading" style="width: 100%">
+        <el-table-column prop="scheduledDate" label="日期" width="120" />
+        <el-table-column label="时间" width="140">
+          <template #default="scope">
+            {{ scope.row.startTime }}-{{ scope.row.endTime }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="courseTitle" label="课程" />
+        <el-table-column prop="subjectName" label="科目" width="120" />
+        <el-table-column prop="studentName" label="学生" width="140" />
+        <el-table-column label="成绩(0-100)" width="160">
+          <template #default="{ row }">
+            <el-input-number v-model="formMap[row.id].score" :min="0" :max="100" :step="1" :precision="0" />
+          </template>
+        </el-table-column>
+        <el-table-column label="教师评语">
+          <template #default="{ row }">
+            <el-input v-model="formMap[row.id].comment" placeholder="请输入评语，选填" />
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="220">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" @click="submitGrade(row)">保存成绩</el-button>
+            <el-button size="small" @click="handleViewChart(row)">查看图表</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
 
     <el-drawer v-model="chartVisible" title="成绩趋势" size="70%">
       <template #header>
@@ -309,5 +311,19 @@ onMounted(() => {
 .filters { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
 .chart-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
 .chart-pagination { display: flex; justify-content: center; margin-top: 8px; }
+
+/* 表格横向滚动兜底与小屏适配 */
+.table-wrap { width: 100%; overflow-x: auto; }
+.table-wrap :deep(table) { min-width: 860px; }
+
+@media (max-width: 768px) {
+  .grade-entry { padding: 12px; }
+  .filters { gap: 8px; }
+  .filters :deep(.el-input),
+  .filters :deep(.el-select),
+  .filters :deep(.el-date-editor) { width: 100% !important; max-width: 100%; }
+  :deep(.el-drawer) { width: 100vw !important; }
+  .chart-header { flex-direction: column; gap: 8px; align-items: flex-start; }
+}
 </style>
 

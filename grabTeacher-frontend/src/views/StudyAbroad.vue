@@ -288,21 +288,6 @@ watch([currentPage, pageSize, () => filter.countryId], () => {
       <ContactUs />
       <!-- 项目详细信息弹窗（单实例） -->
       <el-dialog v-model="detailVisible" title="项目详细信息" width="600px">
-<!--
-        <div v-if="selectedProgram">
-          <h3 style="margin:0 0 8px">{{ selectedProgram.title }}</h3>
-          <img :src="resolveImage(selectedProgram.imageUrl || selectedProgram.image)" alt="" style="width:100%;height:200px;object-fit:cover;border-radius:6px;margin-bottom:12px" @error="handleImageError" />
-          <p style="white-space:pre-wrap;line-height:1.6">{{ selectedProgram.description }}</p>
-          <div v-if="selectedProgram.tags" style="margin-top:8px">
-            <el-tag v-for="(tag, i) in JSON.parse(selectedProgram.tags || '[]')" :key="i" size="small" class="program-tag">{{ tag }}</el-tag>
-          </div>
-        </div>
-        <template #footer>
-          <span class="dialog-footer">
-            <el-button type="primary" @click="detailVisible = false"> </el-button>
-          </span>
-        </template>
--->
       </el-dialog>
 
 
@@ -896,4 +881,13 @@ watch([currentPage, pageSize, () => filter.countryId], () => {
     padding: 14px;
   }
 }
+
+/* 小屏弹窗与表单布局优化（覆盖 Element Plus 默认宽度） */
+@media (max-width: 768px) {
+  :deep(.el-dialog) { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; }
+  :deep(.el-dialog__body) { padding: 12px; }
+  :deep(.el-dialog .el-form .el-form-item__label) { float: none; display: block; padding-bottom: 4px; }
+  :deep(.el-dialog .el-form .el-form-item__content) { margin-left: 0 !important; }
+}
+
 </style>

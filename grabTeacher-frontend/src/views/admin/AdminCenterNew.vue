@@ -253,4 +253,19 @@ const handleMenuSelect = (key: string) => {
   position: relative;
   z-index: 1;
 }
+
+/* 响应式适配：小桌面与移动端 */
+@media (max-width: 992px) {
+  .admin-sidebar { width: 180px; }
+}
+@media (max-width: 768px) {
+  .admin-container { flex-direction: column; height: auto; min-height: calc(100vh - 56px); }
+  .admin-sidebar { width: 100%; height: auto; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+  .admin-menu { display: flex; overflow-x: auto; border-right: none; border-bottom: 1px solid #eee; }
+  .admin-menu :deep(.el-menu-item),
+  .admin-menu :deep(.el-sub-menu) { flex-shrink: 0; }
+  .admin-menu :deep(.el-menu-item) { height: 48px; line-height: 48px; padding: 0 12px; }
+  .admin-content { flex: 1; }
+  .content-panel { margin: 12px; min-height: auto; }
+}
 </style>

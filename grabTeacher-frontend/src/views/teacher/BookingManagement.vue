@@ -798,4 +798,24 @@ const getStatusText = (status: string) => {
     width: 100%;
   }
 }
+
+/*     */
+@media (max-width: 768px) {
+  /*  el-dialog  */
+  :deep(.el-dialog) { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; }
+  :deep(.el-dialog__body) { padding: 12px; }
+  :deep(.el-dialog .el-form .el-form-item__label) { float: none; display: block; padding-bottom: 4px; }
+  :deep(.el-dialog .el-form .el-form-item__content) { margin-left: 0 !important; }
+}
+
+/* 响应式适配：小屏对话框全宽与表单布局（覆盖修正） */
+@media (max-width: 768px) {
+  /* el-dialog 全屏与表单标签置顶 */
+  :deep(.el-dialog) { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; }
+  :deep(.el-dialog__body) { padding: 12px; }
+  :deep(.el-dialog .el-form .el-form-item__label) { float: none; display: block; padding-bottom: 4px; }
+  :deep(.el-dialog .el-form .el-form-item__content) { margin-left: 0 !important; }
+}
+
+
 </style>

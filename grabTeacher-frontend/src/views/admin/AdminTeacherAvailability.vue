@@ -27,5 +27,14 @@ const teacherId = ref<number | null>(null)
 .admin-teacher-availability { padding: 12px; }
 .toolbar { display: flex; align-items: center; gap: 12px; margin: 8px 0 12px; }
 .hint { color: #909399; margin: 8px 0; }
+
+@media (max-width: 768px) {
+  .toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
+  .toolbar :deep(.el-input-number),
+  .toolbar :deep(.el-input),
+  .toolbar :deep(.el-select) { width: 100% !important; }
+  :deep(.el-dialog) { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; }
+}
+
 </style>
 

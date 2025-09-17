@@ -44,60 +44,62 @@
         </el-form-item>
       </el-form>
     </div>
-    <el-table :data="list" v-loading="loading" stripe border style="width: 100%">
-      <el-table-column prop="scheduledDate" label="上课日期" width="120" align="center" />
-      <el-table-column label="上课时间" width="140" align="center">
-        <template #default="{ row }">
-          {{ formatTimeRange(row.startTime, row.endTime) }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="courseName" label="课程名称" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="studentName" label="学生姓名" width="120" />
-      <el-table-column label="课程类型" width="100" align="center">
-        <template #default="{ row }">
-          <el-tag :type="getCourseTypeTag(row.courseType)" size="small">
-            {{ getCourseTypeText(row.courseType) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="teacherName" label="教师姓名" width="120" />
-      <el-table-column label="第几次课" width="80" align="center">
-        <template #default="{ row }">
-          <span v-if="row.sessionNumber">第{{ row.sessionNumber }}次</span>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="试听" width="60" align="center">
-        <template #default="{ row }">
-          <el-tag v-if="row.isTrial" type="warning" size="small">是</el-tag>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="时长" width="80" align="center">
-        <template #default="{ row }">
-          {{ row.durationMinutes }}分钟
-        </template>
-      </el-table-column>
-      <el-table-column label="时薪" width="100" align="center">
-        <template #default="{ row }">
-          <span v-if="row.isTrial || row.courseType !== 'one_on_one' || !row.teacherHourlyRate">-</span>
-          <span v-else>{{ row.teacherHourlyRate }} M豆/小时</span>
-        </template>
-      </el-table-column>
+    <div class="table-wrap">
+      <el-table :data="list" v-loading="loading" stripe border style="width: 100%">
+        <el-table-column prop="scheduledDate" label="上课日期" width="120" align="center" />
+        <el-table-column label="上课时间" width="140" align="center">
+          <template #default="{ row }">
+            {{ formatTimeRange(row.startTime, row.endTime) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="courseName" label="课程名称" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="studentName" label="学生姓名" width="120" />
+        <el-table-column label="课程类型" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getCourseTypeTag(row.courseType)" size="small">
+              {{ getCourseTypeText(row.courseType) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="teacherName" label="教师姓名" width="120" />
+        <el-table-column label="第几次课" width="80" align="center">
+          <template #default="{ row }">
+            <span v-if="row.sessionNumber">第{{ row.sessionNumber }}次</span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="试听" width="60" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.isTrial" type="warning" size="small">是</el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="时长" width="80" align="center">
+          <template #default="{ row }">
+            {{ row.durationMinutes }}分钟
+          </template>
+        </el-table-column>
+        <el-table-column label="时薪" width="100" align="center">
+          <template #default="{ row }">
+            <span v-if="row.isTrial || row.courseType !== 'one_on_one' || !row.teacherHourlyRate">-</span>
+            <span v-else>{{ row.teacherHourlyRate }} M豆/小时</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="操作" width="120" fixed="right" align="center">
-        <template #default="{ row }">
-          <el-button
-            v-if="row.courseType === 'one_on_one' && !row.isTrial"
-            type="primary"
-            size="small"
-            @click="openGradeDialog(row)"
-          >录入成绩</el-button>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
+        <el-table-column label="操作" width="120" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button
+              v-if="row.courseType === 'one_on_one' && !row.isTrial"
+              type="primary"
+              size="small"
+              @click="openGradeDialog(row)"
+            >录入成绩</el-button>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
 
-    </el-table>
+      </el-table>
+    </div>
     <el-dialog v-model="gradeDialogVisible" title="录入成绩" width="500px">
       <div>
         <el-form label-width="100px">
@@ -396,6 +398,15 @@ onMounted(loadList)
   .filter-form .el-form-item .el-input {
     width: 100%;
   }
+}
+
+.table-wrap{ width:100%; overflow-x:auto; }
+.table-wrap :deep(table){ min-width:900px; }
+@media (max-width:768px){
+  :deep(.el-dialog){ width:100vw!important; max-width:100vw!important; margin:0!important; }
+  :deep(.el-dialog__body){ padding:12px; }
+  :deep(.el-dialog .el-form .el-form-item__label){ float:none; display:block; padding-bottom:4px; }
+  :deep(.el-dialog .el-form .el-form-item__content){ margin-left:0!important; }
 }
 </style>
 

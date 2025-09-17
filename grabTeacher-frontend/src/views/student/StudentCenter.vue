@@ -302,19 +302,21 @@ onMounted(async () => {
             <el-empty v-else-if="upcomingCourses.length === 0" description="暂无即将开始的课程">
               <el-button type="primary" @click="loadUpcomingCourses">刷新</el-button>
             </el-empty>
-            <el-table v-else :data="upcomingCourses" style="width: 100%">
-              <el-table-column prop="date" label="日期" width="180" />
-              <el-table-column prop="time" label="时间" width="180" />
-              <el-table-column prop="course" label="课程" />
-              <el-table-column prop="teacher" label="教师" />
-              <el-table-column label="操作">
-                <template #default="scope">
-                  <el-button type="primary" size="small" @click="enterClassroom(scope.row.scheduleId)">
-                    进入课堂
-                  </el-button>
-                </template>
-              </el-table-column>
-            </el-table>
+            <div v-else class="table-wrap">
+              <el-table :data="upcomingCourses" style="width: 100%">
+                <el-table-column prop="date" label="日期" width="180" />
+                <el-table-column prop="time" label="时间" width="180" />
+                <el-table-column prop="course" label="课程" />
+                <el-table-column prop="teacher" label="教师" />
+                <el-table-column label="操作">
+                  <template #default="scope">
+                    <el-button type="primary" size="small" @click="enterClassroom(scope.row.scheduleId)">
+                      进入课堂
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
           </div>
         </div>
         <div v-else-if="activeMenu === 'courses'">
@@ -484,7 +486,13 @@ onMounted(async () => {
   margin-bottom: 20px;
   font-size: 18px;
   color: #333;
+
 }
+
+/* 表格横向滚动兜底，避免小屏列拥挤溢出 */
+.table-wrap { width: 100%; overflow-x: auto; }
+.table-wrap :deep(table) { min-width: 720px; }
+
 
 /* 响应式布局 */
 @media (max-width: 768px) {

@@ -981,6 +981,23 @@ const getStatusText = (status: string) => {
   }
 }
 
+/* 小屏与小桌面进一步优化布局 */
+@media (max-width: 992px) {
+  .teacher-extra-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  /* 弹窗在小屏全宽 + 表单标签置顶 */
+  :deep(.el-dialog) { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; }
+  :deep(.el-dialog__body) { padding: 12px; }
+  :deep(.el-dialog .el-form .el-form-item__label) { float: none; display: block; padding-bottom: 4px; }
+  :deep(.el-dialog .el-form .el-form-item__content) { margin-left: 0 !important; }
+  :deep(.el-dialog .el-form .el-select),
+  :deep(.el-dialog .el-form .el-input),
+  :deep(.el-dialog .el-form .el-date-editor),
+  :deep(.el-dialog .el-form .el-cascader) { width: 100% !important; }
+}
+
+
 /* 年级选择弹窗样式 */
 .grade-selection {
   padding: 20px 0;

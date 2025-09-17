@@ -337,4 +337,21 @@ onMounted(async () => {
     margin-bottom: 30px;
   }
 }
+
+/* 小屏表单适配：标签置顶、控件全宽、头像自适应 */
+@media (max-width: 768px) {
+  .teacher-profile { padding: 16px; }
+  .avatar { width: 120px; height: 120px; }
+  :deep(.el-form .el-form-item__label) { float: none; display: block; padding-bottom: 4px; }
+  :deep(.el-form .el-form-item__content) { margin-left: 0 !important; }
+  :deep(.el-input),
+  :deep(.el-select),
+  :deep(.el-date-editor),
+  :deep(.el-textarea),
+  :deep(.el-cascader) { width: 100% !important; }
+}
+@media (max-width: 480px) {
+  :deep(.el-button) { width: 100%; }
+}
+
 </style>

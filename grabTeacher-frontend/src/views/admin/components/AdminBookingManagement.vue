@@ -1246,4 +1246,17 @@ const getStatusText = (status: string) => {
     font-size: 10px !important;
   }
 }
+
+/* 小屏适配：页头与弹窗、表单布局 */
+@media (max-width: 768px) {
+  .page-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .header-actions { width: 100%; flex-wrap: wrap; gap: 8px; }
+  .header-actions :deep(.el-input),
+  .header-actions :deep(.el-select) { width: 100% !important; }
+  :deep(.el-dialog) { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; }
+  :deep(.el-dialog__body) { padding: 12px; }
+  :deep(.el-dialog .el-form .el-form-item__label) { float: none; display: block; padding-bottom: 4px; }
+  :deep(.el-dialog .el-form .el-form-item__content) { margin-left: 0 !important; }
+}
+
 </style>

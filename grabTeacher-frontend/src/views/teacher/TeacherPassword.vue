@@ -126,4 +126,19 @@ const changePassword = async () => {
     max-width: 100%;
   }
 }
+
+/* 小屏表单适配：标签置顶、控件全宽、按钮在极小屏满宽 */
+@media (max-width: 768px) {
+  :deep(.el-form .el-form-item__label) { float: none; display: block; padding-bottom: 4px; }
+  :deep(.el-form .el-form-item__content) { margin-left: 0 !important; }
+  :deep(.el-input),
+  :deep(.el-select),
+  :deep(.el-date-editor),
+  :deep(.el-textarea),
+  :deep(.el-cascader) { width: 100% !important; }
+}
+@media (max-width: 480px) {
+  :deep(.el-button) { width: 100%; }
+}
+
 </style>

@@ -1506,6 +1506,18 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
   .pagination-wrapper .el-pagination {
     justify-content: center;
   }
+
+  /* 表单项标签置顶 + 控件全宽（仅本页的对话框内） */
+  :deep(.el-dialog .el-form .el-form-item__label) { float: none; display: block; padding-bottom: 4px; }
+  :deep(.el-dialog .el-form .el-form-item__content) { margin-left: 0 !important; }
+  :deep(.el-dialog .el-form .el-select),
+  :deep(.el-dialog .el-form .el-input),
+  :deep(.el-dialog .el-form .el-date-editor),
+  :deep(.el-dialog .el-form .el-cascader) { width: 100% !important; }
+
+  /* 新增/编辑课程对话框小屏铺满 */
+  :deep(.el-dialog) { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; }
+  :deep(.el-dialog__body) { padding: 12px; }
 }
 
 @media (max-width: 480px) {

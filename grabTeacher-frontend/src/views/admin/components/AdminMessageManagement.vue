@@ -41,69 +41,71 @@
     </el-card>
 
         <!-- 消息列表 -->
-    <el-table :data="messages" v-loading="loading" stripe style="width: 100%">
-      <el-table-column prop="id" label="ID" width="80" align="center" />
-      <el-table-column label="标题" min-width="200">
-        <template #default="scope">
-          <el-link type="primary" @click="viewMessage(scope.row)">
-            {{ scope.row.title }}
-          </el-link>
-        </template>
-      </el-table-column>
-      <el-table-column label="目标对象" width="120" align="center">
-        <template #default="scope">
-          <el-tag
-            :type="getTargetTypeTagType(scope.row.targetType)"
-            size="small"
-          >
-            {{ scope.row.targetTypeDescription }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="adminName" label="发布者" width="120" align="center" />
-      <el-table-column label="状态" width="80" align="center">
-        <template #default="scope">
-          <el-switch
-            v-model="scope.row.isActive"
-            @change="toggleMessageStatus(scope.row)"
-            :loading="scope.row.statusLoading || false"
-          />
-        </template>
-      </el-table-column>
-      <el-table-column label="发布时间" width="180" align="center">
-        <template #default="scope">
-          {{ formatDate(scope.row.createdAt) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="200" align="center" fixed="right">
-        <template #default="scope">
-          <div class="operation-buttons">
-            <el-button
+    <div class="table-wrap">
+      <el-table :data="messages" v-loading="loading" stripe style="width: 100%">
+        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column label="标题" min-width="200">
+          <template #default="scope">
+            <el-link type="primary" @click="viewMessage(scope.row)">
+              {{ scope.row.title }}
+            </el-link>
+          </template>
+        </el-table-column>
+        <el-table-column label="目标对象" width="120" align="center">
+          <template #default="scope">
+            <el-tag
+              :type="getTargetTypeTagType(scope.row.targetType)"
               size="small"
-              :icon="View"
-              @click="viewMessage(scope.row)"
             >
-              查看
-            </el-button>
-            <el-button
-              size="small"
-              :icon="Edit"
-              @click="editMessage(scope.row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              size="small"
-              type="danger"
-              :icon="Delete"
-              @click="deleteMessage(scope.row)"
-            >
-              删除
-            </el-button>
-          </div>
-        </template>
-      </el-table-column>
-    </el-table>
+              {{ scope.row.targetTypeDescription }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="adminName" label="发布者" width="120" align="center" />
+        <el-table-column label="状态" width="80" align="center">
+          <template #default="scope">
+            <el-switch
+              v-model="scope.row.isActive"
+              @change="toggleMessageStatus(scope.row)"
+              :loading="scope.row.statusLoading || false"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="发布时间" width="180" align="center">
+          <template #default="scope">
+            {{ formatDate(scope.row.createdAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="200" align="center" fixed="right">
+          <template #default="scope">
+            <div class="operation-buttons">
+              <el-button
+                size="small"
+                :icon="View"
+                @click="viewMessage(scope.row)"
+              >
+                查看
+              </el-button>
+              <el-button
+                size="small"
+                :icon="Edit"
+                @click="editMessage(scope.row)"
+              >
+                编辑
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                :icon="Delete"
+                @click="deleteMessage(scope.row)"
+              >
+                删除
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
 
     <!-- 分页 -->
     <div class="pagination-wrapper" v-if="total > 0">
@@ -570,4 +572,21 @@ onMounted(() => {
     min-width: 50px;
   }
 }
+
+/* 表格横向滚动兜底 */
+.table-wrap { width: 100%; overflow-x: auto; }
+.table-wrap :deep(table) { min-width: 900px; }
+
+/* 小屏对话框与表单布局 */
+@media (max-width: 768px) {
+  :deep(.el-dialog) { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; }
+  :deep(.el-dialog__body) { padding: 12px; }
+  :deep(.el-dialog .el-form .el-form-item__label) { float: none; display: block; padding-bottom: 4px; }
+  :deep(.el-dialog .el-form .el-form-item__content) { margin-left: 0 !important; }
+  :deep(.el-card .el-form) { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+}
+@media (max-width: 480px) {
+  :deep(.el-card .el-form) { grid-template-columns: 1fr; }
+}
+
 </style>

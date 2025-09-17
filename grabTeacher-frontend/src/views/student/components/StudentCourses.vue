@@ -2604,6 +2604,7 @@ export default {
           <!-- 成绩详细列表 -->
           <div class="grade-detail-list">
             <h4>课程详细成绩</h4>
+          <div class="table-wrap">
             <el-table :data="gradeData" style="width: 100%">
               <el-table-column prop="lesson" label="课程" width="100">
                 <template #default="{ row }">
@@ -2626,7 +2627,8 @@ export default {
                   <span v-else class="no-comment">暂无评价</span>
                 </template>
               </el-table-column>
-            </el-table>
+              </el-table>
+            </div>
           </div>
         </div>
       </div>
@@ -4065,7 +4067,20 @@ h2 {
 }
 
 .course-title {
+
   font-size: 14px;
   color: #606266;
 }
+
+/* 表格横向兜底（成绩详细列表） */
+.table-wrap{ width:100%; overflow-x:auto; }
+.table-wrap :deep(table){ min-width:720px; }
+/* 小屏弹窗表单优化 */
+@media (max-width:768px){
+  :deep(.el-dialog){ width:100vw!important; max-width:100vw!important; margin:0!important; }
+  :deep(.el-dialog__body){ padding:12px; }
+  :deep(.el-dialog .el-form .el-form-item__label){ float:none; display:block; padding-bottom:4px; }
+  :deep(.el-dialog .el-form .el-form-item__content){ margin-left:0!important; }
+}
+
 </style>

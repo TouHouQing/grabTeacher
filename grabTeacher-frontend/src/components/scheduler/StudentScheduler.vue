@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" :title="title" width="min(1360px, 98vw)" destroy-on-close @closed="onClosed">
+  <el-dialog v-model="visible" :title="title" :width="dialogWidth" :fullscreen="isSmall" destroy-on-close @closed="onClosed">
     <div class="toolbar">
       <el-radio-group v-model="duration" size="small">
         <el-radio-button :label="90">1.5 小时</el-radio-button>
@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 dayjs.locale('zh-cn')
@@ -59,6 +59,30 @@ import CalendarMultiMonth from '@/components/CalendarMultiMonth.vue'
 const props = defineProps<{ teacherId: number; title?: string; months?: number; multiSelect?: boolean }>()
 
 const visible = ref(false)
+
+// 响应式：小屏适配（手机、小尺寸电脑）
+const isSmall = ref(false)
+let mql: MediaQueryList | null = null
+let mediaHandler: any = null
+onMounted(() => {
+  try {
+    mql = window.matchMedia('(max-width: 768px)')
+    mediaHandler = (e: any) => { isSmall.value = (e?.matches ?? mql?.matches ?? false) }
+    isSmall.value = !!mql?.matches
+    if ((mql as any)?.addEventListener) (mql as any).addEventListener('change', mediaHandler)
+    else if ((mql as any)?.addListener) (mql as any).addListener(mediaHandler)
+  } catch {}
+})
+onBeforeUnmount(() => {
+  try {
+    if (mql && mediaHandler) {
+      if ((mql as any)?.removeEventListener) (mql as any).removeEventListener('change', mediaHandler)
+      else if ((mql as any)?.removeListener) (mql as any).removeListener(mediaHandler)
+    }
+  } catch {}
+})
+
+const dialogWidth = computed(() => isSmall.value ? '100vw' : 'min(1360px, 98vw)')
 const title = ref(props.title || '选择上课时间（按日历）')
 const duration = ref<90 | 120>(90)
 const months = props.months || 6
@@ -138,5 +162,22 @@ defineExpose({ open })
 .dlg-footer { display: flex; align-items: center; justify-content: space-between; width: 100%; }
 .dlg-footer .left { display: flex; align-items: center; gap: 8px; }
 .dlg-footer .right { display: flex; gap: 10px; }
+
+/* 小屏幕自适配：对话框、布局、提示文案、按钮区 */
+@media (max-width: 1024px) {
+  .content { grid-template-columns: 1fr 220px; height: calc(100vh - 200px); }
+}
+@media (max-width: 768px) {
+  :deep(.el-dialog) { margin: 0 !important; }
+  .content { grid-template-columns: 1fr; height: calc(100vh - 180px); }
+  .right { border-left: 0; border-top: 1px dashed #ebeef5; padding-left: 0; padding-top: 8px; }
+  .hint { display: none; }
+  .dlg-footer { flex-direction: column; align-items: stretch; gap: 8px; }
+  .dlg-footer .right { justify-content: flex-end; }
+}
+@media (max-width: 480px) {
+  .content { height: calc(100vh - 160px); }
+  .session-list { grid-auto-rows: 28px; }
+}
 </style>
 

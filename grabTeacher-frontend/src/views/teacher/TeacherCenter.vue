@@ -673,44 +673,46 @@ onMounted(async () => {
               </div>
             </div>
             <div v-loading="loading">
-              <el-table :data="todayCourses" style="width: 100%">
-                <el-table-column prop="scheduledDate" label="日期" width="120" />
-                <el-table-column label="时间" width="140">
-                  <template #default="scope">
-                    {{ formatTimeRange(scope.row.startTime, scope.row.endTime) }}
-                  </template>
-                </el-table-column>
-                <el-table-column label="课程">
-                  <template #default="scope">
-                    {{ buildOneToOneTitle(scope.row) || scope.row.courseTitle || scope.row.courseName }}
-                  </template>
-                </el-table-column>
-                <el-table-column prop="studentName" label="学生" width="120" />
-                <el-table-column label="类型" width="80">
-                  <template #default="scope">
-                    <el-tag v-if="scope.row.isTrial" type="warning" size="small">试听</el-tag>
-                    <el-tag v-else type="success" size="small">正式</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column label="时薪" width="120">
-                  <template #default="scope">
-                    <span v-if="scope.row.isTrial || scope.row.courseType !== 'one_on_one' || !scope.row.teacherHourlyRate">-</span>
-                    <span v-else>{{ scope.row.teacherHourlyRate }} M豆/小时</span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="操作" width="260">
-                  <template #default="scope">
-                    <el-button type="primary" size="small" @click="viewScheduleDetail(scope.row)">详情</el-button>
-                    <el-button v-if="!scope.row.isTrial" type="warning" size="small" @click="openRescheduleModal(scope.row)">
-                      <el-icon><Refresh /></el-icon>
-                      申请调课
-                    </el-button>
+              <div class="table-wrap">
+                <el-table :data="todayCourses" style="width: 100%">
+                  <el-table-column prop="scheduledDate" label="日期" width="120" />
+                  <el-table-column label="时间" width="140">
+                    <template #default="scope">
+                      {{ formatTimeRange(scope.row.startTime, scope.row.endTime) }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="课程">
+                    <template #default="scope">
+                      {{ buildOneToOneTitle(scope.row) || scope.row.courseTitle || scope.row.courseName }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="studentName" label="学生" width="120" />
+                  <el-table-column label="类型" width="80">
+                    <template #default="scope">
+                      <el-tag v-if="scope.row.isTrial" type="warning" size="small">试听</el-tag>
+                      <el-tag v-else type="success" size="small">正式</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="时薪" width="120">
+                    <template #default="scope">
+                      <span v-if="scope.row.isTrial || scope.row.courseType !== 'one_on_one' || !scope.row.teacherHourlyRate">-</span>
+                      <span v-else>{{ scope.row.teacherHourlyRate }} M豆/小时</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="260">
+                    <template #default="scope">
+                      <el-button type="primary" size="small" @click="viewScheduleDetail(scope.row)">详情</el-button>
+                      <el-button v-if="!scope.row.isTrial" type="warning" size="small" @click="openRescheduleModal(scope.row)">
+                        <el-icon><Refresh /></el-icon>
+                        申请调课
+                      </el-button>
 
-                    <el-button type="danger" size="small" @click="openSuspensionDialog(scope.row)">停课</el-button>
+                      <el-button type="danger" size="small" @click="openSuspensionDialog(scope.row)">停课</el-button>
 
-                  </template>
-                </el-table-column>
-              </el-table>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
               <div v-if="!loading && todayCourses.length === 0" class="empty-state">
                 <el-empty description="暂无即将开始的课程" />
               </div>
@@ -1081,7 +1083,13 @@ onMounted(async () => {
 .empty-state {
   text-align: center;
   padding: 40px 0;
+
 }
+
+/* 表格横向滚动兜底，避免小屏列拥挤溢出 */
+.table-wrap { width: 100%; overflow-x: auto; }
+.table-wrap :deep(table) { min-width: 900px; }
+
 
 .action-buttons {
   display: flex;
@@ -1331,6 +1339,8 @@ onMounted(async () => {
 
   .action-buttons {
     flex-direction: column;
+
+
     gap: 8px;
   }
 
@@ -1350,6 +1360,19 @@ onMounted(async () => {
   }
 
   .el-main {
+
+/* 小屏弹窗/工具栏细节优化（独立块） */
+@media (max-width: 768px) {
+  :deep(.el-dialog){ width:100vw !important; max-width:100vw !important; margin:0 !important; }
+  :deep(.el-dialog__body){ padding:12px; }
+  :deep(.el-dialog .el-form .el-form-item__label){ float:none; display:block; padding-bottom:4px; }
+  :deep(.el-dialog .el-form .el-form-item__content){ margin-left:0 !important; }
+  .calendar-header, .upcoming-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .calendar-actions, .upcoming-actions { width:100%; display:flex; flex-wrap:wrap; gap:8px }
+  .calendar-actions :deep(.el-date-editor), .calendar-actions :deep(.el-button){ flex:1; min-width: 160px }
+  .upcoming-actions :deep(.el-select){ width:100% !important }
+}
+
     padding: 12px;
   }
 
