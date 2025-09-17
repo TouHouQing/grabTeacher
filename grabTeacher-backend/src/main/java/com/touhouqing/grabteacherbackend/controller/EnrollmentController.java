@@ -136,7 +136,7 @@ public class EnrollmentController {
 
     @PostMapping("/course/{courseId}/enroll")
     @PreAuthorize("hasRole('STUDENT')")
-    @Operation(summary = "学生报名大班课", description = "学生对大班课进行报名并扣除相应M豆")
+    @Operation(summary = "学生报名小班课", description = "学生对小班课进行报名并扣除相应M豆")
     public CommonResult<?> enrollCourse(@PathVariable("courseId") Long courseId,
                                         @AuthenticationPrincipal UserPrincipal currentUser) {
         // 1) 校验学生与课程

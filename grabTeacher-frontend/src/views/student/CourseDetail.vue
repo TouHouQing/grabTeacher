@@ -207,7 +207,7 @@ const confirmGradeSelection = () => {
   showGradeModal.value = false
 }
 
-// 立即报名：一对一课程先选择年级再跳转；大班课按原流程报名
+// 立即报名：一对一课程先选择年级再跳转；小班课按原流程报名
 const enrollCourse = async () => {
   try {
     if (!userStore.isLoggedIn) {
@@ -243,7 +243,7 @@ const enrollCourse = async () => {
       return
     }
 
-    // 已报名则提示并返回（仅针对大班课）
+    // 已报名则提示并返回（仅针对小班课）
     if (enrolled.value) {
       ElMessage.info('您已报名该课程')
       return
@@ -464,7 +464,7 @@ const getStatusText = (status: string) => {
           <div class="detail-item">
             <el-icon><Trophy /></el-icon>
             <span class="label">课程类型：</span>
-            <span class="value">{{ course.courseType === 'one_on_one' ? '一对一' : course.courseType === 'large_class' ? '大班课' : course.courseType }}</span>
+            <span class="value">{{ course.courseType === 'one_on_one' ? '一对一' : course.courseType === 'large_class' ? '小班课' : course.courseType }}</span>
           </div>
           <div class="detail-item" v-if="course.startDate">
             <el-icon><Calendar /></el-icon>

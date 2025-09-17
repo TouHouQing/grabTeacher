@@ -339,7 +339,7 @@ const getCourseTypeText = (courseType: string) => {
     case 'one_on_one':
       return '一对一'
     case 'large_class':
-      return '大班课'
+      return '小班课'
     default:
       return courseType || '-'
   }

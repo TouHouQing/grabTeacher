@@ -35,7 +35,7 @@ public class CourseEnrollment {
     private Long teacherId;
 
     @TableField("course_id")
-    @Schema(description = "课程ID（大班课为课程ID，一对一可为空）")
+    @Schema(description = "课程ID（小班课为课程ID，一对一可为空）")
     private Long courseId;
 
     @TableField("enrollment_type")

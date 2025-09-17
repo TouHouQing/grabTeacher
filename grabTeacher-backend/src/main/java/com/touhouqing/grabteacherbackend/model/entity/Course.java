@@ -54,7 +54,7 @@ public class Course {
     private String courseType;
 
     @TableField(value = "duration_minutes", fill = FieldFill.DEFAULT)
-    @Schema(description = "单次课程时长（分钟）。仅大班课需要，90或120；一对一为空，由学生预约时选择", example = "120")
+    @Schema(description = "单次课程时长（分钟）。仅小班课需要，90或120；一对一为空，由学生预约时选择", example = "120")
     private Integer durationMinutes;
 
     @Builder.Default
@@ -67,11 +67,11 @@ public class Course {
     private Boolean featured = false;
 
     @TableField("price")
-    @Schema(description = "课程价格（每小时），单位：M豆，1M豆=1元；一对一与大班课均为每小时价格", example = "299.00")
+    @Schema(description = "课程价格（每小时），单位：M豆，1M豆=1元；一对一与小班课均为每小时价格", example = "299.00")
     private BigDecimal price;
 
     @TableField("teacher_hourly_rate")
-    @Schema(description = "教师时薪（1人报名时的基准），单位：M豆/小时；用于计算教师收入（大班课每+1人，时薪+5）；可与学生价格不一致", example = "60.00")
+    @Schema(description = "教师时薪（1人报名时的基准），单位：M豆/小时；用于计算教师收入（小班课每+1人，时薪+5）；可与学生价格不一致", example = "60.00")
     private BigDecimal teacherHourlyRate;
 
     @TableField("current_hours")
@@ -85,15 +85,15 @@ public class Course {
     private BigDecimal lastHours = BigDecimal.ZERO;
 
     @TableField("start_date")
-    @Schema(description = "开始日期（大班课专用）", example = "2026-01-15")
+    @Schema(description = "开始日期（小班课专用）", example = "2026-01-15")
     private LocalDate startDate;
 
     @TableField("end_date")
-    @Schema(description = "结束日期（大班课专用）", example = "2026-03-15")
+    @Schema(description = "结束日期（小班课专用）", example = "2026-03-15")
     private LocalDate endDate;
 
     @TableField("person_limit")
-    @Schema(description = "人数限制（大班课专用，为空表示不限制）", example = "30")
+    @Schema(description = "人数限制（小班课专用，为空表示不限制）", example = "30")
     private Integer personLimit;
 
 
@@ -104,7 +104,7 @@ public class Course {
     private Integer enrollmentCount = 0;
 
     @TableField("course_time_slots")
-    @Schema(description = "上课时间安排（仅大班课需要），JSON字符串，示例：[{\"weekday\":1,\"timeSlots\":[\"08:00-10:00\",\"17:00-19:00\"]},{\"weekday\":6,\"timeSlots\":[\"13:00-15:00\",\"15:00-17:00\"]}]，weekday: 1=周一...7=周日")
+    @Schema(description = "上课时间安排（仅小班课需要），JSON字符串，示例：[{\"weekday\":1,\"timeSlots\":[\"08:00-10:00\",\"17:00-19:00\"]},{\"weekday\":6,\"timeSlots\":[\"13:00-15:00\",\"15:00-17:00\"]}]，weekday: 1=周一...7=周日")
     private String courseTimeSlots;
 
     @TableField("image_url")

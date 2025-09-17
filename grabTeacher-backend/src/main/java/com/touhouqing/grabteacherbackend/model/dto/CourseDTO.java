@@ -36,7 +36,7 @@ public class CourseDTO {
     @Schema(description = "课程类型", example = "one_on_one", allowableValues = {"one_on_one", "large_class"})
     private String courseType;
 
-    @Schema(description = "单次课程时长（分钟）。仅大班课需要（90或120）；一对一可为空，学生在预约时选择", example = "120", allowableValues = {"90", "120"})
+    @Schema(description = "单次课程时长（分钟）。仅小班课需要（90或120）；一对一可为空，学生在预约时选择", example = "120", allowableValues = {"90", "120"})
     private Integer durationMinutes;
 
     @Schema(description = "课程状态", example = "active", allowableValues = {"active", "inactive", "full"})
@@ -45,31 +45,31 @@ public class CourseDTO {
     @Schema(description = "课程地点", example = "线上", allowableValues = {"线上", "线下"})
     private String courseLocation;
 
-    @Schema(description = "是否支持线上（仅大班课），当选择线上时无需选择线下地点")
+    @Schema(description = "是否支持线上（仅小班课），当选择线上时无需选择线下地点")
     private Boolean supportsOnline;
 
-    @Schema(description = "线下地点ID（仅大班课，必须来自授课地点表，且当前仅允许选择一个）", example = "184")
+    @Schema(description = "线下地点ID（仅小班课，必须来自授课地点表，且当前仅允许选择一个）", example = "184")
     private Long offlineLocationId;
 
     @NotNull(message = "课程价格不能为空")
     @Schema(description = "课程价格（每小时），必填", example = "299.00")
     private BigDecimal price;
 
-    @Schema(description = "教师时薪（1人报名时的基准），单位：M豆/小时。用于计算教师收入（大班课每+1人，时薪+5）；可与学生价格（price）不一致", example = "60.00")
+    @Schema(description = "教师时薪（1人报名时的基准），单位：M豆/小时。用于计算教师收入（小班课每+1人，时薪+5）；可与学生价格（price）不一致", example = "60.00")
     private BigDecimal teacherHourlyRate;
 
 
-    @Schema(description = "开始日期（大班课专用）", example = "2024-01-15")
+    @Schema(description = "开始日期（小班课专用）", example = "2024-01-15")
     private LocalDate startDate;
 
-    @Schema(description = "结束日期（大班课专用）", example = "2024-03-15")
+    @Schema(description = "结束日期（小班课专用）", example = "2024-03-15")
     private LocalDate endDate;
 
-    @Schema(description = "人数限制（大班课专用，为空表示不限制）", example = "30")
+    @Schema(description = "人数限制（小班课专用，为空表示不限制）", example = "30")
     private Integer personLimit;
 
 
-    @Schema(description = "课程每周的上课时间周期（仅大班课需要），JSON数组：[{weekday:1,timeSlots:[\"08:00-10:00\"]}]，weekday:1=周一...7=周日")
+    @Schema(description = "课程每周的上课时间周期（仅小班课需要），JSON数组：[{weekday:1,timeSlots:[\"08:00-10:00\"]}]，weekday:1=周一...7=周日")
     private java.util.List<com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO> courseTimeSlots;
 
     @Schema(description = "课程封面图URL（保存课程时确定，预览阶段不上传）")

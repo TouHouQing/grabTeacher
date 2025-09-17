@@ -259,7 +259,7 @@ const getDefaultTeacherAvatar = () => {
 // 格式化价格显示
 const formatPrice = (course: Course) => {
   if (course.courseType === 'large_class') {
-    // 大班课价格采用“每小时”展示
+    // 小班课价格采用“每小时”展示
     if (course.price && course.price > 0) {
       return `${course.price} M豆/h`
     } else {
@@ -304,7 +304,7 @@ const handleEnroll = async (course: Course) => {
       ElMessage.warning('该课程已满员，无法报名')
       return
     }
-    // 仅支持大班课报名
+    // 仅支持小班课报名
     if (course.courseType !== 'large_class') {
       ElMessage.info('该课程请先进入详情或联系客服预约')
       return

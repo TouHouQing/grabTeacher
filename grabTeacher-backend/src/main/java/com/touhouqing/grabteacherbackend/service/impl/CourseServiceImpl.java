@@ -123,7 +123,7 @@ public class CourseServiceImpl implements CourseService {
         if ("large_class".equals(request.getCourseType())) {
             Integer durationMinutes = request.getDurationMinutes();
             if (durationMinutes == null) {
-                throw new RuntimeException("大班课必须设置课程时长（90或120分钟）");
+                throw new RuntimeException("小班课必须设置课程时长（90或120分钟）");
             }
             if (durationMinutes != 90 && durationMinutes != 120) {
                 throw new RuntimeException("课程时长只能选择90分钟（一个半小时）或120分钟（俩小时）");
@@ -168,7 +168,7 @@ public class CourseServiceImpl implements CourseService {
                 } else if ("线下".equals(locStr)) {
                     throw new RuntimeException("请选择线下授课地点");
                 } else {
-                    throw new RuntimeException("大班课必须选择线上或线下地点");
+                    throw new RuntimeException("小班课必须选择线上或线下地点");
                 }
             }
         }
@@ -284,7 +284,7 @@ public class CourseServiceImpl implements CourseService {
         if ("large_class".equals(request.getCourseType())) {
             Integer durationMinutes = request.getDurationMinutes();
             if (durationMinutes == null) {
-                throw new RuntimeException("大班课必须设置课程时长（90或120分钟）");
+                throw new RuntimeException("小班课必须设置课程时长（90或120分钟）");
             }
             if (durationMinutes != 90 && durationMinutes != 120) {
                 throw new RuntimeException("课程时长只能选择90分钟（一个半小时）或120分钟（俩小时）");
@@ -334,7 +334,7 @@ public class CourseServiceImpl implements CourseService {
                     throw new RuntimeException("无效的课程地点");
                 }
             } else {
-                throw new RuntimeException("大班课必须选择线上或线下地点");
+                throw new RuntimeException("小班课必须选择线上或线下地点");
             }
         }
 
@@ -481,10 +481,10 @@ public class CourseServiceImpl implements CourseService {
         if ("large_class".equals(request.getCourseType())) {
             // 大班课必须设置开始日期和结束日期
             if (request.getStartDate() == null) {
-                throw new RuntimeException("大班课必须设置开始日期");
+                throw new RuntimeException("小班课必须设置开始日期");
             }
             if (request.getEndDate() == null) {
-                throw new RuntimeException("大班课必须设置结束日期");
+                throw new RuntimeException("小班课必须设置结束日期");
             }
             // 结束日期必须晚于开始日期
             if (!request.getEndDate().isAfter(request.getStartDate())) {
@@ -499,7 +499,7 @@ public class CourseServiceImpl implements CourseService {
             }
             // 验证每周时间周期（必填）
             if (request.getCourseTimeSlots() == null || request.getCourseTimeSlots().isEmpty()) {
-                throw new RuntimeException("大班课必须设置每周上课时间周期");
+                throw new RuntimeException("小班课必须设置每周上课时间周期");
             }
             if (!com.touhouqing.grabteacherbackend.util.TimeSlotUtil.isValidTimeSlots(request.getCourseTimeSlots())) {
                 throw new RuntimeException("上课时间安排格式不正确");
@@ -781,7 +781,7 @@ public class CourseServiceImpl implements CourseService {
         response.setSupportsOnline("线上".equals(course.getCourseLocation()));
         response.setOfflineLocationId(null);
 
-        // 回显大班课每周时间周期
+        // 回显小班课每周时间周期
         if (course.getCourseTimeSlots() != null && !course.getCourseTimeSlots().isEmpty()) {
             try {
                 java.util.List<com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO> slots =

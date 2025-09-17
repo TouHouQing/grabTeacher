@@ -106,7 +106,7 @@ const courseForm = reactive({
   _localPreviewUrl: '' as string
 })
 
-// 授课地点（大班课专用）
+// 授课地点（小班课专用）
 const activeLocations = ref<Array<{ id: number; name: string }>>([])
 const locationMode = ref<'online' | 'offline'>('online')
 const selectedOfflineLocationId = ref<number | null>(null)
@@ -173,7 +173,7 @@ const formRules = {
       validator: (_rule: any, value: any, callback: any) => {
         const need = courseForm.courseType === 'large_class'
         if (!need) return callback()
-        if (value !== 90 && value !== 120) return callback(new Error('大班课课程时长只能选择90分钟或120分钟'))
+        if (value !== 90 && value !== 120) return callback(new Error('小班课课程时长只能选择90分钟或120分钟'))
         return callback()
       },
       trigger: 'change'
@@ -219,7 +219,7 @@ const formRules = {
       validator: (_rule: any, value: any, callback: any) => {
         if (courseForm.courseType === 'large_class') {
           if (!value) {
-            callback(new Error('大班课必须设置开始日期'))
+            callback(new Error('小班课必须设置开始日期'))
           } else {
             callback()
           }
@@ -235,7 +235,7 @@ const formRules = {
       validator: (_rule: any, value: any, callback: any) => {
         if (courseForm.courseType === 'large_class') {
           if (!value) {
-            callback(new Error('大班课必须设置结束日期'))
+            callback(new Error('小班课必须设置结束日期'))
           } else if (courseForm.startDate && value <= courseForm.startDate) {
             callback(new Error('结束日期必须晚于开始日期'))
           } else {
@@ -286,7 +286,7 @@ const formRules = {
 // 课程类型选项
 const courseTypeOptions = [
   { label: '一对一', value: 'one_on_one' },
-  { label: '大班课', value: 'large_class' }
+  { label: '小班课', value: 'large_class' }
 ]
 
 // 课程状态选项
@@ -391,14 +391,14 @@ const recomputeSuggestedPrice = () => {
     return
   }
   if (courseForm.courseType === 'large_class') {
-    // 大班课：建议价格也按“每小时”显示
+    // 小班课：建议价格也按“每小时”显示
     suggestedPrice.value = Number(hourly.toFixed(2))
     suggestedUnit.value = 'per_hour'
     return
   }
 }
 
-// —— 大班课：按日历选择每周上课时间（自动基于教师可用与既有课程做冲突检测） ——
+// —— 小班课：按日历选择每周上课时间（自动基于教师可用与既有课程做冲突检测） ——
 type AdminCalendarExpose = { open: (opts?: { defaultDuration?: 90|120; dateStart?: string; dateEnd?: string }) => void }
 const calendarRef = ref<AdminCalendarExpose | null>(null)
 const BASE_SLOTS = ['08:00-10:00','10:00-12:00','13:00-15:00','15:00-17:00','17:00-19:00','19:00-21:00']
@@ -469,7 +469,7 @@ const resetForm = () => {
 
   courseForm.personLimit = null
   courseForm.courseLocation = '线上'
-  // 重置授课地点选择（仅大班课使用）
+  // 重置授课地点选择（仅小班课使用）
   locationMode.value = 'online'
   selectedOfflineLocationId.value = null
 
@@ -514,7 +514,7 @@ const openEditDialog = async (course: Course) => {
   isEditing.value = true
   dialogVisible.value = true
 
-  // 仅当为大班课且列表数据缺少周期信息时，再拉取详情，避免不必要请求
+  // 仅当为小班课且列表数据缺少周期信息时，再拉取详情，避免不必要请求
   const needFetchDetail = course.courseType === 'large_class' && (!listSlots || listSlots.length === 0)
   // 回显授课地点（方案A：从名称判断线上/线下）
   if (courseForm.courseType === 'large_class') {
@@ -585,10 +585,10 @@ const saveCourse = async () => {
       }
     }
 
-    // 业务前置校验：大班课必须设置每周上课时间周期
+    // 业务前置校验：小班课必须设置每周上课时间周期
     if (courseForm.courseType === 'large_class') {
       if (!courseForm.courseTimeSlots || courseForm.courseTimeSlots.length === 0) {
-        ElMessage.error('大班课必须设置每周上课时间周期')
+        ElMessage.error('小班课必须设置每周上课时间周期')
         loading.value = false
         return
       }
@@ -627,7 +627,7 @@ const saveCourse = async () => {
       courseData.personLimit = courseForm.personLimit
       courseData.courseTimeSlots = courseForm.courseTimeSlots
 
-      // 授课地点：大班课二选一（线上/线下单选）
+      // 授课地点：小班课二选一（线上/线下单选）
       if (locationMode.value === 'online') {
         courseData.supportsOnline = true
         courseData.courseLocation = '线上'
@@ -1176,10 +1176,10 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
           </el-select>
         </el-form-item>
 
-        <!-- 大班课专用字段 -->
+        <!-- 小班课专用字段 -->
         <template v-if="courseForm.courseType === 'large_class'">
           <el-divider content-position="left">
-            <span style="color: #409eff; font-weight: 500;">大班课设置</span>
+            <span style="color: #409eff; font-weight: 500;">小班课设置</span>
           </el-divider>
 
           <el-form-item label="开始日期" prop="startDate" required>
@@ -1192,7 +1192,7 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
               value-format="YYYY-MM-DD"
               :disabled-date="(time) => time.getTime() < Date.now() - 24 * 60 * 60 * 1000"
             />
-            <span style="margin-left: 10px; color: #909399;">大班课必须设置开始日期</span>
+            <span style="margin-left: 10px; color: #909399;">小班课必须设置开始日期</span>
           </el-form-item>
 
           <el-form-item label="结束日期" prop="endDate" required>
@@ -1320,7 +1320,7 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
 
 
 
-        <!-- 大班课：授课方式与地点选择（方案A） -->
+        <!-- 小班课：授课方式与地点选择（方案A） -->
         <template v-if="courseForm.courseType === 'large_class'">
           <el-form-item label="授课方式" required>
             <el-radio-group v-model="locationMode">

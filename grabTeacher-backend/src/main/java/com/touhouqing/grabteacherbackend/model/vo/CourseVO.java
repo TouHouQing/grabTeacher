@@ -65,26 +65,26 @@ public class CourseVO {
     @Schema(description = "课程地点", example = "线上", allowableValues = {"线上", "线下"})
     private String courseLocation;
 
-    @Schema(description = "是否支持线上（仅大班课）", example = "true")
+    @Schema(description = "是否支持线上（仅小班课）", example = "true")
     private Boolean supportsOnline;
 
-    @Schema(description = "线下地点ID（仅大班课）", example = "184")
+    @Schema(description = "线下地点ID（仅小班课）", example = "184")
     private Long offlineLocationId;
 
     @Schema(description = "课程价格（每小时）", example = "299.00")
     private BigDecimal price;
 
-    @Schema(description = "教师时薪（1人报名时的基准），单位：M豆/小时；用于结算（大班课每+1人，时薪+5）")
+    @Schema(description = "教师时薪（1人报名时的基准），单位：M豆/小时；用于结算（小班课每+1人，时薪+5）")
     private BigDecimal teacherHourlyRate;
 
 
-    @Schema(description = "开始日期（大班课专用）", example = "2024-01-15")
+    @Schema(description = "开始日期（小班课专用）", example = "2024-01-15")
     private LocalDate startDate;
 
-    @Schema(description = "结束日期（大班课专用）", example = "2024-03-15")
+    @Schema(description = "结束日期（小班课专用）", example = "2024-03-15")
     private LocalDate endDate;
 
-    @Schema(description = "人数限制（大班课专用）", example = "30")
+    @Schema(description = "人数限制（小班课专用）", example = "30")
     private Integer personLimit;
 
     @Schema(description = "当前报名人数", example = "0")
@@ -95,7 +95,7 @@ public class CourseVO {
     private String imageUrl;
 
 
-    @Schema(description = "每周上课时间安排（仅大班课），用于管理端编辑回显")
+    @Schema(description = "每周上课时间安排（仅小班课），用于管理端编辑回显")
     private java.util.List<com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO> courseTimeSlots;
 
     @Schema(description = "课程时间显示（组合：日期区间 + 每周 + 时间段）", example = "2025.10.01-2025.12.31，每周一三五，7pm-9pm")
@@ -111,7 +111,7 @@ public class CourseVO {
             case "one_on_one":
                 return "一对一";
             case "large_class":
-                return "大班课";
+                return "小班课";
             default:
                 return courseType;
         }
