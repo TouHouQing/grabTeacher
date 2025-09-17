@@ -99,6 +99,8 @@ const getDayTimes = (date: Date): string[] => {
   return arr.map((it: { startTime: string; endTime: string }) => `${it.startTime}-${it.endTime}`)
 }
 
+
+
 // 统计数据
 const statistics = ref({
   rescheduleRequests: 0,
@@ -701,12 +703,7 @@ onMounted(async () => {
                       <el-tag v-else type="success" size="small">正式</el-tag>
                     </template>
                   </el-table-column>
-                  <el-table-column label="时薪" width="120">
-                    <template #default="scope">
-                      <span v-if="scope.row.isTrial || scope.row.courseType !== 'one_on_one' || !scope.row.teacherHourlyRate">-</span>
-                      <span v-else>{{ scope.row.teacherHourlyRate }} M豆/小时</span>
-                    </template>
-                  </el-table-column>
+
                   <el-table-column label="操作" width="260">
                     <template #default="scope">
                       <el-button type="primary" size="small" @click="viewScheduleDetail(scope.row)">详情</el-button>
@@ -789,13 +786,6 @@ onMounted(async () => {
           <div class="detail-item">
             <div class="label">时长</div>
             <div class="value">{{ selectedSchedule.durationMinutes || 0 }} 分钟</div>
-          </div>
-          <div class="detail-item">
-            <div class="label">时薪</div>
-            <div class="value">
-              <span v-if="selectedSchedule?.isTrial || selectedSchedule?.courseType !== 'one_on_one' || !selectedSchedule?.teacherHourlyRate">-</span>
-              <span v-else>{{ selectedSchedule.teacherHourlyRate }} M豆/小时</span>
-            </div>
           </div>
 
           <div class="detail-item">
