@@ -132,56 +132,39 @@ public class CalendarServiceImpl implements CalendarService {
                 LocalTime baseStart = tt[0];
                 LocalTime baseEnd = tt[1];
 
-                // 基于教师日历可用性设置初始状态
+                // 基于教师日历可用性（仅用于在无任何占用/待审批时决定 available/unavailable）
                 boolean hasDaily = dailyAvail.containsKey(day);
                 boolean allowedByDaily = hasDaily && dailyAvail.getOrDefault(day, java.util.Collections.emptySet()).contains(slot);
 
-                String status = allowedByDaily ? "available" : "unavailable";
                 String tips = null;
 
-                // A. 正式课占用（已排程）
+                // 是否有正式课占用（已排程）
                 boolean hasFormal = daySch.stream().anyMatch(cs -> {
                     Boolean trial = cs.getTrial();
                     if (Boolean.TRUE.equals(trial)) return false;
                     // overlap
                     return cs.getStartTime().isBefore(baseEnd) && baseStart.isBefore(cs.getEndTime());
                 });
-                if (hasFormal) {
-                    status = "busy_formal"; // 该基础段内已有正式课，禁选（优先级最高）
-                }
 
-                // B. 试听占用影响（新版规则：基础段内任意30分钟试听均阻断正式课，含1.5h与2h）
-                if ("available".equals(status)) {
-                    boolean anyTrial = daySch.stream().anyMatch(cs -> Boolean.TRUE.equals(cs.getTrial())
-                            && !"cancelled".equalsIgnoreCase(cs.getScheduleStatus())
-                            && cs.getScheduledDate().equals(day)
-                            && cs.getStartTime().isBefore(baseEnd) && baseStart.isBefore(cs.getEndTime()));
-                    if (anyTrial) {
-                        status = "busy_trial_base"; // 基础段内有试听：正式课禁用
-                        // 移除提示信息，按照用户要求不显示任何提示
-                    }
-                }
+                // 是否有试听课占用（未取消，任意30分钟与基础段重叠）
+                boolean anyTrial = daySch.stream().anyMatch(cs -> Boolean.TRUE.equals(cs.getTrial())
+                        && !"cancelled".equalsIgnoreCase(cs.getScheduleStatus())
+                        && cs.getScheduledDate().equals(day)
+                        && cs.getStartTime().isBefore(baseEnd) && baseStart.isBefore(cs.getEndTime()));
 
-                // C. 检查是否有任何待处理预约（试听或正式课）
-                if ("available".equals(status) && !dayPend.isEmpty()) {
-                    boolean hasPendingBooking = false;
-                    
+                // 是否存在待审批的预约（单次或日历）
+                boolean hasPendingBooking = false;
+                if (!dayPend.isEmpty()) {
                     for (BookingRequest br : dayPend) {
-                        if (!"pending".equalsIgnoreCase(br.getStatus())) {
-                            continue; // 只处理待审批状态
-                        }
-                        
-                        // 处理单次预约
+                        if (!"pending".equalsIgnoreCase(br.getStatus())) continue; // 只处理待审批
+
                         if ("single".equalsIgnoreCase(br.getBookingType())) {
                             if (day.equals(br.getRequestedDate())
                                     && br.getRequestedStartTime() != null && br.getRequestedEndTime() != null
                                     && br.getRequestedStartTime().isBefore(baseEnd) && baseStart.isBefore(br.getRequestedEndTime())) {
-                                hasPendingBooking = true;
-                                break;
+                                hasPendingBooking = true; break;
                             }
-                        }
-                        // 处理日历预约
-                        else if ("calendar".equalsIgnoreCase(br.getBookingType())) {
+                        } else if ("calendar".equalsIgnoreCase(br.getBookingType())) {
                             String json = br.getSelectedSessionsJson();
                             if (json != null && !json.isEmpty()) {
                                 try {
@@ -192,20 +175,14 @@ public class CalendarServiceImpl implements CalendarService {
                                             String dateStr = m.get("date");
                                             String startStr = m.get("startTime");
                                             String endStr = m.get("endTime");
-                                            
-                                            // 尝试不同的字段名
                                             if (startStr == null) startStr = m.get("start");
                                             if (endStr == null) endStr = m.get("end");
-                                            
                                             if (dateStr != null && startStr != null && endStr != null) {
                                                 LocalDate d0 = LocalDate.parse(dateStr);
                                                 if (day.equals(d0)) {
                                                     LocalTime s0 = LocalTime.parse(startStr);
                                                     LocalTime e0 = LocalTime.parse(endStr);
-                                                    if (s0.isBefore(baseEnd) && baseStart.isBefore(e0)) {
-                                                        hasPendingBooking = true;
-                                                        break;
-                                                    }
+                                                    if (s0.isBefore(baseEnd) && baseStart.isBefore(e0)) { hasPendingBooking = true; break; }
                                                 }
                                             }
                                         }
@@ -213,15 +190,21 @@ public class CalendarServiceImpl implements CalendarService {
                                 } catch (Exception e) {
                                     log.warn("解析日历预约JSON失败: {}", e.getMessage());
                                 }
-                                if (hasPendingBooking) break;
                             }
                         }
+                        if (hasPendingBooking) break;
                     }
-                    
-                    if (hasPendingBooking) {
-                        status = "unavailable";
-                        // 移除提示信息，按照用户要求不显示任何提示
-                    }
+                }
+
+                String status;
+                if (hasFormal || anyTrial) {
+                    status = "busy_formal"; // 统一标红：已有课程（正式或试听）
+                } else if (hasPendingBooking) {
+                    status = "unavailable"; // 待审批占位：保持灰色禁用
+                } else if (allowedByDaily) {
+                    status = "available";
+                } else {
+                    status = "unavailable";
                 }
 
                 res.add(CalendarSlotStatusVO.builder()

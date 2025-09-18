@@ -2,11 +2,13 @@
   <div class="calendar-multi">
     <div class="toolbar">
       <div class="months" v-if="!hideMonths">
-        <el-button-group>
+        <el-button :icon="ArrowLeft" circle size="small" @click="prevMonth" />
+        <el-button-group style="margin: 0 6px;">
           <el-button v-for="(m, idx) in monthList" :key="m.key" size="small"
                      :type="idx===activeIdx ? 'primary' : 'default'"
                      @click="activeIdx = idx">{{ m.label }}</el-button>
         </el-button-group>
+        <el-button :icon="ArrowRight" circle size="small" @click="nextMonth" :disabled="!canNext" />
       </div>
       <div class="spacer" />
       <slot name="extra" />
@@ -37,6 +39,7 @@
 import { computed, ref, watch, nextTick } from 'vue'
 import dayjs from 'dayjs'
 import CalendarMonth from './CalendarMonth.vue'
+import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   teacherId: number
@@ -59,16 +62,49 @@ const emit = defineEmits<{
   (e: 'last-clicked-date', payload: string): void
 }>()
 
-const base = dayjs(`${props.startYear || dayjs().year()}-${String(props.startMonth || (dayjs().month()+1)).padStart(2,'0')}-01`)
+const baseRef = ref(dayjs(`${props.startYear || dayjs().year()}-${String(props.startMonth || (dayjs().month()+1)).padStart(2,'0')}-01`))
 const monthsCount = ref(props.months || 12)
 const activeIdx = ref(0)
 const monthRef = ref<InstanceType<typeof CalendarMonth> | null>(null)
 
 
+// 未来最多可到“当前月起一年的范围”（含本月，共12个自然月）
+const maxFutureMonth = dayjs().startOf('month').add(11, 'month') // inclusive
+
+// 是否允许点击“下一个月”
+const canNext = computed(() => {
+  // 若当前活跃索引未到尾部，可以直接下一个
+  if (activeIdx.value < (monthsCount.value - 1)) return true
+  // 已在尾部，则需要判断窗口右移一格后是否仍不超过未来一年
+  const last = baseRef.value.add(monthsCount.value - 1, 'month')
+  return last.isBefore(maxFutureMonth)
+})
+
+function prevMonth() {
+  if (activeIdx.value > 0) {
+    activeIdx.value--
+  } else {
+    // 已是窗口最左侧，整体窗口左移一格
+    baseRef.value = baseRef.value.subtract(1, 'month')
+  }
+}
+
+function nextMonth() {
+  if (activeIdx.value < (monthsCount.value - 1)) {
+    activeIdx.value++
+  } else {
+    const last = baseRef.value.add(monthsCount.value - 1, 'month')
+    if (last.isBefore(maxFutureMonth)) {
+      baseRef.value = baseRef.value.add(1, 'month')
+    }
+  }
+}
+
+
 const monthList = computed(() => {
   const arr: Array<{ year: number; month: number; key: string; label: string }> = []
   for (let i=0;i<monthsCount.value;i++) {
-    const d = base.add(i, 'month')
+    const d = baseRef.value.add(i, 'month')
     arr.push({ year: d.year(), month: d.month()+1, key: d.format('YYYY-MM'), label: d.format('YYYY年MM月') })
   }
   // 保持 activeIdx 在范围内
