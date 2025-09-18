@@ -185,7 +185,7 @@
       :lock-duration="!props.isTeacher"
       :show-month-quick-buttons="props.isTeacher"
       :show-hint="props.isTeacher"
-      :hide-months="!props.isTeacher"
+      :hide-months="false"
       @confirm="onCalendarConfirm"
     />
 
@@ -300,6 +300,7 @@ const selectedScheduleId = ref<number | null>(null)
 const futureSchedules = computed<CourseSchedule[]>(() => {
   const schedules = props.course?.schedules ?? []
   const nowTs = Date.now()
+  const twoWeeksLaterTs = nowTs + 14 * 24 * 60 * 60 * 1000
   const norm = (t?: string) => (t && t.length === 5 ? `${t}:00` : (t || '00:00:00'))
 
   // 1) 先按id去重：若同一id出现多条，保留“时间更新后”的那条（较新的日期+开始时间）
@@ -324,7 +325,7 @@ const futureSchedules = computed<CourseSchedule[]>(() => {
     .filter((s: CourseSchedule) => {
       if (s.status === 'cancelled') return false
       const ts = new Date(`${s.scheduledDate}T${norm(s.startTime)}`).getTime()
-      return ts > nowTs
+      return ts > nowTs && ts <= twoWeeksLaterTs
     })
     .sort((a: CourseSchedule, b: CourseSchedule) => {
       const ta = new Date(`${a.scheduledDate}T${norm(a.startTime)}`).getTime()
@@ -413,13 +414,8 @@ const openCalendar = () => {
   const defaultDuration = (s?.durationMinutes === 120 ? 120 : 90) as 90 | 120
   const today = new Date()
   const startStr = today.toISOString().slice(0, 10)
-  let endStr: string | undefined = undefined
-  if (!props.isTeacher) {
-    const end = new Date(today)
-    end.setDate(end.getDate() + 13)
-    endStr = end.toISOString().slice(0, 10)
-  }
-  studentSchedulerRef.value?.open({ defaultDuration, dateStart: startStr, dateEnd: endStr })
+  // 学生端取消 14 天上限，不再传递 dateEnd 限制
+  studentSchedulerRef.value?.open({ defaultDuration, dateStart: startStr })
 }
 
 const onCalendarConfirm = (sessions: Array<{ date: string; startTime: string; endTime: string }>, _duration: 90 | 120) => {
