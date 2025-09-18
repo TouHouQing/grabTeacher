@@ -441,5 +441,33 @@ public class BookingController {
         }
     }
 
+    /**
+     * 检查正式课预约时间冲突（包括待审批预约和试听课冲突）
+     */
+    @GetMapping("/formal/conflict-check")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "检查正式课预约时间冲突", description = "检查正式课预约时间是否与已有课程、待审批预约或试听课冲突")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "检查成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "请求参数错误"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
+    })
+    public ResponseEntity<CommonResult<Boolean>> checkFormalBookingConflict(
+            @Parameter(description = "教师ID", required = true) @RequestParam Long teacherId,
+            @Parameter(description = "日期", example = "2024-01-01") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @Parameter(description = "开始时间", example = "08:00") @RequestParam String startTime,
+            @Parameter(description = "结束时间", example = "10:00") @RequestParam String endTime,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        try {
+            boolean hasConflict = bookingService.hasFormalBookingConflict(teacherId, currentUser.getId(), date, startTime, endTime);
+            return ResponseEntity.ok(CommonResult.success("检查成功", hasConflict));
+        } catch (Exception e) {
+            logger.error("检查正式课预约冲突异常: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResult.error("检查失败"));
+        }
+    }
+
 
 }

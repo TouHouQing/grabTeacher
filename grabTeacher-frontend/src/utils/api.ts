@@ -694,8 +694,18 @@ export const bookingAPI = {
     const params = new URLSearchParams({ teacherId: teacherId.toString(), date })
     if (segment) params.append('segment', segment)
     return apiRequest(`/api/booking/availability/day?${params}`)
-  }
-  ,
+  },
+
+  // 检查正式课预约时间冲突（包括待审批预约）
+  checkFormalBookingConflict: (teacherId: number, date: string, startTime: string, endTime: string) => {
+    const params = new URLSearchParams({
+      teacherId: teacherId.toString(),
+      date,
+      startTime,
+      endTime
+    })
+    return apiRequest(`/api/booking/formal/conflict-check?${params}`)
+  },
 
   // 学生端：我的课程 V2（后端聚合，直接读真实课表）
   getStudentCoursesV2: () => apiRequest('/api/booking/student/my-courses/v2')

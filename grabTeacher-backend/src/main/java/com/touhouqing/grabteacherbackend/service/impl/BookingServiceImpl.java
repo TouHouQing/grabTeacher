@@ -28,6 +28,8 @@ import java.math.BigDecimal;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 @Slf4j
 @Service
@@ -272,6 +274,42 @@ public class BookingServiceImpl implements BookingService {
             log.info("已扣除学生余额，用户ID: {}, 扣除金额: {}M豆, 预约ID: {}", studentUserId, totalCost, bookingRequest.getId());
         } else if (isResume) {
             log.info("恢复课程预约，跳过费用计算与扣费，用户ID: {}, 预约ID: {}", studentUserId, bookingRequest.getId());
+        }
+
+        // 清理月历缓存，确保待审批预约状态立即生效
+        try {
+            Set<LocalDate> affectedDates = new HashSet<>();
+            if ("single".equals(bookingRequest.getBookingType())) {
+                if (bookingRequest.getRequestedDate() != null) {
+                    affectedDates.add(bookingRequest.getRequestedDate());
+                }
+            } else if ("calendar".equals(bookingRequest.getBookingType())) {
+                // 解析 selectedSessionsJson 获取所有相关日期
+                if (bookingRequest.getSelectedSessionsJson() != null && !bookingRequest.getSelectedSessionsJson().trim().isEmpty()) {
+                    try {
+                        ObjectMapper objectMapper = new ObjectMapper();
+                        List<Map<String, Object>> sessions = objectMapper.readValue(
+                            bookingRequest.getSelectedSessionsJson(), 
+                            new TypeReference<List<Map<String, Object>>>() {}
+                        );
+                        for (Map<String, Object> session : sessions) {
+                            String dateStr = (String) session.get("date");
+                            if (dateStr != null) {
+                                affectedDates.add(LocalDate.parse(dateStr));
+                            }
+                        }
+                    } catch (Exception e) {
+                        // JSON解析失败时静默处理
+                    }
+                }
+            }
+            
+            if (!affectedDates.isEmpty()) {
+                cacheKeyEvictor.evictTeacherMonthlyCalendar(bookingRequest.getTeacherId(), affectedDates);
+                log.info("已清理教师{}的月历缓存，影响日期: {}", bookingRequest.getTeacherId(), affectedDates);
+            }
+        } catch (Exception e) {
+            log.warn("清理月历缓存失败，但不影响主流程", e);
         }
 
         log.info("预约申请创建完成，ID: {}", bookingRequest.getId());
@@ -2440,6 +2478,109 @@ public class BookingServiceImpl implements BookingService {
             return list;
         } catch (Exception e) {
             throw new RuntimeException("预约记录解析失败，请稍后重试");
+        }
+    }
+
+    @Override
+    public boolean hasFormalBookingConflict(Long teacherId, Long studentId, LocalDate date, String startTime, String endTime) {
+        try {
+            LocalTime start = LocalTime.parse(startTime);
+            LocalTime end = LocalTime.parse(endTime);
+
+            // 1. 检查教师时间冲突（已排课程）
+            if (hasTeacherTimeConflict(teacherId, date, startTime, endTime)) {
+                return true;
+            }
+
+            // 2. 检查学生时间冲突（已排课程）
+            if (hasStudentTimeConflict(studentId, date, startTime, endTime)) {
+                return true;
+            }
+
+            // 3. 检查待处理的预约申请冲突
+            java.util.List<BookingRequest> pendingBookings = bookingRequestMapper.findPendingByTeacherAndDateRange(teacherId, date, date);
+            if (pendingBookings != null && !pendingBookings.isEmpty()) {
+                for (BookingRequest booking : pendingBookings) {
+                    if ("single".equals(booking.getBookingType())) {
+                        // 单次预约冲突检查
+                        if (booking.getRequestedDate() != null && booking.getRequestedDate().isEqual(date)) {
+                            if (isOverlap(start, end, booking.getRequestedStartTime(), booking.getRequestedEndTime())) {
+                                return true;
+                            }
+                        }
+                    } else if ("recurring".equals(booking.getBookingType())) {
+                        // 周期性预约冲突检查
+                        java.util.List<Integer> weekdays = convertStringToIntegerList(booking.getRecurringWeekdays());
+                        java.util.List<String> timeSlots = convertStringToList(booking.getRecurringTimeSlots());
+                        int dayOfWeek = date.getDayOfWeek().getValue();
+                        int weekdayValue = dayOfWeek == 7 ? 0 : dayOfWeek;
+                        
+                        if (weekdays != null && weekdays.contains(weekdayValue) && timeSlots != null) {
+                            for (String slot : timeSlots) {
+                                String[] times = slot.split("-");
+                                if (times.length == 2) {
+                                    LocalTime slotStart = LocalTime.parse(times[0]);
+                                    LocalTime slotEnd = LocalTime.parse(times[1]);
+                                    if (isOverlap(start, end, slotStart, slotEnd)) {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    } else if ("calendar".equals(booking.getBookingType())) {
+                        // 日历预约冲突检查
+                        String sessionsJson = booking.getSelectedSessionsJson();
+                        if (sessionsJson != null && !sessionsJson.trim().isEmpty()) {
+                            try {
+                                java.util.List<CalendarSession> sessions = parseSelectedSessions(sessionsJson);
+                                
+                                for (CalendarSession session : sessions) {
+                                    if (session.date != null && session.date.isEqual(date)) {
+                                        if (isOverlap(start, end, session.start, session.end)) {
+                                            return true;
+                                        }
+                                    }
+                                }
+                            } catch (Exception e) {
+                                log.warn("解析日历预约会话JSON失败: {}", e.getMessage());
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. 检查待处理的调课申请冲突
+            java.util.List<RescheduleRequest> pendingReschedules = 
+                rescheduleRequestMapper.findPendingSingleByTeacherAndDate(teacherId, date);
+            if (pendingReschedules != null && !pendingReschedules.isEmpty()) {
+                for (RescheduleRequest reschedule : pendingReschedules) {
+                    if (isOverlap(start, end, reschedule.getNewStartTime(), reschedule.getNewEndTime())) {
+                        return true;
+                    }
+                }
+            }
+
+            // 5. 对于2小时或1.5小时课程，检查是否与试听课冲突
+            if (isTwoHourCourse(start, end) || isNinetyMinuteCourse(start, end)) {
+                // 将时间段映射到基础2小时区间
+                String baseSlot = mapToBaseTimeSlot(startTime, endTime);
+                if (baseSlot != null) {
+                    String[] baseTimes = baseSlot.split("-");
+                    if (baseTimes.length == 2) {
+                        // 检查基础区间是否被试听课占用（已排程的和待处理的）
+                        boolean scheduledTrialConflict = hasTrialConflictInBaseSlot(teacherId, date, baseTimes[0], baseTimes[1]);
+                        boolean pendingTrialConflict = hasPendingTrialConflictInBaseSlot(teacherId, date, baseTimes[0], baseTimes[1]);
+                        if (scheduledTrialConflict || pendingTrialConflict) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        } catch (Exception e) {
+            log.error("检查正式课预约冲突时发生错误", e);
+            return true; // 出错时保守处理，认为有冲突
         }
     }
 

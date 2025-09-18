@@ -178,4 +178,15 @@ public interface BookingService {
      */
     boolean hasTrialTimeConflict(Long teacherId, LocalDate date, String startTime, String endTime);
 
+    /**
+     * 检查正式课预约时间冲突（包括待审批预约和试听课冲突）
+     * @param teacherId 教师ID
+     * @param studentId 学生ID
+     * @param date 日期
+     * @param startTime 开始时间
+     * @param endTime 结束时间
+     * @return 是否有冲突
+     */
+    boolean hasFormalBookingConflict(Long teacherId, Long studentId, LocalDate date, String startTime, String endTime);
+
 }

@@ -1707,6 +1707,32 @@ const openCalendarBooking = () => {
 // 日历确认：按具体日期+时间段提交
 const onCalendarConfirm = async (sessions: Array<{ date: string; startTime: string; endTime: string }>, duration: 90|120) => {
   try {
+    // 在提交前检查所有会话的时间冲突
+    ElMessage.info('正在检查时间冲突...')
+    const conflictSessions = []
+
+    for (const session of sessions) {
+      try {
+        const conflictResult = await bookingAPI.checkFormalBookingConflict(
+          currentTeacher.value!.id,
+          session.date,
+          session.startTime,
+          session.endTime
+        )
+
+        if (conflictResult.success && conflictResult.data === true) {
+          conflictSessions.push(`${session.date} ${session.startTime}-${session.endTime}`)
+        }
+      } catch (error) {
+        console.warn(`检查时间冲突失败 ${session.date} ${session.startTime}-${session.endTime}:`, error)
+      }
+    }
+
+    if (conflictSessions.length > 0) {
+      ElMessage.error(`以下时间段存在冲突，请重新选择：\n${conflictSessions.join('\n')}`)
+      return
+    }
+
     const bookingData: any = {
       teacherId: currentTeacher.value!.id,
       courseId: selectedCourse.value?.id,

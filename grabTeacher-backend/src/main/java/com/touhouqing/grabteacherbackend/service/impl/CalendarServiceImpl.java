@@ -17,8 +17,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.*;
 
 @Slf4j
@@ -85,8 +85,31 @@ public class CalendarServiceImpl implements CalendarService {
                 if (d != null && !d.isBefore(first) && !d.isAfter(last)) {
                     pendingByDate.computeIfAbsent(d, k -> new ArrayList<>()).add(br);
                 }
+            } else if ("calendar".equalsIgnoreCase(br.getBookingType())) {
+                // calendar类型：解析selectedSessionsJson获取具体日期和时间
+                if (br.getSelectedSessionsJson() != null && !br.getSelectedSessionsJson().trim().isEmpty()) {
+                    try {
+                        ObjectMapper objectMapper = new ObjectMapper();
+                        List<Map<String, Object>> sessions = objectMapper.readValue(
+                            br.getSelectedSessionsJson(), 
+                            new TypeReference<List<Map<String, Object>>>() {}
+                        );
+                        
+                        for (Map<String, Object> session : sessions) {
+                            String dateStr = (String) session.get("date");
+                            if (dateStr != null) {
+                                LocalDate sessionDate = LocalDate.parse(dateStr);
+                                if (!sessionDate.isBefore(first) && !sessionDate.isAfter(last)) {
+                                    pendingByDate.computeIfAbsent(sessionDate, k -> new ArrayList<>()).add(br);
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        // JSON解析失败时静默处理，不影响其他逻辑
+                    }
+                }
             } else {
-                // 周期：粗略映射到范围内的每一天（仅用于标记，真实校验仍由提交接口处理）
+                // 其他类型：使用startDate和endDate
                 if (br.getStartDate() != null && br.getEndDate() != null) {
                     LocalDate sd = br.getStartDate().isBefore(first) ? first : br.getStartDate();
                     LocalDate ed = br.getEndDate().isAfter(last) ? last : br.getEndDate();
@@ -135,21 +158,69 @@ public class CalendarServiceImpl implements CalendarService {
                             && cs.getStartTime().isBefore(baseEnd) && baseStart.isBefore(cs.getEndTime()));
                     if (anyTrial) {
                         status = "busy_trial_base"; // 基础段内有试听：正式课禁用
-                        tips = "该基础段内存在试听，正式课禁用";
+                        // 移除提示信息，按照用户要求不显示任何提示
                     }
                 }
 
-                // C. 待处理试听（同样阻断正式课）
-                if ("available".equals(status)) {
-                    boolean anyPendingTrial = dayPend.stream().anyMatch(br -> Boolean.TRUE.equals(br.getIsTrial())
-                            && "pending".equalsIgnoreCase(br.getStatus())
-                            && "single".equalsIgnoreCase(br.getBookingType())
-                            && day.equals(br.getRequestedDate())
-                            && br.getRequestedStartTime() != null && br.getRequestedEndTime() != null
-                            && br.getRequestedStartTime().isBefore(baseEnd) && baseStart.isBefore(br.getRequestedEndTime()));
-                    if (anyPendingTrial) {
-                        status = "busy_trial_base";
-                        tips = (tips == null ? "" : tips + "; ") + "基础段内有待审批试听，正式课禁用";
+                // C. 检查是否有任何待处理预约（试听或正式课）
+                if ("available".equals(status) && !dayPend.isEmpty()) {
+                    boolean hasPendingBooking = false;
+                    
+                    for (BookingRequest br : dayPend) {
+                        if (!"pending".equalsIgnoreCase(br.getStatus())) {
+                            continue; // 只处理待审批状态
+                        }
+                        
+                        // 处理单次预约
+                        if ("single".equalsIgnoreCase(br.getBookingType())) {
+                            if (day.equals(br.getRequestedDate())
+                                    && br.getRequestedStartTime() != null && br.getRequestedEndTime() != null
+                                    && br.getRequestedStartTime().isBefore(baseEnd) && baseStart.isBefore(br.getRequestedEndTime())) {
+                                hasPendingBooking = true;
+                                break;
+                            }
+                        }
+                        // 处理日历预约
+                        else if ("calendar".equalsIgnoreCase(br.getBookingType())) {
+                            String json = br.getSelectedSessionsJson();
+                            if (json != null && !json.isEmpty()) {
+                                try {
+                                    java.util.List<java.util.Map<String, String>> arr = MAPPER.readValue(json,
+                                            new com.fasterxml.jackson.core.type.TypeReference<java.util.List<java.util.Map<String, String>>>(){});
+                                    if (arr != null) {
+                                        for (var m : arr) {
+                                            String dateStr = m.get("date");
+                                            String startStr = m.get("startTime");
+                                            String endStr = m.get("endTime");
+                                            
+                                            // 尝试不同的字段名
+                                            if (startStr == null) startStr = m.get("start");
+                                            if (endStr == null) endStr = m.get("end");
+                                            
+                                            if (dateStr != null && startStr != null && endStr != null) {
+                                                LocalDate d0 = LocalDate.parse(dateStr);
+                                                if (day.equals(d0)) {
+                                                    LocalTime s0 = LocalTime.parse(startStr);
+                                                    LocalTime e0 = LocalTime.parse(endStr);
+                                                    if (s0.isBefore(baseEnd) && baseStart.isBefore(e0)) {
+                                                        hasPendingBooking = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    log.warn("解析日历预约JSON失败: {}", e.getMessage());
+                                }
+                                if (hasPendingBooking) break;
+                            }
+                        }
+                    }
+                    
+                    if (hasPendingBooking) {
+                        status = "unavailable";
+                        // 移除提示信息，按照用户要求不显示任何提示
                     }
                 }
 

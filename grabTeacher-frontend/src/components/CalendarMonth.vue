@@ -233,15 +233,17 @@ const reload = async () => {
   buildMonthDays(localYear.value, localMonth.value)
   try {
     const cal = await teacherAPI.getMonthlyCalendar(props.teacherId, localYear.value, localMonth.value)
-    // group API results by date
+    // group API results by date（兼容后端直接返回VO或包一层data）
     let grouped: Record<string, Array<{ slot: string; status: string; tips?: string }>> = {}
-    if (cal?.data?.slots && Array.isArray((cal as any).data.slots)) {
-      for (const s of (cal as any).data.slots as Array<any>) {
+    const slotsA: any[] | null = Array.isArray((cal as any)?.slots) ? (cal as any).slots
+      : (Array.isArray((cal as any)?.data?.slots) ? (cal as any).data.slots : null)
+    if (slotsA) {
+      for (const s of slotsA) {
         const dateStr = typeof s.date === 'string' ? s.date : (s.date?.toString?.() || '')
         if (!dateStr) continue
         ;(grouped[dateStr] = grouped[dateStr] || []).push({ slot: s.slot, status: s.status, tips: s.tips })
       }
-    } else if (cal?.data?.dates && Array.isArray((cal as any).data.dates)) {
+    } else if (Array.isArray((cal as any)?.data?.dates)) {
       for (const d of (cal as any).data.dates as Array<any>) grouped[d.date] = d.slots
     }
 
@@ -357,10 +359,10 @@ function getSelectableSessions(duration?: 90 | 120 | number) {
       const raw = String(it.slot || '')
       const [startStr, endStr] = raw.split('-')
       if (dur === 120) {
-        if (it.status === 'busy_trial_base' || it.status === 'busy_formal' || it.status === 'unavailable') continue
+        if (it.status === 'busy_trial_base' || it.status === 'busy_formal' || it.status === 'pending_trial' || it.status === 'pending_formal' || it.status === 'unavailable') continue
         res.push({ date: day.date, startTime: startStr, endTime: endStr })
       } else {
-        if (it.status === 'busy_formal' || it.status === 'unavailable' || it.status === 'busy_trial_base') continue
+        if (it.status === 'busy_formal' || it.status === 'pending_trial' || it.status === 'pending_formal' || it.status === 'unavailable' || it.status === 'busy_trial_base') continue
         const s = dayjs(`${day.date} ${startStr}`)
         const e = dayjs(`${day.date} ${endStr}`)
         const startTime = s.add(15, 'minute').format('HH:mm')
@@ -395,11 +397,11 @@ const onClickSlot = (day: any, slot: string) => {
     let startTime = startStr
     let endTime = endStr
     if (duration === 120) {
-      // 2h: must be whole base slot; block when busy_trial_base
-      if (item.status === 'busy_trial_base' || item.status === 'busy_formal' || item.status === 'unavailable') return
+      // 2h: must be whole base slot; block when trial/pending/formal/unavailable
+      if (item.status === 'busy_trial_base' || item.status === 'busy_formal' || item.status === 'pending_trial' || item.status === 'pending_formal' || item.status === 'unavailable') return
     } else {
-      // 1.5h: center-only; block when any trial exists in base slot
-      if (item.status === 'busy_formal' || item.status === 'unavailable' || item.status === 'busy_trial_base') return
+      // 1.5h: center-only; block when any trial exists in base slot or pending
+      if (item.status === 'busy_formal' || item.status === 'pending_trial' || item.status === 'pending_formal' || item.status === 'unavailable' || item.status === 'busy_trial_base') return
       const s = dayjs(`${day.date} ${startStr}`)
       const e = dayjs(`${day.date} ${endStr}`)
       startTime = s.add(15, 'minute').format('HH:mm')

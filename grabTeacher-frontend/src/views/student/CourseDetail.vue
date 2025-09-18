@@ -357,6 +357,32 @@ const openScheduleView = () => {
 // 从日历确认后的提交
 const onCalendarConfirmFromDetail = async (sessions: Array<{ date: string; startTime: string; endTime: string }>, duration: 90|120) => {
   try {
+    // 在提交前检查所有会话的时间冲突
+    ElMessage.info('正在检查时间冲突...')
+    const conflictSessions = []
+
+    for (const session of sessions) {
+      try {
+        const conflictResult = await bookingAPI.checkFormalBookingConflict(
+          course.value?.teacherId || 0,
+          session.date,
+          session.startTime,
+          session.endTime
+        )
+
+        if (conflictResult.success && conflictResult.data === true) {
+          conflictSessions.push(`${session.date} ${session.startTime}-${session.endTime}`)
+        }
+      } catch (error) {
+        console.warn(`检查时间冲突失败 ${session.date} ${session.startTime}-${session.endTime}:`, error)
+      }
+    }
+
+    if (conflictSessions.length > 0) {
+      ElMessage.error(`以下时间段存在冲突，请重新选择：\n${conflictSessions.join('\n')}`)
+      return
+    }
+
     // 构建偏好时间段
     const preferredTimeSlots: string[] = []
     if (selectedPeriods.value.includes('morning')) {
