@@ -439,6 +439,41 @@ const inferBaseSlot = (startTime: string, endTime: string): string | null => {
   return null
 }
 
+
+  // 基础段 -> 具体开课时间（1.5h 取中间90分钟）
+  const fromBaseToSession = (base: string, duration: 90|120): { start: string; end: string } => {
+    const [bs, be] = base.split('-'); const to = (t:string)=>{const [h,m]=t.split(':').map(Number);return h*60+m}
+    const pad = (n:number)=> (n<10?`0${n}`:`${n}`)
+    const fmt = (m:number)=> `${pad(Math.floor(m/60))}:${pad(m%60)}`
+    if (duration === 120) return { start: bs, end: be }
+    const s = to(bs) + 15, e = to(be) - 15
+    return { start: fmt(s), end: fmt(e) }
+  }
+  // 根据每周周期 + 日期区间，生成用于日历回显的已选会话
+  const buildSessionsFromWeekly = (
+    startDate?: string,
+    endDate?: string,
+    weekly?: Array<{ weekday: number; timeSlots: string[] }>,
+    duration?: number
+  ) => {
+    const out: Array<{ date: string; startTime: string; endTime: string }> = []
+    if (!startDate || !endDate || !weekly || !duration) return out
+    const start = new Date(startDate + 'T00:00:00'); const end = new Date(endDate + 'T00:00:00')
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return out
+    const wmap = new Map<number, string[]>(); for (const it of weekly) { if (Array.isArray(it.timeSlots) && it.timeSlots.length>0) wmap.set(it.weekday, it.timeSlots) }
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
+      let w = d.getDay(); if (w === 0) w = 7
+      const slots = wmap.get(w); if (!slots) continue
+      const dateStr = d.toISOString().slice(0,10)
+      for (const base of slots) {
+        const ses = fromBaseToSession(base, (duration===120?120:90) as 90|120)
+        out.push({ date: dateStr, startTime: ses.start, endTime: ses.end })
+      }
+    }
+    out.sort((a,b)=> a.date===b.date ? (toMin(a.startTime)-toMin(b.startTime)) : (a.date<b.date?-1:1))
+    return out
+  }
+
 const openCalendarPicker = () => {
   if (courseForm.courseType !== 'large_class') return
   if (!courseForm.teacherId) { ElMessage.error('请先选择教师'); return }
@@ -568,6 +603,9 @@ const openEditDialog = async (course: Course) => {
   courseForm.courseLocation = (course.courseLocation as any) || '线上'
   const listSlots = (course as unknown as { courseTimeSlots?: Array<{ weekday: number; timeSlots: string[] }> }).courseTimeSlots || []
   courseForm.courseTimeSlots = listSlots
+  if (courseForm.courseType === 'large_class' && courseForm.startDate && courseForm.endDate && (courseForm.durationMinutes===90 || courseForm.durationMinutes===120)) {
+    selectedSessions.value = buildSessionsFromWeekly(courseForm.startDate, courseForm.endDate, courseForm.courseTimeSlots, courseForm.durationMinutes || 90)
+  }
 
   // 封面回显与清理本地预览
   courseForm.imageUrl = course.imageUrl || ''
@@ -638,6 +676,10 @@ const openEditDialog = async (course: Course) => {
       if (detail.courseLocation) courseForm.courseLocation = detail.courseLocation
       // 关键：使用详情返回的每周上课时间进行回显
       courseForm.courseTimeSlots = (detail.courseTimeSlots as Array<{ weekday: number; timeSlots: string[] }>) || []
+      // 根据课程时间回显到日历（预选中）
+      if (courseForm.courseType === 'large_class' && courseForm.startDate && courseForm.endDate && (courseForm.durationMinutes===90 || courseForm.durationMinutes===120)) {
+        selectedSessions.value = buildSessionsFromWeekly(courseForm.startDate, courseForm.endDate, courseForm.courseTimeSlots, courseForm.durationMinutes || 90)
+      }
       // 回显当前本月课时（仅一对一课程有意义）
       if (detail.currentHours !== undefined) courseForm.currentHours = detail.currentHours ?? courseForm.currentHours
     }

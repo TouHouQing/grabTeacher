@@ -53,6 +53,10 @@ public class CourseServiceImpl implements CourseService {
     private ApplicationEventPublisher eventPublisher;
 
 
+
+    @Autowired
+    private com.touhouqing.grabteacherbackend.service.TeacherDailyAvailabilityService teacherDailyAvailabilityService;
+
     @Override
     @Transactional
     @Caching(evict = {
@@ -215,6 +219,18 @@ public class CourseServiceImpl implements CourseService {
                 // 允许为空：表示未设置固定每周时间
                 course.setCourseTimeSlots(null);
             }
+
+        // 小班课：保存后占用教师可上课日历中的对应基础段（删除这些基础段）
+        try {
+            if ("large_class".equalsIgnoreCase(course.getCourseType())
+                    && course.getStartDate() != null && course.getEndDate() != null
+                    && request.getCourseTimeSlots() != null && !request.getCourseTimeSlots().isEmpty()) {
+                removeTeacherAvailabilityForLargeClass(teacherId, course.getStartDate(), course.getEndDate(), request.getCourseTimeSlots());
+            }
+        } catch (Exception ex) {
+            log.warn("创建小班课后调整教师日历失败 teacherId={}, courseId={}, err=", teacherId, course.getId(), ex);
+        }
+
         }
 
         courseMapper.insert(course);
@@ -383,6 +399,18 @@ public class CourseServiceImpl implements CourseService {
             course.setEndDate(null);
             course.setPersonLimit(null);
         }
+
+        // — 小班课：更新后同样需要删除教师日历中的基础段（按新周期）
+        try {
+            if ("large_class".equalsIgnoreCase(course.getCourseType())
+                    && course.getStartDate() != null && course.getEndDate() != null
+                    && request.getCourseTimeSlots() != null && !request.getCourseTimeSlots().isEmpty()) {
+                removeTeacherAvailabilityForLargeClass(course.getTeacherId(), course.getStartDate(), course.getEndDate(), request.getCourseTimeSlots());
+            }
+        } catch (Exception ex) {
+            log.warn("", ex);
+        }
+
 
         // 状态更新逻辑：教师编辑课程时状态强制重置为pending，需要重新审批
         if ("teacher".equals(userType)) {
@@ -1089,8 +1117,49 @@ public class CourseServiceImpl implements CourseService {
                 return "每周" + weekdayZh.substring(1) + "，" + slot;
             }
             return "每周" + weekdayZh.substring(1);
+
         } catch (Exception ignore) {
             return "";
         }
     }
+
+    // ——— 小班课保存后：从教师按日历可上课时间中移除对应基础段 ———
+    private void removeTeacherAvailabilityForLargeClass(Long teacherId,
+                                                        java.time.LocalDate start,
+                                                        java.time.LocalDate end,
+                                                        java.util.List<com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO> weekly) {
+        if (teacherId == null || start == null || end == null || weekly == null || weekly.isEmpty()) return;
+        if (end.isBefore(start)) return;
+        // 构造 weekday -> 需占用的基础段集合
+        java.util.Map<Integer, java.util.Set<String>> occupy = new java.util.HashMap<>();
+        for (com.touhouqing.grabteacherbackend.model.dto.TimeSlotDTO it : weekly) {
+            if (it == null || it.getWeekday() == null || it.getTimeSlots() == null) continue;
+            java.util.Set<String> set = occupy.computeIfAbsent(it.getWeekday(), k -> new java.util.LinkedHashSet<>());
+            for (String s : it.getTimeSlots()) if (s != null && !s.isEmpty()) set.add(s);
+        }
+        if (occupy.isEmpty()) return;
+        // 查询日期范围内已配置的可上课日期
+        java.util.Map<java.time.LocalDate, java.util.List<String>> exist = teacherDailyAvailabilityService.getDailyAvailability(teacherId, start, end);
+        if (exist == null || exist.isEmpty()) return;
+        java.util.List<com.touhouqing.grabteacherbackend.model.dto.DailyTimeSlotDTO> updates = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<java.time.LocalDate, java.util.List<String>> e : exist.entrySet()) {
+            java.time.LocalDate d = e.getKey();
+            java.util.List<String> slots = new java.util.ArrayList<>(e.getValue() == null ? java.util.Collections.emptyList() : e.getValue());
+            int dow = d.getDayOfWeek().getValue(); // 1=Mon ... 7=Sun
+            java.util.Set<String> toRemove = occupy.get(dow);
+            if (toRemove == null || toRemove.isEmpty()) continue;
+            boolean changed = slots.removeAll(toRemove);
+            if (changed) {
+                updates.add(com.touhouqing.grabteacherbackend.model.dto.DailyTimeSlotDTO.builder()
+                        .date(d)
+                        .timeSlots(slots)
+                        .build());
+            }
+        }
+        if (!updates.isEmpty()) {
+            // 合并模式：逐日覆盖（空数组表示该日不可上课）
+            teacherDailyAvailabilityService.setDailyAvailability(teacherId, updates, false);
+        }
+    }
+
 }
