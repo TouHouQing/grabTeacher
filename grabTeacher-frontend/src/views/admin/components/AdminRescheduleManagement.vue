@@ -50,8 +50,39 @@ function openFinalCalendar() {
     ElMessage.error('未获取到授课教师，无法打开日历')
     return
   }
-  // 管理员：默认展示到未来6个月，无上限日期
-  studentSchedulerRef.value?.open({ defaultDuration: 120 as 90|120, dateStart: new Date().toISOString().slice(0,10) })
+  const req = currentRequest.value
+  let pre: Array<{ date: string; startTime: string; endTime: string }> = []
+  let defaultDur: 90 | 120 = 120 as 90 | 120
+
+  // 若为学生提交的单次调课申请，且提供了新时间，则在日历中预选并在页面回显为“已选最终”
+  if (
+    req &&
+    req.applicantType === 'student' &&
+    req.requestType === 'single' &&
+    req.newDate &&
+    req.newStartTime &&
+    req.newEndTime
+  ) {
+    pre = [{ date: req.newDate, startTime: req.newStartTime, endTime: req.newEndTime }]
+    const toMin = (t: string) => {
+      const [h, m] = (t || '').split(':')
+      const hh = parseInt(h || '0', 10)
+      const mm = parseInt(m || '0', 10)
+      return hh * 60 + mm
+    }
+    const diff = toMin(req.newEndTime) - toMin(req.newStartTime)
+    defaultDur = diff <= 100 ? (90 as 90 | 120) : (120 as 90 | 120)
+
+    // 回显到“已选最终”，便于在候选标签与详情中高亮
+    selectedFinal.value = { ...pre[0] }
+  }
+
+  // 管理员：默认展示到未来6个月，无上限日期；并传入预选时间
+  studentSchedulerRef.value?.open({
+    defaultDuration: defaultDur,
+    dateStart: new Date().toISOString().slice(0, 10),
+    preselectSessions: pre
+  })
 }
 
 function onAdminCalendarConfirm(sessions: Array<{ date: string; startTime: string; endTime: string }>, _duration: 90|120) {

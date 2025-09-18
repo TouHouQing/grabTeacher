@@ -7,7 +7,7 @@ import com.touhouqing.grabteacherbackend.model.vo.SuspensionVO;
 
 public interface SuspensionService {
     /**
-     * 学生或教师创建停课申请（根据当前用户自动识别身份）。
+     * 学生或教师创建请假申请（根据当前用户自动识别身份）。
      */
     SuspensionVO createSuspensionRequest(SuspensionApplyDTO request, Long currentUserId);
 
@@ -15,7 +15,7 @@ public interface SuspensionService {
 
     Page<SuspensionVO> getStudentSuspensionRequests(Long studentUserId, int page, int size, String status);
 
-    /** 教师查看自己的停课申请列表 */
+    /** 教师查看自己的请假申请列表 */
     Page<SuspensionVO> getTeacherSuspensionRequests(Long teacherUserId, int page, int size, String status);
 
     Page<SuspensionVO> getAllSuspensionRequests(int page, int size, String status);

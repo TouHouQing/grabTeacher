@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/suspension")
-@Tag(name = "停课管理", description = "停课申请、审批、查询等功能")
+@Tag(name = "请假管理", description = "请假申请、审批、查询等功能")
 public class SuspensionController {
 
     @Autowired
@@ -28,25 +28,25 @@ public class SuspensionController {
 
     @PostMapping("/request")
     @PreAuthorize("hasAnyRole('STUDENT','TEACHER')")
-    @Operation(summary = "创建停课申请", description = "学生或教师创建停课申请（1v1）")
+    @Operation(summary = "创建请假申请", description = "学生或教师创建请假申请（1v1）")
     public ResponseEntity<CommonResult<SuspensionVO>> createSuspensionRequest(
             @Valid @RequestBody SuspensionApplyDTO request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             SuspensionVO vo = suspensionService.createSuspensionRequest(request, currentUser.getId());
-            return ResponseEntity.ok(CommonResult.success("停课申请创建成功", vo));
+            return ResponseEntity.ok(CommonResult.success("请假申请创建成功", vo));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("创建停课申请失败"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(CommonResult.error("创建请假申请失败"));
         }
     }
 
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "管理员审批停课申请", description = "管理员审批停课申请")
+    @Operation(summary = "管理员审批请假申请", description = "管理员审批请假申请")
     public ResponseEntity<CommonResult<SuspensionVO>> approveSuspension(
-            @Parameter(description = "停课申请ID", required = true) @PathVariable Long id,
+            @Parameter(description = "请假申请ID", required = true) @PathVariable Long id,
             @Valid @RequestBody SuspensionApprovalDTO approval,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
@@ -61,7 +61,7 @@ public class SuspensionController {
 
     @GetMapping("/student/requests")
     @PreAuthorize("hasRole('STUDENT')")
-    @Operation(summary = "获取学生停课申请列表", description = "学生查看自己的停课申请列表")
+    @Operation(summary = "获取学生请假申请列表", description = "学生查看自己的请假申请列表")
     public ResponseEntity<CommonResult<Page<SuspensionVO>>> getStudentSuspensionRequests(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -79,7 +79,7 @@ public class SuspensionController {
 
     @GetMapping("/admin/requests")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "管理员获取停课申请列表", description = "管理员查看所有停课申请列表")
+    @Operation(summary = "管理员获取请假申请列表", description = "管理员查看所有请假申请列表")
     public ResponseEntity<CommonResult<Page<SuspensionVO>>> getAdminSuspensionRequests(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -96,7 +96,7 @@ public class SuspensionController {
 
     @GetMapping("/teacher/requests")
     @PreAuthorize("hasRole('TEACHER')")
-    @Operation(summary = "教师获取停课申请列表", description = "教师查看自己的停课申请列表")
+    @Operation(summary = "教师获取请假申请列表", description = "教师查看自己的请假申请列表")
     public ResponseEntity<CommonResult<Page<SuspensionVO>>> getTeacherSuspensionRequests(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

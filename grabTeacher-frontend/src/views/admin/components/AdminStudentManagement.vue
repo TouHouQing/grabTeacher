@@ -44,7 +44,7 @@ const studentForm = reactive({
   avatarUrl: '',
   balance: 0.00,
   trialTimes: 1,
-  adjustmentTimes: 3
+
 })
 
 const _studentAvatarFile = ref<File | null>(null)
@@ -173,7 +173,7 @@ const handleAddStudent = () => {
     avatarUrl: '',
     balance: 0.00,
     trialTimes: 1,
-    adjustmentTimes: 3
+
   })
   // 重置头像
   studentForm.avatarUrl = ''
@@ -215,8 +215,7 @@ const saveStudent = async () => {
       budgetRange: studentForm.budgetRange,
       gender: studentForm.gender,
       balance: studentForm.balance,
-      trialTimes: studentForm.trialTimes,
-      adjustmentTimes: studentForm.adjustmentTimes
+      trialTimes: studentForm.trialTimes
     }
     // 用户名可选：留空则不提交，由后端按 student+userId 自动生成
     if (!studentForm.username || !studentForm.username.trim()) {
@@ -386,7 +385,7 @@ onMounted(() => {
           <span>{{ row.balance || 0 }}M豆</span>
         </template>
       </el-table-column>
-      <el-table-column label="试听课次" width="100" align="center">
+      <el-table-column label="可试听课次" width="100" align="center">
         <template #default="{ row }">
           <span>{{ row.trialTimes || 0 }}</span>
         </template>
@@ -538,16 +537,7 @@ onMounted(() => {
             placeholder="请输入试听课次"
           />
         </el-form-item>
-        <el-form-item label="本月调课次数">
-          <el-input-number
-            v-model="studentForm.adjustmentTimes"
-            :min="0"
-            :precision="0"
-            :step="1"
-            style="width: 200px"
-            placeholder="请输入本月调课次数"
-          />
-        </el-form-item>
+
       </el-form>
       <template #footer>
         <span class="dialog-footer">

@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @TableName("suspension_requests")
-@Schema(description = "停课申请")
+@Schema(description = "请假申请")
 public class SuspensionRequest {
 
     @TableId(value = "id", type = IdType.AUTO)

@@ -63,11 +63,11 @@ const loadRequests = async () => {
       requests.value = result.data.records || []
       pagination.total = result.data.total || 0
     } else {
-      ElMessage.error(result.message || '获取停课申请列表失败')
+      ElMessage.error(result.message || '获取请假申请列表失败')
     }
   } catch (e) {
-    console.error('获取停课申请列表失败:', e)
-    ElMessage.error('获取停课申请列表失败，请稍后重试')
+    console.error('获取请假申请列表失败:', e)
+    ElMessage.error('获取请假申请列表失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -82,8 +82,8 @@ const quickApproval = async (request: SuspensionRequest, status: 'approved' | 'r
   try {
     const action = status === 'approved' ? '同意' : '拒绝'
     const { value: reviewNotes } = await ElMessageBox.prompt(
-      `请输入${action}停课申请的原因：`,
-      `${action}停课申请`,
+      `请输入${action}请假申请的原因：`,
+      `${action}请假申请`,
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
@@ -99,7 +99,7 @@ const quickApproval = async (request: SuspensionRequest, status: 'approved' | 'r
     )
 
     await ElMessageBox.confirm(
-      `确定要${action}这个停课申请吗？\n审批原因：${reviewNotes}`,
+      `确定要${action}这个请假申请吗？\n审批原因：${reviewNotes}`,
       '确认操作',
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
     )
@@ -110,7 +110,7 @@ const quickApproval = async (request: SuspensionRequest, status: 'approved' | 'r
     })
 
     if (result.success) {
-      ElMessage.success(`停课申请已${action}`)
+      ElMessage.success(`请假申请已${action}`)
       await loadRequests()
     } else {
       ElMessage.error(result.message || '操作失败')
@@ -150,7 +150,7 @@ onMounted(() => {
 <template>
   <div class="admin-suspension-management">
     <div class="header">
-      <h2>停课申请管理</h2>
+      <h2>请假申请管理</h2>
     </div>
 
     <el-card class="search-card" shadow="never">
@@ -168,7 +168,7 @@ onMounted(() => {
 
     <el-card class="table-card" shadow="never" v-loading="loading">
       <div v-if="requests.length === 0 && !loading" class="empty-state">
-        <el-empty description="暂无停课申请" />
+        <el-empty description="暂无请假申请" />
       </div>
 
       <el-table v-else :data="requests" stripe style="width: 100%">
@@ -177,14 +177,14 @@ onMounted(() => {
         <el-table-column prop="subjectName" label="科目" width="100" />
         <el-table-column prop="teacherName" label="教师" width="100" />
         <el-table-column prop="studentName" label="学生" width="120" />
-        <el-table-column label="停课区间" width="220">
+        <el-table-column label="请假区间" width="220">
           <template #default="{ row }">
             <span>{{ row.startDate || '-' }}</span>
             <span v-if="row.startDate || row.endDate"> ~ </span>
             <span>{{ row.endDate || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="reason" label="停课原因" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="reason" label="请假原因" min-width="200" show-overflow-tooltip />
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="getStatusTagType(row.status)" size="small">{{ row.statusDisplay || row.status }}</el-tag>
@@ -214,7 +214,7 @@ onMounted(() => {
       </div>
     </el-card>
 
-    <el-dialog v-model="showDetailModal" title="停课申请详情" width="600px" :close-on-click-modal="false">
+    <el-dialog v-model="showDetailModal" title="请假申请详情" width="600px" :close-on-click-modal="false">
       <div v-if="currentRequest" class="detail-content">
         <div class="detail-section">
           <h4>基本信息</h4>
@@ -225,8 +225,8 @@ onMounted(() => {
         </div>
         <div class="detail-section">
           <h4>申请信息</h4>
-          <div class="detail-row"><span class="label">停课区间：</span><span>{{ (currentRequest.startDate || '-') + ' ~ ' + (currentRequest.endDate || '-') }}</span></div>
-          <div class="detail-row"><span class="label">停课原因：</span><span>{{ currentRequest.reason || '-' }}</span></div>
+          <div class="detail-row"><span class="label">请假区间：</span><span>{{ (currentRequest.startDate || '-') + ' ~ ' + (currentRequest.endDate || '-') }}</span></div>
+          <div class="detail-row"><span class="label">请假原因：</span><span>{{ currentRequest.reason || '-' }}</span></div>
           <div class="detail-row"><span class="label">状态：</span><span>{{ currentRequest.statusDisplay || currentRequest.status }}</span></div>
           <div class="detail-row" v-if="currentRequest.adminNotes"><span class="label">审批意见：</span><span>{{ currentRequest.adminNotes }}</span></div>
         </div>

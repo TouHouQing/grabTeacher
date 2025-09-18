@@ -269,7 +269,7 @@ onMounted(async () => {
               </div>
               <div class="stat-info">
                 <div class="stat-value">{{ statsLoading ? '-' : statistics.monthlyAdjustments }}</div>
-                <div class="stat-label">本月已调课/取消课程次数</div>
+                <div class="stat-label">本月已调课/请假课程次数</div>
               </div>
             </div>
           </div>

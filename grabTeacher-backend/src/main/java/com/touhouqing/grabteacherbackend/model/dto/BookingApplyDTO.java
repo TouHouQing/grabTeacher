@@ -79,7 +79,7 @@ public class BookingApplyDTO {
     @Schema(description = "学生选择的课程时长（分钟），仅在课程时长为空时可选", example = "90", allowableValues = {"90", "120"})
     private Integer selectedDurationMinutes;
 
-    @Schema(description = "是否为恢复停课的预约申请（不扣费）", example = "true")
+    @Schema(description = "是否为恢复请假的预约申请（不扣费）", example = "true")
     private Boolean resume;
 
     @Schema(description = "关联的报名ID（用于恢复课程时识别原报名）", example = "1001")

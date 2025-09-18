@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 dayjs.locale('zh-cn')
@@ -114,16 +114,29 @@ function onChangeSessions(list: Array<{ date: string; startTime: string; endTime
 
 const open = (opts?: { defaultDuration?: 90|120; allowedPeriods?: Array<'morning'|'afternoon'|'evening'>; dateStart?: string; dateEnd?: string; preselectSessions?: Array<{ date: string; startTime: string; endTime: string }> }) => {
   const pre = opts?.preselectSessions || []
-  if (pre.length > 0) {
-    sessions.value = [...pre]
-    calRef.value?.clearAllStudentSessions?.()
-    ;(calRef.value as any)?.setStudentSessionsAll?.(pre)
-  } else {
-    // 每次打开前清空上次选择，避免残留
-    sessions.value = []
-    calRef.value?.clear?.()
+
+  const applyPreselect = () => {
+    if (pre.length > 0) {
+      sessions.value = [...pre]
+      calRef.value?.clearAllStudentSessions?.()
+      ;(calRef.value as any)?.setStudentSessionsAll?.(pre)
+    } else {
+      // 每次打开前清空上次选择，避免残留
+      sessions.value = []
+      calRef.value?.clear?.()
+    }
   }
-  if (opts?.defaultDuration) duration.value = opts.defaultDuration
+
+  // 先设置时长，避免 watch(duration) 把预选清空
+  if (opts?.defaultDuration && opts.defaultDuration !== duration.value) {
+    duration.value = opts.defaultDuration
+    // 等内部清空完成后再回填预选
+    nextTick(() => { applyPreselect() })
+  } else {
+    applyPreselect()
+    if (opts?.defaultDuration) duration.value = opts.defaultDuration
+  }
+
   allowedPeriods.value = opts?.allowedPeriods
   dateRangeStart.value = opts?.dateStart
   dateRangeEnd.value = opts?.dateEnd

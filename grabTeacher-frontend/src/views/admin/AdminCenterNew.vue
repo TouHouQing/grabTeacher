@@ -76,7 +76,7 @@ const handleMenuSelect = (key: string) => {
           </el-menu-item>
           <el-menu-item index="suspension">
             <el-icon><Calendar /></el-icon>
-            <span>停课管理</span>
+            <span>请假管理</span>
           </el-menu-item>
 
           <el-sub-menu index="course-mgmt">

@@ -97,7 +97,6 @@ const teacherForm = reactive({
   level: '王牌',
   isVerified: false, // 表单内部仍使用 isVerified，编辑时从 row.verified 映射
   avatarUrl: '',
-  adjustmentTimes: 3,
   // 授课地点：supportsOnline 为线上开关；ID 数组为线下地点
   teachingLocationIds: [] as number[],
   supportsOnline: true,
@@ -446,7 +445,6 @@ const saveTeacher = async () => {
       gender: teacherForm.gender,
       level: teacherForm.level,
       isVerified: teacherForm.isVerified,
-      adjustmentTimes: teacherForm.adjustmentTimes,
       supportsOnline: teacherForm.supportsOnline,
       teachingLocationIds: teacherForm.teachingLocationIds,
       hourlyRateText: teacherForm.hourlyRateText
@@ -943,16 +941,7 @@ onMounted(async () => {
         <el-form-item label="认证状态">
           <el-switch v-model="teacherForm.isVerified" active-text="已认证" inactive-text="未认证" />
         </el-form-item>
-        <el-form-item label="本月调课次数">
-          <el-input-number
-            v-model="teacherForm.adjustmentTimes"
-            :min="0"
-            :precision="0"
-            :step="1"
-            style="width: 200px"
-            placeholder="请输入本月调课次数"
-          />
-        </el-form-item>
+
 
         <!-- 可上课时间设置 -->
         <el-form-item label="可上课时间">

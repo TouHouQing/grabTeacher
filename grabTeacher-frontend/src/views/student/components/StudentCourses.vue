@@ -141,7 +141,7 @@ const evaluationLoading = ref(false)
 
 // 课程调课状态映射
 const courseRescheduleStatus = ref<Map<number, string>>(new Map())
-// 课程停课状态映射
+// 课程请假状态映射
 const courseSuspensionStatus = ref<Map<number, string>>(new Map())
 
 
@@ -917,22 +917,21 @@ const isTimeSlotAvailable = (weekday: number, timeSlot: string): boolean => {
 }
 
 
-// ================= 停课申请（日期范围选择） =================
+// ================= 请假申请（日期范围选择） =================
 const suspensionDialogVisible = ref(false)
 const currentSuspensionCourse = ref<Course | null>(null)
 const currentSuspensionEnrollmentId = ref<number | null>(null)
 const suspensionForm = ref({
   dateRange: [] as [Date, Date] | [],
-  reason: '学生申请停课'
+  reason: '学生申请请假'
 })
 
 const initDefaultSuspensionRange = () => {
   const start = new Date()
+  start.setDate(start.getDate() + 1)
   start.setHours(0, 0, 0, 0)
-  start.setDate(start.getDate() + 7)
   const end = new Date(start)
-  end.setDate(end.getDate() + 13)
-  suspensionForm.value.dateRange = [start, end]
+  suspensionForm.value.dateRange = [start, end] as any
 }
 
 const getCourseDurationMinutes = (course?: Course | null): number => {
@@ -1473,12 +1472,12 @@ const loadRescheduleStatus = async () => {
   }
 }
 
-// 获取停课申请状态
+// 获取请假申请状态
 const getSuspensionStatus = (courseId: number) => {
   return courseSuspensionStatus.value.get(courseId) || null
 }
 
-// 加载学生的停课申请状态（pending）
+// 加载学生的请假申请状态（pending）
 const loadSuspensionStatus = async () => {
   try {
     const result = await suspensionAPI.getStudentRequests({ page: 1, size: 100, status: 'pending' })
@@ -1490,40 +1489,40 @@ const loadSuspensionStatus = async () => {
           return Number(eid) === Number(req.enrollmentId)
         })
         if (course) {
-          courseSuspensionStatus.value.set(course.id, '停课申请中')
+          courseSuspensionStatus.value.set(course.id, '请假申请中')
         }
       })
     }
   } catch (e) {
-    console.error('加载停课申请状态失败:', e)
+    console.error('加载请假申请状态失败:', e)
   }
 }
 
 
 
-// 发起停课（试听课：直接确认并删除该节课；正式课：走停课申请流程）
+// 发起请假（试听课：直接确认并删除该节课；正式课：走请假申请流程）
 const requestSuspension = async (course: Course) => {
   // 若下一节为试听课：无需选择日期，直接确认 -> 删除该节课并恢复试听次数
   const next = getNextSchedule(course.schedules)
   if (next && next.isTrial && next.id) {
     try {
       await ElMessageBox.confirm(
-        '确认要停掉该试听课？此操作将删除该节课，并恢复您的试听次数。',
-        '确认停课',
-        { type: 'warning', confirmButtonText: '确认停课', cancelButtonText: '再想想' }
+        '确认要请假本次试听课？此操作将删除该节课，并恢复您的试听次数。',
+        '确认请假',
+        { type: 'warning', confirmButtonText: '确认请假', cancelButtonText: '再想想' }
       )
       await bookingAPI.cancelTrialSchedule(Number(next.id))
-      ElMessage.success('试听课已停课，试听次数已恢复')
+      ElMessage.success('试听课已请假，试听次数已恢复')
       await loadStudentCoursesV2()
     } catch (e: any) {
       if (e !== 'cancel') {
-        ElMessage.error(e?.message || '停课失败，请稍后重试')
+        ElMessage.error(e?.message || '请假失败，请稍后重试')
       }
     }
     return
   }
 
-  // 正式课：打开停课申请弹窗
+  // 正式课：打开请假申请弹窗
   currentSuspensionEnrollmentId.value = null
   let eid: number | null = null
   const eidFromSchedule = course.schedules?.[0]?.enrollmentId
@@ -1540,7 +1539,7 @@ const requestSuspension = async (course: Course) => {
     }
   }
   if (!eid) {
-    ElMessage.info('正在准备报名信息，请先选择停课日期，提交时将自动解析。')
+    ElMessage.info('正在准备报名信息，请先选择请假日期，提交时将自动解析。')
   }
   currentSuspensionEnrollmentId.value = eid || null
   currentSuspensionCourse.value = course
@@ -1568,29 +1567,17 @@ const submitSuspension = async () => {
       }
     }
     if (!eid) {
-      ElMessage.error('无法获取报名信息，暂不能停课')
+      ElMessage.error('无法获取报名信息，暂不能请假')
       return
     }
     const range = suspensionForm.value.dateRange
     if (!range || range.length !== 2) {
-      ElMessage.warning('请选择停课起止日期')
+      ElMessage.warning('请选择请假起止日期')
       return
     }
     const [start, end] = range as [Date, Date]
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    const minStart = new Date(today)
-    minStart.setDate(minStart.getDate() + 7)
-    const minEnd = new Date(start)
-    minEnd.setDate(minEnd.getDate() + 13)
-
-    if (start < minStart) {
-      ElMessage.warning('停课开始日期需从一周后开始')
-      return
-    }
-    if (end < minEnd) {
-      ElMessage.warning('停课时长不可少于两周（14天）')
+    if (start > end) {
+      ElMessage.warning('结束日期不能早于开始日期')
       return
     }
 
@@ -1605,21 +1592,21 @@ const submitSuspension = async () => {
       enrollmentId: Number(eid),
       startDate: fmt(start),
       endDate: fmt(end),
-      reason: suspensionForm.value.reason || '学生申请停课'
+      reason: suspensionForm.value.reason || '学生申请请假'
     }
 
     const result = await suspensionAPI.createRequest(payload)
     if (result.success) {
-      ElMessage.success('停课申请已提交，等待管理员审批')
+      ElMessage.success('请假申请已提交，等待管理员审批')
       suspensionDialogVisible.value = false
       await loadStudentCoursesV2()
     } else {
-      ElMessage.error(result.message || '提交停课申请失败')
+      ElMessage.error(result.message || '提交请假申请失败')
     }
   } catch (e: unknown) {
-    console.error('提交停课申请失败:', e)
+    console.error('提交请假申请失败:', e)
     const err = e as { response?: { message?: string }; message?: string }
-    const msg = err?.response?.message || err?.message || '提交停课申请失败，请稍后重试'
+    const msg = err?.response?.message || err?.message || '提交请假申请失败，请稍后重试'
     ElMessage.error(msg)
   }
 }
@@ -2185,7 +2172,7 @@ export default {
                       @click="requestSuspension(course)"
                       :disabled="!!getSuspensionStatus(course.id)"
                     >
-                      停课
+                      请假
                     </el-button>
                     <el-button size="small" type="info" @click="showCourseDetail(course)">
                       <el-icon><InfoFilled /></el-icon> 详情
@@ -2733,10 +2720,10 @@ export default {
       </template>
     </el-dialog>
 
-    <!-- 停课申请弹窗（日期范围选择） -->
+    <!-- 请假申请弹窗（日期范围选择） -->
     <el-dialog
       v-model="suspensionDialogVisible"
-      title="申请停课"
+      title="申请请假"
       width="560px"
     >
       <div class="suspension-modal">
@@ -2744,11 +2731,11 @@ export default {
           type="info"
           :closable="false"
           show-icon
-          title="规则说明：停课需从一周后开始，且连续时长不少于两周。"
+          title="规则说明：开课前4小时内不可请假；仅支持一对一正式课。"
           style="margin-bottom: 12px;"
         />
         <el-form label-width="96px">
-          <el-form-item label="停课区间" required>
+          <el-form-item label="请假区间" required>
             <el-date-picker
               v-model="suspensionForm.dateRange"
               type="daterange"
@@ -2756,11 +2743,11 @@ export default {
               start-placeholder="开始日期"
               end-placeholder="结束日期"
               unlink-panels
-              :disabled-date="(date) => date.getTime() < new Date(new Date().setHours(0,0,0,0) + 7 * 24 * 3600 * 1000).getTime()"
+              :disabled-date="(date) => date.getTime() < new Date(new Date().setHours(0,0,0,0)).getTime()"
             />
           </el-form-item>
           <el-form-item label="备注">
-            <el-input v-model="suspensionForm.reason" type="textarea" :rows="3" placeholder="可填写停课原因"></el-input>
+            <el-input v-model="suspensionForm.reason" type="textarea" :rows="3" placeholder="可填写请假原因"></el-input>
           </el-form-item>
         </el-form>
         <div class="hint-text">提示：提交后将进入管理员审批，审批通过后，所选区间内的未开始课节将暂停。</div>

@@ -1139,9 +1139,9 @@ public class CourseServiceImpl implements CourseService {
         }
         if (occupy.isEmpty()) return;
         // 查询日期范围内已配置的可上课日期
-        java.util.Map<java.time.LocalDate, java.util.List<String>> exist = teacherDailyAvailabilityService.getDailyAvailability(teacherId, start, end);
+        Map<java.time.LocalDate, java.util.List<String>> exist = teacherDailyAvailabilityService.getDailyAvailability(teacherId, start, end);
         if (exist == null || exist.isEmpty()) return;
-        java.util.List<com.touhouqing.grabteacherbackend.model.dto.DailyTimeSlotDTO> updates = new java.util.ArrayList<>();
+        List<com.touhouqing.grabteacherbackend.model.dto.DailyTimeSlotDTO> updates = new java.util.ArrayList<>();
         for (java.util.Map.Entry<java.time.LocalDate, java.util.List<String>> e : exist.entrySet()) {
             java.time.LocalDate d = e.getKey();
             java.util.List<String> slots = new java.util.ArrayList<>(e.getValue() == null ? java.util.Collections.emptyList() : e.getValue());

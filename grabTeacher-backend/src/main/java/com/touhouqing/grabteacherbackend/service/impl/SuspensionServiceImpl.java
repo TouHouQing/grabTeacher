@@ -9,10 +9,12 @@ import com.touhouqing.grabteacherbackend.model.dto.SuspensionApplyDTO;
 import com.touhouqing.grabteacherbackend.model.entity.*;
 import com.touhouqing.grabteacherbackend.model.vo.SuspensionVO;
 import com.touhouqing.grabteacherbackend.service.SuspensionService;
+import com.touhouqing.grabteacherbackend.service.QuotaService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,6 +39,13 @@ public class SuspensionServiceImpl implements SuspensionService {
     @Autowired
     private BookingRequestMapper bookingRequestMapper;
     @Autowired
+    private QuotaService quotaService;
+    @Autowired
+    private BalanceTransactionMapper balanceTransactionMapper;
+    @Autowired
+    private HourDetailMapper hourDetailMapper;
+
+    @Autowired
     private com.touhouqing.grabteacherbackend.service.StudentService studentService;
 
     @Override
@@ -54,19 +63,19 @@ public class SuspensionServiceImpl implements SuspensionService {
 
         CourseEnrollment enrollment = courseEnrollmentMapper.selectById(request.getEnrollmentId());
         if (enrollment == null || Boolean.TRUE.equals(enrollment.getDeleted())) throw new RuntimeException("报名关系不存在");
-        if (!"active".equals(enrollment.getEnrollmentStatus())) throw new RuntimeException("仅进行中的课程可申请停课");
+        if (!"active".equals(enrollment.getEnrollmentStatus())) throw new RuntimeException("仅进行中的课程可申请请假");
 
         // 仅支持1v1课程
         if (enrollment.getCourseId() != null) {
             Course course = courseMapper.selectById(enrollment.getCourseId());
             if (course != null && course.getCourseType() != null && !"one_on_one".equals(course.getCourseType())) {
-                throw new RuntimeException("班课不支持停课，请联系管理员");
+                throw new RuntimeException("班课不支持请假，请联系管理员");
             }
         }
 
-        // 试听课无需停课申请（直接在试听课节上操作停课）
+        // 试听课无需请假申请（直接在试听课节上操作请假）
         if (Boolean.TRUE.equals(enrollment.getTrial())) {
-            throw new RuntimeException("试听课无需停课申请，请直接在试听课节点击停课");
+            throw new RuntimeException("试听课无需请假申请，请直接在试听课节点击请假");
         }
 
         // 权限校验
@@ -76,24 +85,102 @@ public class SuspensionServiceImpl implements SuspensionService {
             if (!Objects.equals(enrollment.getTeacherId(), teacher.getId())) throw new RuntimeException("无权限操作该报名");
         }
 
-        // 校验区间：至少从一周后开始，且连续覆盖不少于两周（>= 开始+13天）
+        // 校验区间：必须提供起止日期，且开始<=结束；4小时规则（学生/教师均生效）
         if (request.getStartDate() == null || request.getEndDate() == null) {
-            throw new RuntimeException("请提供停课起止日期");
+            throw new RuntimeException("请提供请假起止日期");
         }
-        LocalDate today = LocalDate.now();
-        LocalDate minStart = today.plusDays(7);
-        if (request.getStartDate().isBefore(minStart)) {
-            throw new RuntimeException("停课开始日期需从一周后开始");
+        if (request.getEndDate().isBefore(request.getStartDate())) {
+            throw new RuntimeException("结束日期不能早于开始日期");
         }
-        if (request.getEndDate().isBefore(request.getStartDate().plusDays(13))) {
-            throw new RuntimeException("停课时长不得少于两周");
+        // 4小时规则：选定区间内若存在距离当前开始时间 < 4 小时的课节，则不允许请假
+        try {
+            List<CourseSchedule> allSchedules = courseScheduleMapper.findByBookingRequestId(enrollment.getBookingRequestId());
+            LocalDate start = request.getStartDate();
+            LocalDate end = request.getEndDate();
+            LocalDateTime now = LocalDateTime.now();
+            for (CourseSchedule cs : allSchedules) {
+                if (cs.getScheduledDate() == null || cs.getStartTime() == null) continue;
+                LocalDate d = cs.getScheduledDate();
+                boolean inRange = (d.isEqual(start) || d.isAfter(start)) && (d.isEqual(end) || d.isBefore(end));
+                boolean notDeleted = !Boolean.TRUE.equals(cs.getDeleted());
+                boolean scheduled = "scheduled".equals(cs.getScheduleStatus());
+                if (inRange && notDeleted && scheduled) {
+                    LocalDateTime startAt = LocalDateTime.of(cs.getScheduledDate(), cs.getStartTime());
+                    if (startAt.isAfter(now)) {
+                        long hours = java.time.Duration.between(now, startAt).toHours();
+                        if (hours < 4) {
+                            throw new RuntimeException("选定区间内包含开课前4小时内的课节，无法请假");
+                        }
+                    }
+                }
+            }
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("4小时规则校验失败，降级放行", e);
         }
 
         // 同一报名下是否已有待处理申请
         QueryWrapper<SuspensionRequest> qw = new QueryWrapper<>();
         qw.eq("enrollment_id", enrollment.getId()).eq("status", "pending").eq("is_deleted", false);
         SuspensionRequest existing = suspensionRequestMapper.selectOne(qw);
-        if (existing != null) throw new RuntimeException("该报名已有待处理的停课申请");
+        if (existing != null) throw new RuntimeException("该报名已有待处理的请假申请");
+
+        // 计算本次区间内将被取消的课节数量（与审批通过时删除条件保持一致）
+        List<CourseSchedule> allForCount = courseScheduleMapper.findByBookingRequestId(enrollment.getBookingRequestId());
+        LocalDate today0 = LocalDate.now();
+        LocalDate start0 = request.getStartDate();
+        LocalDate end0 = request.getEndDate();
+        int eligibleCount = 0;
+        for (CourseSchedule cs : allForCount) {
+            if (cs.getScheduledDate() == null) continue;
+            LocalDate d = cs.getScheduledDate();
+            boolean inRange = (d.isEqual(start0) || d.isAfter(start0)) && (d.isEqual(end0) || d.isBefore(end0));
+            boolean notDeleted = !Boolean.TRUE.equals(cs.getDeleted());
+            boolean futureOrScheduled = ("scheduled".equals(cs.getScheduleStatus()) || d.isAfter(today0));
+            if (notDeleted && futureOrScheduled && inRange) {
+                eligibleCount++;
+            }
+        }
+        if (eligibleCount <= 0) {
+            throw new RuntimeException("区间内无可请假的课节");
+        }
+
+        // 配额：提交即按课节数计次；学生超额需校验余额充足，否则整体回滚
+        String applicantFlag = (student != null) ? "STUDENT" : "TEACHER";
+        int overCount = 0;
+        try {
+            Long actorId = (student != null) ? student.getId() : teacher.getId();
+            String role = applicantFlag;
+            for (int i = 0; i < eligibleCount; i++) {
+                boolean over = quotaService.consumeOnApply(role, actorId, enrollment.getId());
+                if (over && student != null) overCount++;
+            }
+            if (student != null && overCount > 0) {
+                Course course = enrollment.getCourseId() != null ? courseMapper.selectById(enrollment.getCourseId()) : null;
+                if (course == null || course.getPrice() == null) {
+                    // 回滚已消耗的次数
+                    for (int i = 0; i < eligibleCount; i++) {
+                        quotaService.rollbackOnReject(role, actorId, enrollment.getId());
+                    }
+                    throw new RuntimeException("课程价格缺失，无法计算超额请假扣费");
+                }
+                java.math.BigDecimal halfHourBeans = course.getPrice().multiply(new java.math.BigDecimal("0.5"));
+                java.math.BigDecimal need = halfHourBeans.multiply(new java.math.BigDecimal(overCount));
+                Student st = studentMapper.selectById(enrollment.getStudentId());
+                java.math.BigDecimal bal = (st != null && st.getBalance() != null) ? st.getBalance() : java.math.BigDecimal.ZERO;
+                if (bal.compareTo(need) < 0) {
+                    for (int i = 0; i < eligibleCount; i++) {
+                        quotaService.rollbackOnReject(role, actorId, enrollment.getId());
+                    }
+                    throw new RuntimeException("学生余额不足，无法进行超额请假");
+                }
+            }
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("配额消耗失败，降级放行", e);
+        }
 
         SuspensionRequest sr = SuspensionRequest.builder()
                 .enrollmentId(enrollment.getId())
@@ -103,6 +190,7 @@ public class SuspensionServiceImpl implements SuspensionService {
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .status("pending")
+                .adminNotes("[applicant=" + applicantFlag + "][applyCount=" + eligibleCount + "][overCount=" + overCount + "]")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .deleted(false)
@@ -115,18 +203,43 @@ public class SuspensionServiceImpl implements SuspensionService {
     @Transactional
     public SuspensionVO adminApproveSuspension(Long requestId, SuspensionApprovalDTO approval, Long adminUserId) {
         SuspensionRequest sr = suspensionRequestMapper.selectById(requestId);
-        if (sr == null || Boolean.TRUE.equals(sr.getDeleted())) throw new RuntimeException("停课申请不存在");
-        if (!"pending".equals(sr.getStatus())) throw new RuntimeException("该停课申请已被处理");
+        if (sr == null || Boolean.TRUE.equals(sr.getDeleted())) throw new RuntimeException("请假申请不存在");
+        if (!"pending".equals(sr.getStatus())) throw new RuntimeException("该请假申请已被处理");
 
         CourseEnrollment enrollment = courseEnrollmentMapper.selectById(sr.getEnrollmentId());
         if (enrollment == null) throw new RuntimeException("报名关系不存在");
 
         sr.setStatus(approval.getStatus());
         sr.setAdminId(adminUserId);
-        sr.setAdminNotes(approval.getReviewNotes());
+        String existingNotes = sr.getAdminNotes();
+        String reviewNotes = approval.getReviewNotes();
+        sr.setAdminNotes((existingNotes != null ? existingNotes : "") + (reviewNotes != null && !reviewNotes.isEmpty() ? (" " + reviewNotes) : ""));
         sr.setReviewedAt(LocalDateTime.now());
         sr.setUpdatedAt(LocalDateTime.now());
         suspensionRequestMapper.updateById(sr);
+
+        // 管理员拒绝：回滚本次配额消耗
+        if ("rejected".equals(approval.getStatus())) {
+            String notes = sr.getAdminNotes() == null ? "" : sr.getAdminNotes();
+            String applicant = notes.contains("TEACHER") ? "TEACHER" : "STUDENT";
+            int applyCnt = 1;
+            int idxApply = notes.indexOf("applyCount=");
+            if (idxApply >= 0) {
+                int endIdx = notes.indexOf(']', idxApply);
+                String numStr = (endIdx > idxApply) ? notes.substring(idxApply + 11, endIdx) : notes.substring(idxApply + 11);
+                try { applyCnt = Integer.parseInt(numStr.trim()); } catch (Exception ignore) {}
+            }
+            try {
+                Long actorId = "STUDENT".equals(applicant) ? enrollment.getStudentId() : enrollment.getTeacherId();
+                String role = applicant;
+                for (int i = 0; i < applyCnt; i++) {
+                    quotaService.rollbackOnReject(role, actorId, enrollment.getId());
+                }
+            } catch (Exception e) {
+                log.warn("请假配额回滚失败，requestId={}", requestId, e);
+            }
+            return toVO(sr);
+        }
 
         if ("approved".equals(approval.getStatus())) {
             // 仅软删所选日期区间内的课节；并据此调整报名总课次与退款
@@ -137,6 +250,100 @@ public class SuspensionServiceImpl implements SuspensionService {
 
             int deletedCount = 0;
             java.math.BigDecimal refundTotal = java.math.BigDecimal.ZERO;
+
+                // 超额扣费/补偿结算（审批通过后）：按 overCount 次累积结算
+                try {
+                    Course courseForPrice = enrollment.getCourseId() != null ? courseMapper.selectById(enrollment.getCourseId()) : null;
+                    java.math.BigDecimal price = (courseForPrice != null) ? courseForPrice.getPrice() : null;
+                    if (price != null) {
+                        String notes = sr.getAdminNotes() == null ? "" : sr.getAdminNotes();
+                        String applicant = notes.contains("TEACHER") ? "TEACHER" : "STUDENT";
+                        int overCnt = 0;
+                        int idx = notes.indexOf("overCount=");
+                        if (idx >= 0) {
+                            int endIdx = notes.indexOf(']', idx);
+                            String numStr = (endIdx > idx) ? notes.substring(idx + 10, endIdx) : notes.substring(idx + 10);
+                            try { overCnt = Integer.parseInt(numStr.trim()); } catch (Exception ignore) {}
+                        }
+                        if (overCnt > 0) {
+                            java.math.BigDecimal halfHourBeans = price.multiply(new java.math.BigDecimal("0.5"));
+                            java.math.BigDecimal totalBeans = halfHourBeans.multiply(new java.math.BigDecimal(overCnt));
+                            java.math.BigDecimal totalHours = new java.math.BigDecimal(overCnt);
+                            if ("STUDENT".equals(applicant)) {
+                                // 学生超额：扣学生 M豆=0.5h*overCnt；教师 +overCnt 小时
+                                Student st = studentMapper.selectById(enrollment.getStudentId());
+                                if (st != null) {
+                                    java.math.BigDecimal before = st.getBalance() == null ? java.math.BigDecimal.ZERO : st.getBalance();
+                                    java.math.BigDecimal after = before.subtract(totalBeans);
+                                    studentMapper.incrementBalance(st.getId(), totalBeans.negate());
+                                    BalanceTransaction tx = BalanceTransaction.builder()
+                                            .userId(st.getUserId())
+                                            .name(st.getRealName())
+                                            .amount(totalBeans.negate())
+                                            .balanceBefore(before)
+                                            .balanceAfter(after)
+                                            .transactionType("DEDUCT")
+                                            .reason("学生超额请假扣除0.5小时M豆×" + overCnt)
+                                            .bookingId(enrollment.getBookingRequestId())
+                                            .createdAt(LocalDateTime.now())
+                                            .build();
+                                    balanceTransactionMapper.insert(tx);
+                                }
+                                teacherMapper.incrementCurrentHours(enrollment.getTeacherId(), totalHours);
+                                Teacher tch = teacherMapper.selectById(enrollment.getTeacherId());
+                                if (tch != null) {
+                                    HourDetail hd = HourDetail.builder()
+                                            .userId(tch.getUserId())
+                                            .name(tch.getRealName())
+                                            .hours(totalHours)
+                                            .transactionType(1)
+                                            .reason("学生超额请假补偿×" + overCnt)
+                                            .bookingId(enrollment.getBookingRequestId())
+                                            .createdAt(LocalDateTime.now())
+                                            .build();
+                                    hourDetailMapper.insert(hd);
+                                }
+                            } else { // TEACHER
+                                // 教师超额：学生 +0.5h*overCnt M豆；教师 -overCnt 小时
+                                teacherMapper.decrementCurrentHours(enrollment.getTeacherId(), totalHours);
+                                Teacher tch = teacherMapper.selectById(enrollment.getTeacherId());
+                                if (tch != null) {
+                                    HourDetail hd = HourDetail.builder()
+                                            .userId(tch.getUserId())
+                                            .name(tch.getRealName())
+                                            .hours(totalHours.negate())
+                                            .transactionType(0)
+                                            .reason("教师超额请假扣减×" + overCnt)
+                                            .bookingId(enrollment.getBookingRequestId())
+                                            .createdAt(LocalDateTime.now())
+                                            .build();
+                                    hourDetailMapper.insert(hd);
+                                }
+                                Student st = studentMapper.selectById(enrollment.getStudentId());
+                                if (st != null) {
+                                    java.math.BigDecimal before = st.getBalance() == null ? java.math.BigDecimal.ZERO : st.getBalance();
+                                    java.math.BigDecimal after = before.add(totalBeans);
+                                    studentMapper.incrementBalance(st.getId(), totalBeans);
+                                    BalanceTransaction tx = BalanceTransaction.builder()
+                                            .userId(st.getUserId())
+                                            .name(st.getRealName())
+                                            .amount(totalBeans)
+                                            .balanceBefore(before)
+                                            .balanceAfter(after)
+                                            .transactionType("REFUND")
+                                            .reason("教师超额请假补偿0.5小时M豆×" + overCnt)
+                                            .bookingId(enrollment.getBookingRequestId())
+                                            .createdAt(LocalDateTime.now())
+                                            .build();
+                                    balanceTransactionMapper.insert(tx);
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("请假超额扣费/补偿结算失败，requestId={}", requestId, e);
+                }
+
 
             // 拿到课程单价（每小时）；若无价格则退款为0
             java.math.BigDecimal pricePerHour = null;
@@ -203,17 +410,19 @@ public class SuspensionServiceImpl implements SuspensionService {
                         boolean ok = studentService.updateStudentBalance(
                                 st.getUserId(),
                                 refundTotal,
-                                "停课删除课节退款（报名ID:" + enrollment.getId() + ")",
+                                "请假删除课节退款（报名ID:" + enrollment.getId() + ")",
                                 enrollment.getBookingRequestId(),
                                 adminUserId
                         );
                         if (!ok) {
-                            log.error("停课退款失败，userId={}, refund={}", st.getUserId(), refundTotal);
-                            throw new RuntimeException("停课退款失败");
+                            log.error("请假退款失败，userId={}, refund={}", st.getUserId(), refundTotal);
+
+
+                            throw new RuntimeException("请假退款失败");
                         }
                     }
                 } catch (Exception ex) {
-                    log.error("停课退款异常", ex);
+                    log.error("请假退款异常", ex);
                 }
             }
         }

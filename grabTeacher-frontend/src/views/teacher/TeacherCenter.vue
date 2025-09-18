@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, defineAsyncComponent, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { bookingAPI, teacherAPI, rescheduleAPI } from '../../utils/api'
+import { bookingAPI, teacherAPI, rescheduleAPI, suspensionAPI } from '../../utils/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 
@@ -231,6 +231,93 @@ const viewScheduleDetail = (schedule: ScheduleItem) => {
   selectedSchedule.value = schedule
   showScheduleDetailModal.value = true
 }
+
+  // 教师端请假/停课申请
+  const showSuspensionDialog = ref(false)
+  const currentSuspensionSchedule = ref<ScheduleItem | null>(null)
+  const suspensionForm = ref<{ dateRange: string[]; reason: string }>({ dateRange: [], reason: '' })
+  const dateRangeSelected = computed(() => {
+    const r = suspensionForm.value.dateRange
+    return !!r && r.length === 2 && !!r[0] && !!r[1]
+  })
+  const disablePastDate = (date: Date) => {
+    const today = new Date(); today.setHours(0,0,0,0)
+    return date.getTime() < today.getTime()
+  }
+
+  const deriveEnrollmentId = async (schedule: ScheduleItem): Promise<number | null> => {
+    if (schedule.enrollmentId && Number(schedule.enrollmentId) > 0) return Number(schedule.enrollmentId)
+    try {
+      const todayStr = new Date().toISOString().split('T')[0]
+      const res = await bookingAPI.getTeacherSchedules({ startDate: todayStr, endDate: '2099-12-31' })
+      if (res.success && Array.isArray(res.data)) {
+        const same = res.data.find((s: any) =>
+          s && s.enrollmentId && s.teacherId === schedule.teacherId && s.studentId === schedule.studentId && s.courseId === schedule.courseId
+        )
+        if (same?.enrollmentId) return Number(same.enrollmentId)
+      }
+    } catch {}
+    return null
+  }
+
+  const submitTeacherSuspension = async () => {
+    if (!currentSuspensionSchedule.value) return
+    const range = suspensionForm.value.dateRange
+    if (!range || range.length !== 2) {
+      ElMessage.warning('请选择请假起止日期')
+      return
+    }
+
+    const eid = await deriveEnrollmentId(currentSuspensionSchedule.value)
+    if (!eid) {
+      ElMessage.error('未找到报名信息，暂无法提交请假申请')
+      return
+    }
+    try {
+      const payload = {
+        enrollmentId: eid,
+        startDate: range[0],
+        endDate: range[1],
+        reason: (suspensionForm.value.reason || '').trim() || undefined
+      }
+      const result = await suspensionAPI.createRequest(payload as any)
+      if ((result as any)?.success) {
+        ElMessage.success('请假申请已提交，等待管理员审批')
+        showSuspensionDialog.value = false
+        await fetchUpcomingCourses()
+        await loadMonthSchedules()
+      } else {
+        ElMessage.error((result as any)?.message || '提交请假申请失败')
+      }
+    } catch (e: any) {
+      ElMessage.error(e?.message || '提交请假申请失败，请稍后重试')
+    }
+  }
+
+  // 入口：点击“请假”
+  const handleSuspend = async (schedule: ScheduleItem) => {
+    if (schedule.isTrial) {
+      try {
+        await ElMessageBox.confirm(
+          '确认取消本次试听课？此操作将删除该节课并恢复学生的试听次数。',
+          '确认取消试听',
+          { type: 'warning', confirmButtonText: '确认取消', cancelButtonText: '再想想' }
+        )
+        await bookingAPI.cancelTrialSchedule(Number(schedule.id))
+        ElMessage.success('已取消试听课并恢复学生试听次数')
+        await fetchUpcomingCourses()
+        await loadMonthSchedules()
+      } catch (e: any) {
+        if (e !== 'cancel') {
+          ElMessage.error(e?.message || '操作失败，请稍后重试')
+        }
+      }
+      return
+    }
+    currentSuspensionSchedule.value = schedule
+    suspensionForm.value = { dateRange: [], reason: '' }
+    showSuspensionDialog.value = true
+  }
 
 // 详情弹窗：计算显示的时长（试听课固定30分钟；否则取字段或按起止时间计算）
 const getDetailDurationMinutes = (s: ScheduleItem | null | undefined): number => {
@@ -657,6 +744,12 @@ onMounted(async () => {
                         <el-icon><Refresh /></el-icon>
                         申请调课
                       </el-button>
+                      <el-button
+                        v-if="!scope.row.isTrial"
+                        type="danger"
+                        size="small"
+                        @click="handleSuspend(scope.row)"
+                      >请假</el-button>
 
 
                     </template>
@@ -668,6 +761,40 @@ onMounted(async () => {
               </div>
             </div>
           </div>
+
+    <!-- 教师端请假申请弹窗（复用停课逻辑） -->
+    <el-dialog
+      v-model="showSuspensionDialog"
+      title="请假申请"
+      width="520px"
+    >
+      <el-form label-width="96px">
+        <el-form-item label="请假区间">
+          <el-date-picker
+            v-model="suspensionForm.dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            :unlink-panels="true"
+            :disabled-date="disablePastDate"
+          />
+          <div class="el-form-item__tip" style="margin-left:8px;color:#909399;">提醒：开课前4小时内不可请假；仅支持一对一正式课</div>
+        </el-form-item>
+        <el-form-item label="请假原因">
+          <el-input v-model="suspensionForm.reason" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="可选，简单说明原因" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-actions">
+          <el-button @click="showSuspensionDialog = false">取消</el-button>
+          <el-button type="primary" :disabled="!dateRangeSelected" @click="submitTeacherSuspension">提交</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
 
 
         </div>
@@ -752,7 +879,7 @@ onMounted(async () => {
             <el-icon><Refresh /></el-icon>
             申请调课
           </el-button>
-
+          <el-button v-if="selectedSchedule && !selectedSchedule.isTrial" type="danger" @click="handleSuspend(selectedSchedule)">请假</el-button>
         </div>
       </template>
     </el-dialog>
