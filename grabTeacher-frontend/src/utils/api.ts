@@ -552,7 +552,10 @@ export const teacherAPI = {
 // 管理员统计 API
 export const adminAPI = {
   // 获取统计数据
-  getStatistics: () => apiRequest('/api/admin/statistics')
+  getStatistics: () => apiRequest('/api/admin/statistics'),
+
+  // 获取教师科目列表
+  getTeacherSubjects: (teacherId: number) => apiRequest(`/api/admin/teachers/${teacherId}/subjects`)
 }
 
 // 预约管理 API

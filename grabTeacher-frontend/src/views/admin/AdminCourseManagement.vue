@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, watch, computed, defineAsyncComponent } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
-import { courseAPI, subjectAPI, teacherAPI, fileAPI, publicTeachingLocationAPI } from '../../utils/api'
+import { courseAPI, subjectAPI, teacherAPI, fileAPI, publicTeachingLocationAPI, adminAPI } from '../../utils/api'
 const StudentBookingCalendar = defineAsyncComponent(() => import('../../components/StudentBookingCalendar.vue'))
 
 // 课程接口定义
@@ -57,6 +57,7 @@ const courses = ref<Course[]>([])
 const subjects = ref<Subject[]>([])
 const teachers = ref<Teacher[]>([])
 const filteredTeacherOptions = ref<Teacher[]>([])
+const availableSubjects = ref<Subject[]>([]) // 当前教师可教授的科目
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const isEditing = ref(false)
@@ -124,6 +125,25 @@ const fetchActiveLocations = async () => {
     }
   } catch (e) {
     console.warn('获取授课地点失败:', e)
+  }
+}
+
+// 获取教师可教授的科目
+const fetchTeacherSubjects = async (teacherId: number) => {
+  try {
+    const resp = await adminAPI.getTeacherSubjects(teacherId)
+    if (resp?.success && resp.data) {
+      // 根据教师科目ID过滤出可选的科目
+      const teacherSubjectIds = resp.data
+      availableSubjects.value = subjects.value.filter(subject =>
+        teacherSubjectIds.includes(subject.id)
+      )
+    } else {
+      availableSubjects.value = []
+    }
+  } catch (e) {
+    console.warn('获取教师科目失败:', e)
+    availableSubjects.value = []
   }
 }
 
@@ -489,8 +509,34 @@ const resetForm = () => {
   // 清空已选会话（用于二次打开日历回填）
   selectedSessions.value = []
 
-
+  // 清空可选科目
+  availableSubjects.value = []
 }
+
+// 监听教师选择变化
+watch(() => courseForm.teacherId, async (newTeacherId, oldTeacherId) => {
+  if (newTeacherId) {
+    // 获取该教师可教授的科目
+    await fetchTeacherSubjects(newTeacherId)
+
+    // 在编辑模式下，如果教师发生变化，需要检查当前科目是否还可用
+    if (isEditing.value && oldTeacherId !== newTeacherId && courseForm.subjectId) {
+      const isSubjectAvailable = availableSubjects.value.some(subject => subject.id === courseForm.subjectId)
+      if (!isSubjectAvailable) {
+        // 如果当前科目不在新教师的科目范围内，清空科目选择
+        courseForm.subjectId = null
+        ElMessage.warning('切换教师后，原科目不在该教师的教授范围内，已清空科目选择')
+      }
+    } else if (!isEditing.value) {
+      // 新增模式下，清空科目选择
+      courseForm.subjectId = null
+    }
+  } else {
+    // 如果没有选择教师，清空可选科目
+    availableSubjects.value = []
+    courseForm.subjectId = null
+  }
+})
 
 // 打开新增对话框
 const openAddDialog = () => {
@@ -531,6 +577,11 @@ const openEditDialog = async (course: Course) => {
   // 打开编辑时清空上一个课程残留的会话选择，防止回填到别的课程
   selectedSessions.value = []
 
+  // 获取该教师可教授的科目
+  if (courseForm.teacherId) {
+    await fetchTeacherSubjects(courseForm.teacherId)
+  }
+
   dialogTitle.value = '编辑课程'
   isEditing.value = true
   dialogVisible.value = true
@@ -554,7 +605,7 @@ const openEditDialog = async (course: Course) => {
   }
   if (!needFetchDetail) return
 
-  // 
+  // 仅当为小班课且列表数据缺少周期信息时，再拉取详情，避免不必要请求
   //  a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
   //  a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
   //  a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
@@ -1146,9 +1197,14 @@ watch(() => [courseForm.teacherId, courseForm.courseType, courseForm.durationMin
         </el-form-item>
 
         <el-form-item label="科目" prop="subjectId">
-          <el-select v-model="courseForm.subjectId" placeholder="请选择科目" style="width: 100%">
+          <el-select
+            v-model="courseForm.subjectId"
+            :placeholder="courseForm.teacherId ? '请选择科目' : '请先选择教师'"
+            :disabled="!courseForm.teacherId"
+            style="width: 100%"
+          >
             <el-option
-              v-for="subject in subjects"
+              v-for="subject in availableSubjects"
               :key="subject.id"
               :label="subject.name"
               :value="subject.id"
