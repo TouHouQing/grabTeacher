@@ -195,7 +195,7 @@ public class StudentServiceImpl implements StudentService {
         // 1. 总预约课次（课次=某节课）- 统计该学生的所有排课次数（来自 course_schedules）
         QueryWrapper<CourseSchedule> totalScheduleWrapper = new QueryWrapper<>();
         totalScheduleWrapper.apply(
-                "exists (select 1 from course_enrollments ce where ce.id = course_schedules.enrollment_id and ce.student_id = {0} and ce.is_deleted = 0)",
+                "exists (select 1 from course_enrollments ce where ce.id = course_schedules.enrollment_id and ce.student_id = {0} and ce.is_deleted = 0 and (ce.is_trial = 0 or ce.is_trial is null))",
                 student.getId()
         );
         totalScheduleWrapper.eq("is_deleted", 0);
