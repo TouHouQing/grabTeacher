@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, defineAsyncComponent, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { bookingAPI, teacherAPI, rescheduleAPI, suspensionAPI } from '../../utils/api'
+import { bookingAPI, teacherAPI, rescheduleAPI } from '../../utils/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 
@@ -154,10 +154,6 @@ const rescheduleAllSchedules = ref<ScheduleItem[]>([])
 // 课程详情弹窗
 const showScheduleDetailModal = ref(false)
 
-// 停课申请弹窗
-const showSuspensionDialog = ref(false)
-const suspensionForm = ref<{ startDate: string; endDate: string; reason: string }>({ startDate: '', endDate: '', reason: '' })
-const currentEnrollmentId = ref<number | null>(null)
 
 const selectedSchedule = ref<ScheduleItem | null>(null)
 
@@ -394,91 +390,7 @@ const openRescheduleModal = async (schedule: ScheduleItem) => {
 }
 
 
-// 打开停课（试听课直接停课并恢复次数；正式课走停课申请）
-const openSuspensionDialog = async (schedule: ScheduleItem) => {
-  // 试听课：无需选择日期，直接确认 -> 删除该节课并恢复学生试听次数
-  if (schedule.isTrial) {
-    try {
-      await ElMessageBox.confirm(
-        '确认要停掉该试听课？此操作将删除该节课，并恢复学生的试听次数。',
-        '确认停课',
-        { type: 'warning', confirmButtonText: '确认停课', cancelButtonText: '再想想' }
-      )
-      await bookingAPI.cancelTrialSchedule(Number(schedule.id))
-      ElMessage.success('试听课已停课，已恢复学生的试听次数')
-      await fetchUpcomingCourses()
-      await loadMonthSchedules()
-      showScheduleDetailModal.value = false
-    } catch (e: any) {
-      if (e !== 'cancel') {
-        ElMessage.error(e?.message || '停课失败，请稍后重试')
-      }
-    }
-    return
-  }
 
-  // 正式课：走原停课申请流程
-  if (!schedule.enrollmentId) {
-    ElMessage.error('缺少报名ID，无法发起停课申请')
-    return
-  }
-  currentEnrollmentId.value = schedule.enrollmentId
-  const today = new Date()
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7)
-  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 13)
-  const fmt = (d: Date) => d.toISOString().split('T')[0]
-  suspensionForm.value.startDate = fmt(start)
-  suspensionForm.value.endDate = fmt(end)
-  suspensionForm.value.reason = ''
-  showSuspensionDialog.value = true
-}
-
-const submitSuspension = async () => {
-  if (!currentEnrollmentId.value) return
-  try {
-    // 基本前端校验：start ≥ 今日+7，end ≥ start+13
-    const parse = (s: string) => new Date(s + 'T00:00:00')
-    const today = new Date()
-    const minStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7)
-    if (parse(suspensionForm.value.startDate) < minStart) {
-      ElMessage.error('停课开始日期需从一周后开始')
-      return
-    }
-    const minEnd = new Date(parse(suspensionForm.value.startDate).getTime() + 13 * 24 * 3600 * 1000)
-    if (parse(suspensionForm.value.endDate) < minEnd) {
-      ElMessage.error('停课时长不少于两周')
-      return
-    }
-
-    // 验证区间内至少包含2次课（以该报名ID筛选）
-    const listRes = await bookingAPI.getTeacherSchedules({ startDate: suspensionForm.value.startDate, endDate: suspensionForm.value.endDate })
-    if (!(listRes.success && Array.isArray(listRes.data))) {
-      ElMessage.error('无法获取课程安排，请稍后重试')
-      return
-    }
-    const lessons = listRes.data.filter((s: any) => s.enrollmentId === currentEnrollmentId.value && (!s.status || s.status !== 'cancelled'))
-    if (lessons.length < 2) {
-      ElMessage.error('停课区间内需至少包含2次课')
-      return
-    }
-
-    const res = await suspensionAPI.createRequest({
-      enrollmentId: currentEnrollmentId.value,
-      startDate: suspensionForm.value.startDate,
-      endDate: suspensionForm.value.endDate,
-      reason: suspensionForm.value.reason?.trim() || undefined,
-    })
-    if (res.success) {
-      ElMessage.success('停课申请已提交，等待管理员审批')
-      showSuspensionDialog.value = false
-    } else {
-      ElMessage.error(res.message || '停课申请提交失败')
-    }
-  } catch (e: any) {
-    console.error('停课申请失败:', e)
-    ElMessage.error(e?.message || '停课申请失败')
-  }
-}
 
 
 const handleRescheduleSuccess = () => {
@@ -709,27 +621,6 @@ onMounted(async () => {
               <h3>即将开始课程</h3>
               <div class="upcoming-actions">
 
-    <!-- 停课申请弹窗（教师） -->
-    <el-dialog v-model="showSuspensionDialog" title="停课申请" width="520px">
-      <el-form label-width="96px">
-        <el-form-item label="开始日期">
-          <el-date-picker v-model="suspensionForm.startDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择开始日期" />
-        </el-form-item>
-        <el-form-item label="结束日期">
-          <el-date-picker v-model="suspensionForm.endDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择结束日期" />
-        </el-form-item>
-        <el-form-item label="原因（可选）">
-          <el-input v-model="suspensionForm.reason" type="textarea" :rows="3" placeholder="可填写原因，便于管理员审核" />
-        </el-form-item>
-        <el-alert type="warning" :closable="false" show-icon>
-          停课规则：开始日期需从一周后起，且覆盖时长不少于两周；审批通过仅对区间内未开始课节生效。
-        </el-alert>
-      </el-form>
-      <template #footer>
-        <el-button @click="showSuspensionDialog = false">取消</el-button>
-        <el-button type="primary" @click="submitSuspension">提交申请</el-button>
-      </template>
-    </el-dialog>
 
                 <el-select v-model="upcomingDays" style="width: 140px;" @change="fetchUpcomingCourses">
                   <el-option :value="14" label="14天内" />
@@ -767,7 +658,6 @@ onMounted(async () => {
                         申请调课
                       </el-button>
 
-                      <el-button type="danger" size="small" @click="openSuspensionDialog(scope.row)">停课</el-button>
 
                     </template>
                   </el-table-column>
@@ -852,7 +742,7 @@ onMounted(async () => {
         </div>
 
         <el-alert type="info" :closable="false" class="hint">
-          提示：如需调整本次课程，请使用“申请调课”；如需暂停接下来一段时间的课程，请使用“停课”。
+          提示：如需调整本次课程，请使用“申请调课”。
         </el-alert>
       </div>
       <template #footer>
@@ -863,7 +753,6 @@ onMounted(async () => {
             申请调课
           </el-button>
 
-          <el-button type="danger" @click="selectedSchedule && openSuspensionDialog(selectedSchedule)">停课</el-button>
         </div>
       </template>
     </el-dialog>
