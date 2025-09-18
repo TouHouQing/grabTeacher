@@ -174,8 +174,7 @@ public interface BookingRequestMapper extends BaseMapper<BookingRequest> {
             "WHERE teacher_id = #{teacherId} AND status = 'pending' AND is_deleted = 0 AND is_trial = 0 \n" +
             "AND booking_type = 'recurring' AND start_date <= #{date} AND end_date >= #{date} \n" +
             "AND JSON_CONTAINS(recurring_weekdays, CAST(#{weekday} AS JSON)) \n" +
-            "AND EXISTS (SELECT 1 FROM JSON_TABLE(recurring_time_slots, '$[*]' COLUMNS (time_slot VARCHAR(50) PATH '$')) jt \n" +
-            "WHERE jt.time_slot = CONCAT(#{baseStartTime}, '-', #{baseEndTime}))")
+            "AND JSON_CONTAINS(recurring_time_slots, JSON_QUOTE(CONCAT(#{baseStartTime}, '-', #{baseEndTime})))")
     int countPendingFormalConflictsInBaseSlot(@Param("teacherId") Long teacherId,
                                               @Param("date") java.time.LocalDate date,
                                               @Param("baseStartTime") java.time.LocalTime baseStartTime,

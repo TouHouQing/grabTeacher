@@ -50,14 +50,14 @@ public class TeacherInfoDTO {
     @Schema(description = "头像URL")
     private String avatarUrl;
 
-    // 管理员添加教师时需要的账号信息
-    @Schema(description = "用户名（管理员添加教师时必填）")
+    // 管理员添加教师时的账号信息
+    @Schema(description = "用户名（可选，留空自动生成为 teacher+用户ID）")
     private String username;
 
-    @Schema(description = "邮箱（管理员添加教师时必填）")
+    @Schema(description = "邮箱（可选）")
     private String email;
 
-    @Schema(description = "手机号")
+    @Schema(description = "手机号（可选）")
     private String phone;
 
     @Schema(description = "密码（管理员可编辑，留空则不修改）")

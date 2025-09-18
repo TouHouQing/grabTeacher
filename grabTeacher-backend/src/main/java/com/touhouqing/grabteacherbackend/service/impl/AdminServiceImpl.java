@@ -777,13 +777,11 @@ public class AdminServiceImpl implements AdminService {
         @CacheEvict(cacheNames = "featuredTeachers", allEntries = true)
     })
     public Teacher addTeacher(TeacherInfoDTO request) {
-        // 验证必填字段（用户名可选：留空则自动生成）
-        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
-            throw new RuntimeException("邮箱不能为空");
-        }
+        // 验证必填字段（用户名可选：留空则自动生成；邮箱/手机号非必填）
         if (request.getRealName() == null || request.getRealName().trim().isEmpty()) {
             throw new RuntimeException("真实姓名不能为空");
         }
+
 
         // 处理用户名逻辑：如果管理员未填写，则先用临时用户名插入，拿到ID后再设置为 teacher+userId
         String providedUsername = request.getUsername() != null ? request.getUsername().trim() : "";
@@ -795,16 +793,25 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
-        // 检查邮箱是否已存在
-        if (userMapper.existsByEmail(request.getEmail().trim())) {
+        // 邮箱为可选字段：仅当提供时检查唯一性
+        if (org.springframework.util.StringUtils.hasText(request.getEmail())
+                && userMapper.existsByEmail(request.getEmail().trim())) {
             throw new RuntimeException("邮箱已被注册");
+        }
+        // 学历必填
+        if (!StringUtils.hasText(request.getEducationBackground())) {
+            throw new RuntimeException("学历不能为空");
+        }
+        // 教学科目必填
+        if (request.getSubjectIds() == null || request.getSubjectIds().isEmpty()) {
+            throw new RuntimeException("教学科目不能为空");
         }
 
         // 创建用户账号，默认密码为123456
         String usernameToUse = needAutoUsername ? ("teacher_tmp_" + System.currentTimeMillis()) : providedUsername;
         User user = User.builder()
                 .username(usernameToUse)
-                .email(request.getEmail().trim())
+                .email(StringUtils.hasText(request.getEmail()) ? request.getEmail().trim() : null)
                 .password(passwordEncoder.encode("123456")) // 默认密码
                 .phone(request.getPhone())
                 .avatarUrl(request.getAvatarUrl())
@@ -829,23 +836,16 @@ public class AdminServiceImpl implements AdminService {
 
         // 按星期字段已废弃：创建教师不再接受 weekly availableTimeSlots
 
-        // 级别校验与默认（从教师级别表选择）
+        // 教师级别必填且必须为激活状态（从教师级别表选择）
         String resolvedLevelName;
-        if (StringUtils.hasText(request.getLevel())) {
+        if (!StringUtils.hasText(request.getLevel())) {
+            throw new RuntimeException("教师级别不能为空");
+        } else {
             TeacherLevel lv = teacherLevelMapper.selectOne(new QueryWrapper<TeacherLevel>()
                     .eq("name", request.getLevel())
                     .eq("is_active", true));
             if (lv == null) {
                 throw new RuntimeException("无效的教师级别");
-            }
-            resolvedLevelName = lv.getName();
-        } else {
-            TeacherLevel lv = teacherLevelMapper.selectOne(new QueryWrapper<TeacherLevel>()
-                    .eq("is_active", true)
-                    .orderByAsc("sort_order")
-                    .last("limit 1"));
-            if (lv == null) {
-                throw new RuntimeException("请先在教师级别表配置可用级别");
             }
             resolvedLevelName = lv.getName();
         }
@@ -864,6 +864,11 @@ public class AdminServiceImpl implements AdminService {
                 }
                 teachingLocationsCsv = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
             }
+        }
+        // 至少选择一个授课地点（线上或线下）
+        boolean hasOffline = org.springframework.util.StringUtils.hasText(teachingLocationsCsv);
+        if (!supportsOnline && !hasOffline) {
+            throw new RuntimeException("请至少选择一个授课地点（线上或线下）");
         }
 
         // 创建教师信息，关联到刚创建的用户
@@ -960,14 +965,32 @@ public class AdminServiceImpl implements AdminService {
         }
 
         // 更新教师信息
-        teacher.setRealName(request.getRealName());
-        teacher.setEducationBackground(request.getEducationBackground());
-        teacher.setTeachingExperience(request.getTeachingExperience());
-        teacher.setSpecialties(request.getSpecialties());
-        teacher.setIntroduction(request.getIntroduction());
-        teacher.setGender(request.getGender() != null ? request.getGender() : "不愿透露");
-        // 更新教师级别（从级别表校验）
+        if (request.getRealName() != null) {
+            teacher.setRealName(request.getRealName());
+        }
+        if (request.getEducationBackground() != null) {
+            if (!StringUtils.hasText(request.getEducationBackground())) {
+                throw new RuntimeException("学历不能为空");
+            }
+            teacher.setEducationBackground(request.getEducationBackground());
+        }
+        if (request.getTeachingExperience() != null) {
+            teacher.setTeachingExperience(request.getTeachingExperience());
+        }
+        if (request.getSpecialties() != null) {
+            teacher.setSpecialties(request.getSpecialties());
+        }
+        if (request.getIntroduction() != null) {
+            teacher.setIntroduction(request.getIntroduction());
+        }
+        if (request.getGender() != null) {
+            teacher.setGender(request.getGender());
+        }
+        // 更新教师级别（必填字段：若传入则校验，不允许置空）
         if (request.getLevel() != null) {
+            if (!StringUtils.hasText(request.getLevel())) {
+                throw new RuntimeException("教师级别不能为空");
+            }
             TeacherLevel lv = teacherLevelMapper.selectOne(new QueryWrapper<TeacherLevel>()
                     .eq("name", request.getLevel())
                     .eq("is_active", true));
@@ -998,6 +1021,15 @@ public class AdminServiceImpl implements AdminService {
                 teacher.setTeachingLocations(ids.stream().map(String::valueOf).collect(Collectors.joining(",")));
             }
         }
+        // 校验最终授课地点状态：至少保留线上或至少一个线下地点
+        {
+            Boolean finalSupportsOnline = teacher.getSupportsOnline() != null ? teacher.getSupportsOnline() : Boolean.FALSE;
+            boolean finalHasOffline = org.springframework.util.StringUtils.hasText(teacher.getTeachingLocations());
+            if (!finalSupportsOnline && !finalHasOffline) {
+                throw new RuntimeException("请至少选择一个授课地点（线上或线下）");
+            }
+        }
+
 
         // 更新教师评分
         if (request.getRating() != null) {
@@ -1013,16 +1045,17 @@ public class AdminServiceImpl implements AdminService {
 
         teacherMapper.updateById(teacher);
 
-        // 更新教师科目关联
+        // 更新教师科目关联（必填：不允许置空）
         if (request.getSubjectIds() != null) {
+            if (request.getSubjectIds().isEmpty()) {
+                throw new RuntimeException("教学科目不能为空");
+            }
             // 先删除原有关联
             teacherSubjectMapper.deleteByTeacherId(teacherId);
             // 添加新的关联
-            if (!request.getSubjectIds().isEmpty()) {
-                for (Long subjectId : request.getSubjectIds()) {
-                    TeacherSubject teacherSubject = new TeacherSubject(teacherId, subjectId);
-                    teacherSubjectMapper.insert(teacherSubject);
-                }
+            for (Long subjectId : request.getSubjectIds()) {
+                TeacherSubject teacherSubject = new TeacherSubject(teacherId, subjectId);
+                teacherSubjectMapper.insert(teacherSubject);
             }
         }
 

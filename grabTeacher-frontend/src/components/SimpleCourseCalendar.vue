@@ -3,7 +3,6 @@
     <div class="sc-header">
       <el-button-group>
         <el-button size="small" type="warning" :disabled="disabledPrev" @click="toPrevMonth">上个月</el-button>
-        <el-button size="small" type="warning" @click="toCurrentMonth">本月</el-button>
         <el-button size="small" type="warning" :disabled="disabledNext" @click="toNextMonth">下个月</el-button>
       </el-button-group>
       <div class="sc-title">{{ currentLabel }}</div>

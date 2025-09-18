@@ -137,8 +137,9 @@ const checkUsernameAvailable = async (username: string): Promise<boolean> => {
 
 // 自定义验证器
 const validateUsername = async (rule: any, value: string, callback: any) => {
-  if (!value) {
-    callback(new Error('请输入用户名'))
+  // 非必填：留空则后端自动生成
+  if (!value || !value.trim()) {
+    callback()
     return
   }
   if (value.length < 3 || value.length > 50) {
@@ -155,14 +156,31 @@ const validateUsername = async (rule: any, value: string, callback: any) => {
   callback()
 }
 
+// 校验：至少选择一个科目
+const validateSubjectIds = (rule: any, value: any, callback: any) => {
+  if (!Array.isArray(value) || value.length === 0) {
+    callback(new Error('请选择至少一个教学科目'))
+    return
+  }
+  callback()
+}
+
 // 表单验证规则
 const teacherRules = {
   realName: [
     { required: true, message: '请输入教师姓名', trigger: 'blur' }
   ],
   username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
     { validator: validateUsername, trigger: 'blur' }
+  ],
+  educationBackground: [
+    { required: true, message: '请选择学历', trigger: 'change' }
+  ],
+  level: [
+    { required: true, message: '请选择教师级别', trigger: 'change' }
+  ],
+  subjectIds: [
+    { validator: validateSubjectIds, trigger: 'change' }
   ]
 }
 
@@ -384,11 +402,42 @@ const saveTeacher = async () => {
   try {
     loading.value = true
 
+    // 基本必填校验（前端快速阻断）
+    const normalizedEdu = normalizeEducation(teacherForm.educationBackground || '')
+    if (!normalizedEdu) {
+      ElMessage.error('请选择学历')
+      loading.value = false
+      return
+    }
+    if (!Array.isArray(teacherForm.subjectIds) || teacherForm.subjectIds.length === 0) {
+      ElMessage.error('请选择至少一个教学科目')
+      loading.value = false
+      return
+    }
+    if (!teacherForm.level || !teacherForm.level.trim()) {
+      ElMessage.error('请选择教师级别')
+      loading.value = false
+      return
+    }
+    const activeLevelSet = new Set(LEVEL_OPTIONS.value.map(o => o.value))
+    if (!activeLevelSet.has(teacherForm.level)) {
+      ElMessage.error('请选择有效的教师级别')
+      loading.value = false
+      return
+    }
+    // 授课地点：至少选择一个（线上或线下）
+    if (!teacherForm.supportsOnline && (!Array.isArray(teacherForm.teachingLocationIds) || teacherForm.teachingLocationIds.length === 0)) {
+      ElMessage.error('请至少选择一个授课地点（线上或线下）')
+      loading.value = false
+      return
+    }
+
+
     // 组装基础数据（不带头像）
     const baseData: any = {
       realName: teacherForm.realName,
       username: teacherForm.username,
-      educationBackground: normalizeEducation(teacherForm.educationBackground || ''),
+      educationBackground: normalizedEdu,
       teachingExperience: teacherForm.teachingExperience,
       specialties: teacherForm.specialties,
       subjectIds: teacherForm.subjectIds,
@@ -405,12 +454,6 @@ const saveTeacher = async () => {
     // 用户名可选：留空则不提交，由后端按 teacher+userId 自动生成
     if (!teacherForm.username || !teacherForm.username.trim()) {
       delete baseData.username
-    }
-
-    // 如果当前教师的级别已被禁用（选项中不存在），则不要提交 level 字段，避免后端校验报错
-    const activeLevelSet = new Set(LEVEL_OPTIONS.value.map(o => o.value))
-    if (!activeLevelSet.has(baseData.level)) {
-      delete baseData.level
     }
 
     // 处理密码：新建时使用默认密码，编辑时如果填写了密码则更新
@@ -789,7 +832,7 @@ onMounted(async () => {
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="教师级别">
+            <el-form-item label="教师级别" prop="level">
               <el-select v-model="teacherForm.level" placeholder="请选择教师级别" style="width: 100%">
                 <el-option v-for="opt in LEVEL_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
               </el-select>
@@ -815,7 +858,7 @@ onMounted(async () => {
                     :value="opt.value"
                   />
                 </el-select>
-                <small style="color:#999;font-size:12px;">可同时选择“线上 + 多个线下地点”</small>
+                <small style="color:#999;font-size:12px;">至少选择一个（线上或线下），可同时选择“线上 + 多个线下地点”</small>
               </div>
             </el-form-item>
           </el-col>
@@ -828,7 +871,7 @@ onMounted(async () => {
           </el-col>
         </el-row>
         <el-form-item label="时薪">
-          <el-input v-model="teacherForm.hourlyRateText" placeholder="请输入时薪展示文本，例如：200 M豆/小时、￥300/小时、$45/h" />
+          <el-input v-model="teacherForm.hourlyRateText" placeholder="请输入时薪展示文本，例如：$45/h" />
           <div style="margin-top:4px;"><el-text type="info" size="small">此字段为展示用文本，将显示在教师端个人资料“时薪”处</el-text></div>
         </el-form-item>
         <el-form-item label="教师评分">
@@ -845,7 +888,7 @@ onMounted(async () => {
             <el-text type="info" size="small">评分范围：0-5分，支持0.001分精度</el-text>
           </div>
         </el-form-item>
-        <el-form-item label="学历">
+        <el-form-item label="学历" prop="educationBackground">
           <el-select v-model="teacherForm.educationBackground" placeholder="请选择学历" style="width: 100%">
             <el-option label="专科及以下" value="专科及以下" />
             <el-option label="本科" value="本科" />
@@ -867,7 +910,10 @@ onMounted(async () => {
           </div>
         </el-form-item>
 
-        <el-form-item label="教学科目">
+        <el-form-item prop="subjectIds">
+          <template #label>
+            <span><span style="color:#f56c6c">*</span> 教学科目</span>
+          </template>
           <el-select
             v-model="teacherForm.subjectIds"
             multiple
@@ -883,7 +929,8 @@ onMounted(async () => {
           </el-select>
         </el-form-item>
         <el-form-item label="专业特长">
-          <el-input v-model="teacherForm.specialties" placeholder="请输入专业特长" />
+          <el-input v-model="teacherForm.specialties" placeholder="示例：冲刺高考、光速提分、幽默风趣（用中文/英文逗号分隔）" />
+          <div style="margin-top:4px;"><el-text type="info" size="small">建议用逗号分隔的短词，例如：冲刺高考、光速提分、幽默风趣</el-text></div>
         </el-form-item>
         <el-form-item label="个人介绍">
           <el-input
