@@ -605,6 +605,9 @@ public class SuspensionServiceImpl implements SuspensionService {
                 Boolean trial = ce.getTrial();
                 String title = buildTitle(studentName, subjectName, grade, trial);
                 b.courseTitle(title);
+                if (ce != null) {
+                    b.courseLocation(ce.getTeachingLocation());
+                }
                 if (subjectName != null) b.subjectName(subjectName);
             }
         } catch (Exception ignored) {}

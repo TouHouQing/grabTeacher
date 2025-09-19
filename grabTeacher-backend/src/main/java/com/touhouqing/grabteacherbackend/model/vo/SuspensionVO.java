@@ -29,6 +29,7 @@ public class SuspensionVO {
     private String subjectName;
     private String teacherName;
     private String studentName;
+    private String courseLocation;
 
     // 申请人信息（用于前端统一展示）
     private String applicantName;

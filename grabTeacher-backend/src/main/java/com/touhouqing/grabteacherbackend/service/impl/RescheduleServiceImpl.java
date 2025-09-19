@@ -794,6 +794,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
                         ce != null ? ce.getTrial() : null
                     );
                     vo.setCourseTitle(title);
+                    vo.setCourseLocation(ce != null ? ce.getTeachingLocation() : null);
                     if (subjectName != null) vo.setSubjectName(subjectName);
                 }
                 Teacher t = ce != null ? teacherMap.get(ce.getTeacherId()) : null;
@@ -899,6 +900,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
                         ce != null ? ce.getTrial() : null
                     );
                     vo.setCourseTitle(title);
+                    vo.setCourseLocation(ce != null ? ce.getTeachingLocation() : null);
                     if (subjectName != null) vo.setSubjectName(subjectName);
                 }
                 Teacher t = ce != null ? teacherMap.get(ce.getTeacherId()) : null;
@@ -1030,6 +1032,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
                         ce != null ? ce.getTrial() : null
                     );
                     vo.setCourseTitle(title);
+                    vo.setCourseLocation(ce != null ? ce.getTeachingLocation() : null);
                     if (subjectName != null) vo.setSubjectName(subjectName);
                 }
                 Teacher t = ce != null ? teacherMap.get(ce.getTeacherId()) : null;
@@ -1600,6 +1603,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
                         ce != null ? ce.getTrial() : null
                     );
                     builder.courseTitle(title);
+                    builder.courseLocation(ce != null ? ce.getTeachingLocation() : null);
                     if (subjectName != null) builder.subjectName(subjectName);
                 }
 

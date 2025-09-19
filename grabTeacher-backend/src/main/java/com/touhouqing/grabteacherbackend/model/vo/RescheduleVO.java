@@ -120,6 +120,9 @@ public class RescheduleVO {
     @Schema(description = "科目名称", example = "数学")
     private String subjectName;
 
+    @Schema(description = "上课地点", example = "线上")
+    private String courseLocation;
+
     @Schema(description = "教师ID", example = "1001")
     private Long teacherId;
 

@@ -74,6 +74,11 @@
               </div>
 
               <div class="detail-row">
+                <span class="label">上课地点：</span>
+                <span class="value">{{ booking.courseLocation || '-' }}</span>
+              </div>
+
+              <div class="detail-row">
                 <span class="label">教师姓名：</span>
                 <span class="value">{{ booking.teacherName || '-' }}</span>
               </div>
@@ -198,6 +203,10 @@
               <label>课程名称：</label>
               <span>{{ selectedBooking.courseTitle || '-' }}</span>
             </div>
+              <div class="detail-item">
+                <label>上课地点：</label>
+                <span>{{ selectedBooking.courseLocation || '-' }}</span>
+              </div>
           </div>
 
           <div class="time-info">
