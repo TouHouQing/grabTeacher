@@ -1277,7 +1277,7 @@ watch(selectedCourse, (newCourse) => {
             <h3>{{ teacher.name }}</h3>
             <div class="teacher-rating">
               <el-rate v-model="teacher.rating" disabled text-color="#ff9900" />
-              <span class="rating-text">{{ teacher.rating.toFixed(1) }}分</span>
+              <span class="rating-text">{{ teacher.rating.toFixed(2) }}分</span>
             </div>
             <div class="teacher-tags">
               <div class="tag-group">

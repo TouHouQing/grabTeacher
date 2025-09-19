@@ -591,7 +591,7 @@ const getStatusText = (status: string) => {
                 <el-icon><Trophy /></el-icon>
                 <div class="kv">
                   <div class="label">教师评分</div>
-                  <div class="value">{{ Number(teacher?.rating || 0).toFixed(1) }} 分</div>
+                  <div class="value">{{ Number(teacher?.rating || 0).toFixed(2) }} 分</div>
                 </div>
               </div>
               <div class="teacher-extra-item" v-if="teacher?.level">

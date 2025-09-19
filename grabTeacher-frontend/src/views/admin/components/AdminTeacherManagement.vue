@@ -707,7 +707,7 @@ onMounted(async () => {
       <el-table-column prop="subjects" label="教学科目" min-width="150" show-overflow-tooltip />
       <el-table-column prop="rating" label="评分" width="100">
         <template #default="{ row }">
-          <span class="rating-display">{{ (row.rating || 0).toFixed(3) }}分</span>
+          <span class="rating-display">{{ (row.rating || 0).toFixed(2) }}分</span>
         </template>
       </el-table-column>
       <el-table-column label="课时" min-width="160">

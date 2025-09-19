@@ -273,7 +273,11 @@ const openDetail = (row: EvalVO) => {
 
     <el-table :data="list" v-loading="loading" stripe style="width: 100%">
       <el-table-column prop="id" label="ID" width="50" />
-      <el-table-column prop="rating" label="评分" width="60" />
+      <el-table-column prop="rating" label="评分" width="80">
+        <template #default="{ row }">
+          <span>{{ Number(row.rating || 0).toFixed(2) }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="teacherName" label="教师姓名" width="130" />
       <el-table-column prop="studentName" label="学生姓名" width="130" />
       <el-table-column prop="courseName" label="课程名称" width="160" />
@@ -382,7 +386,7 @@ const openDetail = (row: EvalVO) => {
         </div>
         <div class="detail-item">
           <div class="detail-label">评分</div>
-          <div class="detail-value">{{ detailRow.rating ?? '-' }}</div>
+          <div class="detail-value">{{ detailRow.rating ? Number(detailRow.rating).toFixed(2) : '-' }}</div>
         </div>
         <div class="detail-item">
           <div class="detail-label">创建时间</div>

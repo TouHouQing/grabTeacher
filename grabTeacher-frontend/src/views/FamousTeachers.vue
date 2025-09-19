@@ -140,7 +140,7 @@ const transformTeacherData = (teacherList: any[]) => {
       subject: primarySubject,
       subjects: subjects,
       experience: teacher.teachingExperience || 0,
-      rating: Math.round(rating * 10) / 10, // 保留一位小数
+      rating: Math.round(rating * 100) / 100, // 保留两位小数
       description: teacher.introduction || `${teacher.realName}是一位优秀的${primarySubject}教师，教学经验丰富，深受学生喜爱。`,
       avatar: avatar,
       tags: tags,
@@ -341,7 +341,7 @@ onMounted(() => {
               </div>
               <p>{{ teacher.experience }}年教龄 · {{ teacher.level || '未设置' }}</p>
               <p v-if="teacher.education">学历：{{ teacher.education }}</p>
-              <p v-if="teacher.rating && teacher.rating > 0">教师评分：{{ teacher.rating }}分</p>
+              <p v-if="teacher.rating && teacher.rating > 0">教师评分：{{ teacher.rating.toFixed(2) }}分</p>
               <div class="teacher-tags">
                 <el-tag v-if="teacher.gender === '男'" size="small" class="teacher-tag" type="primary">
                   <el-icon style="margin-right: 4px;"><Male /></el-icon>男
