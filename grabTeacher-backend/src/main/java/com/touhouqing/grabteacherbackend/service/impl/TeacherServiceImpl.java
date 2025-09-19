@@ -457,6 +457,7 @@ public class TeacherServiceImpl implements TeacherService {
                     .gender(t.getGender())
                     .level(t.getLevel())
                     .verified(t.getVerified())
+                    .rating(t.getRating())
                     .build();
             list.add(dto);
         }

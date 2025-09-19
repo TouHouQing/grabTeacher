@@ -119,11 +119,8 @@ const transformTeacherData = (teacherList: any[]) => {
     const defaultTags = ['专业教学', '经验丰富', '认真负责']
     const tags = specialties.length > 0 ? specialties : defaultTags.slice(0, 2)
 
-    // 生成合理的评分
-    const baseRating = 4.5
-    const experienceBonus = Math.min(teacher.teachingExperience * 0.02, 0.4) // 经验越多评分越高
-    const randomFactor = Math.random() * 0.1
-    const rating = Math.min(baseRating + experienceBonus + randomFactor, 5.0)
+    // 使用后端返回的真实评分
+    const rating = teacher.rating ? Number(teacher.rating) : 0
 
     // 使用用户头像或根据性别选择合适的默认头像
     let avatar = teacher.avatarUrl || defaultAvatars[index % defaultAvatars.length]
@@ -333,7 +330,7 @@ onMounted(() => {
           <div class="teacher-card" v-for="teacher in displayTeachers" :key="teacher.id">
             <div class="teacher-avatar">
               <img :src="teacher.avatar" :alt="teacher.name">
-              <div class="teacher-rating">
+              <div class="teacher-rating" v-if="teacher.rating && teacher.rating > 0">
                 <el-rate v-model="teacher.rating" disabled text-color="#ff9900"></el-rate>
               </div>
             </div>
@@ -344,7 +341,7 @@ onMounted(() => {
               </div>
               <p>{{ teacher.experience }}年教龄 · {{ teacher.level || '未设置' }}</p>
               <p v-if="teacher.education">学历：{{ teacher.education }}</p>
-              <p v-if="teacher.rating">教师评分：{{ teacher.rating }}分</p>
+              <p v-if="teacher.rating && teacher.rating > 0">教师评分：{{ teacher.rating }}分</p>
               <div class="teacher-tags">
                 <el-tag v-if="teacher.gender === '男'" size="small" class="teacher-tag" type="primary">
                   <el-icon style="margin-right: 4px;"><Male /></el-icon>男

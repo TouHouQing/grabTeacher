@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -52,4 +53,7 @@ public class TeacherListVO {
 
     @Schema(description = "是否已认证", example = "true")
     private Boolean verified;
+
+    @Schema(description = "教师评分", example = "4.5")
+    private BigDecimal rating;
 }
