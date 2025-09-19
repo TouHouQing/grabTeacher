@@ -605,17 +605,37 @@ const filteredBookings = computed(() => {
   }
   return []
 })
-// 懒加载预约列表：仅在切换到“待审核/已拒绝”标签时请求，避免与课程接口并发
+// 防抖定时器，避免频繁API调用
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+// 防抖刷新函数
+const debouncedRefresh = (refreshFn: () => Promise<void>, delay = 300) => {
+  if (refreshTimer) {
+    clearTimeout(refreshTimer)
+  }
+  refreshTimer = setTimeout(refreshFn, delay)
+}
+
+// 监听标签切换，确保数据及时更新
 const loadedBookingStatuses = ref<Set<string>>(new Set())
 watch(activeTab, async (val: string) => {
   if (val === 'pending' || val === 'rejected') {
+    // 预约相关状态：懒加载预约数据
     if (!loadedBookingStatuses.value.has(val)) {
       statusFilter.value = val
       await loadBookings()
       loadedBookingStatuses.value.add(val)
     }
+  } else if (val === 'active' || val === 'completed') {
+    // 课程相关状态：使用防抖重新加载课程数据以确保数据最新
+    debouncedRefresh(async () => {
+      await loadStudentCoursesV2()
+    })
   }
 })
+
+// 注意：页面重新激活时的数据刷新功能已移除，因为onActivated在当前Vue版本中不可用
+// 如果需要此功能，可以考虑使用路由守卫或其他方式实现
 
 
 // 已审核且未开始的预约（用于“进行中”标签展示）

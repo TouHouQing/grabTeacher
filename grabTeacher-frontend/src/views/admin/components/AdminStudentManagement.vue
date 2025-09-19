@@ -81,8 +81,9 @@ const checkUsernameAvailable = async (username: string): Promise<boolean> => {
 
 // 自定义验证器
 const validateUsername = async (rule: any, value: string, callback: any) => {
-  if (!value) {
-    callback(new Error('请输入用户名'))
+  // 用户名为空时直接通过验证（因为用户名是可选的）
+  if (!value || value.trim() === '') {
+    callback()
     return
   }
   if (value.length < 3 || value.length > 50) {
@@ -183,10 +184,17 @@ const handleEditStudent = async (student: any) => {
     const resp = await studentAPI.getById(student.id)
     if (resp.success && resp.data) {
       Object.assign(studentForm, resp.data)
+      // 确保subjectIds正确设置
+      if (resp.data.subjectIds && Array.isArray(resp.data.subjectIds)) {
+        studentForm.subjectIds = resp.data.subjectIds
+      } else {
+        studentForm.subjectIds = []
+      }
     } else {
       Object.assign(studentForm, student)
     }
-  } catch (e) {
+  } catch (error) {
+    console.warn('获取学生详情失败，使用列表数据:', error)
     Object.assign(studentForm, student)
   }
   // 编辑时清空密码字段，避免显示敏感信息
@@ -200,10 +208,20 @@ const saveStudent = async () => {
     loading.value = true
 
     const wasNew = studentForm.id === 0
+
+    // 根据选择的科目ID生成subjectsInterested字符串用于显示
+    let subjectsInterestedText = ''
+    if (studentForm.subjectIds && studentForm.subjectIds.length > 0) {
+      const selectedSubjects = subjects.value.filter(subject =>
+        studentForm.subjectIds.includes(subject.id)
+      )
+      subjectsInterestedText = selectedSubjects.map(subject => subject.name).join(', ')
+    }
+
     const baseData: any = {
       realName: studentForm.realName,
-      subjectsInterested: studentForm.subjectsInterested,
-      subjectIds: studentForm.subjectIds,
+      subjectsInterested: subjectsInterestedText,
+      subjectIds: studentForm.subjectIds || [],
       learningGoals: studentForm.learningGoals,
       preferredTeachingStyle: studentForm.preferredTeachingStyle,
       budgetRange: studentForm.budgetRange,
@@ -255,6 +273,9 @@ const saveStudent = async () => {
       }
       studentForm.avatarUrl = uploadedAvatarUrl
     }
+
+    // 更新表单中的subjectsInterested字段用于显示
+    studentForm.subjectsInterested = subjectsInterestedText
 
     ElMessage.success(wasNew ? '添加成功，默认密码为123456' : '更新成功')
     // 清理状态
