@@ -2218,7 +2218,7 @@ export default {
     <!-- 课程分类标签 -->
     <div class="course-tabs">
       <el-tabs v-model="activeTab" type="border-card">
-        <el-tab-pane label="进行中" name="active">
+        <el-tab-pane label="待开课" name="active">
           <div class="tab-content">
             <el-empty v-if="filteredCourses.length === 0" description="暂无进行中的课程" />
             <div v-else class="courses-grid">

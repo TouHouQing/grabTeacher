@@ -86,7 +86,7 @@ const schedulesMapByDate = computed<Record<string, Array<{ title: string; startT
     const st = (s as any)?.startTime
     const et = (s as any)?.endTime
     if (!ds || !st || !et) continue
-    const titleFull = buildOneToOneTitle(s as any) || (s as any)?.courseTitle || (s as any)?.courseName || '课程'
+    const titleFull = (s as any)?.courseTitle || buildOneToOneTitle(s as any) || '课程'
     ;(map[ds] = map[ds] || []).push({ title: titleFull, startTime: st, endTime: et, isTrial: !!(s as any)?.isTrial })
   }
   Object.keys(map).forEach(k => map[k].sort((a, b) => a.startTime.localeCompare(b.startTime)))
@@ -448,7 +448,7 @@ const openRescheduleModal = async (schedule: ScheduleItem) => {
     studentId: s.studentId!,
     studentName: s.studentName,
     courseId: s.courseId!,
-    courseTitle: s.courseTitle || s.courseName || '自定义课程',
+    courseTitle: s.courseTitle || '自定义课程',
     subjectName: s.subjectName || '',
     scheduledDate: s.scheduledDate,
     startTime: s.startTime,
@@ -470,7 +470,7 @@ const openRescheduleModal = async (schedule: ScheduleItem) => {
 
   rescheduleCourse.value = {
     id: schedule.courseId || schedule.id,
-    title: buildOneToOneTitle(schedule) || schedule.courseTitle || schedule.courseName || '自定义课程',
+    title: schedule.courseTitle || buildOneToOneTitle(schedule) || '自定义课程',
     teacher: schedule.teacherName || '当前教师',
     teacherId: schedule.teacherId,
     subject: schedule.subjectName || '未知科目',
@@ -731,7 +731,7 @@ onMounted(async () => {
                   </el-table-column>
                   <el-table-column label="课程">
                     <template #default="scope">
-                      {{ buildOneToOneTitle(scope.row) || scope.row.courseTitle || scope.row.courseName }}
+                      {{ scope.row.courseTitle || buildOneToOneTitle(scope.row) }}
                     </template>
                   </el-table-column>
                   <el-table-column prop="studentName" label="学生" width="120" />
@@ -833,7 +833,7 @@ onMounted(async () => {
     >
       <div v-if="selectedSchedule" class="schedule-detail">
         <div class="detail-header">
-          <div class="course-title">{{ buildOneToOneTitle(selectedSchedule) || selectedSchedule.courseTitle || selectedSchedule.courseName }}</div>
+          <div class="course-title">{{ selectedSchedule.courseTitle || buildOneToOneTitle(selectedSchedule) }}</div>
           <div class="chips">
             <el-tag type="info" size="small">{{ selectedSchedule.scheduledDate }}</el-tag>
             <el-tag type="success" size="small">{{ formatTimeRange(selectedSchedule.startTime, selectedSchedule.endTime) }}</el-tag>

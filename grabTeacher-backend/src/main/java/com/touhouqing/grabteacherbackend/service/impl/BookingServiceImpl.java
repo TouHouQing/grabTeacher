@@ -368,7 +368,7 @@ public class BookingServiceImpl implements BookingService {
                 } else if ("calendar".equals(bookingRequest.getBookingType())) {
                     generateCalendarSchedules(bookingRequest);
                 } else if ("recurring".equals(bookingRequest.getBookingType())) {
-                    throw new RuntimeException("系统已不支持按星期的周期性预约，请让用户改用“日历预约”");
+                    throw new RuntimeException("系统已不支持按星期的周期性预约，请让用户改用\"日历预约\"");
                 }
                 // 审批通过后：若绑定了课程ID且为一对一课程，则报名人数+1并视人数限制置满
                 if (bookingRequest.getCourseId() != null) {
@@ -388,7 +388,7 @@ public class BookingServiceImpl implements BookingService {
                 distributedLockService.unlock(lockKey, token);
             }
 
-            // 课表变化后，精准清理并“更新”教师 busy 缓存 + 清理 teacherSchedule/teacherAvailability
+            // 课表变化后，精准清理并"更新"教师 busy 缓存 + 清理 teacherSchedule/teacherAvailability
             try {
                 Set<LocalDate> affectedDates = new HashSet<>();
                 if ("single".equals(bookingRequest.getBookingType())) {
@@ -901,7 +901,7 @@ public class BookingServiceImpl implements BookingService {
             String title;
             boolean isOneOnOne = head.getCourseType() != null && head.getCourseType().equalsIgnoreCase("one_on_one");
             if (isOneOnOne) {
-                // 一对一强制使用：学生姓名 + 科目 + 年级 + 一对一课程
+                // 一对一强制使用：学生姓名 + 科目 + 年级 + （试听课|一对一课程）
                 String studentName = head.getStudentName();
                 if ((studentName == null || studentName.isEmpty()) && head.getStudentId() != null) {
                     Student s = studentMapper.selectById(head.getStudentId());
@@ -921,11 +921,21 @@ public class BookingServiceImpl implements BookingService {
                     BookingRequest br2 = bookingRequestMapper.selectById(head.getBookingRequestId());
                     if (br2 != null && br2.getGrade() != null && !br2.getGrade().isEmpty()) grade = br2.getGrade();
                 }
+                // 判断是否试听
+                boolean isTrialForTitle = false;
+                if (enrollment != null && Boolean.TRUE.equals(enrollment.getTrial())) {
+                    isTrialForTitle = true;
+                } else if (head.getBookingRequestId() != null) {
+                    BookingRequest brTrial = bookingRequestMapper.selectById(head.getBookingRequestId());
+                    if (brTrial != null && Boolean.TRUE.equals(brTrial.getIsTrial())) {
+                        isTrialForTitle = true;
+                    }
+                }
                 StringBuilder sb = new StringBuilder();
                 if (studentName != null) sb.append(studentName);
                 if (subjectName != null) sb.append(subjectName);
                 if (grade != null) sb.append(grade);
-                sb.append("一对一课程");
+                sb.append(isTrialForTitle ? "试听课" : "一对一课程");
                 title = sb.toString();
             } else {
                 // 其他课程类型保持原有标题，若无则回退科目/类型
@@ -1109,7 +1119,7 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // 若为一对一课程（courseId 为空 或 enrollmentType=one_on_one），按规则自动生成课程标题：姓名+科目+年级+一对一课程
+        // 若为一对一课程（courseId 为空 或 enrollmentType=one_on_one），按规则自动生成课程标题：姓名+科目+年级+（试听课|一对一课程）
         boolean isOneOnOne = (cs.getCourseId() == null) || (enrollment != null && "one_on_one".equalsIgnoreCase(enrollment.getEnrollmentType()));
         if (isOneOnOne) {
             // 学生姓名
@@ -1137,7 +1147,7 @@ public class BookingServiceImpl implements BookingService {
                         Subject subj = subjectMapper.selectById(br.getSubjectId());
                         if (subj != null) subjectName = subj.getName();
                     }
-                    // 2) 仍为空则尝试从“学生需求”解析（兼容历史数据）
+                    // 2) 仍为空则尝试从"学生需求"解析（兼容历史数据）
                     if ((subjectName == null || subjectName.isEmpty()) && br.getStudentRequirements() != null) {
                         String req = br.getStudentRequirements();
                         int idx1 = req.indexOf("进行");
@@ -1152,15 +1162,13 @@ public class BookingServiceImpl implements BookingService {
             if (subjectName == null) subjectName = "";
 
 
-            // 生成并设置标题（严格使用库中年级，不做学段识别）：姓名+科目+年级+一对一课程
-            if (vo.getCourseTitle() == null || vo.getCourseTitle().isEmpty()) {
-                StringBuilder titleBuilder = new StringBuilder();
-                titleBuilder.append(studentName);
-                titleBuilder.append(subjectName);
-                titleBuilder.append(grade);
-                titleBuilder.append("一对一课程");
-                vo.setCourseTitle(titleBuilder.toString());
-            }
+            // 生成并设置标题（严格使用库中年级，不做学段识别）：姓名+科目+年级+（试听课|一对一课程）
+            StringBuilder titleBuilder = new StringBuilder();
+            titleBuilder.append(studentName);
+            titleBuilder.append(subjectName);
+            titleBuilder.append(grade);
+            titleBuilder.append(Boolean.TRUE.equals(vo.getTrial()) ? "试听课" : "一对一课程");
+            vo.setCourseTitle(titleBuilder.toString());
 
             // 也回填 subjectName，便于前端展示
             if ((vo.getSubjectName() == null || vo.getSubjectName().isEmpty()) && !subjectName.isEmpty()) {
@@ -1437,7 +1445,7 @@ public class BookingServiceImpl implements BookingService {
 
 
     /**
-     * 检查“待处理的试听申请”是否占用基础2小时区间（提交即占位，管理员拒绝/学生取消才释放）
+     * 检查"待处理的试听申请"是否占用基础2小时区间（提交即占位，管理员拒绝/学生取消才释放）
      */
     private boolean hasPendingTrialConflictInBaseSlot(Long teacherId, LocalDate date, String baseStartTime, String baseEndTime) {
         LocalTime baseStart = LocalTime.parse(baseStartTime);
@@ -1810,7 +1818,7 @@ public class BookingServiceImpl implements BookingService {
             // 验证单次预约时间是否在教师可预约时间范围内
             validateSingleBookingTime(request, teacherId);
 
-            // 额外：对该日期的“待处理单次调课”做占用检查（避免与调课申请抢占）
+            // 额外：对该日期的"待处理单次调课"做占用检查（避免与调课申请抢占）
             java.util.List<RescheduleRequest> pendingReschedules =
                     rescheduleRequestMapper.findPendingSingleByTeacherAndDate(teacherId, request.getRequestedDate());
             if (pendingReschedules != null && !pendingReschedules.isEmpty()) {
@@ -1822,7 +1830,7 @@ public class BookingServiceImpl implements BookingService {
             }
         } else if ("recurring".equals(request.getBookingType())) {
             // 已移除按星期的周期性预约，请使用按日历预约
-            throw new RuntimeException("系统已改为按月日历预约，不再支持按星期的周期性预约，请改用“日历预约”方式");
+            throw new RuntimeException("系统已改为按月日历预约，不再支持按星期的周期性预约，请改用\"日历预约\"方式");
         } else if ("calendar".equals(request.getBookingType())) {
             // 日历多次预约验证
             if (request.getIsTrial() != null && request.getIsTrial()) {
@@ -2104,7 +2112,7 @@ public class BookingServiceImpl implements BookingService {
             courseTitle = sb.toString();
         }
 
-        // calendar 类型：提取仅时间段列表、会话数量及“按周几聚合”的时段
+        // calendar 类型：提取仅时间段列表、会话数量及"按周几聚合"的时段
         java.util.List<String> calendarSlots = null;
         java.lang.Integer calendarCount = null;
         java.time.LocalDate calendarStartDate = null;
@@ -2134,7 +2142,7 @@ public class BookingServiceImpl implements BookingService {
                 calendarStartDate = calStart;
                 calendarEndDate = calEnd;
 
-                // 构建“周几 -> 时段列表”映射（1=周一, 7=周日）
+                // 构建"周几 -> 时段列表"映射（1=周一, 7=周日）
                 java.util.Map<Integer, java.util.LinkedHashSet<String>> tmp = new java.util.LinkedHashMap<>();
                 for (CalendarSession s : sessions) {
                     int dow = s.date.getDayOfWeek().getValue(); // 1..7
@@ -2235,7 +2243,7 @@ public class BookingServiceImpl implements BookingService {
             throw new RuntimeException("教师信息不存在");
         }
 
-        // 先检查“按日历设置”的可用性（若该日已设置，则以日历为准）
+        // 先检查"按日历设置"的可用性（若该日已设置，则以日历为准）
         String requestedTimeSlot = request.getRequestedStartTime() + "-" + request.getRequestedEndTime();
         com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.touhouqing.grabteacherbackend.model.entity.TeacherDailyAvailability> dq =
                 new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<>();
@@ -2254,7 +2262,7 @@ public class BookingServiceImpl implements BookingService {
 
                 throw new RuntimeException("教师日历可预约数据异常，请稍后再试");
             }
-            // 日历校验通过，直接进入“待处理预约占用”校验
+            // 日历校验通过，直接进入"待处理预约占用"校验
         } else {
             // 不再回退到按周模板：若该日未设置日历可预约，则视为不可预约
             throw new RuntimeException("教师未在该日开放可预约时间，请选择其他日期或联系教师");
@@ -2279,7 +2287,7 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // 额外校验：该时间段是否已被其他学生的“待处理”预约占用
+        // 额外校验：该时间段是否已被其他学生的"待处理"预约占用
         // 单次预约仅校验当天
         java.time.LocalDate date = request.getRequestedDate();
         java.util.List<BookingRequest> pendings = bookingRequestMapper.findPendingByTeacherAndDateRange(teacherId, date, date);
@@ -2321,7 +2329,7 @@ public class BookingServiceImpl implements BookingService {
      * 验证周期性预约时间是否在教师可预约时间范围内
      */
     private void validateRecurringBookingTime(BookingApplyDTO request, Long teacherId) {
-        // 已全面改为按日历预约，不再支持“按星期”的周期性预约
+        // 已全面改为按日历预约，不再支持"按星期"的周期性预约
         throw new RuntimeException("系统已不支持按星期的周期性预约，请改用\u201c日历预约\u201d");
     }
 
@@ -2346,7 +2354,7 @@ public class BookingServiceImpl implements BookingService {
                 throw new RuntimeException("calendar预约仅支持1.5小时或2小时");
             }
 
-            // 使用单次预约校验，复用“日历优先/周模板兜底”的可预约范围检查
+            // 使用单次预约校验，复用"日历优先/周模板兜底"的可预约范围检查
             BookingApplyDTO singleReq = new BookingApplyDTO();
             singleReq.setBookingType("single");
             singleReq.setRequestedDate(ses.getDate());
