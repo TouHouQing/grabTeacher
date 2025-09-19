@@ -1,7 +1,6 @@
 <template>
   <div class="teacher-booking-management">
     <div class="page-header">
-      <h1>调课记录</h1>
       <div class="header-actions">
         <el-select v-model="statusFilter" placeholder="审批状态" style="width: 120px; margin-right: 12px;" @change="loadBookings">
           <el-option label="全部" value="" />
@@ -20,7 +19,7 @@
         <el-select v-model="requestTypeFilter" placeholder="类型" style="width: 130px; margin-right: 12px;" @change="loadBookings">
           <el-option label="全部" value="" />
           <el-option label="调课" value="single" />
-          <el-option label="请假/取消" value="cancel" />
+          <el-option label="请假" value="cancel" />
         </el-select>
         <el-select v-model="applicantTypeFilter" placeholder="申请人" style="width: 130px; margin-right: 12px;" @change="loadBookings">
           <el-option label="全部" value="" />
@@ -79,7 +78,7 @@
             <div class="booking-details">
               <div class="detail-row">
                 <span class="label">申请类型：</span>
-                <span class="value">{{ booking.requestType === 'cancel' ? '请假/取消' : '调课' }}</span>
+                <span class="value">{{ booking.recordType === 'suspension' ? '请假' : (booking.requestType === 'cancel' ? '取消' : '调课') }}</span>
               </div>
 
               <div class="detail-row">
@@ -99,10 +98,17 @@
 
               <div class="detail-row">
                 <span class="label">原上课时间：</span>
-                <span class="value">{{ booking.originalDate }} {{ booking.originalStartTime }}-{{ booking.originalEndTime }}</span>
+                <span class="value">
+                  <template v-if="booking.recordType === 'suspension'">
+                    {{ booking.startDate }} - {{ booking.endDate }}
+                  </template>
+                  <template v-else>
+                    {{ booking.originalDate }} {{ booking.originalStartTime }}-{{ booking.originalEndTime }}
+                  </template>
+                </span>
               </div>
 
-              <div class="detail-row" v-if="booking.requestType !== 'cancel'">
+              <div class="detail-row" v-if="booking.requestType !== 'cancel' && booking.recordType !== 'suspension'">
                 <span class="label">时间信息：</span>
                 <span class="value">
                   <!-- 教师发起：pending/rejected 仅展示候选；approved 展示候选 + 最终新时间 -->
@@ -213,7 +219,7 @@
           <div class="detail-grid">
             <div class="detail-item">
               <label>申请类型：</label>
-              <span>{{ selectedBooking.requestType === 'cancel' ? '请假/取消' : '调课' }}</span>
+              <span>{{ selectedBooking.recordType === 'suspension' ? '请假' : (selectedBooking.requestType === 'cancel' ? '取消' : '调课') }}</span>
             </div>
             <div class="detail-item">
               <label>课程名称：</label>
@@ -222,17 +228,29 @@
           </div>
 
           <div class="time-info">
-            <div class="time-item">
-              <label>原上课日期：</label>
-              <span>{{ selectedBooking.originalDate }}</span>
-            </div>
-            <div class="time-item">
-              <label>原上课时间：</label>
-              <span>{{ selectedBooking.originalStartTime }} - {{ selectedBooking.originalEndTime }}</span>
-            </div>
+            <template v-if="selectedBooking.recordType === 'suspension'">
+              <div class="time-item">
+                <label>请假开始日期：</label>
+                <span>{{ selectedBooking.startDate }}</span>
+              </div>
+              <div class="time-item">
+                <label>请假结束日期：</label>
+                <span>{{ selectedBooking.endDate }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <div class="time-item">
+                <label>原上课日期：</label>
+                <span>{{ selectedBooking.originalDate }}</span>
+              </div>
+              <div class="time-item">
+                <label>原上课时间：</label>
+                <span>{{ selectedBooking.originalStartTime }} - {{ selectedBooking.originalEndTime }}</span>
+              </div>
+            </template>
           </div>
 
-          <div class="time-info" v-if="selectedBooking.requestType !== 'cancel'">
+          <div class="time-info" v-if="selectedBooking.requestType !== 'cancel' && selectedBooking.recordType !== 'suspension'">
             <!-- 教师发起：pending/rejected 显示候选；approved 显示候选 + 最终 -->
             <template v-if="selectedBooking.applicantType === 'teacher'">
               <div class="time-item" v-if="selectedBooking.newWeeklySchedule && selectedBooking.newWeeklySchedule.startsWith('CANDIDATES|')">
@@ -304,7 +322,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { rescheduleAPI } from '../../utils/api'
+import { rescheduleAPI, suspensionAPI } from '../../utils/api'
 
 // 响应式数据
 const loading = ref(false)
@@ -352,27 +370,85 @@ onMounted(() => {
 const loadBookings = async () => {
   loading.value = true
   try {
-    const result = await rescheduleAPI.getTeacherRequests({
-      page: pagination.current,
-      size: pagination.size,
-      status: statusFilter.value,
-      year: yearFilter.value || undefined,
-      month: monthFilter.value || undefined,
-      requestType: requestTypeFilter.value ? (requestTypeFilter.value === 'cancel' ? 'cancel' : 'reschedule') : undefined,
-      applicantType: applicantTypeFilter.value || undefined,
-      applicantName: applicantNameFilter.value || undefined,
-      courseName: courseNameFilter.value || undefined
-    })
+    // 并行获取调课记录和请假记录
+    const [rescheduleResult, suspensionResult] = await Promise.all([
+      rescheduleAPI.getTeacherRequests({
+        page: pagination.current,
+        size: pagination.size,
+        status: statusFilter.value,
+        year: yearFilter.value || undefined,
+        month: monthFilter.value || undefined,
+        requestType: requestTypeFilter.value ? (requestTypeFilter.value === 'cancel' ? 'cancel' : 'reschedule') : undefined,
+        applicantType: applicantTypeFilter.value || undefined,
+        applicantName: applicantNameFilter.value || undefined,
+        courseName: courseNameFilter.value || undefined
+      }),
+      suspensionAPI.getTeacherRequests({
+        page: pagination.current,
+        size: pagination.size,
+        status: statusFilter.value
+      })
+    ])
 
-    if (result.success && result.data) {
-      bookings.value = result.data.records || []
-      pagination.total = result.data.total || 0
-    } else {
-      ElMessage.error(result.message || '获取调课记录失败')
+    let allBookings: any[] = []
+
+    // 处理调课记录
+    if (rescheduleResult.success && rescheduleResult.data) {
+      const rescheduleRecords = rescheduleResult.data.records || []
+      // 为调课记录添加类型标识
+      const processedRescheduleRecords = rescheduleRecords.map(record => ({
+        ...record,
+        recordType: 'reschedule'
+      }))
+      allBookings = allBookings.concat(processedRescheduleRecords)
+    }
+
+    // 处理请假记录
+    if (suspensionResult.success && suspensionResult.data) {
+      const suspensionRecords = suspensionResult.data.records || []
+      // 为请假记录添加类型标识并转换为统一格式
+      const processedSuspensionRecords = suspensionRecords.map(record => ({
+        ...record,
+        recordType: 'suspension',
+        requestType: 'cancel', // 请假记录统一标记为cancel类型
+        id: `suspension_${record.id}`, // 避免ID冲突
+        studentName: record.studentName || '未知学生',
+        applicantName: record.applicantName || '未知申请人',
+        applicantType: record.applicantType || 'teacher',
+        courseTitle: record.courseTitle || '未知课程',
+        originalDate: record.startDate,
+        originalStartTime: '00:00:00',
+        originalEndTime: '23:59:59',
+        reason: record.reason,
+        status: record.status,
+        createdAt: record.createdAt,
+        adminNotes: record.adminNotes
+      }))
+      allBookings = allBookings.concat(processedSuspensionRecords)
+    }
+
+    // 按创建时间倒序排序
+    allBookings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    // 应用筛选条件
+    let filteredBookings = allBookings
+    if (requestTypeFilter.value) {
+      if (requestTypeFilter.value === 'cancel') {
+        filteredBookings = filteredBookings.filter(record => record.requestType === 'cancel')
+      } else if (requestTypeFilter.value === 'single') {
+        filteredBookings = filteredBookings.filter(record => record.requestType === 'single')
+      }
+    }
+
+    bookings.value = filteredBookings
+    pagination.total = filteredBookings.length
+
+    if (!rescheduleResult.success && !suspensionResult.success) {
+      ElMessage.error('获取记录失败')
     }
   } catch (error) {
-    console.error('获取调课记录失败:', error)
-    ElMessage.error('获取调课记录失败，请稍后重试')
+    console.error('获取记录失败:', error)
+    ElMessage.error('获取记录失败，请稍后重试')
   } finally {
     loading.value = false
   }

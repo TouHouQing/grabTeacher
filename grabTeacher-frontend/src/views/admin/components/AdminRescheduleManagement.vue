@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, defineAsyncComponent } from 'vue'
+import { ref, reactive, onMounted, defineAsyncComponent, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Check,
@@ -44,6 +44,10 @@ interface RescheduleRequest {
 const StudentScheduler = defineAsyncComponent(() => import('../../../components/scheduler/StudentScheduler.vue'))
 const studentSchedulerRef = ref<any>(null)
 const selectedFinal = ref<{ date: string; startTime: string; endTime: string } | null>(null)
+const isReadOnly = computed(() => {
+  const st = currentRequest.value?.status
+  return st === 'approved' || st === 'rejected'
+})
 
 function openFinalCalendar() {
   if (!currentRequest.value?.teacherId || Number(currentRequest.value?.teacherId) <= 0) {
@@ -102,6 +106,7 @@ function isSelectedCandidate(c: {date:string;startTime:string;endTime:string}): 
 }
 
 function selectFinalFromCandidate(c: {date:string;startTime:string;endTime:string}) {
+  if (isReadOnly.value) return
   selectedFinal.value = { ...c }
   ElMessage.success(`已选择最终时间：${c.date} ${c.startTime}-${c.endTime}`)
 }
@@ -486,7 +491,7 @@ onMounted(() => {
                 :key="idx"
                 :type="isSelectedCandidate(c) ? 'success' : 'info'"
                 :effect="isSelectedCandidate(c) ? 'dark' : 'plain'"
-                class="clickable-tag"
+                :class="{ 'clickable-tag': !isReadOnly }"
                 style="margin-right: 6px; margin-bottom: 4px;"
                 @click="selectFinalFromCandidate(c)"
               >
@@ -579,7 +584,7 @@ onMounted(() => {
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="showDetailModal = false">关闭</el-button>
-          <el-button type="primary" link @click="openFinalCalendar">
+          <el-button v-if="currentRequest?.status === 'pending'" type="primary" link @click="openFinalCalendar">
             按日历选择最终时间（可跨两周）
           </el-button>
 

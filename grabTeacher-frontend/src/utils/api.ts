@@ -1038,11 +1038,23 @@ export const rescheduleAPI = {
   })
 }
 
-// 学生端 停课管理 API
+// 请假管理 API
 export const suspensionAPI = {
-  createRequest: (data: { enrollmentId: number; startDate: string; endDate: string; reason?: string }) =>
-    apiRequest('/api/suspension/request', { method: 'POST', body: JSON.stringify(data) }),
+  // 教师：获取请假申请列表
+  getTeacherRequests: (params: {
+    page?: number
+    size?: number
+    status?: string
+  }) => {
+    const sp = new URLSearchParams()
+    Object.keys(params || {}).forEach(key => {
+      const v: any = (params as any)[key]
+      if (v !== undefined && v !== null && v !== '') sp.append(key, v.toString())
+    })
+    return apiRequest(`/api/suspension/teacher/requests?${sp}`)
+  },
 
+  // 学生：获取请假申请列表
   getStudentRequests: (params: { page?: number; size?: number; status?: string }) => {
     const sp = new URLSearchParams()
     Object.keys(params || {}).forEach(k => {
@@ -1052,7 +1064,7 @@ export const suspensionAPI = {
     return apiRequest(`/api/suspension/student/requests?${sp}`)
   },
 
-  // 管理端
+  // 管理员：获取所有请假申请列表
   getAdminRequests: (params: { page?: number; size?: number; status?: string }) => {
     const sp = new URLSearchParams()
     Object.keys(params || {}).forEach(k => {
@@ -1061,9 +1073,16 @@ export const suspensionAPI = {
     })
     return apiRequest(`/api/suspension/admin/requests?${sp}`)
   },
+
+  // 创建请假申请
+  createRequest: (data: { enrollmentId: number; startDate: string; endDate: string; reason?: string }) =>
+    apiRequest('/api/suspension/request', { method: 'POST', body: JSON.stringify(data) }),
+
+  // 管理员：审批请假申请
   adminApprove: (id: number, data: { status: 'approved' | 'rejected'; reviewNotes: string }) =>
     apiRequest(`/api/suspension/${id}/approve`, { method: 'PUT', body: JSON.stringify(data) })
 }
+
 
 // 报名查询 API（用于展示已停课课程）
 export const enrollmentAPI = {

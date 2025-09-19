@@ -580,7 +580,7 @@ onMounted(async () => {
             </el-menu-item>
             <el-menu-item index="bookings" @click="$router.push('/teacher-center/bookings')">
               <el-icon><DocumentChecked /></el-icon>
-              <span>调课记录</span>
+              <span>调课请假记录</span>
             </el-menu-item>
 
             <el-menu-item index="my-hour-details">

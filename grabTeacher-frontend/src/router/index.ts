@@ -88,7 +88,7 @@ const router = createRouter({
           path: 'bookings',
           name: 'TeacherBookings',
           component: () => import('../views/teacher/BookingManagement.vue'),
-          meta: { requiresAuth: true, role: 'teacher', title: '调课记录' }
+          meta: { requiresAuth: true, role: 'teacher', title: '调课请假记录' }
         },
         {
           path: 'grade-entry',
