@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, Location, School, Trophy, ArrowLeft, Loading, Star, Clock, Document, InfoFilled } from '@element-plus/icons-vue'
+import { Calendar, Location, School, ArrowLeft, Loading, Star, Clock, Document, InfoFilled } from '@element-plus/icons-vue'
 import { teacherAPI, evaluationAPI, bookingAPI, publicTeachingLocationAPI, publicGradeAPI, subjectAPI } from '@/utils/api'
 import StudentBookingCalendar from '@/components/StudentBookingCalendar.vue'
 import StudentTrialCalendar from '@/components/StudentTrialCalendar.vue'
@@ -241,11 +241,6 @@ const teachersData = {
     location: '新加坡中部',
     contactPhone: '+65 8888 8888',
     contactEmail: 'zhang.teacher@grabteacher.com',
-    achievements: [
-      '2020年新加坡优秀教师奖',
-      '2018年数学教学创新奖',
-      '2016年学生最喜爱教师奖'
-    ]
   },
   2: {
     id: 2,
@@ -276,11 +271,6 @@ const teachersData = {
     location: '新加坡东部',
     contactPhone: '+65 8888 8889',
     contactEmail: 'li.teacher@grabteacher.com',
-    achievements: [
-      '2021年国际英语教学奖',
-      '2019年TESOL优秀教师奖',
-      '2017年学生口语提升突出贡献奖'
-    ]
   },
   3: {
     id: 3,
@@ -311,11 +301,6 @@ const teachersData = {
     location: '新加坡西部',
     contactPhone: '+65 8888 8890',
     contactEmail: 'wang.teacher@grabteacher.com',
-    achievements: [
-      '2020年物理教学创新奖',
-      '2018年优秀博士教师奖',
-      '2016年学生竞赛指导奖'
-    ]
   },
   4: {
     id: 4,
@@ -346,11 +331,6 @@ const teachersData = {
     location: '新加坡南部',
     contactPhone: '+65 8888 8891',
     contactEmail: 'liu.teacher@grabteacher.com',
-    achievements: [
-      '2021年化学教学优秀奖',
-      '2019年实验教学创新奖',
-      '2017年学生最喜爱女教师奖'
-    ]
   },
   5: {
     id: 5,
@@ -381,11 +361,6 @@ const teachersData = {
     location: '新加坡北部',
     contactPhone: '+65 8888 8892',
     contactEmail: 'chen.teacher@grabteacher.com',
-    achievements: [
-      '2020年青年教师优秀奖',
-      '2018年学生进步指导奖',
-      '2016年数学教学新秀奖'
-    ]
   },
   6: {
     id: 6,
@@ -416,11 +391,6 @@ const teachersData = {
     location: '新加坡中部',
     contactPhone: '+65 8888 8893',
     contactEmail: 'zhao.teacher@grabteacher.com',
-    achievements: [
-      '2021年生物教学创新奖',
-      '2019年科普教育贡献奖',
-      '2017年学生最受欢迎教师奖'
-    ]
   },
   7: {
     id: 7,
@@ -451,11 +421,6 @@ const teachersData = {
     location: '新加坡东部',
     contactPhone: '+65 8888 8894',
     contactEmail: 'yang.teacher@grabteacher.com',
-    achievements: [
-      '2020年少儿英语教学奖',
-      '2018年创意教学方法奖',
-      '2016年最受学生喜爱奖'
-    ]
   },
   8: {
     id: 8,
@@ -486,11 +451,6 @@ const teachersData = {
     location: '新加坡西部',
     contactPhone: '+65 8888 8895',
     contactEmail: 'zhou.teacher@grabteacher.com',
-    achievements: [
-      '2019年实验教学优秀奖',
-      '2017年青年教师成长奖',
-      '2015年学生实践指导奖'
-    ]
   }
 }
 
@@ -554,7 +514,6 @@ const fetchTeacherDetail = async () => {
         location: '新加坡',
         contactPhone: teacherData.phone || '未设置',
         contactEmail: teacherData.email || '未设置',
-        achievements: ['优秀教师奖'],
         level: teacherData.level || '未设置'
       }
 
@@ -1365,16 +1324,6 @@ watch(selectedCourse, (newCourse) => {
           </div>
         </div>
 
-        <div class="profile-section">
-          <h4 class="section-title"><el-icon><Trophy /></el-icon> 教学成就</h4>
-          <div class="section-content">
-            <ul class="achievements-list">
-              <li v-for="(achievement, index) in teacher.achievements" :key="index">
-                {{ achievement }}
-              </li>
-            </ul>
-          </div>
-        </div>
 
 
 
@@ -1941,14 +1890,6 @@ h2 {
   margin-bottom: 15px;
 }
 
-.achievements-list {
-  padding-left: 20px;
-  margin: 0;
-}
-
-.achievements-list li {
-  margin-bottom: 10px;
-}
 
 .schedule-times {
   display: flex;
