@@ -784,9 +784,16 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 CourseEnrollment ce = courseEnrollmentMapper.selectById(s.getEnrollmentId());
                 Course c = ce != null ? courseMap.get(ce.getCourseId()) : null;
                 if (c != null) {
-                    vo.setCourseTitle(c.getTitle());
                     Subject subj = subjectMap.get(c.getSubjectId());
-                    if (subj != null) vo.setSubjectName(subj.getName());
+                    String subjectName = subj != null ? subj.getName() : null;
+                    String title = buildTitle(
+                        ce != null ? (studentMap.getOrDefault(ce.getStudentId(), null) != null ? studentMap.get(ce.getStudentId()).getRealName() : null) : null,
+                        subjectName,
+                        ce != null ? ce.getGrade() : null,
+                        ce != null ? ce.getTrial() : null
+                    );
+                    vo.setCourseTitle(title);
+                    if (subjectName != null) vo.setSubjectName(subjectName);
                 }
                 Teacher t = ce != null ? teacherMap.get(ce.getTeacherId()) : null;
                 if (t != null) vo.setTeacherName(t.getRealName());
@@ -882,9 +889,16 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 CourseEnrollment ce = courseEnrollmentMapper.selectById(s.getEnrollmentId());
                 Course c = ce != null ? courseMap.get(ce.getCourseId()) : null;
                 if (c != null) {
-                    vo.setCourseTitle(c.getTitle());
                     Subject subj = subjectMap.get(c.getSubjectId());
-                    if (subj != null) vo.setSubjectName(subj.getName());
+                    String subjectName = subj != null ? subj.getName() : null;
+                    String title = buildTitle(
+                        ce != null ? (studentMap.getOrDefault(ce.getStudentId(), null) != null ? studentMap.get(ce.getStudentId()).getRealName() : null) : null,
+                        subjectName,
+                        ce != null ? ce.getGrade() : null,
+                        ce != null ? ce.getTrial() : null
+                    );
+                    vo.setCourseTitle(title);
+                    if (subjectName != null) vo.setSubjectName(subjectName);
                 }
                 Teacher t = ce != null ? teacherMap.get(ce.getTeacherId()) : null;
                 if (t != null) vo.setTeacherName(t.getRealName());
@@ -1006,9 +1020,16 @@ public  class RescheduleServiceImpl implements RescheduleService {
                 CourseEnrollment ce = courseEnrollmentMapper.selectById(s.getEnrollmentId());
                 Course c = ce != null ? courseMap.get(ce.getCourseId()) : null;
                 if (c != null) {
-                    vo.setCourseTitle(c.getTitle());
                     Subject subj = subjectMap.get(c.getSubjectId());
-                    if (subj != null) vo.setSubjectName(subj.getName());
+                    String subjectName = subj != null ? subj.getName() : null;
+                    String title = buildTitle(
+                        ce != null ? (studentMap.getOrDefault(ce.getStudentId(), null) != null ? studentMap.get(ce.getStudentId()).getRealName() : null) : null,
+                        subjectName,
+                        ce != null ? ce.getGrade() : null,
+                        ce != null ? ce.getTrial() : null
+                    );
+                    vo.setCourseTitle(title);
+                    if (subjectName != null) vo.setSubjectName(subjectName);
                 }
                 Teacher t = ce != null ? teacherMap.get(ce.getTeacherId()) : null;
                 if (t != null) vo.setTeacherName(t.getRealName());
@@ -1567,12 +1588,18 @@ public  class RescheduleServiceImpl implements RescheduleService {
             if (schedule != null) {
                 Course course = courseMapper.selectById(schedule.getCourseId());
                 if (course != null) {
-                    builder.courseTitle(course.getTitle());
-
+                    String subjectName = null;
                     Subject subject = subjectMapper.selectById(course.getSubjectId());
-                    if (subject != null) {
-                        builder.subjectName(subject.getName());
-                    }
+                    if (subject != null) subjectName = subject.getName();
+                    CourseEnrollment ce = courseEnrollmentMapper.selectById(schedule.getEnrollmentId());
+                    String title = buildTitle(
+                        ce != null ? (ce.getStudentId() != null ? (studentMapper.selectById(ce.getStudentId()) != null ? studentMapper.selectById(ce.getStudentId()).getRealName() : null) : null) : null,
+                        subjectName,
+                        ce != null ? ce.getGrade() : null,
+                        ce != null ? ce.getTrial() : null
+                    );
+                    builder.courseTitle(title);
+                    if (subjectName != null) builder.subjectName(subjectName);
                 }
 
                 Teacher teacher = teacherMapper.selectById(schedule.getTeacherId());
@@ -1632,5 +1659,14 @@ public  class RescheduleServiceImpl implements RescheduleService {
             case "cancelled" -> "已取消";
             default -> status;
         };
+    }
+
+    private String buildTitle(String studentName, String subjectName, String grade, Boolean trial) {
+        StringBuilder sb = new StringBuilder();
+        if (studentName != null) sb.append(studentName);
+        if (subjectName != null) sb.append(subjectName);
+        if (grade != null) sb.append(grade);
+        sb.append(Boolean.TRUE.equals(trial) ? "试听课" : "一对一课程");
+        return sb.toString();
     }
 }

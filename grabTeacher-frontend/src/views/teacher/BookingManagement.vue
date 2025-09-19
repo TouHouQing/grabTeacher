@@ -301,10 +301,10 @@
           </div>
         </div>
 
-        <div v-if="selectedBooking.adminNotes" class="detail-section">
+        <div v-if="selectedBooking.adminNotes && selectedBooking.status !== 'pending'" class="detail-section">
           <h3>管理员回复</h3>
           <div class="admin-reply-content">
-            {{ selectedBooking.adminNotes }}
+            {{ cleanAdminNotes(selectedBooking.adminNotes) }}
           </div>
         </div>
       </div>
@@ -324,10 +324,36 @@ import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { rescheduleAPI, suspensionAPI } from '../../utils/api'
 
+type ApplicantType = 'student' | 'teacher'
+type RequestType = 'single' | 'recurring' | 'cancel'
+interface TeacherBookingItem {
+  id: string | number
+  recordType: 'reschedule' | 'suspension'
+  status: string
+  createdAt: string
+  courseTitle?: string
+  studentName?: string
+  teacherName?: string
+  applicantName?: string
+  applicantType?: ApplicantType
+  requestType?: RequestType
+  originalDate?: string
+  originalStartTime?: string
+  originalEndTime?: string
+  newWeeklySchedule?: string
+  newDate?: string
+  newStartTime?: string
+  newEndTime?: string
+  startDate?: string
+  endDate?: string
+  reason?: string
+  adminNotes?: string
+  isTrial?: boolean
+}
+
 // 响应式数据
 const loading = ref(false)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const bookings = ref<any[]>([])
+const bookings = ref<TeacherBookingItem[]>([])
 const statusFilter = ref('')
 const yearFilter = ref<number | ''>('')
 const monthFilter = ref<number | null>(null)
@@ -348,8 +374,7 @@ const pagination = reactive({
 
 // 弹窗相关
 const showDetailModal = ref(false)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const selectedBooking = ref<any>(null)
+const selectedBooking = ref<TeacherBookingItem | null>(null)
 
 // 统计信息
 const bookingStats = computed(() => {
@@ -390,31 +415,32 @@ const loadBookings = async () => {
       })
     ])
 
-    let allBookings: any[] = []
+    let allBookings: TeacherBookingItem[] = []
 
     // 处理调课记录
     if (rescheduleResult.success && rescheduleResult.data) {
-      const rescheduleRecords = rescheduleResult.data.records || []
-      // 为调课记录添加类型标识
-      const processedRescheduleRecords = rescheduleRecords.map(record => ({
+      const rescheduleRecords = (rescheduleResult.data.records || []) as unknown as TeacherBookingItem[]
+      // 为调课记录添加类型标识，并映射管理员回复字段
+      const processedRescheduleRecords: TeacherBookingItem[] = rescheduleRecords.map((record) => ({
         ...record,
-        recordType: 'reschedule'
+        recordType: 'reschedule',
+        adminNotes: (record as unknown as { reviewNotes?: string }).reviewNotes || record.adminNotes || ''
       }))
       allBookings = allBookings.concat(processedRescheduleRecords)
     }
 
     // 处理请假记录
     if (suspensionResult.success && suspensionResult.data) {
-      const suspensionRecords = suspensionResult.data.records || []
+      const suspensionRecords = (suspensionResult.data.records || []) as unknown as TeacherBookingItem[]
       // 为请假记录添加类型标识并转换为统一格式
-      const processedSuspensionRecords = suspensionRecords.map(record => ({
+      const processedSuspensionRecords: TeacherBookingItem[] = suspensionRecords.map((record) => ({
         ...record,
         recordType: 'suspension',
-        requestType: 'cancel', // 请假记录统一标记为cancel类型
-        id: `suspension_${record.id}`, // 避免ID冲突
+        requestType: 'cancel',
+        id: `suspension_${(record as unknown as { id: string | number }).id}`,
         studentName: record.studentName || '未知学生',
-        applicantName: record.applicantName || '未知申请人',
-        applicantType: record.applicantType || 'teacher',
+        applicantName: record.applicantName || ((record.adminNotes || '').includes('[applicant=TEACHER]') ? (record.teacherName || '未知教师') : (record.studentName || '未知学生')),
+        applicantType: record.applicantType || (((record.adminNotes || '').includes('[applicant=TEACHER]')) ? 'teacher' : 'student'),
         courseTitle: record.courseTitle || '未知课程',
         originalDate: record.startDate,
         originalStartTime: '00:00:00',
@@ -431,7 +457,7 @@ const loadBookings = async () => {
     allBookings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
     // 应用筛选条件
-    let filteredBookings = allBookings
+    let filteredBookings: TeacherBookingItem[] = allBookings
     if (requestTypeFilter.value) {
       if (requestTypeFilter.value === 'cancel') {
         filteredBookings = filteredBookings.filter(record => record.requestType === 'cancel')
@@ -524,6 +550,12 @@ const getStatusText = (status: string) => {
     case 'cancelled': return '已取消'
     default: return '未知'
   }
+}
+
+// 清洗管理员回复中的方括号标签，例如 [applicant=STUDENT][applyCount=2][overCount=1]
+const cleanAdminNotes = (notes?: string) => {
+  if (!notes) return ''
+  return notes.replace(/\[[^\]]*\]/g, '').trim()
 }
 </script>
 

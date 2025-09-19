@@ -142,6 +142,27 @@ const formatDateTime = (dateTime?: string) => {
   return dateTime ? new Date(dateTime).toLocaleString('zh-CN') : '-'
 }
 
+// 规整审批意见：移除类似 [applicant=STUDENT][applyCount=2][overCount=1] 的标签
+const cleanAdminNotes = (notes?: string) => {
+  if (!notes) return ''
+  return notes.replace(/\[[^\]]*\]/g, '').trim()
+}
+
+// 从审批意见中提取申请人类型（STUDENT/TEACHER）
+const extractApplicantType = (notes?: string): 'STUDENT' | 'TEACHER' | '' => {
+  if (!notes) return ''
+  const match = notes.match(/\[applicant=(STUDENT|TEACHER)\]/i)
+  return match ? (match[1].toUpperCase() as 'STUDENT' | 'TEACHER') : ''
+}
+
+// 计算申请人姓名（当 applicant=TEACHER 时用教师名，否则用学生名）
+const getApplicantName = (req: SuspensionRequest | null): string => {
+  if (!req) return '-'
+  const type = extractApplicantType(req.adminNotes)
+  if (type === 'TEACHER') return req.teacherName || '-'
+  return req.studentName || '-'
+}
+
 onMounted(() => {
   loadRequests()
 })
@@ -177,6 +198,11 @@ onMounted(() => {
         <el-table-column prop="subjectName" label="科目" width="100" />
         <el-table-column prop="teacherName" label="教师" width="100" />
         <el-table-column prop="studentName" label="学生" width="120" />
+        <el-table-column label="申请人" width="120">
+          <template #default="{ row }">
+            {{ getApplicantName(row) }}
+          </template>
+        </el-table-column>
         <el-table-column label="请假区间" width="220">
           <template #default="{ row }">
             <span>{{ row.startDate || '-' }}</span>
@@ -222,13 +248,14 @@ onMounted(() => {
           <div class="detail-row"><span class="label">科目：</span><span>{{ currentRequest.subjectName || '-' }}</span></div>
           <div class="detail-row"><span class="label">教师：</span><span>{{ currentRequest.teacherName || '-' }}</span></div>
           <div class="detail-row"><span class="label">学生：</span><span>{{ currentRequest.studentName || '-' }}</span></div>
+          <div class="detail-row"><span class="label">申请人：</span><span>{{ getApplicantName(currentRequest) }}</span></div>
         </div>
         <div class="detail-section">
           <h4>申请信息</h4>
           <div class="detail-row"><span class="label">请假区间：</span><span>{{ (currentRequest.startDate || '-') + ' ~ ' + (currentRequest.endDate || '-') }}</span></div>
           <div class="detail-row"><span class="label">请假原因：</span><span>{{ currentRequest.reason || '-' }}</span></div>
           <div class="detail-row"><span class="label">状态：</span><span>{{ currentRequest.statusDisplay || currentRequest.status }}</span></div>
-          <div class="detail-row" v-if="currentRequest.adminNotes"><span class="label">审批意见：</span><span>{{ currentRequest.adminNotes }}</span></div>
+          <div class="detail-row" v-if="currentRequest.adminNotes"><span class="label">审批意见：</span><span>{{ cleanAdminNotes(currentRequest.adminNotes) }}</span></div>
         </div>
       </div>
       <template #footer>

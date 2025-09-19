@@ -37,6 +37,8 @@ public class SuspensionServiceImpl implements SuspensionService {
     @Autowired
     private CourseMapper courseMapper;
     @Autowired
+    private SubjectMapper subjectMapper;
+    @Autowired
     private BookingRequestMapper bookingRequestMapper;
     @Autowired
     private QuotaService quotaService;
@@ -571,13 +573,39 @@ public class SuspensionServiceImpl implements SuspensionService {
             CourseEnrollment ce = courseEnrollmentMapper.selectById(s.getEnrollmentId());
             if (ce != null) {
                 Course c = ce.getCourseId() != null ? courseMapper.selectById(ce.getCourseId()) : null;
-                if (c != null) {
-                    b.courseTitle(c.getTitle());
+                String subjectName = null;
+                if (c != null && c.getSubjectId() != null) {
+                    Subject sub = subjectMapper.selectById(c.getSubjectId());
+                    if (sub != null) subjectName = sub.getName();
                 }
                 Teacher t = teacherMapper.selectById(ce.getTeacherId());
                 if (t != null) b.teacherName(t.getRealName());
                 Student st = studentMapper.selectById(ce.getStudentId());
                 if (st != null) b.studentName(st.getRealName());
+
+                // 申请人类型与姓名（从 adminNotes 标签推断）
+                String applicantType = "";
+                String applicantName = null;
+                try {
+                    String notes = s.getAdminNotes() == null ? "" : s.getAdminNotes();
+                    if (notes.contains("[applicant=TEACHER]")) {
+                        applicantType = "teacher";
+                        applicantName = t != null ? t.getRealName() : null;
+                    } else if (notes.contains("[applicant=STUDENT]")) {
+                        applicantType = "student";
+                        applicantName = st != null ? st.getRealName() : null;
+                    }
+                } catch (Exception ignored) {}
+                if (!applicantType.isEmpty()) b.applicantType(applicantType);
+                if (applicantName != null) b.applicantName(applicantName);
+
+                // 统一课程标题：学生姓名 + 科目 + 年级 + （试听课/一对一课程）
+                String studentName = st != null ? st.getRealName() : null;
+                String grade = ce.getGrade();
+                Boolean trial = ce.getTrial();
+                String title = buildTitle(studentName, subjectName, grade, trial);
+                b.courseTitle(title);
+                if (subjectName != null) b.subjectName(subjectName);
             }
         } catch (Exception ignored) {}
 
@@ -592,6 +620,15 @@ public class SuspensionServiceImpl implements SuspensionService {
             case "cancelled" -> "已取消";
             default -> status;
         };
+    }
+
+    private String buildTitle(String studentName, String subjectName, String grade, Boolean trial) {
+        StringBuilder sb = new StringBuilder();
+        if (studentName != null) sb.append(studentName);
+        if (subjectName != null) sb.append(subjectName);
+        if (grade != null) sb.append(grade);
+        sb.append(Boolean.TRUE.equals(trial) ? "试听课" : "一对一课程");
+        return sb.toString();
     }
 }
 
