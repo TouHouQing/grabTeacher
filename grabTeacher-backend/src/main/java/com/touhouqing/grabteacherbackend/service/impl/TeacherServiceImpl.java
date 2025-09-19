@@ -1560,10 +1560,11 @@ public class TeacherServiceImpl implements TeacherService {
                 .map(HourDetail::getHours)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 2. 教师超出调课/请假次数后所扣课时 - 查询教师调课扣课时记录
+        // 2. 教师超出调课/请假次数后所扣课时 - 兼容当前文案："教师超额…扣减"
         QueryWrapper<HourDetail> teacherDeductionWrapper = new QueryWrapper<>();
         teacherDeductionWrapper.eq("user_id", userId);
-        teacherDeductionWrapper.like("reason", "教师调课扣课时");
+        teacherDeductionWrapper.like("reason", "教师超额");
+        teacherDeductionWrapper.like("reason", "扣减");
         teacherDeductionWrapper.ge("created_at", startDateTime);
         teacherDeductionWrapper.le("created_at", endDateTime);
         List<HourDetail> teacherDeductionList = hourDetailMapper.selectList(teacherDeductionWrapper);
@@ -1571,10 +1572,12 @@ public class TeacherServiceImpl implements TeacherService {
                 .map(HourDetail::getHours)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 3. 学生超出调课/请假次数的补偿课时 - 查询学生调课补偿记录
+        // 3. 学生超出调课/请假次数的补偿课时 - 兼容当前文案："学生超额…补偿"（包含调课/请假两类）
         QueryWrapper<HourDetail> studentCompensationWrapper = new QueryWrapper<>();
         studentCompensationWrapper.eq("user_id", userId);
-        studentCompensationWrapper.like("reason", "学生调课补偿");
+        studentCompensationWrapper.eq("transaction_type", 1); // 增加
+        studentCompensationWrapper.like("reason", "学生超额");
+        studentCompensationWrapper.like("reason", "补偿");
         studentCompensationWrapper.ge("created_at", startDateTime);
         studentCompensationWrapper.le("created_at", endDateTime);
         List<HourDetail> studentCompensationList = hourDetailMapper.selectList(studentCompensationWrapper);
