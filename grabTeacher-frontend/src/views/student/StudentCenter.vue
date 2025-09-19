@@ -30,6 +30,10 @@ const studentBalance = ref(0)
 const balanceLoading = ref(false)
 const studentAdjustmentTimes = ref<number | null>(null)
 
+// 免费试听次数
+const trialTimes = ref(0)
+const trialLoading = ref(false)
+
 // 根据当前路由设置激活菜单
 watch(() => route.path, (path: string) => {
   if (path.includes('/profile')) {
@@ -166,6 +170,26 @@ const loadStudentBalance = async () => {
   }
 }
 
+// 获取免费试听次数
+const loadTrialTimes = async () => {
+  try {
+    trialLoading.value = true
+    const result = await studentAPI.getProfile()
+
+    if (result.success && result.data) {
+      trialTimes.value = result.data.trialTimes || 0
+    } else {
+      trialTimes.value = 0
+    }
+  } catch (error) {
+    console.error('获取试听次数失败:', error)
+    // 静默失败，不显示错误消息，避免影响用户体验
+    trialTimes.value = 0
+  } finally {
+    trialLoading.value = false
+  }
+}
+
 // 页面加载时获取数据
 onMounted(async () => {
   // 确保用户头像已加载
@@ -175,6 +199,7 @@ onMounted(async () => {
   loadUpcomingCourses()
   loadStatistics()
   loadStudentBalance()
+  loadTrialTimes()
 })
 </script>
 
@@ -243,6 +268,15 @@ onMounted(async () => {
               <div class="stat-info">
                 <div class="stat-value">{{ balanceLoading ? '-' : studentBalance }}</div>
                 <div class="stat-label">M豆余额</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">
+                <el-icon><Connection /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ trialLoading ? '-' : trialTimes }}</div>
+                <div class="stat-label">剩余免费试听次数</div>
               </div>
             </div>
             <div class="stat-card">
@@ -411,7 +445,7 @@ onMounted(async () => {
 
 .dashboard-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 15px;
   margin-bottom: 30px;
 }

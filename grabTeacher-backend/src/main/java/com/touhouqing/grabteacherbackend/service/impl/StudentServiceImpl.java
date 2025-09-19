@@ -102,6 +102,7 @@ public class StudentServiceImpl implements StudentService {
                 .avatarUrl(avatarUrl)
                 .balance(student.getBalance())
                 .adjustmentTimes(user != null ? user.getAdjustmentTimes() : null)
+                .trialTimes(user != null ? user.getTrialTimes() : null)
                 .deleted(student.getDeleted())
                 .deletedAt(student.getDeletedAt())
                 .build();
