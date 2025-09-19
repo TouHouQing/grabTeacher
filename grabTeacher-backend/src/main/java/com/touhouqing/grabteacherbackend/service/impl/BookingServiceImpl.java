@@ -1732,6 +1732,15 @@ public class BookingServiceImpl implements BookingService {
                     .or().like("admin_notes", keyword));
         }
 
+        // 管理端列表规则：
+        // - 非试听课：正常显示
+        // - 试听课：若其所有课节已被取消/删除（如教师或学生对该试听课请假/取消成功），则不在管理端预约列表中显示
+        //   判定条件：存在至少一条未删除且未被取消的课节（cs.is_deleted = 0 且 cs.schedule_status <> 'cancelled'）
+        queryWrapper.and(q -> q.eq("is_trial", false)
+                .or()
+                .exists("SELECT 1 FROM course_schedules cs JOIN course_enrollments ce ON cs.enrollment_id = ce.id " +
+                        "WHERE ce.booking_request_id = booking_requests.id AND cs.is_deleted = 0 AND cs.schedule_status <> 'cancelled'"));
+
         queryWrapper.orderByDesc("created_at");
 
         Page<BookingRequest> bookingPage = bookingRequestMapper.selectPage(new Page<>(page, size), queryWrapper);
