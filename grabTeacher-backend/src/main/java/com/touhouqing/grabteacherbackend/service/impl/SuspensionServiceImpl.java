@@ -493,7 +493,7 @@ public class SuspensionServiceImpl implements SuspensionService {
     }
 
     @Override
-    public Page<SuspensionVO> getStudentSuspensionRequests(Long studentUserId, int page, int size, String status) {
+    public Page<SuspensionVO> getStudentSuspensionRequests(Long studentUserId, int page, int size, String status, Integer year, Integer month) {
         Student student = studentMapper.findByUserId(studentUserId);
         if (student == null) throw new RuntimeException("学生信息不存在");
         List<SuspensionRequest> list = suspensionRequestMapper.findByStudentId(student.getId());
@@ -501,19 +501,32 @@ public class SuspensionServiceImpl implements SuspensionService {
         for (SuspensionRequest s : list) {
             if (status == null || status.equals(s.getStatus())) filtered.add(s);
         }
+        // 创建时间筛选
+        List<SuspensionRequest> filteredByDate = new ArrayList<>();
+        if (year != null || month != null) {
+            for (SuspensionRequest s : filtered) {
+                if (s.getCreatedAt() == null) continue;
+                boolean yOk = (year == null) || s.getCreatedAt().getYear() == year;
+                boolean mOk = (month == null) || s.getCreatedAt().getMonthValue() == month;
+                if (yOk && mOk) filteredByDate.add(s);
+            }
+        } else {
+            filteredByDate = filtered;
+        }
+
         Page<SuspensionVO> voPage = new Page<>(page, size);
-        voPage.setTotal(filtered.size());
+        voPage.setTotal(filteredByDate.size());
         int from = Math.max(0, (page - 1) * size);
-        int to = Math.min(filtered.size(), from + size);
+        int to = Math.min(filteredByDate.size(), from + size);
         List<SuspensionVO> vos = new ArrayList<>();
-        for (int i = from; i < to; i++) vos.add(toVO(filtered.get(i)));
+        for (int i = from; i < to; i++) vos.add(toVO(filteredByDate.get(i)));
         voPage.setRecords(vos);
         return voPage;
     }
 
 
     @Override
-    public Page<SuspensionVO> getTeacherSuspensionRequests(Long teacherUserId, int page, int size, String status) {
+    public Page<SuspensionVO> getTeacherSuspensionRequests(Long teacherUserId, int page, int size, String status, Integer year, Integer month) {
         Teacher teacher = teacherMapper.findByUserId(teacherUserId);
         if (teacher == null) throw new RuntimeException("教师信息不存在");
         List<SuspensionRequest> list = suspensionRequestMapper.findByTeacherId(teacher.getId());
@@ -521,13 +534,26 @@ public class SuspensionServiceImpl implements SuspensionService {
         for (SuspensionRequest s : list) {
             if (status == null || status.equals(s.getStatus())) filtered.add(s);
         }
+        // 创建时间筛选
+        List<SuspensionRequest> filteredByDate = new ArrayList<>();
+        if (year != null || month != null) {
+            for (SuspensionRequest s : filtered) {
+                if (s.getCreatedAt() == null) continue;
+                boolean yOk = (year == null) || s.getCreatedAt().getYear() == year;
+                boolean mOk = (month == null) || s.getCreatedAt().getMonthValue() == month;
+                if (yOk && mOk) filteredByDate.add(s);
+            }
+        } else {
+            filteredByDate = filtered;
+        }
+
         Page<SuspensionVO> voPage = new Page<>(page, size);
-        voPage.setTotal(filtered.size());
+        voPage.setTotal(filteredByDate.size());
         int from = Math.max(0, (page - 1) * size);
-        int to = Math.min(filtered.size(), from + size);
+        int to = Math.min(filteredByDate.size(), from + size);
         List<SuspensionVO> records = new ArrayList<>();
         for (int i = from; i < to; i++) {
-            records.add(toVO(filtered.get(i)));
+            records.add(toVO(filteredByDate.get(i)));
         }
         voPage.setRecords(records);
         return voPage;

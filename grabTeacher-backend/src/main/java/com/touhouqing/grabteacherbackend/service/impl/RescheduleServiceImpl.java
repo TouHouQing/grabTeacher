@@ -714,7 +714,7 @@ public  class RescheduleServiceImpl implements RescheduleService {
     }
 
 
-    public Page<RescheduleVO> getStudentRescheduleRequests(Long studentUserId, int page, int size, String status) {
+    public Page<RescheduleVO> getStudentRescheduleRequests(Long studentUserId, int page, int size, String status, Integer year, Integer month) {
         log.info("获取学生调课申请列表，学生用户ID: {}, 页码: {}, 大小: {}, 状态: {}", studentUserId, page, size, status);
 
         Student student = studentMapper.findByUserId(studentUserId);
@@ -805,9 +805,22 @@ public  class RescheduleServiceImpl implements RescheduleService {
             vos.add(vo);
         }
 
+        // 创建时间筛选（后端统一）
+        List<RescheduleVO> filtered = new ArrayList<>(vos);
+        if (year != null || month != null) {
+            Integer y = year;
+            Integer m = month;
+            filtered = filtered.stream().filter(v -> {
+                if (v.getCreatedAt() == null) return false;
+                boolean yOk = (y == null) || v.getCreatedAt().getYear() == y;
+                boolean mOk = (m == null) || v.getCreatedAt().getMonthValue() == m;
+                return yOk && mOk;
+            }).collect(Collectors.toList());
+        }
+
         Page<RescheduleVO> responsePage = new Page<>(page, size);
-        responsePage.setTotal(resultPage.getTotal());
-        responsePage.setRecords(vos);
+        responsePage.setTotal(filtered.size());
+        responsePage.setRecords(filtered);
         return responsePage;
     }
 
@@ -931,18 +944,10 @@ public  class RescheduleServiceImpl implements RescheduleService {
             Integer y = year;
             Integer m = month;
             filtered = filtered.stream().filter(v -> {
-                boolean match = false;
-                if (v.getOriginalDate() != null) {
-                    boolean yOk = (y == null) || v.getOriginalDate().getYear() == y;
-                    boolean mOk = (m == null) || v.getOriginalDate().getMonthValue() == m;
-                    match = yOk && mOk;
-                }
-                if (!match && v.getNewDate() != null) {
-                    boolean yOk = (y == null) || v.getNewDate().getYear() == y;
-                    boolean mOk = (m == null) || v.getNewDate().getMonthValue() == m;
-                    match = yOk && mOk;
-                }
-                return match;
+                if (v.getCreatedAt() == null) return false;
+                boolean yOk = (y == null) || v.getCreatedAt().getYear() == y;
+                boolean mOk = (m == null) || v.getCreatedAt().getMonthValue() == m;
+                return yOk && mOk;
             }).collect(Collectors.toList());
         }
 

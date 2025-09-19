@@ -145,10 +145,12 @@ public class RescheduleController {
             @Parameter(description = "页码", example = "1") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小", example = "10") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "状态筛选", example = "pending") @RequestParam(required = false) String status,
+            @Parameter(description = "年份", example = "2025") @RequestParam(required = false) Integer year,
+            @Parameter(description = "月份(1-12)", example = "9") @RequestParam(required = false) Integer month,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
             Page<RescheduleVO> result = rescheduleService.getStudentRescheduleRequests(
-                    currentUser.getId(), page, size, status);
+                    currentUser.getId(), page, size, status, year, month);
             return ResponseEntity.ok(CommonResult.success("获取成功", result));
         } catch (RuntimeException e) {
             logger.warn("获取学生调课申请列表失败: {}", e.getMessage());

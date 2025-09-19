@@ -418,7 +418,9 @@ const loadBookings = async () => {
       suspensionAPI.getTeacherRequests({
         page: pagination.current,
         size: pagination.size,
-        status: statusFilter.value
+        status: statusFilter.value,
+        year: yearFilter.value || undefined,
+        month: monthFilter.value || undefined
       })
     ])
 
@@ -463,7 +465,7 @@ const loadBookings = async () => {
     // 按创建时间倒序排序
     allBookings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-    // 应用筛选条件
+    // 应用筛选条件（类型/课程名等本地；时间交给后端 year/month 已参与）
     let filteredBookings: TeacherBookingItem[] = allBookings
     if (requestTypeFilter.value) {
       if (requestTypeFilter.value === 'cancel') {

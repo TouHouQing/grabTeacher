@@ -949,11 +949,13 @@ export const rescheduleAPI = {
     method: 'PUT'
   }),
 
-  // 获取学生的调课申请列表
+  // 获取学生的调课申请列表（支持按创建时间的年/月筛选）
   getStudentRequests: (params: {
     page?: number
     size?: number
     status?: string
+    year?: number
+    month?: number
   }) => {
     const searchParams = new URLSearchParams()
     Object.keys(params).forEach(key => {
@@ -1040,11 +1042,13 @@ export const rescheduleAPI = {
 
 // 请假管理 API
 export const suspensionAPI = {
-  // 教师：获取请假申请列表
+  // 教师：获取请假申请列表（支持按创建时间的年/月筛选）
   getTeacherRequests: (params: {
     page?: number
     size?: number
     status?: string
+    year?: number
+    month?: number
   }) => {
     const sp = new URLSearchParams()
     Object.keys(params || {}).forEach(key => {
@@ -1054,8 +1058,8 @@ export const suspensionAPI = {
     return apiRequest(`/api/suspension/teacher/requests?${sp}`)
   },
 
-  // 学生：获取请假申请列表
-  getStudentRequests: (params: { page?: number; size?: number; status?: string }) => {
+  // 学生：获取请假申请列表（支持按创建时间的年/月筛选）
+  getStudentRequests: (params: { page?: number; size?: number; status?: string; year?: number; month?: number }) => {
     const sp = new URLSearchParams()
     Object.keys(params || {}).forEach(k => {
       const v: any = (params as any)[k]

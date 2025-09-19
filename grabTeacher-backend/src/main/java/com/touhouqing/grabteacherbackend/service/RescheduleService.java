@@ -60,7 +60,7 @@ public interface RescheduleService {
      * @param status 状态筛选
      * @return 分页调课申请列表
      */
-    Page<RescheduleVO> getStudentRescheduleRequests(Long studentUserId, int page, int size, String status);
+    Page<RescheduleVO> getStudentRescheduleRequests(Long studentUserId, int page, int size, String status, Integer year, Integer month);
 
     /**
      * 获取教师需要审批的调课申请列表

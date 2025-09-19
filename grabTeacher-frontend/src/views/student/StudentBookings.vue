@@ -356,8 +356,8 @@ const loadBookings = async () => {
   loading.value = true
   try {
     const [rescheduleResult, suspensionResult] = await Promise.all([
-      rescheduleAPI.getStudentRequests({ page: pagination.current, size: pagination.size, status: statusFilter.value || undefined }),
-      suspensionAPI.getStudentRequests({ page: pagination.current, size: pagination.size, status: statusFilter.value || undefined })
+      rescheduleAPI.getStudentRequests({ page: pagination.current, size: pagination.size, status: statusFilter.value || undefined, year: yearFilter.value || undefined, month: monthFilter.value || undefined }),
+      suspensionAPI.getStudentRequests({ page: pagination.current, size: pagination.size, status: statusFilter.value || undefined, year: yearFilter.value || undefined, month: monthFilter.value || undefined })
     ])
 
     let allBookings: StudentBookingItem[] = []
@@ -396,19 +396,10 @@ const loadBookings = async () => {
 
     allBookings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-    // 应用筛选
+    // 应用筛选（类型与课程名本地，其它交由后端）
     let filtered = allBookings
     if (requestTypeFilter.value) {
       filtered = filtered.filter(r => requestTypeFilter.value === 'cancel' ? r.recordType === 'suspension' : r.recordType === 'reschedule')
-    }
-    if (yearFilter.value || monthFilter.value) {
-      filtered = filtered.filter(r => {
-        const dt = r.createdAt ? new Date(r.createdAt) : null
-        if (!dt || isNaN(dt.getTime())) return false
-        const yOk = yearFilter.value ? dt.getFullYear() === yearFilter.value : true
-        const mOk = monthFilter.value ? (dt.getMonth() + 1) === monthFilter.value : true
-        return yOk && mOk
-      })
     }
     if (courseNameFilter.value && courseNameFilter.value.trim()) {
       const kw = courseNameFilter.value.trim().toLowerCase()

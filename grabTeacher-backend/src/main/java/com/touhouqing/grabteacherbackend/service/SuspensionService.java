@@ -13,10 +13,10 @@ public interface SuspensionService {
 
     SuspensionVO adminApproveSuspension(Long requestId, SuspensionApprovalDTO approval, Long adminUserId);
 
-    Page<SuspensionVO> getStudentSuspensionRequests(Long studentUserId, int page, int size, String status);
+    Page<SuspensionVO> getStudentSuspensionRequests(Long studentUserId, int page, int size, String status, Integer year, Integer month);
 
     /** 教师查看自己的请假申请列表 */
-    Page<SuspensionVO> getTeacherSuspensionRequests(Long teacherUserId, int page, int size, String status);
+    Page<SuspensionVO> getTeacherSuspensionRequests(Long teacherUserId, int page, int size, String status, Integer year, Integer month);
 
     Page<SuspensionVO> getAllSuspensionRequests(int page, int size, String status);
 }

@@ -66,9 +66,11 @@ public class SuspensionController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
-            Page<SuspensionVO> result = suspensionService.getStudentSuspensionRequests(currentUser.getId(), page, size, status);
+            Page<SuspensionVO> result = suspensionService.getStudentSuspensionRequests(currentUser.getId(), page, size, status, year, month);
             return ResponseEntity.ok(CommonResult.success("获取成功", result));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
@@ -101,9 +103,11 @@ public class SuspensionController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {
-            Page<SuspensionVO> result = suspensionService.getTeacherSuspensionRequests(currentUser.getId(), page, size, status);
+            Page<SuspensionVO> result = suspensionService.getTeacherSuspensionRequests(currentUser.getId(), page, size, status, year, month);
             return ResponseEntity.ok(CommonResult.success("获取成功", result));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(CommonResult.error(e.getMessage()));
