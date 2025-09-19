@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -64,6 +65,9 @@ public class TeacherDetailVO {
 
     @Schema(description = "教师级别", allowableValues = {"王牌", "金牌", "银牌", "铜牌"})
     private String level;
+
+    @Schema(description = "教师评分", example = "4.5")
+    private BigDecimal rating;
 
     @Schema(description = "是否支持线上授课", example = "true")
     private Boolean supportsOnline;

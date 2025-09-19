@@ -542,13 +542,13 @@ const fetchTeacherDetail = async () => {
         subject: teacherData.subjects && teacherData.subjects.length > 0 ? teacherData.subjects[0] : '未设置',
         subjects: teacherData.subjects || [], // 保存完整的科目列表
         experience: teacherData.teachingExperience || 0,
-        rating: 4.8, // 暂时使用默认值
+        rating: teacherData.rating ? Number(teacherData.rating) : 0, // 使用接口返回的评分
         description: teacherData.introduction || '暂无介绍',
         detailedDescription: teacherData.introduction || '暂无详细介绍',
         avatar: teacherData.avatarUrl || teacherBoy1, // 使用用户头像或默认头像
         tags: teacherData.specialties ? teacherData.specialties.split(',') : [],
         schedule: ['周一 18:00-20:00', '周三 18:00-20:00', '周六 10:00-12:00'], // 暂时使用默认值
-        gender: teacherData.gender || 'Male',
+        gender: teacherData.gender || '男',
         teachingStyle: '个性化教学',
         education: teacherData.educationBackground || '暂无信息',
         location: '新加坡',
@@ -1326,7 +1326,7 @@ watch(selectedCourse, (newCourse) => {
                 <el-tag type="warning" effect="plain" class="experience-tag">{{ teacher.experience }}年教龄</el-tag>
                 <el-tag type="danger" effect="plain" class="level-tag">{{ teacher.level }}</el-tag>
                 <el-tag type="info" effect="plain" class="gender-tag">
-                  {{ teacher.gender === 'Male' ? '男' : '女' }}
+                  {{ teacher.gender }}
                 </el-tag>
               </div>
               <div class="tag-group">

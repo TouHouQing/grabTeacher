@@ -162,6 +162,7 @@ public class TeacherServiceImpl implements TeacherService {
                 .introduction(teacher.getIntroduction())
                 .gender(teacher.getGender())
                 .level(teacher.getLevel())
+                .rating(teacher.getRating())
                 .supportsOnline(supportsOnline)
                 .teachingLocationIds(locationIds)
                 .verified(teacher.getVerified())
