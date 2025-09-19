@@ -419,6 +419,8 @@ public  class RescheduleServiceImpl implements RescheduleService {
                     if (schedule.getScheduledDate() != null) affectedDates.add(schedule.getScheduledDate());
                 }
                 cacheKeyEvictor.evictTeacherScheduleAndAvailability(teacherId, affectedDates);
+                cacheKeyEvictor.evictTeacherMonthlyCalendar(teacherId, affectedDates);
+
                 if (!affectedDates.isEmpty()) {
                     for (LocalDate d : affectedDates) {
                         List<CourseSchedule> dayAll = courseScheduleMapper.findByTeacherIdAndDateRange(teacherId, d, d);
@@ -576,6 +578,8 @@ public  class RescheduleServiceImpl implements RescheduleService {
                     if (schedule.getScheduledDate() != null) affectedDates.add(schedule.getScheduledDate());
                 }
                 cacheKeyEvictor.evictTeacherScheduleAndAvailability(teacherId, affectedDates);
+                cacheKeyEvictor.evictTeacherMonthlyCalendar(teacherId, affectedDates);
+
                 if (!affectedDates.isEmpty()) {
                     for (LocalDate d : affectedDates) {
                         List<CourseSchedule> dayAll = courseScheduleMapper.findByTeacherIdAndDateRange(teacherId, d, d);

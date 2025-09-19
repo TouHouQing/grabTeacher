@@ -543,7 +543,7 @@ const bookingStats = computed(() => {
 // 根据标签筛选课程（V2：直接使用后端聚合结果，不再合并占位课程）
 const filteredCourses = computed(() => {
   if (activeTab.value === 'suspended') return []
-  if (activeTab.value === 'pending' || activeTab.value === 'approved') return []
+  if (activeTab.value === 'pending' || activeTab.value === 'rejected') return []
   if (activeTab.value === 'active') return courses.value.filter(course => course.status === 'active')
   return courses.value.filter(course => course.status === activeTab.value)
 })
@@ -552,15 +552,15 @@ const filteredCourses = computed(() => {
 const filteredBookings = computed(() => {
   if (activeTab.value === 'pending') {
     return bookings.value.filter(b => b.status === 'pending')
-  } else if (activeTab.value === 'approved') {
-    return bookings.value.filter(b => b.status === 'approved')
+  } else if (activeTab.value === 'rejected') {
+    return bookings.value.filter(b => b.status === 'rejected')
   }
   return []
 })
-// 懒加载预约列表：仅在切换到“待审核/已审核”标签时请求，避免与课程接口并发
+// 懒加载预约列表：仅在切换到“待审核/已拒绝”标签时请求，避免与课程接口并发
 const loadedBookingStatuses = ref<Set<string>>(new Set())
 watch(activeTab, async (val: string) => {
-  if (val === 'pending' || val === 'approved') {
+  if (val === 'pending' || val === 'rejected') {
     if (!loadedBookingStatuses.value.has(val)) {
       statusFilter.value = val
       await loadBookings()
@@ -2110,6 +2110,34 @@ const getStatusText = (status: string) => {
     default: return '未知'
   }
 }
+
+// 预约类型与时间文案
+const getBookingTypeText = (t: string): string => {
+  switch (t) {
+    case 'single': return '单次预约'
+    case 'recurring': return '周期性预约'
+    case 'calendar': return '日历预约'
+    default: return '未知'
+  }
+}
+
+const getBookingTimeText = (b: BookingRequest): string => {
+  if (!b) return '时间待定'
+  if (b.bookingType === 'single') {
+    const date = b.requestedDate || ''
+    const s = b.requestedStartTime || ''
+    const e = b.requestedEndTime || ''
+    return (date && s && e) ? `${date} ${s}-${e}` : (date || '时间待定')
+  }
+  if (b.bookingType === 'calendar') {
+    if (b.calendarWeekdayTimeSlots) return formatCalendarWeekdaySlotsLimited(b.calendarWeekdayTimeSlots, 3)
+    if (b.calendarTimeSlots && b.calendarTimeSlots.length) return b.calendarTimeSlots.join('、')
+    return '时间待定'
+  }
+  // recurring
+  return formatRecurringTime(b.recurringWeekdays || [], b.recurringTimeSlots || [])
+}
+
 </script>
 
 <script lang="ts">
@@ -2265,22 +2293,17 @@ export default {
                   <div class="booking-details">
                     <div class="detail-row">
                       <span class="label">预约类型：</span>
-                      <span class="value">{{ booking.bookingType === 'single' ? '单次预约' : '周期性预约' }}</span>
+                      <span class="value">{{ getBookingTypeText(booking.bookingType) }}</span>
                     </div>
 
-                    <div v-if="booking.bookingType === 'single'" class="detail-row">
+                    <div class="detail-row">
                       <span class="label">上课时间：</span>
                       <span class="value">
-                        {{ booking.requestedDate }} {{ booking.requestedStartTime }}-{{ booking.requestedEndTime }}
+                        {{ getBookingTimeText(booking) }}
                       </span>
                     </div>
 
-                    <div v-else class="detail-row">
-                      <span class="label">上课时间：</span>
-                      <span class="value">
-                        {{ formatRecurringTime(booking.recurringWeekdays, booking.recurringTimeSlots) }}
-                      </span>
-                    </div>
+
 
                     <div v-if="booking.bookingType === 'recurring'" class="detail-row">
                       <span class="label">课程周期：</span>
@@ -2289,6 +2312,15 @@ export default {
                         <span v-if="booking.totalTimes">（共{{ booking.totalTimes }}次课）</span>
                       </span>
                     </div>
+
+                    <div v-if="booking.bookingType === 'calendar'" class="detail-row">
+                      <span class="label">课程区间：</span>
+                      <span class="value">
+                        {{ booking.calendarStartDate }} 至 {{ booking.calendarEndDate }}
+                        <span v-if="booking.calendarSessionsCount || booking.totalTimes">（共{{ booking.calendarSessionsCount || booking.totalTimes }}次课）</span>
+                      </span>
+                    </div>
+
 
                     <div v-if="booking.studentRequirements" class="detail-row">
                       <span class="label">学习需求：</span>
@@ -2324,12 +2356,12 @@ export default {
             </div>
           </div>
         </el-tab-pane>
-        <el-tab-pane label="已审核" name="approved">
+        <el-tab-pane label="已拒绝" name="rejected">
           <div class="tab-content">
             <div v-if="bookingLoading" class="loading-container">
               <el-skeleton :rows="3" animated />
             </div>
-            <el-empty v-else-if="filteredBookings.length === 0" description="暂无已审核的预约" />
+            <el-empty v-else-if="filteredBookings.length === 0" description="暂无已拒绝的预约" />
             <div v-else class="booking-list">
               <div v-for="booking in filteredBookings" :key="booking.id" class="booking-item">
                 <div class="booking-header">
@@ -2362,22 +2394,17 @@ export default {
                   <div class="booking-details">
                     <div class="detail-row">
                       <span class="label">预约类型：</span>
-                      <span class="value">{{ booking.bookingType === 'single' ? '单次预约' : '周期性预约' }}</span>
+                      <span class="value">{{ getBookingTypeText(booking.bookingType) }}</span>
                     </div>
 
-                    <div v-if="booking.bookingType === 'single'" class="detail-row">
+                    <div class="detail-row">
                       <span class="label">上课时间：</span>
                       <span class="value">
-                        {{ booking.requestedDate }} {{ booking.requestedStartTime }}-{{ booking.requestedEndTime }}
+                        {{ getBookingTimeText(booking) }}
                       </span>
                     </div>
 
-                    <div v-else class="detail-row">
-                      <span class="label">上课时间：</span>
-                      <span class="value">
-                        {{ formatRecurringTime(booking.recurringWeekdays, booking.recurringTimeSlots) }}
-                      </span>
-                    </div>
+
 
                     <div v-if="booking.bookingType === 'recurring'" class="detail-row">
                       <span class="label">课程周期：</span>
@@ -2386,6 +2413,15 @@ export default {
                         <span v-if="booking.totalTimes">（共{{ booking.totalTimes }}次课）</span>
                       </span>
                     </div>
+
+                    <div v-if="booking.bookingType === 'calendar'" class="detail-row">
+                      <span class="label">课程区间：</span>
+                      <span class="value">
+                        {{ booking.calendarStartDate }} 至 {{ booking.calendarEndDate }}
+                        <span v-if="booking.calendarSessionsCount || booking.totalTimes">（共{{ booking.calendarSessionsCount || booking.totalTimes }}次课）</span>
+                      </span>
+                    </div>
+
 
                     <div v-if="booking.studentRequirements" class="detail-row">
                       <span class="label">学习需求：</span>
@@ -2780,7 +2816,7 @@ export default {
             </div>
             <div class="detail-item">
               <label>预约类型：</label>
-              <span>{{ selectedBooking.bookingType === 'single' ? '单次预约' : '周期性预约' }}</span>
+              <span>{{ getBookingTypeText(selectedBooking.bookingType) }}</span>
             </div>
             <div class="detail-item">
               <label>申请状态：</label>
@@ -2819,15 +2855,19 @@ export default {
           <div v-else class="time-info">
             <div class="time-item">
               <label>上课时间：</label>
-              <span>{{ formatRecurringTime(selectedBooking.recurringWeekdays, selectedBooking.recurringTimeSlots) }}</span>
+              <span>{{ getBookingTimeText(selectedBooking) }}</span>
             </div>
-            <div class="time-item">
+            <div v-if="selectedBooking.bookingType === 'recurring'" class="time-item">
               <label>课程周期：</label>
               <span>{{ selectedBooking.startDate }} 至 {{ selectedBooking.endDate }}</span>
             </div>
-            <div v-if="selectedBooking.totalTimes" class="time-item">
+            <div v-if="selectedBooking.bookingType === 'calendar'" class="time-item">
+              <label>课程区间：</label>
+              <span>{{ selectedBooking.calendarStartDate }} 至 {{ selectedBooking.calendarEndDate }}</span>
+            </div>
+            <div v-if="selectedBooking.totalTimes || selectedBooking.calendarSessionsCount" class="time-item">
               <label>总课程数：</label>
-              <span>{{ selectedBooking.totalTimes }}次</span>
+              <span>{{ selectedBooking.totalTimes || selectedBooking.calendarSessionsCount }}次</span>
             </div>
           </div>
         </div>

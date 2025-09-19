@@ -289,7 +289,7 @@ public class BookingServiceImpl implements BookingService {
                     try {
                         ObjectMapper objectMapper = new ObjectMapper();
                         List<Map<String, Object>> sessions = objectMapper.readValue(
-                            bookingRequest.getSelectedSessionsJson(), 
+                            bookingRequest.getSelectedSessionsJson(),
                             new TypeReference<List<Map<String, Object>>>() {}
                         );
                         for (Map<String, Object> session : sessions) {
@@ -303,7 +303,7 @@ public class BookingServiceImpl implements BookingService {
                     }
                 }
             }
-            
+
             if (!affectedDates.isEmpty()) {
                 cacheKeyEvictor.evictTeacherMonthlyCalendar(bookingRequest.getTeacherId(), affectedDates);
                 log.info("已清理教师{}的月历缓存，影响日期: {}", bookingRequest.getTeacherId(), affectedDates);
@@ -458,6 +458,50 @@ public class BookingServiceImpl implements BookingService {
                         log.error("预约被拒绝，退费处理失败，预约ID: {}", bookingId, e);
                     }
                 }
+
+            // 审核拒绝后：清理 teacherSchedule/teacherAvailability/月历 缓存，并回填 busy 日缓存，确保该时间段立刻释放
+            try {
+                java.util.Set<java.time.LocalDate> affectedDates = new java.util.HashSet<>();
+                if ("single".equals(bookingRequest.getBookingType())) {
+                    if (bookingRequest.getRequestedDate() != null) {
+                        affectedDates.add(bookingRequest.getRequestedDate());
+                    }
+                } else if ("calendar".equals(bookingRequest.getBookingType())) {
+                    if (bookingRequest.getSelectedSessionsJson() != null && !bookingRequest.getSelectedSessionsJson().trim().isEmpty()) {
+                        try {
+                            com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                            java.util.List<java.util.Map<String, Object>> sessions = objectMapper.readValue(
+                                bookingRequest.getSelectedSessionsJson(),
+                                new com.fasterxml.jackson.core.type.TypeReference<java.util.List<java.util.Map<String, Object>>>() {}
+                            );
+                            for (java.util.Map<String, Object> session : sessions) {
+                                Object dateObj = session.get("date");
+                                if (dateObj instanceof String) {
+                                    affectedDates.add(java.time.LocalDate.parse((String) dateObj));
+                                }
+                            }
+                        } catch (Exception ignore) { }
+                    }
+                }
+                if (bookingRequest.getTeacherId() != null) {
+                    cacheKeyEvictor.evictTeacherScheduleAndAvailability(bookingRequest.getTeacherId(), affectedDates);
+                    cacheKeyEvictor.evictTeacherMonthlyCalendar(bookingRequest.getTeacherId(), affectedDates);
+                    for (java.time.LocalDate d : affectedDates) {
+                        java.util.List<CourseSchedule> dayAll = courseScheduleMapper.findByTeacherIdAndDateRange(bookingRequest.getTeacherId(), d, d);
+                        java.util.List<String> slots = new java.util.ArrayList<>();
+                        for (CourseSchedule s0 : dayAll) {
+                            if (s0.getStartTime() != null && s0.getEndTime() != null) {
+                                slots.add(s0.getStartTime().toString() + "-" + s0.getEndTime().toString());
+                            }
+                        }
+                        teacherScheduleCacheService.putBusySlots(bookingRequest.getTeacherId(), d,
+                                slots.isEmpty() ? java.util.Collections.emptyList() : slots);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("预约审批拒绝后清理/回填缓存失败，但不影响主流程", e);
+            }
+
             }
         }
 
@@ -481,6 +525,48 @@ public class BookingServiceImpl implements BookingService {
         if (student == null || !student.getId().equals(bookingRequest.getStudentId())) {
             throw new RuntimeException("无权限操作此预约申请");
         }
+
+        // 学生取消后：清理 teacherSchedule/teacherAvailability/月历 缓存，并回填 busy 日缓存，确保时间段立刻释放
+        try {
+            java.util.Set<java.time.LocalDate> affectedDates = new java.util.HashSet<>();
+            if ("single".equals(bookingRequest.getBookingType())) {
+                if (bookingRequest.getRequestedDate() != null) affectedDates.add(bookingRequest.getRequestedDate());
+            } else if ("calendar".equals(bookingRequest.getBookingType())) {
+                if (bookingRequest.getSelectedSessionsJson() != null && !bookingRequest.getSelectedSessionsJson().trim().isEmpty()) {
+                    try {
+                        com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                        java.util.List<java.util.Map<String, Object>> sessions = objectMapper.readValue(
+                                bookingRequest.getSelectedSessionsJson(),
+                                new com.fasterxml.jackson.core.type.TypeReference<java.util.List<java.util.Map<String, Object>>>() {}
+                        );
+                        for (java.util.Map<String, Object> session : sessions) {
+                            Object dateObj = session.get("date");
+                            if (dateObj instanceof String) {
+                                affectedDates.add(java.time.LocalDate.parse((String) dateObj));
+                            }
+                        }
+                    } catch (Exception ignore) { }
+                }
+            }
+            if (bookingRequest.getTeacherId() != null) {
+                cacheKeyEvictor.evictTeacherScheduleAndAvailability(bookingRequest.getTeacherId(), affectedDates);
+                cacheKeyEvictor.evictTeacherMonthlyCalendar(bookingRequest.getTeacherId(), affectedDates);
+                for (java.time.LocalDate d : affectedDates) {
+                    java.util.List<CourseSchedule> dayAll = courseScheduleMapper.findByTeacherIdAndDateRange(bookingRequest.getTeacherId(), d, d);
+                    java.util.List<String> slots = new java.util.ArrayList<>();
+                    for (CourseSchedule s0 : dayAll) {
+                        if (s0.getStartTime() != null && s0.getEndTime() != null) {
+                            slots.add(s0.getStartTime().toString() + "-" + s0.getEndTime().toString());
+                        }
+                    }
+                    teacherScheduleCacheService.putBusySlots(bookingRequest.getTeacherId(), d,
+                            slots.isEmpty() ? java.util.Collections.emptyList() : slots);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("学生取消预约后清理/回填缓存失败，但不影响主流程", e);
+        }
+
 
         // 只有待处理状态的申请可以取消
         if (!"pending".equals(bookingRequest.getStatus())) {
@@ -1181,6 +1267,30 @@ public class BookingServiceImpl implements BookingService {
         }
 
         log.info("试听课节已取消并恢复试听次数，scheduleId={}", scheduleId);
+
+        // 清理并回填与该试听课节相关的缓存，确保两小时基础段及时释放
+        try {
+            java.util.Set<java.time.LocalDate> affectedDates = new java.util.HashSet<>();
+            if (cs.getScheduledDate() != null) affectedDates.add(cs.getScheduledDate());
+            Long teacherId = (enrollment != null && enrollment.getTeacherId() != null) ? enrollment.getTeacherId() : cs.getTeacherId();
+            if (teacherId != null) {
+                cacheKeyEvictor.evictTeacherScheduleAndAvailability(teacherId, affectedDates);
+                cacheKeyEvictor.evictTeacherMonthlyCalendar(teacherId, affectedDates);
+                for (java.time.LocalDate d : affectedDates) {
+                    java.util.List<CourseSchedule> dayAll = courseScheduleMapper.findByTeacherIdAndDateRange(teacherId, d, d);
+                    java.util.List<String> slots = new java.util.ArrayList<>();
+                    for (CourseSchedule s0 : dayAll) {
+                        if (s0.getStartTime() != null && s0.getEndTime() != null) {
+                            slots.add(s0.getStartTime().toString() + "-" + s0.getEndTime().toString());
+                        }
+                    }
+                    teacherScheduleCacheService.putBusySlots(teacherId, d, slots.isEmpty() ? java.util.Collections.emptyList() : slots);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("取消试听课后清理/回填缓存失败，但不影响主流程", e);
+        }
+
     }
 
     @Override
@@ -2514,7 +2624,7 @@ public class BookingServiceImpl implements BookingService {
                         java.util.List<String> timeSlots = convertStringToList(booking.getRecurringTimeSlots());
                         int dayOfWeek = date.getDayOfWeek().getValue();
                         int weekdayValue = dayOfWeek == 7 ? 0 : dayOfWeek;
-                        
+
                         if (weekdays != null && weekdays.contains(weekdayValue) && timeSlots != null) {
                             for (String slot : timeSlots) {
                                 String[] times = slot.split("-");
@@ -2533,7 +2643,7 @@ public class BookingServiceImpl implements BookingService {
                         if (sessionsJson != null && !sessionsJson.trim().isEmpty()) {
                             try {
                                 java.util.List<CalendarSession> sessions = parseSelectedSessions(sessionsJson);
-                                
+
                                 for (CalendarSession session : sessions) {
                                     if (session.date != null && session.date.isEqual(date)) {
                                         if (isOverlap(start, end, session.start, session.end)) {
@@ -2550,7 +2660,7 @@ public class BookingServiceImpl implements BookingService {
             }
 
             // 4. 检查待处理的调课申请冲突
-            java.util.List<RescheduleRequest> pendingReschedules = 
+            java.util.List<RescheduleRequest> pendingReschedules =
                 rescheduleRequestMapper.findPendingSingleByTeacherAndDate(teacherId, date);
             if (pendingReschedules != null && !pendingReschedules.isEmpty()) {
                 for (RescheduleRequest reschedule : pendingReschedules) {

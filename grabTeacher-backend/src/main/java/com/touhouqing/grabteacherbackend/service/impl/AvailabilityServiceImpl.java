@@ -100,26 +100,6 @@ public class AvailabilityServiceImpl implements AvailabilityService {
                 boolean hasPendingBooking = bookingRequestMapper.countPendingConflictsInTimeSlot(teacherId, date, st, ed, weekday) > 0;
                 if (hasPendingBooking) reasons.add("pendingBooking");
 
-                // 检查该30分钟试听课是否会影响基础2小时区间的可用性
-                // 如果8:00-8:30有试听课，那么8:00-10:00的基础区间应该被标记为不可用（用于正式课）
-                // 但是8:30-10:00之间还可以预约试听课
-                String baseSlot = getBaseSlotForTrialSlot(s);
-                if (baseSlot != null) {
-                    String[] baseTimes = baseSlot.split("-");
-                    LocalTime baseStart = LocalTime.parse(baseTimes[0]);
-                    LocalTime baseEnd = LocalTime.parse(baseTimes[1]);
-
-                    // 检查该基础区间是否已经被试听课占用
-                    boolean hasTrialInBase = hasScheduledTrialInBase(teacherId, date, baseStart, baseEnd) ||
-                                           bookingRequestMapper.countPendingTrialConflictsInBaseSlot(teacherId, date, baseStart, baseEnd) > 0;
-
-                    if (hasTrialInBase) {
-                        // 如果基础区间已被试听课占用，检查当前30分钟段是否在占用范围内
-                        if (isTrialSlotInOccupiedBase(s, baseSlot)) {
-                            reasons.add("baseSlotOccupiedByTrial");
-                        }
-                    }
-                }
 
                 boolean ok = reasons.isEmpty();
                 trial.add(DayAvailabilityVO.TrialSlot.builder().slot(s).trialAvailable(ok).reasons(reasons).build());
@@ -194,54 +174,5 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         return res;
     }
 
-    /**
-     * 根据30分钟试听课时间段获取对应的基础2小时区间
-     */
-    private String getBaseSlotForTrialSlot(String trialSlot) {
-        String[] times = trialSlot.split("-");
-        LocalTime start = LocalTime.parse(times[0]);
-        LocalTime end = LocalTime.parse(times[1]);
-
-        // 基础2小时时间段：08:00-10:00, 10:00-12:00, 13:00-15:00, 15:00-17:00, 17:00-19:00, 19:00-21:00
-        String[] baseSlots = {
-            "08:00-10:00", "10:00-12:00", "13:00-15:00",
-            "15:00-17:00", "17:00-19:00", "19:00-21:00"
-        };
-
-        for (String baseSlot : baseSlots) {
-            String[] baseTimes = baseSlot.split("-");
-            LocalTime baseStart = LocalTime.parse(baseTimes[0]);
-            LocalTime baseEnd = LocalTime.parse(baseTimes[1]);
-
-            // 检查30分钟试听课是否在基础区间内
-            if ((start.isAfter(baseStart) || start.equals(baseStart)) &&
-                (end.isBefore(baseEnd) || end.equals(baseEnd))) {
-                return baseSlot;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * 检查30分钟试听课时间段是否在已被占用的基础区间内
-     * 如果8:00-8:30有试听课，那么8:00-10:00的基础区间被占用
-     * 但是8:30-10:00之间还可以预约试听课
-     */
-    private boolean isTrialSlotInOccupiedBase(String trialSlot, String baseSlot) {
-        String[] trialTimes = trialSlot.split("-");
-        String[] baseTimes = baseSlot.split("-");
-
-        LocalTime trialStart = LocalTime.parse(trialTimes[0]);
-        LocalTime baseStart = LocalTime.parse(baseTimes[0]);
-
-        // 如果试听课的开始时间等于基础区间的开始时间，则认为该基础区间被占用
-        // 例如：8:00-8:30的试听课会占用8:00-10:00的基础区间
-        if (trialStart.equals(baseStart)) {
-            return true;
-        }
-
-        return false;
-    }
 }
 

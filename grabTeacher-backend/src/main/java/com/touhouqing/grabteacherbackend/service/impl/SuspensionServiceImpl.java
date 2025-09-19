@@ -48,6 +48,12 @@ public class SuspensionServiceImpl implements SuspensionService {
     @Autowired
     private com.touhouqing.grabteacherbackend.service.StudentService studentService;
 
+    @Autowired
+    private com.touhouqing.grabteacherbackend.service.TeacherScheduleCacheService teacherScheduleCacheService;
+
+    @Autowired
+    private com.touhouqing.grabteacherbackend.service.CacheKeyEvictor cacheKeyEvictor;
+
     @Override
     @Transactional
     public SuspensionVO createSuspensionRequest(SuspensionApplyDTO request, Long currentUserId) {
@@ -235,6 +241,7 @@ public class SuspensionServiceImpl implements SuspensionService {
                 for (int i = 0; i < applyCnt; i++) {
                     quotaService.rollbackOnReject(role, actorId, enrollment.getId());
                 }
+
             } catch (Exception e) {
                 log.warn("请假配额回滚失败，requestId={}", requestId, e);
             }
@@ -243,6 +250,9 @@ public class SuspensionServiceImpl implements SuspensionService {
 
         if ("approved".equals(approval.getStatus())) {
             // 仅软删所选日期区间内的课节；并据此调整报名总课次与退款
+        // 
+        final java.util.Set<LocalDate> affectedDates = new java.util.HashSet<>();
+
             List<CourseSchedule> all = courseScheduleMapper.findByBookingRequestId(enrollment.getBookingRequestId());
             LocalDate today = LocalDate.now();
             LocalDate startSuspendDate = sr.getStartDate() != null ? sr.getStartDate() : today.plusDays(7);
@@ -365,6 +375,7 @@ public class SuspensionServiceImpl implements SuspensionService {
                     csUw.eq("id", cs.getId()).set("is_deleted", true).set("deleted_at", LocalDateTime.now());
                     courseScheduleMapper.update(null, csUw);
                     deletedCount++;
+                    affectedDates.add(d);
 
                     // 计算本节课退款（按时长*每小时单价），试听课不退款
                     if (pricePerHour != null && (enrollment.getTrial() == null || !enrollment.getTrial())) {
@@ -425,6 +436,29 @@ public class SuspensionServiceImpl implements SuspensionService {
                     log.error("请假退款异常", ex);
                 }
             }
+            // 清理并回填缓存（teacherSchedule/teacherAvailability/月历/忙时）
+            try {
+                Long teacherId = enrollment.getTeacherId();
+                if (teacherId != null) {
+                    cacheKeyEvictor.evictTeacherScheduleAndAvailability(teacherId, affectedDates);
+                    cacheKeyEvictor.evictTeacherMonthlyCalendar(teacherId, affectedDates);
+                    if (affectedDates != null && !affectedDates.isEmpty()) {
+                        for (LocalDate d : affectedDates) {
+                            java.util.List<CourseSchedule> dayAll = courseScheduleMapper.findByTeacherIdAndDateRange(teacherId, d, d);
+                            java.util.List<String> slots = new java.util.ArrayList<>();
+                            for (CourseSchedule s : dayAll) {
+                                String slot = s.getStartTime().toString() + "-" + s.getEndTime().toString();
+                                slots.add(slot);
+                            }
+                            teacherScheduleCacheService.putBusySlots(teacherId, d,
+                                    slots.isEmpty() ? java.util.Collections.emptyList() : slots);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("请假审批后清理/回填教师缓存失败，但不影响主流程", e);
+            }
+
         }
 
         return toVO(sr);
