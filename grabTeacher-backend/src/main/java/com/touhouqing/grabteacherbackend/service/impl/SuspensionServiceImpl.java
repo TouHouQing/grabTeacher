@@ -302,26 +302,50 @@ public class SuspensionServiceImpl implements SuspensionService {
                                 teacherMapper.incrementCurrentHours(enrollment.getTeacherId(), totalHours);
                                 Teacher tch = teacherMapper.selectById(enrollment.getTeacherId());
                                 if (tch != null) {
+                                    java.math.BigDecimal beforeHours = java.math.BigDecimal.ZERO;
+                                    try {
+                                        com.touhouqing.grabteacherbackend.model.entity.HourDetail last = hourDetailMapper.findLastByUserId(tch.getUserId());
+                                        if (last != null && last.getHoursAfter() != null) beforeHours = last.getHoursAfter();
+                                    } catch (Exception ignored) {}
+                                    java.math.BigDecimal afterHours = beforeHours.add(totalHours);
                                     HourDetail hd = HourDetail.builder()
                                             .userId(tch.getUserId())
                                             .name(tch.getRealName())
                                             .hours(totalHours)
+                                            .hoursBefore(beforeHours)
+                                            .hoursAfter(afterHours)
                                             .transactionType(1)
                                             .reason("学生超额请假补偿×" + overCnt)
                                             .bookingId(enrollment.getBookingRequestId())
                                             .createdAt(LocalDateTime.now())
                                             .build();
                                     hourDetailMapper.insert(hd);
+                                    // 学生超额请假：按课程维度补偿 +1h/次（overCnt 次）
+                                    try {
+                                        if (enrollment != null && enrollment.getCourseId() != null) {
+                                            courseMapper.incrementCourseCurrentHours(enrollment.getCourseId(), totalHours);
+                                        }
+                                    } catch (Exception ignored) {}
+
                                 }
                             } else { // TEACHER
                                 // 教师超额：学生 +0.5h*overCnt M豆；教师 -overCnt 小时
                                 teacherMapper.decrementCurrentHours(enrollment.getTeacherId(), totalHours);
                                 Teacher tch = teacherMapper.selectById(enrollment.getTeacherId());
                                 if (tch != null) {
+                                    java.math.BigDecimal beforeHours2 = java.math.BigDecimal.ZERO;
+                                    try {
+                                        com.touhouqing.grabteacherbackend.model.entity.HourDetail last2 = hourDetailMapper.findLastByUserId(tch.getUserId());
+                                        if (last2 != null && last2.getHoursAfter() != null) beforeHours2 = last2.getHoursAfter();
+                                    } catch (Exception ignored) {}
+                                    java.math.BigDecimal delta = totalHours.negate();
+                                    java.math.BigDecimal afterHours2 = beforeHours2.add(delta);
                                     HourDetail hd = HourDetail.builder()
                                             .userId(tch.getUserId())
                                             .name(tch.getRealName())
-                                            .hours(totalHours.negate())
+                                            .hours(delta)
+                                            .hoursBefore(beforeHours2)
+                                            .hoursAfter(afterHours2)
                                             .transactionType(0)
                                             .reason("教师超额请假扣减×" + overCnt)
                                             .bookingId(enrollment.getBookingRequestId())

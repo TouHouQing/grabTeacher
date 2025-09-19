@@ -96,13 +96,19 @@ public class ScheduleCleanupJob {
                         if (teacher != null) {
                             Long teacherUserId = teacher.getUserId();
                             String teacherName = teacher.getRealName();
-                            // 记录教师课时明细
+                            // 记录教师课时明细（补全 before/after 防止严格模式下插入失败）
+                            java.math.BigDecimal beforeHours = java.math.BigDecimal.ZERO;
+                            try {
+                                com.touhouqing.grabteacherbackend.model.entity.HourDetail last = hourDetailMapper.findLastByUserId(teacherUserId);
+                                if (last != null && last.getHoursAfter() != null) beforeHours = last.getHoursAfter();
+                            } catch (Exception ignored) {}
+                            java.math.BigDecimal afterHours = beforeHours.add(hours);
                             HourDetail detail = HourDetail.builder()
                                     .userId(teacherUserId)
                                     .name(teacherName)
                                     .hours(hours)
-                                    .hoursBefore(null)
-                                    .hoursAfter(null)
+                                    .hoursBefore(beforeHours)
+                                    .hoursAfter(afterHours)
                                     .transactionType(1)
                                     .reason("课程完成自动结算")
                                     .bookingId(schedule.getId())

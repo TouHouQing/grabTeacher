@@ -230,19 +230,22 @@ public interface TeacherMapper extends BaseMapper<Teacher> {
     /**
      * 教师本月课时增量累加
      */
-    @Update("UPDATE teachers SET current_hours = COALESCE(current_hours, 0) + #{hours} WHERE id = #{teacherId} AND is_deleted = 0")
+    // 注意：teachers 表无 current_hours 字段，小时汇总改为基于 courses 表汇总与 hour_details 明细记录；该方法改为 no-op 以保持兼容
+    @Update("UPDATE teachers SET id = id WHERE id = #{teacherId} AND is_deleted = 0")
     int incrementCurrentHours(@Param("teacherId") Long teacherId, @Param("hours") java.math.BigDecimal hours);
 
     /**
      * 月初重置：将 current_hours 赋值到 last_hours，并清零 current_hours
      */
-    @Update("UPDATE teachers SET last_hours = COALESCE(current_hours, 0), current_hours = 0 WHERE is_deleted = 0")
+    // 注意：teachers 表无 current_hours/last_hours 字段，月初重置在 CourseMapper.resetMonthlyHoursOneOnOne 完成；此处保持兼容 no-op
+    @Update("UPDATE teachers SET id = id WHERE is_deleted = 0")
     int resetMonthlyHours();
 
     /**
      * 教师本月课时减量（不低于0）
      */
-    @Update("UPDATE teachers SET current_hours = CASE WHEN current_hours IS NULL THEN 0 WHEN current_hours - #{hours} < 0 THEN 0 ELSE current_hours - #{hours} END WHERE id = #{teacherId} AND is_deleted = 0")
+    // 注意：teachers 表无 current_hours 字段；该方法改为 no-op，课时变动通过 hour_details 记录
+    @Update("UPDATE teachers SET id = id WHERE id = #{teacherId} AND is_deleted = 0")
     int decrementCurrentHours(@Param("teacherId") Long teacherId, @Param("hours") java.math.BigDecimal hours);
 
     /**

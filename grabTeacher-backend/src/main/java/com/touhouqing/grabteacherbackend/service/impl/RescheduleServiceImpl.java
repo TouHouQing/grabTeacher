@@ -626,16 +626,32 @@ public  class RescheduleServiceImpl implements RescheduleService {
                         teacherMapper.incrementCurrentHours(schedule.getTeacherId(), BigDecimal.ONE);
                         Teacher tch = teacherMapper.selectById(schedule.getTeacherId());
                         if (tch != null) {
+                            java.math.BigDecimal beforeHours = java.math.BigDecimal.ZERO;
+                            try {
+                                com.touhouqing.grabteacherbackend.model.entity.HourDetail last = hourDetailMapper.findLastByUserId(tch.getUserId());
+                                if (last != null && last.getHoursAfter() != null) beforeHours = last.getHoursAfter();
+                            } catch (Exception ignored) {}
+                            java.math.BigDecimal delta = new java.math.BigDecimal("1");
+                            java.math.BigDecimal afterHours = beforeHours.add(delta);
                             HourDetail hd = HourDetail.builder()
                                     .userId(tch.getUserId())
                                     .name(tch.getRealName())
-                                    .hours(new BigDecimal("1"))
+                                    .hours(delta)
+                                    .hoursBefore(beforeHours)
+                                    .hoursAfter(afterHours)
                                     .transactionType(1)
                                     .reason("学生超额调课补偿")
                                     .bookingId(schedule.getId())
                                     .createdAt(LocalDateTime.now())
                                     .build();
                             hourDetailMapper.insert(hd);
+                            // 学生超额调课：按课程维度补偿 +1h/次
+                            try {
+                                if (enrollmentForPrice != null && enrollmentForPrice.getCourseId() != null) {
+                                    courseMapper.incrementCourseCurrentHours(enrollmentForPrice.getCourseId(), new java.math.BigDecimal("1"));
+                                }
+                            } catch (Exception ignored) {}
+
                         }
                     }
                 } else if ("teacher".equals(rescheduleRequest.getApplicantType())) {
@@ -645,10 +661,19 @@ public  class RescheduleServiceImpl implements RescheduleService {
                         teacherMapper.decrementCurrentHours(schedule.getTeacherId(), BigDecimal.ONE);
                         Teacher tch = teacherMapper.selectById(schedule.getTeacherId());
                         if (tch != null) {
+                            java.math.BigDecimal beforeHours2 = java.math.BigDecimal.ZERO;
+                            try {
+                                com.touhouqing.grabteacherbackend.model.entity.HourDetail last2 = hourDetailMapper.findLastByUserId(tch.getUserId());
+                                if (last2 != null && last2.getHoursAfter() != null) beforeHours2 = last2.getHoursAfter();
+                            } catch (Exception ignored) {}
+                            java.math.BigDecimal delta2 = new java.math.BigDecimal("-1");
+                            java.math.BigDecimal afterHours2 = beforeHours2.add(delta2);
                             HourDetail hd = HourDetail.builder()
                                     .userId(tch.getUserId())
                                     .name(tch.getRealName())
-                                    .hours(new BigDecimal("-1"))
+                                    .hours(delta2)
+                                    .hoursBefore(beforeHours2)
+                                    .hoursAfter(afterHours2)
                                     .transactionType(0)
                                     .reason("教师超额调课扣减")
                                     .bookingId(schedule.getId())

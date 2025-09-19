@@ -2,8 +2,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { ref, computed, onMounted, defineAsyncComponent, reactive, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, Timer, Refresh, VideoCamera, InfoFilled, Clock, Collection, Reading, Star } from '@element-plus/icons-vue'
-import { bookingAPI, rescheduleAPI, teacherAPI, studentAPI, apiRequest, suspensionAPI, enrollmentAPI } from '../../../utils/api'
+import { Calendar, Timer, Refresh, VideoCamera, InfoFilled, Clock, Collection, Reading, Star, Location } from '@element-plus/icons-vue'
+import { bookingAPI, rescheduleAPI, teacherAPI, studentAPI, apiRequest, suspensionAPI, enrollmentAPI, courseAPI } from '../../../utils/api'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../../stores/user'
 
@@ -63,6 +63,8 @@ interface Course {
   hasEvaluation?: boolean; // 是否已评价
   durationMinutes?: number; // 课程时长（分钟）
   bookingRequestId?: number; // 占位课程映射时保存预约ID，用于查询报名ID
+  location?: string;
+
 }
 
 // 生成 1v1 课程显示标题：姓名+科目+年级+一对一课程（若subject已含年级则不重复）
@@ -143,6 +145,44 @@ const evaluationLoading = ref(false)
 const courseRescheduleStatus = ref<Map<number, string>>(new Map())
 // 课程请假状态映射
 const courseSuspensionStatus = ref<Map<number, string>>(new Map())
+
+
+// 课程地点缓存（按courseId）
+const courseLocationMap = ref<Map<number, string>>(new Map())
+
+// 批量加载课程地点（最小化请求，去重）
+const loadCourseLocationsForCourses = async (list: Course[]) => {
+  try {
+    const uniqueIds = new Set<number>()
+    list.forEach(c => {
+      const cid = Number(c.schedules?.[0]?.courseId || 0)
+      if (cid > 0 && (!c.location || c.location === '')) uniqueIds.add(cid)
+    })
+    if (uniqueIds.size === 0) return
+
+    const tasks = Array.from(uniqueIds).map(async (cid) => {
+      try {
+        const res = await courseAPI.getById(cid)
+        if (res?.success && res.data) {
+          const loc = String(res.data.courseLocation || '')
+          if (loc) courseLocationMap.value.set(cid, loc)
+        }
+      } catch (e) {
+        console.warn('[StudentCourses] 获取课程地点失败', cid, e)
+      }
+    })
+    await Promise.all(tasks)
+
+    // 写回 courses（保持响应式）
+    courses.value = courses.value.map(c => {
+      const cid = Number(c.schedules?.[0]?.courseId || 0)
+      const loc = cid > 0 ? courseLocationMap.value.get(cid) : undefined
+      return (loc && !c.location) ? { ...c, location: loc } : c
+    })
+  } catch (e) {
+    console.warn('[StudentCourses] 批量获取课程地点异常', e)
+  }
+}
 
 
 const router = useRouter()
@@ -254,6 +294,8 @@ const loadStudentCoursesV2 = async () => {
         schedules: mappedSchedules,
         hasEvaluation: false,
         durationMinutes: Number(card.durationMinutes || 0) || undefined,
+        location: String(card.courseLocation || ''),
+
         bookingRequestId: card.bookingRequestId ? Number(card.bookingRequestId) : undefined
       }
     })
@@ -261,7 +303,13 @@ const loadStudentCoursesV2 = async () => {
     courses.value = mappedCourses
     // 扁平化 schedules，供部分功能（如调课回退匹配、成绩加载）使用
     schedules.value = mappedCourses.flatMap(c => c.schedules || [])
+    // 后台聚合暂未返回地点，异步补齐地点（不阻塞首屏）
+    setTimeout(() => { loadCourseLocationsForCourses(mappedCourses).catch(() => {}) }, 0)
+
   } catch (e) {
+    // 后台聚合暂未返回地点，异步补齐地点（不阻塞首屏）
+
+
     console.error('获取课程失败:', e)
     ElMessage.error('获取课程失败，请稍后重试')
     courses.value = []
@@ -1072,9 +1120,6 @@ const submitCourseEvaluation = async () => {
 const showReschedule = async (course: Course) => {
   currentRescheduleCourse.value = course
   rescheduleType.value = 'single'
-  // 
-  // V2 
-  // 
   if ((course.id <= 0 || (course.schedules || []).every(s => Number(s.id) <= 0)) && course.bookingRequestId) {
     const real = courses.value.find(c => Number(c.bookingRequestId) === Number(course.bookingRequestId)
       && Array.isArray(c.schedules) && c.schedules.some(s => Number(s.id) > 0))
@@ -2474,6 +2519,11 @@ export default {
                 <el-icon><Collection /></el-icon>
                 <span>{{ currentCourse.subject }}</span>
               </div>
+              <div class="meta-item" v-if="currentCourse.location">
+                <el-icon><Location /></el-icon>
+                <span>{{ currentCourse.location }}</span>
+              </div>
+
               <div class="meta-item">
                 <el-icon><Calendar /></el-icon>
                 <span>{{ currentCourse.schedule }}</span>
