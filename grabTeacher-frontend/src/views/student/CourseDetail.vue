@@ -70,6 +70,47 @@ const sortedCourseTimeSlots = computed(() => {
 
 
 
+// 计算小班课总课时（h）：按 weekly slots 与日期范围统计节数 * 时长
+const computeTotalHoursForLargeClass = (c: any): number | null => {
+  if (!c || c.courseType !== 'large_class') return null
+  const minutes: number | null = c.durationMinutes
+  const slots: Array<{ weekday: number; timeSlots: string[] }> | undefined = c.courseTimeSlots
+  const sd = c.startDate ? new Date(c.startDate) : null
+  const ed = c.endDate ? new Date(c.endDate) : null
+  if (!minutes || !slots || !slots.length || !sd || !ed) return null
+  const start = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate())
+  const end = new Date(ed.getFullYear(), ed.getMonth(), ed.getDate())
+  if (end < start) return null
+  const msPerDay = 24 * 60 * 60 * 1000
+  const countWeekdayOccurrences = (s: Date, e: Date, weekday1to7: number) => {
+    const targetDow = (weekday1to7 === 7) ? 0 : weekday1to7 // JS: 0=Sun..6=Sat；后端：1=Mon..7=Sun
+    const sDow = s.getDay()
+    const delta = (targetDow - sDow + 7) % 7
+    const first = new Date(s.getFullYear(), s.getMonth(), s.getDate() + delta)
+    if (first > e) return 0
+    const diffDays = Math.floor((e.getTime() - first.getTime()) / msPerDay)
+    return Math.floor(diffDays / 7) + 1
+  }
+  let totalSessions = 0
+  for (const s of slots) {
+    if (!s || !s.timeSlots || !s.timeSlots.length || !s.weekday) continue
+    const occ = countWeekdayOccurrences(start, end, s.weekday)
+    totalSessions += occ * s.timeSlots.length
+  }
+  if (totalSessions <= 0) return null
+  const hours = (minutes / 60) * totalSessions
+  return hours
+}
+
+const formatTotalHoursForDetail = (c: any): string => {
+  const h = computeTotalHoursForLargeClass(c)
+  if (h == null) return ''
+  const h1 = Math.round(h * 10) / 10
+  const text = (Math.abs(h1 - Math.round(h1)) < 1e-9) ? String(Math.round(h1)) : h1.toFixed(1)
+  return `共${text}h`
+}
+
+
 // 返回上一页
 const goBack = () => {
   router.back()
@@ -517,6 +558,7 @@ const getStatusText = (status: string) => {
           <div class="course-price" v-if="course.price">
             <span class="price-label">课程价格：</span>
             <span class="price-value">{{ course.price }} M豆/h</span>
+            <span v-if="course.courseType === 'large_class' && formatTotalHoursForDetail(course)" class="total-hours"> · {{ formatTotalHoursForDetail(course) }}</span>
           </div>
           <div class="course-actions">
             <el-button type="primary" size="large"

@@ -208,6 +208,72 @@ const formatCourseTimeSlotsTooltip = (slots?: TimeSlotDTO[]) => {
   return sorted.map(s => `${getWeekdayName(s.weekday)}：${s.timeSlots.join('、')}`).join('\n')
 }
 
+
+// 最新课程列表展示用：小班课不显示“每周/几点”，仅显示日期区间；其他类型保持原逻辑
+const getScheduleForList = (course: Course) => {
+  if (!course) return ''
+  if (course.courseType === 'large_class') {
+    if (course.startDate && course.endDate) {
+      const sd = new Date(course.startDate).toLocaleDateString('zh-CN')
+      const ed = new Date(course.endDate).toLocaleDateString('zh-CN')
+      return `${sd}-${ed}`
+    }
+    return '时间可协商'
+  }
+  // 非小班课：沿用后端 scheduleDisplay 或回退到日期区间/可协商
+  if (course.scheduleDisplay && course.scheduleDisplay.length > 0) return course.scheduleDisplay
+  if (course.startDate && course.endDate) {
+    const sd = new Date(course.startDate).toLocaleDateString('zh-CN')
+    const ed = new Date(course.endDate).toLocaleDateString('zh-CN')
+    return `${sd}-${ed}`
+  }
+  return '时间可协商'
+}
+
+// 计算小班课总课时（h）：按课程 weekly slots 与日期范围统计节数 * 时长
+const computeTotalHoursForLargeClass = (course: Course): number | null => {
+  if (!course || course.courseType !== 'large_class') return null
+  const minutes = course.durationMinutes
+  const slots = course.courseTimeSlots
+  const sd = course.startDate ? new Date(course.startDate) : null
+  const ed = course.endDate ? new Date(course.endDate) : null
+  if (!minutes || !slots || !slots.length || !sd || !ed) return null
+  const start = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate())
+  const end = new Date(ed.getFullYear(), ed.getMonth(), ed.getDate())
+  if (end < start) return null
+
+  const msPerDay = 24 * 60 * 60 * 1000
+  const countWeekdayOccurrences = (s: Date, e: Date, weekday1to7: number) => {
+    const targetDow = (weekday1to7 === 7) ? 0 : weekday1to7 // JS: 0=Sun..6=Sat；后端：1=Mon..7=Sun
+    const sDow = s.getDay()
+    const delta = (targetDow - sDow + 7) % 7
+    const first = new Date(s.getFullYear(), s.getMonth(), s.getDate() + delta)
+    if (first > e) return 0
+    const diffDays = Math.floor((e.getTime() - first.getTime()) / msPerDay)
+    return Math.floor(diffDays / 7) + 1
+  }
+
+  let totalSessions = 0
+  for (const s of slots) {
+    if (!s || !s.timeSlots || !s.timeSlots.length || !s.weekday) continue
+    const occ = countWeekdayOccurrences(start, end, s.weekday)
+    totalSessions += occ * s.timeSlots.length
+  }
+  if (totalSessions <= 0) return null
+  const hours = (minutes / 60) * totalSessions
+  return hours
+}
+
+// 列表展示用：返回 "共Xh" 或空串
+const formatTotalHoursForList = (course: Course): string => {
+  const h = computeTotalHoursForLargeClass(course)
+  if (h == null) return ''
+  const h1 = Math.round(h * 10) / 10
+  const text = (Math.abs(h1 - Math.round(h1)) < 1e-9) ? String(Math.round(h1)) : h1.toFixed(1)
+  return `共${text}h`
+}
+
+
 // 过滤后的 tooltip 数据（避免 v-for + v-if 混用）
 const filterTimeSlotsForTooltip = (slots?: TimeSlotDTO[]) => {
   if (!slots) return [] as TimeSlotDTO[]
@@ -412,10 +478,10 @@ const handleEnroll = async (course: Course) => {
               <div class="course-meta">
                 <div class="meta-item">
                   <el-icon><Calendar /></el-icon>
-                  <span>{{ course.scheduleDisplay || (course.startDate && course.endDate ? (new Date(course.startDate).toLocaleDateString('zh-CN') + '-' + new Date(course.endDate).toLocaleDateString('zh-CN')) : '时间可协商') }}</span>
+                  <span>{{ getScheduleForList(course) }}</span>
                 </div>
                 <!-- 每周上课时间段（卡片精简展示，提供 tooltip 查看完整） -->
-                <div class="meta-item" v-if="course.courseTimeSlots && course.courseTimeSlots.length">
+                <div class="meta-item" v-if="course.courseType !== 'large_class' && course.courseTimeSlots && course.courseTimeSlots.length">
                   <el-icon><Timer /></el-icon>
                   <el-tooltip effect="light" placement="top">
                     <template #content>
@@ -446,12 +512,13 @@ const handleEnroll = async (course: Course) => {
                   <span>{{ course.teacherLevel }}</span>
                 </div>
               </div>
-              <div class="course-tags">
-                <el-tag size="small" class="course-tag" type="success">{{ course.subjectName }}</el-tag>
-              </div>
+
               <div class="course-price-section">
                 <div class="course-price">
                   {{ formatPrice(course) }}
+                  <template v-if="course.courseType === 'large_class'">
+                    <span class="total-hours" v-if="formatTotalHoursForList(course)"> · {{ formatTotalHoursForList(course) }}</span>
+                  </template>
                 </div>
                 <div class="course-status-text" :class="{
                   'status-active': course.status === 'active',
