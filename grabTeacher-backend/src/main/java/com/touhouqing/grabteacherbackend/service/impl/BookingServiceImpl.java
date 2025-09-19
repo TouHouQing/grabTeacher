@@ -1116,6 +1116,17 @@ public class BookingServiceImpl implements BookingService {
                 if (enrollment.getDurationMinutes() != null) {
                     vo.setDurationMinutes(enrollment.getDurationMinutes());
                 }
+                // 上课地点：优先报名关系中的 teaching_location；为空则尝试 teaching_location_id 反查
+                try {
+                    String loc = enrollment.getTeachingLocation();
+                    if ((loc == null || loc.isEmpty()) && enrollment.getTeachingLocationId() != null) {
+                        var tl = teachingLocationMapper.selectById(enrollment.getTeachingLocationId());
+                        if (tl != null) loc = tl.getName();
+                    }
+                    if (loc != null && !loc.isEmpty()) {
+                        vo.setCourseLocation(loc);
+                    }
+                } catch (Exception ignored) {}
             }
         }
 

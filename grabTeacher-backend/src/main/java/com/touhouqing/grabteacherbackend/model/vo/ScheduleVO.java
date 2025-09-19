@@ -97,4 +97,7 @@ public class ScheduleVO {
 
     @Schema(description = "教师时薪（仅一对一&非试听），单位：M豆/小时")
     private BigDecimal teacherHourlyRate;
+
+    @Schema(description = "上课地点（优先报名表teaching_location）", example = "朝阳万达校区/线上")
+    private String courseLocation;
 }

@@ -463,7 +463,8 @@ const openRescheduleModal = async (schedule: ScheduleItem) => {
     bookingSource: undefined,
     isTrial: s.isTrial,
     sessionNumber: 1,
-    courseType: s.courseType || 'regular'
+    courseType: s.courseType || 'regular',
+    courseLocation: (s as any).courseLocation || ''
   })
 
   const scheduleOptions = (futureList.length > 0 ? futureList : [schedule]).map(toCourseSchedule)
@@ -542,6 +543,13 @@ const loadHourDetails = async () => {
   } finally {
     hourDetailsLoading.value = false
   }
+}
+
+// 读取选中课表的地点（兼容无类型字段）
+const getSelectedScheduleLocation = (s: ScheduleItem | null): string => {
+  if (!s) return '-'
+  const anyS = s as unknown as { courseLocation?: string }
+  return anyS.courseLocation || '-'
 }
 
 // 组件挂载时获取数据（先加载当月课表，再计算即将开始，避免首屏重复请求）
@@ -859,6 +867,10 @@ onMounted(async () => {
 
             <div class="label">学科</div>
             <div class="value">{{ selectedSchedule.subjectName || '-' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="label">地点</div>
+            <div class="value">{{ getSelectedScheduleLocation(selectedSchedule) }}</div>
           </div>
           <div class="detail-item">
             <div class="label">时长</div>

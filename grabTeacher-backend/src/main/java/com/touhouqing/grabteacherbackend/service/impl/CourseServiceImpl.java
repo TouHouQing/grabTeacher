@@ -47,6 +47,9 @@ public class CourseServiceImpl implements CourseService {
     private com.touhouqing.grabteacherbackend.mapper.TeachingLocationMapper teachingLocationMapper;
 
     @Autowired
+    private com.touhouqing.grabteacherbackend.mapper.CourseEnrollmentMapper courseEnrollmentMapper;
+
+    @Autowired
     private com.touhouqing.grabteacherbackend.util.AliyunOssUtil ossUtil;
 
     @Autowired
@@ -782,6 +785,26 @@ public class CourseServiceImpl implements CourseService {
         String subjectName = subject != null ? subject.getName() : "未知科目";
 
 
+        // 位置优先规则：一对一课程优先从报名(course_enrollments)取真实地点
+        String resolvedLocation = course.getCourseLocation();
+        if ("one_on_one".equalsIgnoreCase(course.getCourseType())) {
+            try {
+                com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment> qw = new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<>();
+                qw.eq("course_id", course.getId()).eq("is_deleted", false).orderByDesc("created_at").last("limit 1");
+                com.touhouqing.grabteacherbackend.model.entity.CourseEnrollment ce = courseEnrollmentMapper.selectOne(qw);
+                if (ce != null) {
+                    String loc = ce.getTeachingLocation();
+                    if ((loc == null || loc.isEmpty()) && ce.getTeachingLocationId() != null) {
+                        var tl = teachingLocationMapper.selectById(ce.getTeachingLocationId());
+                        if (tl != null) loc = tl.getName();
+                    }
+                    if (loc != null && !loc.isEmpty()) {
+                        resolvedLocation = loc;
+                    }
+                }
+            } catch (Exception ignore) {}
+        }
+
         CourseVO.CourseVOBuilder builder = CourseVO.builder()
                 .id(course.getId())
                 .teacherId(course.getTeacherId())
@@ -795,7 +818,7 @@ public class CourseServiceImpl implements CourseService {
                 .status(course.getStatus())
                 .featured(course.getFeatured())
                 .createdAt(course.getCreatedAt())
-                .courseLocation(course.getCourseLocation())
+                .courseLocation(resolvedLocation)
                 .price(course.getPrice())
                 .teacherHourlyRate(course.getTeacherHourlyRate())
                 .startDate(course.getStartDate())
@@ -808,7 +831,7 @@ public class CourseServiceImpl implements CourseService {
 
         CourseVO response = builder.build();
         // 附加授课方式（方案A：从course_location推导），线下地点ID无法从名称反推，置空
-        response.setSupportsOnline("线上".equals(course.getCourseLocation()));
+        response.setSupportsOnline("线上".equals(response.getCourseLocation()));
         response.setOfflineLocationId(null);
 
         // 回显小班课每周时间周期
