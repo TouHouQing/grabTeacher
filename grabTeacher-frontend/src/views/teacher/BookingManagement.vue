@@ -50,7 +50,11 @@
       </template>
 
       <div class="booking-list">
-        <div v-for="booking in bookings" :key="booking.id" class="booking-item" :class="{ 'pending': booking.status === 'pending' }">
+        <div v-for="booking in bookings" :key="booking.id" class="booking-item" :class="{
+          'pending': booking.status === 'pending',
+          'approved': booking.status === 'approved',
+          'rejected': booking.status === 'rejected'
+        }">
           <div class="booking-header">
             <div class="student-info">
               <el-avatar :size="48" style="margin-right: 12px;">
@@ -592,6 +596,16 @@ const getStatusText = (status: string) => {
 .booking-item.pending {
   border-left: 4px solid #e6a23c;
   background: linear-gradient(90deg, #fdf6ec 0%, #ffffff 20%);
+}
+
+.booking-item.approved {
+  border-left: 4px solid #67c23a;
+  background: linear-gradient(90deg, #f0f9ff 0%, #ffffff 20%);
+}
+
+.booking-item.rejected {
+  border-left: 4px solid #f56c6c;
+  background: linear-gradient(90deg, #fef0f0 0%, #ffffff 20%);
 }
 
 .booking-header {
