@@ -53,6 +53,13 @@ public interface RescheduleRequestMapper extends BaseMapper<RescheduleRequest> {
                                                    @Param("status") String status);
 
     /**
+     * 根据学生ID（报名关系）获取调课申请列表（分页，包含学生和教师发起）
+     */
+    Page<RescheduleRequest> findByStudentIdWithPage(Page<RescheduleRequest> page,
+                                                    @Param("studentId") Long studentId,
+                                                    @Param("status") String status);
+
+    /**
      * 统计教师待处理的调课申请数量
      */
     @Select("SELECT COUNT(*) FROM reschedule_requests rr " +

@@ -42,6 +42,8 @@ watch(() => route.path, (path: string) => {
     activeMenu.value = 'trial'
   } else if (path.includes('/match')) {
     activeMenu.value = 'match'
+  } else if (path.includes('/bookings')) {
+    activeMenu.value = 'bookings'
   } else {
     activeMenu.value = 'dashboard'
   }
@@ -243,6 +245,11 @@ onMounted(async () => {
             <el-menu-item index="messages">
               <el-icon><ChatDotRound /></el-icon>
               <span>消息中心</span>
+            </el-menu-item>
+
+            <el-menu-item index="bookings" @click="$router.push('/student-center/bookings')">
+              <el-icon><Document /></el-icon>
+              <span>调课请假记录</span>
             </el-menu-item>
 
             <el-menu-item index="my-balance-details">

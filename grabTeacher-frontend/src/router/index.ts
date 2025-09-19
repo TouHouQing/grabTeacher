@@ -61,6 +61,12 @@ const router = createRouter({
           component: () => import('../views/student/TeacherMatch.vue'),
           meta: { requiresAuth: true, role: 'student', keepAlive: true }
         },
+        {
+          path: 'bookings',
+          name: 'StudentBookings',
+          component: () => import('../views/student/StudentBookings.vue'),
+          meta: { requiresAuth: true, role: 'student', title: '调课请假记录' }
+        },
       ]
     },
     // 教师中心及其子路由

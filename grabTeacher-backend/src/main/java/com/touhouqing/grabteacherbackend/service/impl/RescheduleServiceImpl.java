@@ -723,8 +723,9 @@ public  class RescheduleServiceImpl implements RescheduleService {
         }
 
         Page<RescheduleRequest> requestPage = new Page<>(page, size);
-        Page<RescheduleRequest> resultPage = rescheduleRequestMapper.findByApplicantWithPage(
-            requestPage, student.getId(), "student", status);
+        // 学生视角：包含自己发起与教师发起（同一报名下）的所有调课记录
+        Page<RescheduleRequest> resultPage = rescheduleRequestMapper.findByStudentIdWithPage(
+            requestPage, student.getId(), status);
 
         // 批量装配，避免 N+1
         List<RescheduleRequest> records = resultPage.getRecords();

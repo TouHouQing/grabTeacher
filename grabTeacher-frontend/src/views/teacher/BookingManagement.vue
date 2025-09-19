@@ -68,9 +68,7 @@
               <el-tag :type="getStatusTagType(booking.status)" size="large">
                 {{ getStatusText(booking.status, booking.requestType) }}
               </el-tag>
-              <el-tag v-if="booking.requestType === 'cancel'" type="info" size="small" style="margin-left: 8px;">
-                已请假
-              </el-tag>
+
             </div>
           </div>
 

@@ -31,5 +31,18 @@
         </if>
         ORDER BY created_at ASC
     </select>
+
+    <!-- 学生相关调课申请：通过报名关联收集该学生的所有调课（含教师发起） -->
+    <select id="findByStudentIdWithPage" resultType="com.touhouqing.grabteacherbackend.model.entity.RescheduleRequest">
+        SELECT rr.* FROM reschedule_requests rr
+        INNER JOIN course_schedules cs ON rr.schedule_id = cs.id
+        INNER JOIN course_enrollments ce ON cs.enrollment_id = ce.id
+        WHERE ce.student_id = #{studentId}
+          AND rr.is_deleted = 0
+        <if test="status != null and status != ''">
+            AND rr.status = #{status}
+        </if>
+        ORDER BY rr.created_at DESC
+    </select>
 </mapper>
 
