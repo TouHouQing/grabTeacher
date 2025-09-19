@@ -140,14 +140,6 @@
                 </el-button>
 
               </div>
-              <el-alert
-                v-if="booking.status === 'pending'"
-                title="预约申请需要管理员审批"
-                type="info"
-                :closable="false"
-                show-icon
-                style="margin-top: 8px;"
-              />
             </div>
           </div>
         </div>
