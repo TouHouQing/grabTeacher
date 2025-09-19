@@ -318,8 +318,6 @@ public class AdminServiceImpl implements AdminService {
                 .userId(student.getUserId())
                 .realName(student.getRealName())
                 .username(user != null ? user.getUsername() : null)
-                .email(user != null ? user.getEmail() : null)
-                .phone(user != null ? user.getPhone() : null)
                 .avatarUrl(user != null ? user.getAvatarUrl() : null)
                 .birthDate(user != null ? user.getBirthDate() : null)
                 .subjectsInterested(student.getSubjectsInterested())
@@ -340,9 +338,6 @@ public class AdminServiceImpl implements AdminService {
     @Transactional
     public Student addStudent(StudentInfoDTO request) {
         // 验证必填字段（用户名可选：留空则自动生成）
-        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
-            throw new RuntimeException("邮箱不能为空");
-        }
         if (request.getRealName() == null || request.getRealName().trim().isEmpty()) {
             throw new RuntimeException("真实姓名不能为空");
         }
@@ -357,18 +352,15 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
-        // 检查邮箱是否已存在
-        if (userMapper.existsByEmail(request.getEmail().trim())) {
-            throw new RuntimeException("邮箱已被注册");
-        }
+        // 生成唯一邮箱（使用时间戳避免冲突）
+        String autoEmail = "student_" + System.currentTimeMillis() + "@grabteacher.com";
 
         // 创建用户账号，默认密码为123456
         String usernameToUse = needAutoUsername ? ("student_tmp_" + System.currentTimeMillis()) : providedUsername;
         User user = User.builder()
                 .username(usernameToUse)
-                .email(request.getEmail().trim())
+                .email(autoEmail)
                 .password(passwordEncoder.encode("123456")) // 默认密码
-                .phone(request.getPhone())
                 .avatarUrl(request.getAvatarUrl())
                 .userType("student")
                 .status("active")
@@ -429,7 +421,7 @@ public class AdminServiceImpl implements AdminService {
             throw new RuntimeException("学生不存在");
         }
 
-        // 如果更新了用户名或邮箱，需要检查是否与其他用户冲突
+        // 如果更新了用户名，需要检查是否与其他用户冲突
         if (student.getUserId() != null) {
             User currentUser = userMapper.selectById(student.getUserId());
             if (currentUser != null) {
@@ -440,19 +432,6 @@ public class AdminServiceImpl implements AdminService {
                         throw new RuntimeException("用户名已被使用");
                     }
                     currentUser.setUsername(request.getUsername());
-                }
-
-                // 检查邮箱是否与其他用户冲突（排除当前用户）
-                if (request.getEmail() != null && !request.getEmail().equals(currentUser.getEmail())) {
-                    if (userMapper.existsByEmail(request.getEmail())) {
-                        throw new RuntimeException("邮箱已被注册");
-                    }
-                    currentUser.setEmail(request.getEmail());
-                }
-
-                // 更新用户表中的其他信息（含头像）
-                if (request.getPhone() != null) {
-                    currentUser.setPhone(request.getPhone());
                 }
                 if (request.getAvatarUrl() != null && !request.getAvatarUrl().isEmpty()) {
                     currentUser.setAvatarUrl(request.getAvatarUrl());

@@ -32,8 +32,6 @@ const studentForm = reactive({
   id: 0,
   realName: '',
   username: '',
-  email: '',
-  phone: '',
   password: '', // 添加密码字段
   subjectsInterested: '',
   subjectIds: [] as number[],
@@ -107,7 +105,6 @@ const studentRules = {
     { required: true, message: '请输入学生姓名', trigger: 'blur' }
   ],
   username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
     { validator: validateUsername, trigger: 'blur' }
   ]
 }
@@ -162,8 +159,6 @@ const handleAddStudent = () => {
     id: 0,
     realName: '',
     username: '',
-    email: '',
-    phone: '',
     subjectsInterested: '',
     subjectIds: [],
     learningGoals: '',
@@ -207,7 +202,6 @@ const saveStudent = async () => {
     const wasNew = studentForm.id === 0
     const baseData: any = {
       realName: studentForm.realName,
-      username: studentForm.username,
       subjectsInterested: studentForm.subjectsInterested,
       subjectIds: studentForm.subjectIds,
       learningGoals: studentForm.learningGoals,
@@ -218,8 +212,8 @@ const saveStudent = async () => {
       trialTimes: studentForm.trialTimes
     }
     // 用户名可选：留空则不提交，由后端按 student+userId 自动生成
-    if (!studentForm.username || !studentForm.username.trim()) {
-      delete baseData.username
+    if (studentForm.username && studentForm.username.trim()) {
+      baseData.username = studentForm.username.trim()
     }
 
 
@@ -426,11 +420,11 @@ onMounted(() => {
           <el-col :span="12">
             <el-form-item prop="username">
               <template #label>
-                <span><span style="color:#f56c6c"></span> 用户名</span>
+                <span>用户名</span>
               </template>
-              <el-input v-model="studentForm.username" placeholder="student+用户ID" />
+              <el-input v-model="studentForm.username" placeholder="留空则自动生成 student+用户ID" />
               <div style="margin-top:4px;">
-                <el-text type="info" size="small">默认：student+用户ID；保存后自动生成，管理员可在此处修改</el-text>
+                <el-text type="info" size="small">留空则自动生成：student+用户ID；管理员可在此处自定义</el-text>
               </div>
             </el-form-item>
           </el-col>

@@ -29,14 +29,8 @@ public class    StudentInfoDTO {
     private String avatarUrl;
 
     // 管理员添加学生时需要的账号信息
-    @Schema(description = "用户名（管理员添加学生时必填）")
+    @Schema(description = "用户名（可选，留空则自动生成）")
     private String username;
-
-    @Schema(description = "邮箱（管理员添加学生时必填）")
-    private String email;
-
-    @Schema(description = "手机号")
-    private String phone;
 
     @Schema(description = "密码（管理员可编辑，留空则不修改）")
     private String password;

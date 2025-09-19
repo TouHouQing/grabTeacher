@@ -33,12 +33,6 @@ public class AdminStudentDetailVO {
     @Schema(description = "用户名", example = "zhangstudent")
     private String username;
 
-    @Schema(description = "邮箱", example = "zhang@example.com")
-    private String email;
-
-    @Schema(description = "电话", example = "+65 8888 8888")
-    private String phone;
-
     @Schema(description = "头像URL", example = "https://example.com/avatar.jpg")
     private String avatarUrl;
 
