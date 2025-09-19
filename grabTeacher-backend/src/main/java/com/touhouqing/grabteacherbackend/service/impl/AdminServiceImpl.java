@@ -185,6 +185,7 @@ public class AdminServiceImpl implements AdminService {
                             .hours(delta)
                             .hoursBefore(oldHours)
                             .hoursAfter(newHours)
+                            .reasonCode(com.touhouqing.grabteacherbackend.model.entity.HourDetail.REASON_CODE_ADMIN_ADJUSTMENT)
                             .transactionType(delta.signum() >= 0 ? 1 : 0)
                             .reason("管理员手动调整：课程(ID=" + course.getId() + ", 标题=" + course.getTitle() + ")")
                             .operatorId(operatorId)

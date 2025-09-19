@@ -2442,12 +2442,70 @@ public class BookingServiceImpl implements BookingService {
             BigDecimal pricePerHour = course.getPrice(); // 每小时价格
             Integer durationMinutes = course.getDurationMinutes(); // 每次课时长（分钟）
 
-            // 如果课程没有设置时长，使用学生选择的时长
+            // 如果课程没有设置时长，尝试使用学生选择或从时间推导
             if (durationMinutes == null || durationMinutes <= 0) {
-                durationMinutes = request.getSelectedDurationMinutes();
-                if (durationMinutes == null || durationMinutes <= 0) {
+                Integer fallbackDuration = null;
+
+                // 1) 学生显式选择
+                if (request.getSelectedDurationMinutes() != null && request.getSelectedDurationMinutes() > 0) {
+                    fallbackDuration = request.getSelectedDurationMinutes();
+                }
+
+                // 2) 单次预约: 从开始/结束时间推导
+                if (fallbackDuration == null && "single".equals(request.getBookingType())
+                        && request.getRequestedStartTime() != null && request.getRequestedEndTime() != null) {
+                    int d = (int) java.time.Duration.between(request.getRequestedStartTime(), request.getRequestedEndTime()).toMinutes();
+                    fallbackDuration = d;
+                }
+
+                // 3) 周期预约: 从时间段列表推导并校验一致性
+                if (fallbackDuration == null && "recurring".equals(request.getBookingType())
+                        && request.getRecurringTimeSlots() != null && !request.getRecurringTimeSlots().isEmpty()) {
+                    java.util.List<String> slots = request.getRecurringTimeSlots();
+                    String first = slots.get(0);
+                    String[] parts = first.split("-");
+                    if (parts.length == 2) {
+                        java.time.LocalTime s = java.time.LocalTime.parse(parts[0]);
+                        java.time.LocalTime e = java.time.LocalTime.parse(parts[1]);
+                        int d0 = (int) java.time.Duration.between(s, e).toMinutes();
+                        // 校验所有时段时长一致
+                        for (String slot : slots) {
+                            String[] ps = slot.split("-");
+                            if (ps.length != 2) {
+                                throw new RuntimeException("周期预约时间段格式错误，应为 HH:mm-HH:mm");
+                            }
+                            java.time.LocalTime ss = java.time.LocalTime.parse(ps[0]);
+                            java.time.LocalTime ee = java.time.LocalTime.parse(ps[1]);
+                            int dd = (int) java.time.Duration.between(ss, ee).toMinutes();
+                            if (dd != d0) {
+                                throw new RuntimeException("周期预约内的所有时间段时长必须一致");
+                            }
+                        }
+                        fallbackDuration = d0;
+                    }
+                }
+
+                // 4) 日历预约: 从会话列表推导
+                if (fallbackDuration == null && "calendar".equals(request.getBookingType())
+                        && request.getSelectedSessions() != null && !request.getSelectedSessions().isEmpty()) {
+                    java.time.LocalTime s0 = request.getSelectedSessions().get(0).getStartTime();
+                    java.time.LocalTime e0 = request.getSelectedSessions().get(0).getEndTime();
+                    int d0 = (int) java.time.Duration.between(s0, e0).toMinutes();
+                    fallbackDuration = d0; // 详细一致性与范围检查在后续 calendar 分支中处理
+                }
+
+                // 一对一课程仅支持 90 或 120 分钟（若可推导出时长）
+                if (fallbackDuration != null && "one_on_one".equalsIgnoreCase(course.getCourseType())) {
+                    if (fallbackDuration != 90 && fallbackDuration != 120) {
+                        throw new RuntimeException("一对一课程仅支持1.5小时或2小时");
+                    }
+                }
+
+                if (fallbackDuration == null || fallbackDuration <= 0) {
                     throw new RuntimeException("课程未设置时长且学生未选择时长，无法计算费用");
                 }
+
+                durationMinutes = fallbackDuration;
             }
 
             // 计算每次课的费用

@@ -17,6 +17,12 @@ import java.time.LocalDateTime;
 @TableName("hour_details")
 @Schema(description = "教师课时变动记录")
 public class HourDetail {
+    // 标准化原因编码常量，避免依赖中文文案
+    public static final String REASON_CODE_LESSON_COMPLETED_AUTO = "LESSON_COMPLETED_AUTO";
+    public static final String REASON_CODE_STUDENT_OVER_QUOTA_COMPENSATION = "STUDENT_OVER_QUOTA_COMPENSATION";
+    public static final String REASON_CODE_TEACHER_OVER_QUOTA_DEDUCTION = "TEACHER_OVER_QUOTA_DEDUCTION";
+    public static final String REASON_CODE_ADMIN_ADJUSTMENT = "ADMIN_ADJUSTMENT";
+
 
     @TableId(type = IdType.AUTO)
     @Schema(description = "课时变动ID")
@@ -45,6 +51,10 @@ public class HourDetail {
     @TableField("transaction_type")
     @Schema(description = "交易类型：1-增加，0-减少")
     private Integer transactionType;
+
+    @TableField("reason_code")
+    @Schema(description = "标准化原因编码")
+    private String reasonCode;
 
     @TableField("reason")
     @Schema(description = "变动原因")

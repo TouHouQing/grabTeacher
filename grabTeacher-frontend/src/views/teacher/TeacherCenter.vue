@@ -177,6 +177,11 @@ watch(() => route.path, (path: string) => {
   }
 }, { immediate: true })
 
+// 监听月份变化，自动刷新课表
+watch(monthDate, () => {
+  loadMonthSchedules()
+})
+
 // 获取即将开始的课程（优先复用当月课表，避免重复请求）
 const fetchUpcomingCourses = async () => {
   try {

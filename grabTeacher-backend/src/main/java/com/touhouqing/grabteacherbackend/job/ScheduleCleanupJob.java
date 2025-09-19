@@ -109,6 +109,7 @@ public class ScheduleCleanupJob {
                                     .hours(hours)
                                     .hoursBefore(beforeHours)
                                     .hoursAfter(afterHours)
+                                    .reasonCode(com.touhouqing.grabteacherbackend.model.entity.HourDetail.REASON_CODE_LESSON_COMPLETED_AUTO)
                                     .transactionType(1)
                                     .reason("课程完成自动结算")
                                     .bookingId(schedule.getId())

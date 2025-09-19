@@ -1552,9 +1552,13 @@ public class TeacherServiceImpl implements TeacherService {
         // 1. 正常上课的课时数 - 查询课程完成自动结算的记录
         QueryWrapper<HourDetail> normalHoursWrapper = new QueryWrapper<>();
         normalHoursWrapper.eq("user_id", userId);
-        normalHoursWrapper.eq("reason", "课程完成自动结算");
         normalHoursWrapper.ge("created_at", startDateTime);
         normalHoursWrapper.le("created_at", endDateTime);
+        normalHoursWrapper.and(q -> q
+                .eq("reason_code", com.touhouqing.grabteacherbackend.model.entity.HourDetail.REASON_CODE_LESSON_COMPLETED_AUTO)
+                .or()
+                .eq("reason", "课程完成自动结算")
+        );
         List<HourDetail> normalHoursList = hourDetailMapper.selectList(normalHoursWrapper);
         BigDecimal normalHours = normalHoursList.stream()
                 .map(HourDetail::getHours)
@@ -1563,10 +1567,12 @@ public class TeacherServiceImpl implements TeacherService {
         // 2. 教师超出调课/请假次数后所扣课时 - 兼容当前文案："教师超额…扣减"
         QueryWrapper<HourDetail> teacherDeductionWrapper = new QueryWrapper<>();
         teacherDeductionWrapper.eq("user_id", userId);
-        teacherDeductionWrapper.like("reason", "教师超额");
-        teacherDeductionWrapper.like("reason", "扣减");
         teacherDeductionWrapper.ge("created_at", startDateTime);
         teacherDeductionWrapper.le("created_at", endDateTime);
+        teacherDeductionWrapper.and(q -> q
+                .eq("reason_code", com.touhouqing.grabteacherbackend.model.entity.HourDetail.REASON_CODE_TEACHER_OVER_QUOTA_DEDUCTION)
+                .or(w -> w.like("reason", "教师超额").like("reason", "扣减"))
+        );
         List<HourDetail> teacherDeductionList = hourDetailMapper.selectList(teacherDeductionWrapper);
         BigDecimal teacherDeduction = teacherDeductionList.stream()
                 .map(HourDetail::getHours)
@@ -1575,11 +1581,12 @@ public class TeacherServiceImpl implements TeacherService {
         // 3. 学生超出调课/请假次数的补偿课时 - 兼容当前文案："学生超额…补偿"（包含调课/请假两类）
         QueryWrapper<HourDetail> studentCompensationWrapper = new QueryWrapper<>();
         studentCompensationWrapper.eq("user_id", userId);
-        studentCompensationWrapper.eq("transaction_type", 1); // 增加
-        studentCompensationWrapper.like("reason", "学生超额");
-        studentCompensationWrapper.like("reason", "补偿");
         studentCompensationWrapper.ge("created_at", startDateTime);
         studentCompensationWrapper.le("created_at", endDateTime);
+        studentCompensationWrapper.and(q -> q
+                .eq("reason_code", com.touhouqing.grabteacherbackend.model.entity.HourDetail.REASON_CODE_STUDENT_OVER_QUOTA_COMPENSATION)
+                .or(w -> w.eq("transaction_type", 1).like("reason", "学生超额").like("reason", "补偿"))
+        );
         List<HourDetail> studentCompensationList = hourDetailMapper.selectList(studentCompensationWrapper);
         BigDecimal studentCompensation = studentCompensationList.stream()
                 .map(HourDetail::getHours)
