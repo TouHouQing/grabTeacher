@@ -253,6 +253,15 @@ interface TeacherAvailableTime {
   timeSlots: string[];
 }
 
+// 组件暴露的实例方法类型（用于日历打开与预选）
+interface StudentSchedulerExpose {
+  open: (opts: {
+    defaultDuration: 90 | 120;
+    dateStart: string;
+    preselectSessions?: Array<{ date: string; startTime: string; endTime: string }>
+  }) => void
+}
+
 // 时间冲突检查结果接口
 interface TimeConflictResult {
   hasConflict: boolean;
@@ -392,7 +401,7 @@ const studentOverQuota = computed(() => !props.isTeacher && (userAdjustmentTimes
 // 计算用于日历查询的教师ID（优先取所选节次的教师ID）
 const calendarTeacherId = computed(() => (selectedSchedule.value?.teacherId || props.course?.teacherId || 0))
 
-const studentSchedulerRef = ref<any>(null)
+const studentSchedulerRef = ref<StudentSchedulerExpose | null>(null)
 const candidateSessions = ref<Array<{ date: string; startTime: string; endTime: string }>>([])
 
 const submitDisabled = computed(() => {
@@ -418,7 +427,7 @@ const openCalendar = () => {
   studentSchedulerRef.value?.open({ defaultDuration, dateStart: startStr })
 }
 
-const onCalendarConfirm = (sessions: Array<{ date: string; startTime: string; endTime: string }>, _duration: 90 | 120) => {
+const onCalendarConfirm = (sessions: Array<{ date: string; startTime: string; endTime: string }>) => {
   if (!props.isTeacher) {
     if (!sessions || sessions.length === 0) return
     const first = sessions[0]
@@ -448,72 +457,11 @@ const onCalendarConfirm = (sessions: Array<{ date: string; startTime: string; en
 const timeConflictChecking = ref(false)
 const timeConflictResult = ref<TimeConflictResult | null>(null)
 
-// 可用时间段 - 固定为6个系统上课时间（与学生端保持一致）
-const availableTimeSlots = ref<string[]>([
-  '08:00-10:00', '10:00-12:00', '13:00-15:00',
-  '15:00-17:00', '17:00-19:00', '19:00-21:00'
-])
+// 已移除固定可用时间段，完全按日历选择
 
-// 根据课程时长动态生成可用时间段（与学生端逻辑完全一致）
-const getAvailableTimeSlotsByDuration = (durationMinutes?: number): string[] => {
-  if (!durationMinutes) {
-    // 如果没有时长信息，默认返回2小时时间段
-    return availableTimeSlots.value
-  }
+// 已移除基于周模板的时段推导
 
-  if (durationMinutes === 90) {
-    // 1.5小时：只显示每两小时时间段的中间1.5小时，如8:00-10:00只显示8:15-9:45
-    const baseTimeSlots = availableTimeSlots.value
-    const middleSlots: string[] = []
-
-    baseTimeSlots.forEach(baseSlot => {
-      const [startTime, endTime] = baseSlot.split('-')
-      const [startHour, startMinute] = startTime.split(':').map(Number)
-      const [endHour, endMinute] = endTime.split(':').map(Number)
-
-      // 计算中间1.5小时的时间段（开始时间+15分钟，结束时间-15分钟）
-      const middleStartHour = startHour
-      const middleStartMinute = startMinute + 15
-      const middleEndHour = endHour
-      const middleEndMinute = endMinute - 15
-
-      // 处理分钟进位
-      let finalStartHour = middleStartHour
-      let finalStartMinute = middleStartMinute
-      if (finalStartMinute >= 60) {
-        finalStartHour += 1
-        finalStartMinute -= 60
-      }
-
-      let finalEndHour = middleEndHour
-      let finalEndMinute = middleEndMinute
-      if (finalEndMinute < 0) {
-        finalEndHour -= 1
-        finalEndMinute += 60
-      }
-
-      // 格式化时间并添加到结果中
-      const formattedStartTime = `${finalStartHour.toString().padStart(2, '0')}:${finalStartMinute.toString().padStart(2, '0')}`
-      const formattedEndTime = `${finalEndHour.toString().padStart(2, '0')}:${finalEndMinute.toString().padStart(2, '0')}`
-
-      middleSlots.push(`${formattedStartTime}-${formattedEndTime}`)
-    })
-
-    return middleSlots
-  } else if (durationMinutes === 120) {
-    // 2小时：使用固定的时间段，维持现状不变
-    return availableTimeSlots.value
-  }
-
-  // 默认返回2小时时间段
-  return availableTimeSlots.value
-}
-
-// 获取当前调课可用的时间段（根据所选节次的课程时长动态生成）
-const getCurrentRescheduleTimeSlots = computed(() => {
-  const s = selectedSchedule.value
-  return getAvailableTimeSlotsByDuration(s?.durationMinutes)
-})
+// 已移除基于周模板的时间段展示，改为完全按日历选择
 
 // 监听弹窗显示状态
 watch(() => props.modelValue, async (newVal: boolean) => {
@@ -731,75 +679,12 @@ const checkRescheduleTimeConflict = async () => {
 }
 
 
-// 找到1.5小时时间段对应的基础2小时时间段
-const findBaseTimeSlotFor90Min = (timeSlot: string): string | null => {
-  const [startTime] = timeSlot.split('-')
-  const [startHour, startMinute] = startTime.split(':').map(Number)
-
-  // 获取基础2小时时间段
-  const baseTimeSlots = availableTimeSlots.value
-
-  // 找到包含这个开始时间的基础时间段
-  for (const baseSlot of baseTimeSlots) {
-    const [baseStart] = baseSlot.split('-')
-    const [baseStartHour, baseStartMinute] = baseStart.split(':').map(Number)
-
-    // 计算基础时间段的开始时间（分钟）
-    const baseStartMinutes = baseStartHour * 60 + baseStartMinute
-    // 计算当前开始时间（分钟）
-    const currentStartMinutes = startHour * 60 + startMinute
-
-    // 如果当前开始时间在基础时间段内，返回基础时间段
-    if (currentStartMinutes >= baseStartMinutes && currentStartMinutes < baseStartMinutes + 120) {
-      return baseSlot
-    }
-  }
-
-  return null
-}
+// 已移除90分钟映射逻辑
 
 
-// 检查时间段是否与已选择的时间段冲突（在同一基础区间内）
-const isTimeSlotConflictWithSelected = (timeSlot: string): boolean => {
-  void timeSlot
-  // 仅保留单次调课，已不涉及多选时间段的区间冲突
-  return false
-}
+// 已移除时间段冲突判断
 
-// 检查时间段是否可选择（用于禁用不可用的时间段）
-const isTimeSlotSelectable = (timeSlot: string): boolean => {
-  if (teacherAvailableTimeSlots.value.length === 0) {
-    // 如果教师未设置可用时间，默认所有时间可选
-    return true
-  }
-
-  // 检查是否与已选择的时间段冲突（同一区间内）
-  if (isTimeSlotConflictWithSelected(timeSlot)) {
-    return false
-  }
-
-  // 获取当前调课课程的时长信息
-  const currentDuration = props.course?.schedules?.[0]?.durationMinutes
-
-  // 如果当前时长是90分钟（1.5小时），需要映射到基础2小时时间段
-  if (currentDuration === 90) {
-    const baseTimeSlot = findBaseTimeSlotFor90Min(timeSlot)
-    if (!baseTimeSlot) {
-      return false
-    }
-    // 使用基础时间段来检查是否有任何星期几可用
-    const isAvailable = teacherAvailableTimeSlots.value.some(daySlot =>
-      daySlot.timeSlots && daySlot.timeSlots.includes(baseTimeSlot)
-    )
-    return isAvailable
-  }
-
-  // 2小时课程，直接检查
-  const isAvailable = teacherAvailableTimeSlots.value.some(daySlot =>
-    daySlot.timeSlots && daySlot.timeSlots.includes(timeSlot)
-  )
-  return isAvailable
-}
+// 按日历实时选择，无需额外禁用逻辑
 
 
 
@@ -809,13 +694,13 @@ const submitReschedule = async () => {
 
   // 验证表单
   if (props.isTeacher) {
-    // 教师端：允许多选候选；若无候选，则必须提供单个新时间
+    // 教师端：必须提供候选时间（多选），不需要填写具体 new_date/new_start_time/new_end_time
     if (!rescheduleForm.value.originalDate || !rescheduleForm.value.originalTime) {
       ElMessage.warning('请填写完整的调课信息')
       return
     }
-    if (candidateSessions.value.length === 0 && (!rescheduleForm.value.newDate || !rescheduleForm.value.newTime)) {
-      ElMessage.warning('请选择候选时间或填写一个新的上课时间')
+    if (candidateSessions.value.length === 0) {
+      ElMessage.warning('请至少选择一个候选上课时间')
       return
     }
   } else {
@@ -869,18 +754,31 @@ const submitReschedule = async () => {
     }
 
     // 构建调课申请数据（学生单选 / 教师可多选候选）
-    const requestData: any = {
+    type RescheduleApplyPayload = {
+      scheduleId: number;
+      requestType: 'reschedule' | 'cancel';
+      reason: string;
+      urgencyLevel?: 'low' | 'medium' | 'high';
+      newDate?: string;
+      newStartTime?: string;
+      newEndTime?: string;
+      candidateSessions?: Array<{ date: string; startTime: string; endTime: string }>
+    }
+
+    const requestData: RescheduleApplyPayload = {
       scheduleId: s.id,
       requestType: 'reschedule' as const,
       reason: rescheduleForm.value.reason,
       urgencyLevel: 'medium' as const
     }
-    if (rescheduleForm.value.newDate && rescheduleForm.value.newTime) {
+    // 学生端：提交具体的新时间
+    if (!props.isTeacher && rescheduleForm.value.newDate && rescheduleForm.value.newTime) {
       requestData.newDate = rescheduleForm.value.newDate
       requestData.newStartTime = rescheduleForm.value.newTime.split('-')[0]
       requestData.newEndTime = rescheduleForm.value.newTime.split('-')[1]
     }
 
+    // 教师端：只提交候选时间列表
     if (props.isTeacher && candidateSessions.value.length > 0) {
       requestData.candidateSessions = candidateSessions.value
     }

@@ -19,8 +19,7 @@
         </el-select>
         <el-select v-model="requestTypeFilter" placeholder="类型" style="width: 130px; margin-right: 12px;" @change="loadBookings">
           <el-option label="全部" value="" />
-          <el-option label="调课(单次)" value="single" />
-          <el-option label="调课(周期)" value="recurring" />
+          <el-option label="调课" value="single" />
           <el-option label="请假/取消" value="cancel" />
         </el-select>
         <el-select v-model="applicantTypeFilter" placeholder="申请人" style="width: 130px; margin-right: 12px;" @change="loadBookings">
@@ -76,7 +75,7 @@
             <div class="booking-details">
               <div class="detail-row">
                 <span class="label">申请类型：</span>
-                <span class="value">{{ booking.requestType === 'single' ? '单次调课' : booking.requestType === 'recurring' ? '周期调课' : '请假/取消' }}</span>
+                <span class="value">{{ booking.requestType === 'cancel' ? '请假/取消' : '调课' }}</span>
               </div>
 
               <div class="detail-row">
@@ -100,13 +99,35 @@
               </div>
 
               <div class="detail-row" v-if="booking.requestType !== 'cancel'">
-                <span class="label">新上课时间：</span>
+                <span class="label">时间信息：</span>
                 <span class="value">
-                  <template v-if="booking.newDate">
-                    {{ booking.newDate }} {{ booking.newStartTime }}-{{ booking.newEndTime }}
+                  <!-- 教师发起：pending/rejected 仅展示候选；approved 展示候选 + 最终新时间 -->
+                  <template v-if="booking.applicantType === 'teacher'">
+                    <template v-if="booking.newWeeklySchedule && booking.newWeeklySchedule.startsWith('CANDIDATES|')">
+                      <template v-if="parseCandidateList(booking.newWeeklySchedule).length > 0">
+                        候选：
+                        <span v-for="(c, idx) in parseCandidateList(booking.newWeeklySchedule).slice(0, 3)" :key="idx" style="margin-right: 8px;">
+                          {{ c.date }} {{ formatTime(c.startTime) }}-{{ formatTime(c.endTime) }}
+                        </span>
+                        <span v-if="parseCandidateList(booking.newWeeklySchedule).length > 3" class="text-muted" style="margin-left: 6px;">+{{ parseCandidateList(booking.newWeeklySchedule).length - 3 }}</span>
+                        <div v-if="booking.status === 'approved' && booking.newDate" style="margin-top: 4px;">
+                          最终上课时间：{{ booking.newDate }} {{ formatTime(booking.newStartTime) }}-{{ formatTime(booking.newEndTime) }}
+                        </div>
+                      </template>
+                    </template>
+                    <template v-else>
+                      <template v-if="booking.status === 'approved' && booking.newDate">
+                        <div>最终上课时间：{{ booking.newDate }} {{ formatTime(booking.newStartTime) }}-{{ formatTime(booking.newEndTime) }}</div>
+                      </template>
+                      <template v-else>-</template>
+                    </template>
                   </template>
+                  <!-- 学生发起：沿用原逻辑，直接展示新时间 -->
                   <template v-else>
-                    {{ booking.newWeeklySchedule || '-' }}
+                    <template v-if="booking.newDate">
+                      {{ booking.newDate }} {{ formatTime(booking.newStartTime) }}-{{ formatTime(booking.newEndTime) }}
+                    </template>
+                    <template v-else>-</template>
                   </template>
                 </span>
               </div>
@@ -196,7 +217,7 @@
           <div class="detail-grid">
             <div class="detail-item">
               <label>申请类型：</label>
-              <span>{{ selectedBooking.requestType === 'single' ? '单次调课' : selectedBooking.requestType === 'recurring' ? '周期调课' : '请假/取消' }}</span>
+              <span>{{ selectedBooking.requestType === 'cancel' ? '请假/取消' : '调课' }}</span>
             </div>
             <div class="detail-item">
               <label>课程名称：</label>
@@ -216,18 +237,46 @@
           </div>
 
           <div class="time-info" v-if="selectedBooking.requestType !== 'cancel'">
-            <div class="time-item">
-              <label>新上课日期：</label>
-              <span>{{ selectedBooking.newDate || '-' }}</span>
-            </div>
-            <div class="time-item">
-              <label>新上课时间：</label>
-              <span>{{ selectedBooking.newStartTime }} - {{ selectedBooking.newEndTime }}</span>
-            </div>
-            <div class="time-item" v-if="selectedBooking.newWeeklySchedule">
-              <label>新周期安排：</label>
-              <span>{{ selectedBooking.newWeeklySchedule }}</span>
-            </div>
+            <!-- 教师发起：pending/rejected 显示候选；approved 显示候选 + 最终 -->
+            <template v-if="selectedBooking.applicantType === 'teacher'">
+              <div class="time-item" v-if="selectedBooking.newWeeklySchedule && selectedBooking.newWeeklySchedule.startsWith('CANDIDATES|')">
+                <label>教师候选：</label>
+                <span>
+                  <el-tag
+                    v-for="(c, idx) in parseCandidateList(selectedBooking.newWeeklySchedule)"
+                    :key="idx"
+                    type="success"
+                    effect="plain"
+                    style="margin-right: 6px; margin-bottom: 4px;"
+                  >
+                    {{ c.date }} {{ formatTime(c.startTime) }}-{{ formatTime(c.endTime) }}
+                  </el-tag>
+                </span>
+              </div>
+              <div class="time-item" v-if="selectedBooking.status === 'approved' && selectedBooking.newDate">
+                <label>最终上课时间：</label>
+                <span>{{ selectedBooking.newDate }} {{ formatTime(selectedBooking.newStartTime) }} - {{ formatTime(selectedBooking.newEndTime) }}</span>
+              </div>
+              <div class="time-item" v-if="!selectedBooking.newWeeklySchedule && selectedBooking.status === 'approved' && selectedBooking.newDate">
+                <label>最终上课时间：</label>
+                <span>{{ selectedBooking.newDate }} {{ formatTime(selectedBooking.newStartTime) }} - {{ formatTime(selectedBooking.newEndTime) }}</span>
+              </div>
+            </template>
+            <!-- 学生发起：直接显示新上课时间（若已生成） -->
+            <template v-else>
+              <div class="time-item" v-if="selectedBooking.newDate">
+                <label>新上课日期：</label>
+                <span>{{ selectedBooking.newDate }}</span>
+              </div>
+              <div class="time-item" v-if="selectedBooking.newDate">
+                <label>最终上课时间：</label>
+                <span>{{ formatTime(selectedBooking.newStartTime) }} - {{ formatTime(selectedBooking.newEndTime) }}</span>
+              </div>
+              <div class="time-item" v-else>
+                <label>新上课时间：</label>
+                <span>-</span>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -263,6 +312,7 @@ import { rescheduleAPI } from '../../utils/api'
 
 // 响应式数据
 const loading = ref(false)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const bookings = ref<any[]>([])
 const statusFilter = ref('')
 const yearFilter = ref<number | ''>('')
@@ -284,6 +334,7 @@ const pagination = reactive({
 
 // 弹窗相关
 const showDetailModal = ref(false)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const selectedBooking = ref<any>(null)
 
 // 统计信息
@@ -332,6 +383,7 @@ const loadBookings = async () => {
 }
 
 // 查看预约详情
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const viewBookingDetail = (booking: any) => {
   selectedBooking.value = booking
   showDetailModal.value = true
@@ -360,28 +412,26 @@ const formatDateTime = (dateTimeStr: string) => {
   })
 }
 
-const formatRecurringTime = (weekdays: any, timeSlots: any) => {
-  if (!weekdays || !timeSlots) return ''
+// 周期性展示逻辑已移除
 
-  const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+// 仅显示 HH:mm
+const formatTime = (time: string) => {
+  if (!time) return ''
+  return time.substring(0, 5)
+}
 
-  // 处理weekdays，可能是数组或字符串
-  let weekdayList = []
-  if (Array.isArray(weekdays)) {
-    weekdayList = weekdays.map(day => weekdayNames[parseInt(day)])
-  } else if (typeof weekdays === 'string') {
-    weekdayList = weekdays.split(',').map(day => weekdayNames[parseInt(day)])
+// 解析教师多选候选时间：形如 CANDIDATES|2025-09-20 08:00-10:00,2025-09-21 10:00-12:00
+const parseCandidateList = (s: string | undefined): Array<{ date: string; startTime: string; endTime: string }> => {
+  const list: Array<{ date: string; startTime: string; endTime: string }> = []
+  if (!s || !s.startsWith('CANDIDATES|')) return list
+  const body = s.substring('CANDIDATES|'.length)
+  for (const item of body.split(',')) {
+    const [d, times] = item.trim().split(' ')
+    if (!d || !times || !times.includes('-')) continue
+    const [st, et] = times.split('-')
+    list.push({ date: d, startTime: st, endTime: et })
   }
-
-  // 处理timeSlots，可能是数组或字符串
-  let timeSlotList = []
-  if (Array.isArray(timeSlots)) {
-    timeSlotList = timeSlots
-  } else if (typeof timeSlots === 'string') {
-    timeSlotList = timeSlots.split(',')
-  }
-
-  return `每周${weekdayList.join('、')} ${timeSlotList.join('、')}`
+  return list
 }
 
 const getStatusTagType = (status: string) => {
@@ -797,15 +847,6 @@ const getStatusText = (status: string) => {
     flex-direction: column;
     width: 100%;
   }
-}
-
-/*     */
-@media (max-width: 768px) {
-  /*  el-dialog  */
-  :deep(.el-dialog) { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; }
-  :deep(.el-dialog__body) { padding: 12px; }
-  :deep(.el-dialog .el-form .el-form-item__label) { float: none; display: block; padding-bottom: 4px; }
-  :deep(.el-dialog .el-form .el-form-item__content) { margin-left: 0 !important; }
 }
 
 /* 响应式适配：小屏对话框全宽与表单布局（覆盖修正） */
